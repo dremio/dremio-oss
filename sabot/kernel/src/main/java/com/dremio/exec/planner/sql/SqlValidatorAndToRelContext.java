@@ -100,22 +100,20 @@ public class SqlValidatorAndToRelContext {
 
   public SqlNode validate(final SqlNode parsedNode) {
     resolveVersionedTableExpressions(parsedNode);
-    String sqlQuery = parsedNode.toString();
     SqlNode node = validator.validate(parsedNode);
-    checkAmbiguousColumn(validator, sqlQuery);
+    checkAmbiguousColumn(validator);
     dremioCatalogReader.validateSelection();
     return node;
   }
 
-  public void checkAmbiguousColumn(SqlValidator validator, String sqlQuery) {
+  public void checkAmbiguousColumn(SqlValidator validator) {
     if (optionResolver.getOption(PlannerSettings.ALLOW_AMBIGUOUS_COLUMN)
         && optionResolver.getOption(PlannerSettings.WARN_IF_AMBIGUOUS_COLUMN)) {
       // Check only if configured to allow ambiguous columns
       // Otherwise we throw an exception through Calcite.
       if (validator.hasValidationMessage()
           && validator.getValidationMessage().contains("ambiguous")) {
-        String msg = validator.getValidationMessage() + " in statement " + sqlQuery;
-        LOGGER.warn(msg);
+        LOGGER.warn(validator.getValidationMessage() + " in the query");
         ambiguousColumnCounter.withTags().increment();
       }
     }
@@ -135,6 +133,7 @@ public class SqlValidatorAndToRelContext {
             config);
 
     final SqlNode query = toQuery(sqlNode);
+    resolveVersionedTableExpressions(query);
     return sqlToRelConverter.convertQuery(query, true, true).rel;
   }
 

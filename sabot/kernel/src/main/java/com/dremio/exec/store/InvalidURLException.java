@@ -20,12 +20,8 @@ import com.google.errorprone.annotations.FormatMethod;
 public class InvalidURLException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 
-  public InvalidURLException() {
-    super();
-  }
-
-  public InvalidURLException(Throwable cause) {
-    super(cause);
+  public InvalidURLException(String errorMessage) {
+    super(errorMessage);
   }
 
   @FormatMethod

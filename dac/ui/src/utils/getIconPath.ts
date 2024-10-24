@@ -14,15 +14,28 @@
  * limitations under the License.
  */
 
-import dremioSpritePath from "dremio-ui-lib/dist-icons/dremio.svg";
+import dremioLightSpritePath from "dremio-ui-lib/dist-icons/dremio.svg";
+import dremioDarkSpritePath from "dremio-ui-lib/dist-icons/dremio-dark.svg";
+import { getColorScheme } from "dremio-ui-common/appTheme";
 
-export { dremioSpritePath };
+export const getSpritePath = () => {
+  const activeScheme = getColorScheme();
+  switch (activeScheme) {
+    case "dark":
+      return dremioDarkSpritePath;
+    default:
+    case "light":
+      return dremioLightSpritePath;
+  }
+};
+
+export { dremioLightSpritePath, dremioDarkSpritePath };
 export const iconBasePath = "/static/icons/dremio";
 
 type SourceTypes = "svg" | "png";
 export const getSrcPath = (name: string, src: SourceTypes = "svg") => {
   if (src === "svg") return getIconPath(name);
-  else return `${dremioSpritePath as unknown as string}/${name}.${src}`;
+  else return `${dremioLightSpritePath as unknown as string}/${name}.${src}`;
 };
 
 export const getIconPath = (name: string) =>

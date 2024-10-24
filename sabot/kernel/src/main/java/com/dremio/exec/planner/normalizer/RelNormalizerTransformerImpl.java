@@ -19,13 +19,13 @@ import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.DremioVolcanoPlanner;
 import com.dremio.exec.planner.HepPlannerRunner;
+import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.events.FunctionDetectedEvent;
 import com.dremio.exec.planner.events.PlannerEventBus;
 import com.dremio.exec.planner.logical.PreProcessRel;
-import com.dremio.exec.planner.logical.RedundantSortEliminator;
 import com.dremio.exec.planner.logical.UncollectToFlattenConverter;
 import com.dremio.exec.planner.logical.ValuesRewriteShuttle;
 import com.dremio.exec.planner.observer.AttemptObserver;
@@ -35,6 +35,9 @@ import com.dremio.exec.planner.sql.RexShuttleRelShuttle;
 import com.dremio.exec.planner.sql.handlers.PlanLogUtil;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
+import com.google.common.base.Stopwatch;
+import com.google.common.collect.ImmutableList;
+import java.util.concurrent.TimeUnit;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -127,8 +130,17 @@ public class RelNormalizerTransformerImpl implements RelNormalizerTransformer {
       expanded = RexCorrelVariableSchemaFixer.fixSchema(expanded);
     }
 
+    final Stopwatch drrStopwatch = Stopwatch.createStarted();
     RelNode drrsMatched =
         DRRMatcher.match(expanded, substitutionProvider, viewExpansionContext, attemptObserver);
+    attemptObserver.planRelTransform(
+        PlannerPhase.DEFAULT_RAW_REFLECTION,
+        null,
+        expanded,
+        drrsMatched,
+        drrStopwatch.elapsed(TimeUnit.MILLISECONDS),
+        ImmutableList.of());
+
     RelNode valuesRewritten = ValuesRewriteShuttle.rewrite(drrsMatched);
     // We don't have an execution for uncollect, so flatten needs to be part of the normalized
     // query.
@@ -159,10 +171,6 @@ public class RelNormalizerTransformerImpl implements RelNormalizerTransformer {
   private RelNode reduce(RelNode relNode) {
     RelNode reduced =
         hepPlannerRunner.transform(relNode, normalizerRuleSets.createReduceExpression());
-    reduced =
-        plannerSettings.isSortInJoinRemoverEnabled()
-            ? RedundantSortEliminator.apply(reduced)
-            : reduced;
     return reduced;
   }
 

@@ -23,6 +23,7 @@ import static com.dremio.exec.util.ColumnUtils.DML_SYSTEM_COLUMNS;
 
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
@@ -111,7 +112,9 @@ public abstract class DmlHandler extends TableManagementHandler {
         CatalogEntityKey.namespaceKeyToCatalogEntityKey(
             path, DmlUtils.getVersionContext((SqlDmlOperator) sqlNode));
     validateDmlRequest(catalog, config, key, getSqlOperator());
-    validatePrivileges(catalog, key, sqlNode);
+    VersionContext versionContext =
+        config.getContext().getSession().getSessionVersionForSource(path.getRoot());
+    validatePrivileges(catalog, key, sqlNode, versionContext);
   }
 
   @VisibleForTesting
@@ -338,7 +341,8 @@ public abstract class DmlHandler extends TableManagementHandler {
   }
 
   protected abstract void validatePrivileges(
-      Catalog catalog, CatalogEntityKey path, SqlNode sqlNode) throws Exception;
+      Catalog catalog, CatalogEntityKey path, SqlNode sqlNode, VersionContext versionContext)
+      throws Exception;
 
   /***
    * 'DuplicateCheck TableFunction' relies on an essential assumption: the incoming input rows are sorted (grouped) by filePath, RowIndex.

@@ -18,7 +18,7 @@ import { arrayOf } from "normalizr";
 
 import spaceSchema from "dyn-load/schemas/space";
 
-import APICall from "@app/core/APICall";
+import APICall from "#oss/core/APICall";
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import actionUtils from "utils/actionUtils/actionUtils";
 import {
@@ -51,7 +51,7 @@ function fetchSpaceListData(includeDatasetCount = false) {
           undefined,
           undefined,
           undefined,
-          spaceSchema._key
+          spaceSchema._key,
         ),
         { type: SPACES_LIST_LOAD_FAILURE, meta },
       ],
@@ -64,7 +64,7 @@ function fetchSpaceListData(includeDatasetCount = false) {
 export function loadSpaceListData() {
   return (dispatch) => {
     return dispatch(fetchSpaceListData()).then(
-      dispatch(fetchSpaceListData(true))
+      dispatch(fetchSpaceListData(true)),
     );
   };
 }
@@ -102,7 +102,7 @@ function saveSpace(values, isCreate) {
         schemaUtils.getSuccessActionTypeWithSchema(
           SAVE_SPACE_SUCCESS,
           spaceSchema,
-          meta
+          meta,
         ),
         SAVE_SPACE_FAILURE,
       ],

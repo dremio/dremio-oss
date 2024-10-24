@@ -17,9 +17,9 @@ import Immutable from "immutable";
 import { get } from "lodash/object";
 
 import entityTypes from "dyn-load/reducers/resources/entityTypes";
-import { LOAD_ENTITIES_SUCCESS } from "@app/actions/resources";
-import { CLEAR_ENTITIES } from "@app/actions/resources/entities";
-import { CLEAR_DATASET_ACCELERATION_SETTINGS } from "@app/actions/resources/datasetAccelerationSettings";
+import { LOAD_ENTITIES_SUCCESS } from "#oss/actions/resources";
+import { CLEAR_ENTITIES } from "#oss/actions/resources/entities";
+import { CLEAR_DATASET_ACCELERATION_SETTINGS } from "#oss/actions/resources/datasetAccelerationSettings";
 
 import * as entityReducers from "./entityReducers";
 
@@ -32,13 +32,13 @@ export const cacheConfigs = {
 const initEntityTypeState = (state, entityType) => {
   return state.set(
     entityType,
-    cacheConfigs[entityType] ? Immutable.OrderedMap() : Immutable.Map()
+    cacheConfigs[entityType] ? Immutable.OrderedMap() : Immutable.Map(),
   );
 };
 
 export const initialState = entityTypes.reduce(
   initEntityTypeState,
-  Immutable.Map()
+  Immutable.Map(),
 );
 
 export function evictOldEntities(entities, max) {
@@ -66,7 +66,7 @@ export const applyEntitiesToState = (state, action) => {
     if (cacheConfigs[entityType]) {
       result = result.set(
         entityType,
-        evictOldEntities(result.get(entityType), cacheConfigs[entityType].max)
+        evictOldEntities(result.get(entityType), cacheConfigs[entityType].max),
       );
     }
   });
@@ -165,6 +165,6 @@ export default function entitiesReducer(state = initialState, action) {
   // why do we apply reducer to whole state not to prevState[key]???
   return Object.keys(entityReducers).reduce(
     (prevState, key) => entityReducers[key](prevState, action),
-    nextState
+    nextState,
   );
 }

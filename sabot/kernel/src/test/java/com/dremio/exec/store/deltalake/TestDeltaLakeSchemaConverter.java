@@ -23,7 +23,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import java.io.IOException;
 import java.util.Map;
@@ -324,17 +323,15 @@ public class TestDeltaLakeSchemaConverter extends BaseTestQuery {
   }
 
   private BatchSchema loadSchemaFromCommitJson(String tableName) throws Exception {
-    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, true)) {
-      DeltaLogSnapshot snapshot =
-          TestDeltaLogCommitJsonReader.parseCommitJson(
-              "/deltalake/" + tableName + "/_delta_log/00000000000000000000.json");
-      String schemaString = snapshot.getSchema();
-      return DeltaLakeSchemaConverter.newBuilder()
-          .withMapEnabled(true)
-          .withColumnMapping(true, DeltaColumnMappingMode.ID)
-          .build()
-          .fromSchemaString(schemaString);
-    }
+    DeltaLogSnapshot snapshot =
+        TestDeltaLogCommitJsonReader.parseCommitJson(
+            "/deltalake/" + tableName + "/_delta_log/00000000000000000000.json");
+    String schemaString = snapshot.getSchema();
+    return DeltaLakeSchemaConverter.newBuilder()
+        .withMapEnabled(true)
+        .withColumnMapping(DeltaColumnMappingMode.ID)
+        .build()
+        .fromSchemaString(schemaString);
   }
 
   @Test

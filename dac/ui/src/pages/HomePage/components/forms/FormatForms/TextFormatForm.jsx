@@ -74,7 +74,7 @@ export default class TextFormatForm extends Component {
       // but we don't need wrapping quotes here). Esp. since double-quotes are very common.
       const escapeForJSON = (str) => {
         return str.replace(/[^\\]/gi, (match) =>
-          JSON.stringify(match).slice(1, -1)
+          JSON.stringify(match).slice(1, -1),
         );
       };
       newValue = JSON.parse(`"${escapeForJSON(newValue)}"`);
@@ -104,7 +104,7 @@ export default class TextFormatForm extends Component {
         (c) =>
           (INVISIBLE_CHARS.has(c) &&
             `\\u${padStart(c.charCodeAt(0).toString(16), 4, "0")}`) ||
-          c
+          c,
       )
       .join("");
   };

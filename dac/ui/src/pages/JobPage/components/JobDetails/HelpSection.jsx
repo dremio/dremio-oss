@@ -26,14 +26,14 @@ import { addNotification } from "actions/notification";
 
 import { getViewState } from "selectors/resources";
 import tokenUtils from "@inject/utils/tokenUtils";
-import APICall from "@app/core/APICall";
+import APICall from "#oss/core/APICall";
 import classNames from "clsx";
 import jobsUtils from "utils/jobsUtils";
 import config from "dyn-load/utils/config";
 
 import { getPrivilegeContext } from "dremio-ui-common/contexts/PrivilegeContext.js";
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import sentryUtil from "@app/utils/sentryUtil";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import sentryUtil from "#oss/utils/sentryUtil";
 
 import HelpSectionMixin from "dyn-load/pages/JobPage/components/JobDetails/HelpSectionMixin";
 

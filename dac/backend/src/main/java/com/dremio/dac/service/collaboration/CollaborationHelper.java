@@ -35,9 +35,11 @@ import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionManager;
+import com.dremio.service.namespace.CatalogEventProto;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
@@ -86,16 +88,18 @@ public class CollaborationHelper {
   private final SearchService searchService;
   private final UserService userService;
   private final CatalogService catalogService;
+  private final CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider;
   private final OptionManager optionManager;
 
   @Inject
   public CollaborationHelper(
-      final LegacyKVStoreProvider kvStoreProvider,
-      final NamespaceService namespaceService,
-      final SecurityContext securityContext,
-      final SearchService searchService,
-      final UserService userService,
-      final CatalogService catalogService,
+      LegacyKVStoreProvider kvStoreProvider,
+      NamespaceService namespaceService,
+      SecurityContext securityContext,
+      SearchService searchService,
+      UserService userService,
+      CatalogService catalogService,
+      CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider,
       OptionManager optionManager) {
     this.tagsStore = new CollaborationTagStore(kvStoreProvider);
     this.wikiStore = new CollaborationWikiStore(kvStoreProvider);
@@ -104,6 +108,7 @@ public class CollaborationHelper {
     this.searchService = searchService;
     this.userService = userService;
     this.catalogService = catalogService;
+    this.catalogEventMessagePublisherProvider = catalogEventMessagePublisherProvider;
     this.optionManager = optionManager;
   }
 
@@ -121,7 +126,7 @@ public class CollaborationHelper {
 
   public void setTags(String entityId, Tags tags) throws NamespaceException {
     Preconditions.checkNotNull(entityId, "Entity id is required.");
-    validateEntity(entityId, CollaborationEntityType.TAG);
+    CatalogEntityKey key = validateEntity(entityId, CollaborationEntityType.TAG);
 
     final CollaborationTag collaborationTag = new CollaborationTag();
     collaborationTag.setTagsList(tags.getTags());
@@ -136,6 +141,7 @@ public class CollaborationHelper {
 
     tagsStore.save(collaborationTag);
     getSearchService().wakeupManager("Labels changed");
+    publishCatalogEvent(key);
   }
 
   public Optional<Wiki> getWiki(String entityId) throws NamespaceException {
@@ -186,7 +192,7 @@ public class CollaborationHelper {
 
   public void setWiki(String entityId, Wiki wiki) throws NamespaceException {
     Preconditions.checkNotNull(entityId, "Entity id is required.");
-    validateEntity(entityId, CollaborationEntityType.WIKI);
+    CatalogEntityKey key = validateEntity(entityId, CollaborationEntityType.WIKI);
 
     final CollaborationWiki collaborationWiki = new CollaborationWiki();
     collaborationWiki.setText(wiki.getText());
@@ -233,14 +239,17 @@ public class CollaborationHelper {
     collaborationWiki.setEntityId(entityId);
 
     getWikiStore().save(collaborationWiki);
+    publishCatalogEvent(key);
   }
 
-  private void validateEntity(String entityId, CollaborationEntityType type) {
+  private CatalogEntityKey validateEntity(String entityId, CollaborationEntityType type) {
     VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(entityId);
     if (versionedDatasetId != null) {
       validateVersionedEntity(versionedDatasetId);
+      return CatalogEntityKey.fromVersionedDatasetId(versionedDatasetId);
     } else {
-      validateNameSpaceEntity(new EntityId(entityId), type);
+      NameSpaceContainer nsContainer = validateNameSpaceEntity(new EntityId(entityId), type);
+      return CatalogEntityKey.newBuilder().keyComponents(nsContainer.getFullPathList()).build();
     }
   }
 
@@ -299,7 +308,7 @@ public class CollaborationHelper {
       throw new IllegalArgumentException(
           String.format(
               "Could not find entity with key '%s' in '%s'.",
-              CatalogEntityKey.newBuilder().keyComponents(versionedDatasetId.getTableKey()).build(),
+              CatalogEntityKey.of(versionedDatasetId.getTableKey()),
               versionedDatasetId.getVersionContext().toString()));
     }
     checkIfDefaultBranch(versionedDatasetId, catalog);
@@ -307,12 +316,16 @@ public class CollaborationHelper {
 
   public static int pruneOrphans(
       LegacyKVStoreProvider legacyKVStoreProvider, KVStoreProvider kvStoreProvider) {
-    final AtomicInteger results = new AtomicInteger();
-    final NamespaceServiceImpl namespaceService =
-        new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
+    AtomicInteger results = new AtomicInteger();
+    // No-op implementation as we only perform read operations against the namespace
+    CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider =
+        CatalogEventMessagePublisherProvider.NO_OP;
+    NamespaceServiceImpl namespaceService =
+        new NamespaceServiceImpl(
+            kvStoreProvider, new CatalogStatusEventsImpl(), catalogEventMessagePublisherProvider);
 
     // check tags for orphans
-    final CollaborationTagStore tagsStore = new CollaborationTagStore(legacyKVStoreProvider);
+    CollaborationTagStore tagsStore = new CollaborationTagStore(legacyKVStoreProvider);
     StreamSupport.stream(tagsStore.find().spliterator(), false)
         .filter(
             entry -> {
@@ -330,7 +343,7 @@ public class CollaborationHelper {
             });
 
     // check wikis for orphans
-    final CollaborationWikiStore wikiStore = new CollaborationWikiStore(legacyKVStoreProvider);
+    CollaborationWikiStore wikiStore = new CollaborationWikiStore(legacyKVStoreProvider);
     StreamSupport.stream(wikiStore.find().spliterator(), false)
         .filter(
             entry -> {
@@ -391,6 +404,22 @@ public class CollaborationHelper {
               versionedDatasetId.getTableKey().get(0))
           .build(logger);
     }
+  }
+
+  private void publishCatalogEvent(CatalogEntityKey key) {
+    // All published events are updates, as setting/unsetting tags and wikis can only implicitly
+    // "modify" namespace entries, not create or delete them
+    catalogEventMessagePublisherProvider
+        .get()
+        .publish(
+            CatalogEventProto.CatalogEventMessage.newBuilder()
+                .addEvents(
+                    CatalogEventProto.CatalogEventMessage.CatalogEvent.newBuilder()
+                        .addAllPath(key.getKeyComponents())
+                        .setEventType(
+                            CatalogEventProto.CatalogEventMessage.CatalogEventType
+                                .CATALOG_EVENT_TYPE_UPDATED))
+                .build());
   }
 
   protected CollaborationWikiStore getWikiStore() {

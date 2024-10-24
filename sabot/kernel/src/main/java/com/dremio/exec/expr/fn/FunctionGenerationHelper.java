@@ -129,7 +129,7 @@ public final class FunctionGenerationHelper {
   private static String formatCanNotCompareMsg(CompleteType left, CompleteType right) {
     StringBuilder sb = new StringBuilder();
     sb.append(
-        "Map, List and Union should not be used in group by, order by or in a comparison operator. Dremio does not support compare between ");
+        "Map, Struct and Union should not be used in group by, order by or in a comparison operator. Dremio does not support compare between ");
     sb.append(Describer.describe(left));
     sb.append(" and ");
     sb.append(Describer.describe(left));

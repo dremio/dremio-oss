@@ -19,24 +19,22 @@ import type {
   ResourceConfig,
   SonarV3Config,
 } from "../../_internal/types/Config.js";
-import { CatalogReference } from "../catalog/CatalogReference.js";
 import { Reflection } from "./Reflection.js";
 import type {
   ReflectionInterface,
   ReflectionProperties,
 } from "../../interfaces/Reflection.js";
+import type { SignalParam } from "../../_internal/types/Params.js";
+import { DatasetCatalogReference } from "../catalog/CatalogReference.js";
 
 const reflectionEntityToProperties = (properties: any): Reflection => {
   return new Reflection({
     createdAt: new Date(properties.createdAt),
-    dataset: new CatalogReference(
-      {
-        id: properties.datasetId,
-        path: properties.datasetPath,
-        type: properties.datasetType,
-      },
-      (() => {}) as any,
-    ),
+    dataset: new DatasetCatalogReference({
+      id: properties.datasetId,
+      path: properties.datasetPath,
+      type: properties.datasetType,
+    }),
     id: properties.id,
     isArrowCachingEnabled: properties.isArrowCachingEnabled,
     isCanAlter: properties.isCanAlter,
@@ -93,7 +91,7 @@ type PageTokenParams = {
 
 export const ReflectionsResource = (config: ResourceConfig & SonarV3Config) => {
   const getPage = (
-    params: ListParams & (ListFilterParams | PageTokenParams),
+    params: ListParams & (ListFilterParams | PageTokenParams) & SignalParam,
   ) => {
     const searchParams = new URLSearchParams();
     searchParams.set("maxResults", String(params.limit));
@@ -127,7 +125,9 @@ export const ReflectionsResource = (config: ResourceConfig & SonarV3Config) => {
       searchParams.set("pageToken", params.nextPageToken);
     }
     return config
-      .sonarV3Request(`reflection-summary?${searchParams.toString()}`)
+      .sonarV3Request(`reflection-summary?${searchParams.toString()}`, {
+        signal: params.signal,
+      })
       .then((res) => res.json())
       .then((response) => {
         return {
@@ -143,7 +143,7 @@ export const ReflectionsResource = (config: ResourceConfig & SonarV3Config) => {
     _createFromEntity: reflectionEntityToProperties,
     list: (listParams: ListParams) => {
       return {
-        getPage: (params: ListFilterParams | PageTokenParams) =>
+        getPage: (params: ListFilterParams | PageTokenParams | SignalParam) =>
           getPage({ ...listParams, ...params }),
       };
     },

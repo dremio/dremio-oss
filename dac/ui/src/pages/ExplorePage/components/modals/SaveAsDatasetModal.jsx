@@ -28,18 +28,18 @@ import {
   afterSaveDataset,
   afterSaveDatasetWithMultiTab,
 } from "actions/explore/dataset/save";
-import { withIsMultiTabEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
+import { withIsMultiTabEnabled } from "#oss/components/SQLScripts/useMultiTabIsEnabled";
 import { navigateToNextDataset } from "actions/explore/dataset/common";
 import { getDatasetFromLocation } from "selectors/explore";
 import { getViewState, getDescendantsList } from "selectors/resources";
 import { NEXT_ACTIONS } from "actions/explore/nextAction";
 import ApiUtils from "utils/apiUtils/apiUtils";
-import FormUnsavedWarningHOC from "@app/components/Modals/FormUnsavedWarningHOC";
-import { splitFullPath } from "@app/utils/pathUtils";
-import { intl } from "@app/utils/intl";
+import FormUnsavedWarningHOC from "#oss/components/Modals/FormUnsavedWarningHOC";
+import { splitFullPath } from "#oss/utils/pathUtils";
+import { intl } from "#oss/utils/intl";
 
 import SaveAsDatasetForm from "../forms/SaveAsDatasetForm";
-import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
+import { isTabbableUrl } from "#oss/utils/explorePageTypeUtils";
 
 const VIEW_ID = "SaveAsDatasetModal";
 

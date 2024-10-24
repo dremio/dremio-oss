@@ -113,5 +113,5 @@ public final class UIOptions {
    * Specifies whether the UI will enable the user preferences appearance picker
    */
   public static final BooleanValidator APPEARANCE_PICKER =
-      new BooleanValidator("ui_appearance_picker.enable", false);
+      new BooleanValidator("ui_appearance_picker.enable", true);
 }

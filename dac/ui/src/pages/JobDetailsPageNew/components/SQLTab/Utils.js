@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 const datasetStyle = {
-  border: "0.5px solid #D8D8D8",
+  border: "0.5px solid var(--border--neutral)",
   height: "auto",
   minHeight: "40px",
   width: "auto",
@@ -26,7 +26,7 @@ const datasetStyle = {
   alignItems: "center",
   borderRadius: "4px",
   overflowWrap: "anywhere",
-  color: "#333",
+  color: "var(--text--primary)",
 };
 
 export const getColorCode = (type) => {
@@ -34,20 +34,20 @@ export const getColorCode = (type) => {
     case "PHYSICAL_DATASET":
       return {
         ...datasetStyle,
-        border: "0.5px solid #848D9A",
+        border: "0.5px solid var(--border--neutral)",
         borderLeft: "6px solid #A672BB",
         fontFamily: "var(--dremio--font-family)",
         fontWeight: "600",
-        backgroundColor: "#DEDEDE",
+        backgroundColor: "var(--fill--tertiary)",
       };
     case "VIRTUAL_DATASET":
       return {
         ...datasetStyle,
-        border: "0.5px solid #848D9A",
+        border: "0.5px solid var(--border--neutral)",
         borderLeft: "6px solid #3ACBAC",
         fontFamily: "var(--dremio--font-family)",
         fontWeight: "600",
-        backgroundColor: "#DEDEDE",
+        backgroundColor: "var(--fill--tertiary)",
       };
     case "VIRTUAL_DATASET_NDS":
       return {
@@ -55,7 +55,7 @@ export const getColorCode = (type) => {
         borderLeft: "6px solid rgba(150, 222, 207, 1)",
         fontFamily: "var(--dremio--font-family)",
         fontWeight: "normal",
-        backgroundColor: "#F9FAFA",
+        backgroundColor: "var(--fill--primary)",
       };
     case "PHYSICAL_DATASET_NDS":
       return {
@@ -63,33 +63,33 @@ export const getColorCode = (type) => {
         borderLeft: "6px solid rgba(204, 178, 214, 1)",
         fontFamily: "var(--dremio--font-family)",
         fontWeight: "normal",
-        backgroundColor: "#F9FAFA",
+        backgroundColor: "var(--fill--primary)",
       };
     case "ALGEBRIC":
       return {
         ...datasetStyle,
         borderLeft: "6px solid #3ACBAC",
-        border: "1.5px dotted #848D9A",
+        border: "1.5px dotted var(--border--neutral)",
         fontFamily: "var(--dremio--font-family)",
         fontWeight: "normal",
-        backgroundColor: "#F9FAFA",
+        backgroundColor: "var(--fill--primary)",
       };
     case "OTHERS":
       return {
         ...datasetStyle,
-        borderLeft: "6px solid #848D9A",
+        borderLeft: "6px solid var(--border--neutral)",
         fontFamily: "var(--dremio--font-family)",
         fontWeight: "600",
-        backgroundColor: "#DEDEDE",
+        backgroundColor: "var(--fill--tertiary)",
       };
     default:
       return {
         ...datasetStyle,
-        border: "1.5px solid #9FA6B0",
+        border: "1.5px solid var(--border--neutral)",
         borderLeft: "6px solid #1B69C5",
         fontFamily: "var(--dremio--font-family)",
         fontWeight: "600",
-        backgroundColor: "#F9FAFA",
+        backgroundColor: "var(--fill--primary)",
       };
   }
 };
@@ -100,11 +100,11 @@ export const initialElements = [
     data: { label: "" },
     position: { x: 0, y: 0 },
     style: {
-      border: "1px solid #E5E5E5",
+      border: "1px solid var(--border--neutral)",
       borderLeft: "8px solid var(--color--indigo--300)",
       width: "156px",
       height: "67px",
-      backgroundColor: "#FFF",
+      backgroundColor: "var(--fill--primary)",
     },
   },
 ];

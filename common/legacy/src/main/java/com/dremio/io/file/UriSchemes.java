@@ -24,6 +24,7 @@ public interface UriSchemes {
   String S3_SCHEME = "s3";
   String S3A_SCHEME = "s3a";
   String AZURE_SCHEME = "wasbs";
+  String AZURE_ABFS_SCHEME = "abfss";
   String GCS_SCHEME = "gs";
   String ADL_SCHEME = "adl";
 

@@ -20,6 +20,7 @@ import static com.dremio.common.types.TypeProtos.MinorType.VARCHAR;
 
 import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.expression.BasePath;
 import com.dremio.common.expression.CastExpressionWithOverflow;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.ConvertExpression;
@@ -33,12 +34,15 @@ import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
+import com.dremio.exec.expr.ExpressionSplit;
 import com.dremio.exec.expr.ExpressionSplitter;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.util.ColumnUtils;
+import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.op.project.ProjectErrorUtils;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.project.Projector;
 import com.dremio.sabot.op.scan.ScanOperator;
@@ -49,13 +53,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.Text;
 import org.apache.arrow.vector.util.TransferPair;
 
 /** This class is responsible for doing coercion of all primitive types except varchar columns */
 public class NonVarcharCoercionReader implements AutoCloseable {
   protected final SampleMutator mutator;
-  protected final BatchSchema targetSchema;
+  protected final BatchSchema originalSchema;
   protected final List<NamedExpression> exprs;
   protected final List<ValueVector> allocationVectors = Lists.newArrayList();
 
@@ -65,27 +71,31 @@ public class NonVarcharCoercionReader implements AutoCloseable {
   protected ExpressionSplitter splitter;
   protected Stopwatch gandivaCodeGenWatch;
 
-  private final OperatorContext context;
-  private final TypeCoercion typeCoercion;
+  protected final OperatorContext context;
+  protected final TypeCoercion typeCoercion;
+  private final int depth;
+  private VectorContainer output;
 
   public NonVarcharCoercionReader(
       SampleMutator mutator,
       OperatorContext context,
-      BatchSchema targetSchema,
+      BatchSchema originalSchema,
       TypeCoercion typeCoercion,
       Stopwatch javaCodeGenWatch,
-      Stopwatch gandivaCodeGenWatch) {
+      Stopwatch gandivaCodeGenWatch,
+      int depth) {
     this.gandivaCodeGenWatch = gandivaCodeGenWatch;
     this.javaCodeGenWatch = javaCodeGenWatch;
     this.context = context;
     this.mutator = mutator;
     this.incoming = mutator.getContainer();
-    this.targetSchema = targetSchema;
-    this.exprs = new ArrayList<>(targetSchema.getFieldCount());
+    this.originalSchema = originalSchema;
+    this.exprs = new ArrayList<>(originalSchema.getFieldCount());
     this.typeCoercion = typeCoercion;
+    this.depth = depth;
   }
 
-  private boolean canConvertComplexTypeToJson(Field field) {
+  protected boolean canConvertComplexTypeToJson(Field field) {
     return context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION)
         && incoming
             .getSchema()
@@ -123,7 +133,7 @@ public class NonVarcharCoercionReader implements AutoCloseable {
   }
 
   protected void createCoercions(ExpressionEvaluationOptions projectorOptions) {
-    for (Field field : targetSchema.getFields()) {
+    for (Field field : originalSchema.getFields()) {
       final FieldReference inputRef = FieldReference.getWithQuotedRef(field.getName());
       final CompleteType targetType = CompleteType.fromField(field);
       if (targetType.isUnion() || targetType.isComplex()) {
@@ -141,6 +151,7 @@ public class NonVarcharCoercionReader implements AutoCloseable {
 
   public void setupProjector(
       VectorContainer projectorOutput, ExpressionEvaluationOptions projectorOptions) {
+    this.output = projectorOutput;
     createCoercions(projectorOptions);
     if (incoming.getSchema() == null || incoming.getSchema().getFieldCount() == 0) {
       return;
@@ -154,7 +165,7 @@ public class NonVarcharCoercionReader implements AutoCloseable {
     List<Integer> decimalFields = new ArrayList<>();
     long numDecimalCoercions;
     int i = 0;
-    for (Field f : targetSchema.getFields()) {
+    for (Field f : originalSchema.getFields()) {
       if (MajorTypeHelper.getMajorTypeForField(f)
           .getMinorType()
           .equals(TypeProtos.MinorType.DECIMAL)) {
@@ -164,17 +175,7 @@ public class NonVarcharCoercionReader implements AutoCloseable {
     }
 
     try {
-      splitter =
-          ProjectOperator.createSplitterWithExpressions(
-              incoming,
-              exprs,
-              transfers,
-              cg,
-              transferFieldIds,
-              context,
-              projectorOptions,
-              projectorOutput,
-              targetSchema);
+      splitter = initSplitter(transfers, cg, transferFieldIds, projectorOptions, projectorOutput);
       splitter.setupProjector(projectorOutput, javaCodeGenWatch, gandivaCodeGenWatch);
 
       numDecimalCoercions =
@@ -203,6 +204,25 @@ public class NonVarcharCoercionReader implements AutoCloseable {
     javaCodeGenWatch.reset();
   }
 
+  protected ExpressionSplitter initSplitter(
+      List<TransferPair> transfers,
+      ClassGenerator<Projector> cg,
+      IntHashSet transferFieldIds,
+      ExpressionEvaluationOptions projectorOptions,
+      VectorContainer projectorOutput)
+      throws Exception {
+    return ProjectOperator.createSplitterWithExpressions(
+        incoming,
+        exprs,
+        transfers,
+        cg,
+        transferFieldIds,
+        context,
+        projectorOptions,
+        projectorOutput,
+        originalSchema);
+  }
+
   public void runProjector(int recordCount) {
     if (projector != null) {
       try {
@@ -227,6 +247,34 @@ public class NonVarcharCoercionReader implements AutoCloseable {
         gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
     javaCodeGenWatch.reset();
     gandivaCodeGenWatch.reset();
+
+    if (!output.hasSchema()) {
+      output.buildSchema();
+    }
+    if (output.getSchema().getFieldId(BasePath.getSimple(ColumnUtils.COPY_HISTORY_COLUMN_NAME))
+            != null
+        && depth == 0) {
+      resolveFieldIdsToNames();
+    }
+  }
+
+  private void resolveFieldIdsToNames() {
+    VarCharVector errorVector =
+        (VarCharVector)
+            VectorUtil.getVectorFromSchemaPath(output, ColumnUtils.COPY_HISTORY_COLUMN_NAME);
+    int valueCount = errorVector.getValueCount();
+    if (valueCount > errorVector.getNullCount()) {
+      List<ExpressionSplit> splits = splitter.getSplits();
+      for (int i = 0; i < valueCount; ++i) {
+        Text error = errorVector.getObject(i);
+        if (error != null) {
+          errorVector.setSafe(
+              i,
+              ProjectErrorUtils.resolveFieldIds(
+                  error, fieldId -> splits.get(fieldId).getOutputName()));
+        }
+      }
+    }
   }
 
   public void clearExprs() {

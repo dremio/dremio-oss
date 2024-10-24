@@ -69,7 +69,7 @@ export const WalkthroughMenuItem = (props: WalkthroughMenuItemProps) => {
       <button
         disabled={props.disabled}
         className={clsx(
-          "position-relative flex flex-row gap-1 text-left bg-none border-none rounded-md w-full leading-normal hover:bg-brand-subtle",
+          "position-relative flex flex-row gap-1 text-left bg-none border-none rounded-md w-full leading-normal hover",
           {
             "color-neutral-300": props.disabled,
           },

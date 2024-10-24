@@ -17,8 +17,8 @@ import { PureComponent } from "react";
 
 import PropTypes from "prop-types";
 
-import { LIST, TEXT, STRUCT } from "@app/constants/DataTypes";
-import { ALL_TYPES } from "@app/constants/columnTypeGroups";
+import { LIST, TEXT, STRUCT } from "#oss/constants/DataTypes";
+import { ALL_TYPES } from "#oss/constants/columnTypeGroups";
 
 import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
 

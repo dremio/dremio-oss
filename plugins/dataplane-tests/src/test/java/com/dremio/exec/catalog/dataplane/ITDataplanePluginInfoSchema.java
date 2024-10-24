@@ -112,8 +112,8 @@ public class ITDataplanePluginInfoSchema extends ITDataplanePluginTestSetup {
     final String tableName = generateUniqueTableName();
     final List<String> tablePath = tablePathWithFolders(tableName);
     // Create folders explicitly
-    getNessieClient().createNamespace().namespace(tablePath.get(0)).refName("main").create();
-    getNessieClient()
+    getNessieApi().createNamespace().namespace(tablePath.get(0)).refName("main").create();
+    getNessieApi()
         .createNamespace()
         .namespace(Namespace.of(tablePath.subList(0, 2)))
         .refName("main")
@@ -313,8 +313,8 @@ public class ITDataplanePluginInfoSchema extends ITDataplanePluginTestSetup {
     final String tableName = generateUniqueTableName();
     final List<String> tablePath = tablePathWithFolders(tableName);
     // Create folders explicitly
-    getNessieClient().createNamespace().namespace(tablePath.get(0)).refName("main").create();
-    getNessieClient()
+    getNessieApi().createNamespace().namespace(tablePath.get(0)).refName("main").create();
+    getNessieApi()
         .createNamespace()
         .namespace(Namespace.of(tablePath.subList(0, 2)))
         .refName("main")
@@ -756,11 +756,11 @@ public class ITDataplanePluginInfoSchema extends ITDataplanePluginTestSetup {
     final String tableName = generateUniqueTableName();
     final List<String> tablePath = tablePathWithFolders(tableName);
     // Create folders explicitly
-    getNessieClient().createNamespace().namespace(tablePath.get(0)).refName("main").create();
+    getNessieApi().createNamespace().namespace(tablePath.get(0)).refName("main").create();
 
     // Value of tablePath(1) which is a folder name will be get created under the root folder (Value
     // of tablePath(0)) in the source
-    getNessieClient()
+    getNessieApi()
         .createNamespace()
         .namespace(Namespace.of(tablePath.subList(0, 2)))
         .refName("main")
@@ -768,7 +768,7 @@ public class ITDataplanePluginInfoSchema extends ITDataplanePluginTestSetup {
 
     // Value of tablePath(1) which is a folder name will be get created under the source
     // this folder name is created in two places - one within the subfolder and one under the root
-    getNessieClient().createNamespace().namespace(tablePath.get(1)).refName("main").create();
+    getNessieApi().createNamespace().namespace(tablePath.get(1)).refName("main").create();
 
     runSQL(createEmptyTableQuery(tablePath));
     String nestedFolderEqual =
@@ -865,13 +865,13 @@ public class ITDataplanePluginInfoSchema extends ITDataplanePluginTestSetup {
     schemaPath.add(generateUniqueFolderName());
     schemaPath.add("\"dot.dot.dot.dot\"");
     // Create folders explicitly
-    getNessieClient().createNamespace().namespace(schemaPath.get(0)).refName("main").create();
-    getNessieClient()
+    getNessieApi().createNamespace().namespace(schemaPath.get(0)).refName("main").create();
+    getNessieApi()
         .createNamespace()
         .namespace(Namespace.of(schemaPath.subList(0, 2)))
         .refName("main")
         .create();
-    getNessieClient()
+    getNessieApi()
         .createNamespace()
         .namespace(Namespace.of(schemaPath.subList(0, 3)))
         .refName("main")

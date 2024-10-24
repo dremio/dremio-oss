@@ -95,6 +95,22 @@ public class TunnelProviderImpl implements TunnelProvider {
   }
 
   @Override
+  public AccountingExecTunnel getExecTunnelDlr(
+      final NodeEndpoint endpoint, RpcOutcomeListener<Ack> handler) {
+    AccountingExecTunnel tunnel = null;
+    if (tunnel == null) {
+      final SharedResource resource =
+          resourceGroup.createResource(
+              "send-data-dlr-" + endpoint.getAddress(), SharedResourceType.SEND_MSG_DATA);
+      SendingMonitor monitor = new SendingMonitor(resource, accountor, outstandingRPCsPerTunnel);
+      tunnel =
+          new AccountingExecTunnel(
+              connectionCreator.getTunnel(endpoint), monitor, monitor.wrap(handler));
+    }
+    return tunnel;
+  }
+
+  @Override
   public AccountingFileTunnel getFileTunnel(FileStreamManager streamManager, int maxBatchesPerFile)
       throws IOException {
     final SharedResource resource =

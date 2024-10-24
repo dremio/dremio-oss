@@ -16,10 +16,10 @@
 
 import { Select } from "@mantine/core";
 import { Controller, useForm, FormProvider } from "react-hook-form";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
-import { TimeInput } from "@app/components/Schedule/TimeInput/TimeInput";
-import { WeekInput } from "@app/components/Schedule/WeekInput/WeekInput";
+import { TimeInput } from "#oss/components/Schedule/TimeInput/TimeInput";
+import { WeekInput } from "#oss/components/Schedule/WeekInput/WeekInput";
 import { cronParser, cronGenerator } from "dremio-ui-common/utilities/cron.js";
 import { Label } from "dremio-ui-lib/components";
 import {
@@ -28,7 +28,7 @@ import {
   getNextRunFromEveryday,
   getNextRunFromWeek,
   validationSchema,
-} from "@app/utils/scheduleRefreshUtils";
+} from "#oss/utils/scheduleRefreshUtils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 

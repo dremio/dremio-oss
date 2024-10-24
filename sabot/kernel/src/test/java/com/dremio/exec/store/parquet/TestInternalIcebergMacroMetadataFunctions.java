@@ -20,9 +20,11 @@ import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDe
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.AutoCloseables;
+import com.dremio.exec.store.iceberg.IcebergTestTables;
+import com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,7 +36,6 @@ import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -59,34 +60,25 @@ import org.junit.Test;
 public class TestInternalIcebergMacroMetadataFunctions extends BaseTestQuery {
 
   private static FileSystem fs;
-  static String testRootPath = "/tmp/metadatarefresh/";
-  static String finalIcebergMetadataLocation;
+  private static String finalIcebergMetadataLocation;
+  private IcebergTestTables.Table testTableOnlyFull;
 
   @BeforeClass
-  public static void setupIcebergMetadataLocation() {
+  public static void setupIcebergMetadataLocation() throws IOException {
+    fs = setupLocalFS();
     finalIcebergMetadataLocation = getDfsTestTmpSchemaLocation();
   }
 
   @Before
-  public void initFs() throws Exception {
-    fs = setupLocalFS();
-    Path p = new Path(testRootPath);
-
-    if (fs.exists(p)) {
-      fs.delete(p, true);
-    }
-    fs.mkdirs(p);
-
-    copyFromJar("metadatarefresh/onlyFull", java.nio.file.Paths.get(testRootPath + "/onlyFull"));
-    copyFromJar(
-        "metadatarefresh/incrementalRefresh",
-        java.nio.file.Paths.get(testRootPath + "/incrementalRefresh"));
+  public void initIcebergTables() {
+    testTableOnlyFull =
+        IcebergTestTables.getTable(
+            "metadatarefresh/onlyFull", "dfs", "/tmp/metadatarefresh", "/onlyFull");
   }
 
   @After
   public void cleanup() throws Exception {
-    Path p = new Path(testRootPath);
-    fs.delete(p, true);
+    AutoCloseables.close(testTableOnlyFull);
 
     // resets KV store to prevent collision of methods using the same metadata
     final Properties properties = cloneDefaultTestConfigProperties();
@@ -104,7 +96,7 @@ public class TestInternalIcebergMacroMetadataFunctions extends BaseTestQuery {
     final String sql = "alter table dfs.tmp.metadatarefresh.onlyFull refresh metadata";
 
     runSQL(sql);
-    Table icebergTable = loadIcebergTable(finalIcebergMetadataLocation);
+    Table icebergTable = RefreshDatasetTestUtils.getIcebergTable(finalIcebergMetadataLocation);
 
     assertThatThrownBy(
             () -> {
@@ -124,6 +116,13 @@ public class TestInternalIcebergMacroMetadataFunctions extends BaseTestQuery {
   /** ensures the "table_files" function is not supported on internal Iceberg tables */
   @Test
   public void testTableFilesFunction() throws Exception {
+    IcebergTestTables.Table testTable =
+        IcebergTestTables.getTable(
+            "metadatarefresh/incrementalRefresh",
+            "dfs",
+            "/tmp/metadatarefresh",
+            "/incrementalRefresh");
+
     final String sql = "alter table dfs.tmp.metadatarefresh.incrementalRefresh refresh metadata";
 
     runSQL(sql);
@@ -144,6 +143,8 @@ public class TestInternalIcebergMacroMetadataFunctions extends BaseTestQuery {
         .isInstanceOf(Exception.class)
         .hasMessageContaining(
             "Metadata function ('table_files') is not supported on table '[dfs, tmp, metadatarefresh, incrementalRefresh]'");
+
+    testTable.close();
   }
 
   /** ensures the "table_history" function is not supported on internal Iceberg tables */
@@ -152,7 +153,7 @@ public class TestInternalIcebergMacroMetadataFunctions extends BaseTestQuery {
     final String sql = "alter table dfs.tmp.metadatarefresh.onlyFull refresh metadata";
 
     runSQL(sql);
-    Table icebergTable = loadIcebergTable(finalIcebergMetadataLocation);
+    Table icebergTable = RefreshDatasetTestUtils.getIcebergTable(finalIcebergMetadataLocation);
     final ImmutableList.Builder<Map<String, Object>> recordBuilder = ImmutableList.builder();
     recordBuilder.add(ImmutableMap.of("`snapshot_id`", icebergTable.history().get(0).snapshotId()));
 
@@ -177,7 +178,7 @@ public class TestInternalIcebergMacroMetadataFunctions extends BaseTestQuery {
     final String sql = "alter table dfs.tmp.metadatarefresh.onlyFull refresh metadata";
 
     runSQL(sql);
-    Table icebergTable = loadIcebergTable(finalIcebergMetadataLocation);
+    Table icebergTable = RefreshDatasetTestUtils.getIcebergTable(finalIcebergMetadataLocation);
     final ImmutableList.Builder<Map<String, Object>> recordBuilder = ImmutableList.builder();
     Iterable<Snapshot> snapshots = icebergTable.snapshots();
     Snapshot snapshot1 = snapshots.iterator().next();
@@ -214,7 +215,7 @@ public class TestInternalIcebergMacroMetadataFunctions extends BaseTestQuery {
     final String sql = "alter table dfs.tmp.metadatarefresh.onlyFull refresh metadata";
 
     runSQL(sql);
-    Table icebergTable = loadIcebergTable(finalIcebergMetadataLocation);
+    Table icebergTable = RefreshDatasetTestUtils.getIcebergTable(finalIcebergMetadataLocation);
 
     assertThatThrownBy(
             () -> {
@@ -229,12 +230,5 @@ public class TestInternalIcebergMacroMetadataFunctions extends BaseTestQuery {
         .isInstanceOf(Exception.class)
         .hasMessageContaining(
             "Metadata function ('table_manifests') is not supported on table '[dfs, tmp, metadatarefresh, onlyFull]'");
-  }
-
-  private static Table loadIcebergTable(String tableFolderPath) {
-    File tableFolder = new File(tableFolderPath);
-    Assert.assertTrue(tableFolder.exists());
-    File tablePath = tableFolder.listFiles()[0];
-    return BaseTestQuery.getIcebergTable(tablePath);
   }
 }

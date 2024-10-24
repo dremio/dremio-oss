@@ -43,8 +43,9 @@ import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
-import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
@@ -70,7 +71,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.SortOrder;
 
-public class CreateEmptyTableHandler extends SimpleDirectHandler {
+public class CreateEmptyTableHandler extends SimpleDirectHandlerWithValidator {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(CreateEmptyTableHandler.class);
 
@@ -97,7 +98,6 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
         SqlNodeUtil.unwrap(sqlNode, SqlCreateEmptyTable.class);
 
     NamespaceKey tableKey = catalog.resolveSingle(sqlCreateEmptyTable.getPath());
-    catalog.validatePrivilege(tableKey, Privilege.CREATE_TABLE);
 
     final String sourceName = tableKey.getRoot();
     VersionContext statementSourceVersion =
@@ -105,6 +105,10 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
             sqlCreateEmptyTable.getRefType(), sqlCreateEmptyTable.getRefValue(), null);
     final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
     VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+
+    // TODO: DX-94683: Should use CAC::canPerformOperation
+    catalog.validatePrivilege(tableKey, SqlGrant.Privilege.CREATE_TABLE);
+
     CatalogEntityKey catalogEntityKey =
         CatalogEntityKey.newBuilder()
             .keyComponents(tableKey.getPathComponents())
@@ -180,15 +184,47 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     }
 
     BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(columnDeclarations, sql);
-    PartitionSpec partitionSpec =
-        IcebergUtils.getIcebergPartitionSpecFromTransforms(
-            batchSchema, sqlCreateEmptyTable.getPartitionTransforms(null), null);
-    SortOrder sortOrder =
-        IcebergUtils.getIcebergSortOrder(
-            batchSchema,
-            sqlCreateEmptyTable.getSortColumns(),
-            partitionSpec.schema(),
-            config.getContext().getOptions());
+    PartitionSpec partitionSpec;
+    SortOrder sortOrder;
+    // If there are clustering keys
+    if (sqlCreateEmptyTable.getClusterKeys() != null
+        && !sqlCreateEmptyTable.getClusterKeys().isEmpty()) {
+      // Cannot add clustering key together with partition keys or sort orders
+      if (sqlCreateEmptyTable.getSortColumns() != null
+          && !sqlCreateEmptyTable.getSortColumns().isEmpty()) {
+        throw UserException.unsupportedError()
+            .message("Dremio doesn't support creating table with both CLUSTER and LOCALSORT")
+            .buildSilently();
+      } else if (sqlCreateEmptyTable.getPartitionTransforms(null) != null
+          && !sqlCreateEmptyTable.getPartitionTransforms(null).isEmpty()) {
+        throw UserException.unsupportedError()
+            .message("Dremio doesn't support creating table with both CLUSTER and PARTITION")
+            .buildSilently();
+      } else {
+        // convert clustering keys to SortOrder object
+        partitionSpec =
+            IcebergUtils.getIcebergPartitionSpecFromTransforms(
+                batchSchema, sqlCreateEmptyTable.getPartitionTransforms(null), null);
+        sortOrder =
+            IcebergUtils.getIcebergSortOrder(
+                batchSchema,
+                sqlCreateEmptyTable.getClusterKeys(),
+                partitionSpec.schema(),
+                config.getContext().getOptions());
+        // set CLUSTERING_TABLE_PROPERTY to true
+        tableProperties.put(SystemSchemas.CLUSTERING_TABLE_PROPERTY, "true");
+      }
+    } else {
+      partitionSpec =
+          IcebergUtils.getIcebergPartitionSpecFromTransforms(
+              batchSchema, sqlCreateEmptyTable.getPartitionTransforms(null), null);
+      sortOrder =
+          IcebergUtils.getIcebergSortOrder(
+              batchSchema,
+              sqlCreateEmptyTable.getSortColumns(),
+              partitionSpec.schema(),
+              config.getContext().getOptions());
+    }
     IcebergTableProps icebergTableProps =
         new IcebergTableProps(
             ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec)),
@@ -297,6 +333,8 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
 
     IcebergUtils.validateIcebergLocalSortIfDeclared(sql, config.getContext().getOptions());
 
+    IcebergUtils.validateIcebergAutoClusteringIfDeclared(sql, config.getContext().getOptions());
+
     if (!(sqlCreateEmptyTable.getTablePropertyNameList() == null
         || sqlCreateEmptyTable.getTablePropertyNameList().isEmpty())) {
       IcebergUtils.validateTablePropertiesRequest(optionManager);
@@ -318,7 +356,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
       Catalog catalog, SqlHandlerConfig config, UserSession userSession, boolean ifNotExists) {
     try {
       final Class<?> cl =
-          Class.forName("com.dremio.exec.planner.sql.handlers.EnterpriseCreateEmptyTableHandler");
+          Class.forName("com.dremio.exec.planner.sql.handlers.CreateEmptyTableHandler");
       final Constructor<?> ctor =
           cl.getConstructor(
               Catalog.class, SqlHandlerConfig.class, UserSession.class, boolean.class);

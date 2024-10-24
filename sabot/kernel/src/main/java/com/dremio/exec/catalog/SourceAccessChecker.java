@@ -466,6 +466,11 @@ final class SourceAccessChecker implements Catalog {
   }
 
   @Override
+  public <T extends StoragePlugin> T getSource(String name, boolean skipStateCheck) {
+    return delegate.getSource(name, skipStateCheck);
+  }
+
+  @Override
   public void createSource(SourceConfig config, NamespaceAttribute... attributes) {
     delegate.createSource(config, attributes);
   }
@@ -754,6 +759,11 @@ final class SourceAccessChecker implements Catalog {
   @Override
   public List<NameSpaceContainer> getEntitiesByIds(List<EntityId> ids) {
     return delegate.getEntitiesByIds(ids);
+  }
+
+  @Override
+  public List<SourceConfig> getSourceConfigs() {
+    return delegate.getSourceConfigs();
   }
   //// End: NamespacePassthrough Methods
 }

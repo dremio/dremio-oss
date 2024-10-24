@@ -65,6 +65,10 @@ class FragmentTracker implements AutoCloseable {
   private volatile ListenableSet executorSet;
   private volatile boolean cancelled;
   private volatile boolean queryCloserInvoked;
+  private long screenOperatorCompletionTime;
+  private long screenCompletionRpcReceivedAt;
+  private long lastNodeCompletionRpcStartedAt;
+  private long lastNodeCompletionRpcReceivedAt;
 
   private Set<NodeEndpoint> pendingNodes = ConcurrentHashMap.newKeySet();
   private Set<NodeEndpoint> lostNodes = ConcurrentHashMap.newKeySet();
@@ -152,6 +156,8 @@ class FragmentTracker implements AutoCloseable {
 
   @WithSpan
   public void nodeCompleted(NodeQueryCompletion completion) {
+    lastNodeCompletionRpcReceivedAt = System.currentTimeMillis();
+    lastNodeCompletionRpcStartedAt = completion.getRpcStartedAt();
     if (completion.hasFirstError()) {
       logger.debug(
           "received node completion with error for query {} from node {}:{}",
@@ -164,10 +170,12 @@ class FragmentTracker implements AutoCloseable {
     markNodeDone(completion.getEndpoint());
   }
 
-  public void screenCompleted() {
+  public void screenCompleted(long screenOperatorCompletionTimeMs) {
     logger.debug(
         "received screen completion for query {}, cancelling remaining fragments",
         QueryIdHelper.getQueryId(queryId));
+    screenCompletionRpcReceivedAt = System.currentTimeMillis();
+    screenOperatorCompletionTime = screenOperatorCompletionTimeMs;
     cancelExecutingFragmentsInternal();
   }
 
@@ -336,7 +344,11 @@ class FragmentTracker implements AutoCloseable {
   // nodes.
   private synchronized void checkAndNotifyCompletionListener() {
     if (pendingNodes.isEmpty() && !completionSuccessNotified.getAndSet(true)) {
-      completionListener.succeeded();
+      completionListener.succeeded(
+          screenOperatorCompletionTime,
+          screenCompletionRpcReceivedAt,
+          lastNodeCompletionRpcReceivedAt,
+          lastNodeCompletionRpcStartedAt);
     }
     checkAndCloseQuery();
   }

@@ -213,7 +213,9 @@ public final class MetadataIOPool implements AutoCloseable {
       } catch (Throwable ex) {
         completionHandle.completeExceptionally(ex);
       } finally {
-        executionSample.stop(taskTimer.withTags());
+        if (taskTimer != null) {
+          executionSample.stop(taskTimer.withTags());
+        }
       }
     }
   }

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+@use "../../../themes/utilities";
 @import "../../styles/constants/index.scss";
 
 .btn {
@@ -35,11 +36,10 @@
 
   &__primary {
     &.--contained {
-      background-color: var(--color--brand--300);
-      color: white;
+      @extend .bg-brand-300;
       &:hover {
         border: none;
-        background-color: var(--color--brand--400);
+        @extend .bg-brand-400;
       }
     }
 
@@ -65,7 +65,7 @@
     &.--text {
       background-color: transparent;
       border: none;
-      color: var(--color--brand--300);
+      color: var(--text--brand);
       min-width: auto;
       &:hover {
         background-color: var(--fill--secondary);
@@ -73,7 +73,7 @@
     }
 
     &.--disabled {
-      background-color: var(--color--neutral--75);
+      background-color: var(--fill--disabled);
       color: var(--text--disabled);
       border: none;
       opacity: 0.7;
@@ -99,7 +99,7 @@
     }
 
     &.--disabled {
-      background-color: var(--color--neutral--75);
+      background-color: var(--fill--disabled);
       color: var(--text--disabled);
       border: none;
       opacity: unset;
@@ -146,6 +146,19 @@
     .icon {
       block-size: 24px;
       inline-size: 24px;
+    }
+  }
+}
+
+.dremio-dark {
+  .btn {
+    &__primary {
+      &.--contained {
+        @extend .bg-brand-200;
+        &:hover {
+          @extend .bg-brand-150;
+        }
+      }
     }
   }
 }

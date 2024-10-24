@@ -46,8 +46,6 @@ import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.proto.EntityId;
 import java.io.File;
 import java.util.ArrayList;
@@ -88,6 +86,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
   private static EntityExplorer catalog;
   private static final String TEST_TABLE_NAME = "iceberg_get_snapshot_diff_context_test_table";
   private static NamespaceKey testTableNamespaceKey;
+  private static CatalogEntityKey testTableEntityKey;
 
   private Table testTable;
   private TestLogAppender testLogAppender = new TestLogAppender();
@@ -96,8 +95,6 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
   private Catalog mockedCatalog = mock(Catalog.class);
   private TableMetadata mockedTableMetadata = mock(TableMetadata.class);
   private DatasetConfig mockedDatasetConfig = mock(DatasetConfig.class);
-  private PhysicalDataset mockedPhysicalDataset = mock(PhysicalDataset.class);
-  private IcebergMetadata mockedIcebergMetadata = mock(IcebergMetadata.class);
   private DremioTable mockedDremioTable = mock(DremioTable.class);
   private EntityId mockedEntityId = mock(EntityId.class);
   private TableMetadataVerifyResult mockedMetadataVerifyResult =
@@ -114,6 +111,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
     List<String> keyPath = Arrays.asList(TEMP_SCHEMA_HADOOP, TEST_TABLE_NAME);
     testTableNamespaceKey = new NamespaceKey(keyPath);
+    testTableEntityKey = CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey);
   }
 
   @Before
@@ -348,10 +346,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
   @Test
   public void testInvalidBeginSnapshot() throws Exception {
     Snapshot snapshot = getCurrentSnapshot();
-    TableMetadata tableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+    TableMetadata tableMetadata = catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     // Invalid lastRefreshBaseTableSnapshotId
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
@@ -384,10 +379,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
   @Test
   public void testInvalidEndSnapshot() throws Exception {
     Snapshot snapshot = getCurrentSnapshot();
-    TableMetadata tableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+    TableMetadata tableMetadata = catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     // Invalid baseTableSnapshotId
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
@@ -432,9 +424,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertNotNull(testTable.snapshot(snapshot1.snapshotId()));
 
     TableMetadata snapshot1TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -485,9 +475,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertNotNull(testTable.snapshot(snapshot2.snapshotId()));
 
     TableMetadata snapshot2TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -546,9 +534,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
             testTable, testTable.currentSnapshot().snapshotId(), snapshot1.snapshotId()));
 
     TableMetadata snapshot0TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -597,9 +583,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
             testTable, testTable.currentSnapshot().snapshotId(), snapshot0.snapshotId()));
 
     TableMetadata snapshot1TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -659,9 +643,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
             testTable, testTable.currentSnapshot().snapshotId(), snapshot1.snapshotId()));
 
     TableMetadata snapshot1TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -699,9 +681,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     Snapshot snapshot0 = getCurrentSnapshot();
 
     TableMetadata snapshot0TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -743,9 +723,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     Snapshot snapshot2 = getCurrentSnapshot();
 
     TableMetadata snapshot2TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -785,9 +763,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     Snapshot snapshot2 = getCurrentSnapshot();
 
     TableMetadata snapshot2TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -826,9 +802,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     Snapshot snapshot1 = getCurrentSnapshot();
 
     TableMetadata snapshot1TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -878,9 +852,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     Snapshot snapshot2 = getCurrentSnapshot();
 
     TableMetadata snapshot2TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -938,9 +910,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertEquals(DataOperations.REPLACE, snapshot3.operation());
 
     TableMetadata snapshot3TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -1018,9 +988,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertEquals(DataOperations.REPLACE, snapshot5.operation());
 
     TableMetadata snapshot5TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -1126,9 +1094,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertEquals(DataOperations.REPLACE, snapshot5.operation());
 
     TableMetadata snapshot6TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -1247,9 +1213,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertEquals(DataOperations.REPLACE, snapshot5.operation());
 
     TableMetadata snapshot6TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -1338,9 +1302,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertEquals(DataOperations.REPLACE, snapshot4.operation());
 
     TableMetadata snapshot4TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -1417,9 +1379,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertEquals(DataOperations.REPLACE, snapshot4.operation());
 
     TableMetadata snapshot5TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -1510,9 +1470,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertEquals(DataOperations.REPLACE, snapshot4.operation());
 
     TableMetadata snapshot5TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -1576,9 +1534,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertEquals(DataOperations.REPLACE, snapshot4.operation());
 
     TableMetadata snapshot4TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -1651,9 +1607,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertEquals(DataOperations.REPLACE, snapshot4.operation());
 
     TableMetadata snapshot4TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -1732,9 +1686,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertEquals(DataOperations.REPLACE, snapshot5.operation());
 
     TableMetadata snapshot6TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(
@@ -1799,9 +1751,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
     assertEquals(DataOperations.APPEND, snapshot5.operation());
 
     TableMetadata snapshot5TableMetadata =
-        catalog
-            .getTableSnapshot(CatalogEntityKey.fromNamespaceKey(testTableNamespaceKey))
-            .getDataset();
+        catalog.getTableSnapshot(testTableEntityKey).getDataset();
 
     SnapshotBasedIncrementalRefreshDecisionMaker decisionMaker =
         new SnapshotBasedIncrementalRefreshDecisionMaker(

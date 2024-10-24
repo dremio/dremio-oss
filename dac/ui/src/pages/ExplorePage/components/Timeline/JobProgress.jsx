@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { createRef, PureComponent } from "react";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import PropTypes from "prop-types";
 
 import Spinner from "components/Spinner";

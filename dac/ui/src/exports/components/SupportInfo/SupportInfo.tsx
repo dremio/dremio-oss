@@ -16,7 +16,7 @@
 
 import { HttpError } from "../../errors/HttpError";
 import { CopyButton } from "dremio-ui-lib/components";
-import sentryUtil from "@app/utils/sentryUtil";
+import sentryUtil from "#oss/utils/sentryUtil";
 
 export const HttpErrorSupportInfo = (props: { error: HttpError }) => {
   const { error, ...rest } = props;

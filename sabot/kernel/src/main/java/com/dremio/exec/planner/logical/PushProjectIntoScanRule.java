@@ -32,12 +32,16 @@ import org.apache.calcite.tools.RelBuilder;
 
 public class PushProjectIntoScanRule extends RelOptRule {
 
-  public static final RelOptRule INSTANCE = new PushProjectIntoScanRule();
+  public static final RelOptRule INSTANCE = new PushProjectIntoScanRule(true);
+  public static final RelOptRule PUSH_ONLY_FIELD_ACCESS_INSTANCE =
+      new PushProjectIntoScanRule(false);
+  private final boolean pushItemOperator;
 
-  private PushProjectIntoScanRule() {
+  private PushProjectIntoScanRule(boolean pushItemOperator) {
     super(
         RelOptHelper.some(LogicalProject.class, RelOptHelper.any(ScanCrel.class)),
         "PushProjectIntoScanRule");
+    this.pushItemOperator = pushItemOperator;
   }
 
   @Override
@@ -45,7 +49,8 @@ public class PushProjectIntoScanRule extends RelOptRule {
     final Project proj = call.rel(0);
     final ScanCrel scan = call.rel(1);
 
-    ProjectPushInfo columnInfo = PrelUtil.getColumns(scan.getRowType(), proj.getProjects());
+    ProjectPushInfo columnInfo =
+        PrelUtil.getColumns(scan.getRowType(), proj.getProjects(), pushItemOperator);
 
     // get TableBase, either wrapped in RelOptTable, or TranslatableTable. TableBase table =
     // scan.getTable().unwrap(TableBase.class);

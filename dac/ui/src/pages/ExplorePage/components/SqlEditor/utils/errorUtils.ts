@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { QueryRange } from "@app/utils/statements/statement";
+import { QueryRange } from "#oss/utils/statements/statement";
 
 export type RawErrorInfo = {
   readonly message: string;

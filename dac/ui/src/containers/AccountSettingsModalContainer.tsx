@@ -15,8 +15,8 @@
  */
 
 import { connect } from "react-redux";
-import { getAccountSettingsModalState } from "@app/selectors/accountSettingsSelectors";
-import { hideAccountSettingsModal as closeAccountSettingsModal } from "@app/actions/modals/accountSettingsActions";
+import { getAccountSettingsModalState } from "#oss/selectors/accountSettingsSelectors";
+import { hideAccountSettingsModal as closeAccountSettingsModal } from "#oss/actions/modals/accountSettingsActions";
 import AccountSettingsModal from "dyn-load/pages/HomePage/components/modals/AccountModal/AccountModal";
 
 type AccountSettingsModalContainerProps = {
@@ -25,7 +25,7 @@ type AccountSettingsModalContainerProps = {
 };
 
 export const AccountSettingsModalContainer = (
-  props: AccountSettingsModalContainerProps
+  props: AccountSettingsModalContainerProps,
 ) => {
   const { showAccountSettingsModal, closeAccountSettingsModal } = props;
 
@@ -52,5 +52,5 @@ const mapDispatchToProps = {
 
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  mapDispatchToProps,
 )(AccountSettingsModalContainer);

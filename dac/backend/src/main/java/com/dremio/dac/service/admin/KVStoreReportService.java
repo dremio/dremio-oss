@@ -22,6 +22,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.Service;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.NamespaceStore;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.MultiSplit;
@@ -259,9 +260,7 @@ public class KVStoreReportService implements Service {
       zip.write(
           "physical_dataset_path,dataset_id,split_version,signature_length,extended_property_length,record_schema_length,num_splits\n"
               .getBytes());
-      storeProviderProvider
-          .get()
-          .getStore(NamespaceServiceImpl.NamespaceStoreCreator.class)
+      new NamespaceStore(storeProviderProvider)
           .find()
           .forEach(
               e -> {

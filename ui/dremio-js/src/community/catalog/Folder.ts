@@ -13,21 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import type { SonarV3Config } from "../../_internal/types/Config.js";
 import type {
   Folder as FolderInterface,
   FolderProperties,
 } from "../../interfaces/Folder.js";
-import { CatalogReference } from "./CatalogReference.js";
+import { FolderCatalogReference } from "./CatalogReference.js";
+import { catalogReferenceFromProperties } from "./catalogReferenceFromProperties.js";
 import { catalogReferenceEntityToProperties, pathString } from "./utils.js";
 
 export class Folder implements FolderInterface {
+  readonly catalogReference: FolderCatalogReference;
   readonly createdAt: FolderInterface["createdAt"];
+  /**
+   * @deprecated
+   */
   readonly id: FolderInterface["id"];
+  /**
+   * @deprecated
+   */
   readonly path: FolderInterface["path"];
 
-  #children: CatalogReference[];
+  #children: ReturnType<typeof catalogReferenceFromProperties>[];
 
-  constructor(properties: FolderProperties & { children: CatalogReference[] }) {
+  constructor(
+    properties: FolderProperties & {
+      catalogReference: FolderCatalogReference;
+      children: ReturnType<typeof catalogReferenceFromProperties>[];
+    },
+  ) {
+    this.catalogReference = properties.catalogReference;
     this.#children = properties.children;
     this.createdAt = properties.createdAt;
     this.id = properties.id;
@@ -43,20 +58,39 @@ export class Folder implements FolderInterface {
     };
   }
 
+  /**
+   * @deprecated
+   */
   get name() {
     return this.path[this.path.length - 1]!;
   }
 
+  /**
+   * @deprecated
+   */
   pathString = pathString(() => this.path);
 
-  static fromResource(properties: any, retrieve: any) {
+  /**
+   * @deprecated
+   */
+  get referenceType() {
+    return "FOLDER" as const;
+  }
+
+  static fromResource(properties: any, config: SonarV3Config) {
     return new Folder({
-      children: properties.children.map(
-        (child: any) =>
-          new CatalogReference(
-            catalogReferenceEntityToProperties(child),
-            retrieve,
-          ),
+      catalogReference: new FolderCatalogReference(
+        {
+          id: properties.id,
+          path: properties.path,
+        },
+        config,
+      ),
+      children: properties.children.map((child: any) =>
+        catalogReferenceFromProperties(
+          catalogReferenceEntityToProperties(child),
+          config,
+        ),
       ),
       createdAt: new Date(properties.createdAt),
       id: properties.id,

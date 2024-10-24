@@ -16,7 +16,7 @@
 
 import { SmartResource } from "smart-resource1";
 import { listReflectionJobs } from "../endpoints/JobsListing/listReflectionJobs";
-import { formatJobsBackendQuery } from "@app/pages/JobsPage/jobs-page-utils";
+import { formatJobsBackendQuery } from "#oss/pages/JobsPage/jobs-page-utils";
 import { JobsQueryParams } from "dremio-ui-common/types/Jobs.types";
 import moize from "moize";
 
@@ -29,7 +29,7 @@ export const jobsCache = moize.promise(listReflectionJobs, {
 const paginatedReflectionJobsFetcher = async (
   reflectionId: string,
   pageCount: number,
-  query: JobsQueryParams
+  query: JobsQueryParams,
 ) => {
   let result;
   let next = null;
@@ -64,5 +64,5 @@ export const PaginatedReflectionJobsResource = new SmartResource(
   paginatedReflectionJobsFetcher,
   {
     mode: "takeEvery",
-  }
+  },
 );

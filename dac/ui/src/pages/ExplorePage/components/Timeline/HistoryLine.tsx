@@ -20,8 +20,8 @@ import { PageTypes } from "../../pageTypes";
 import TimeDot from "./TimeDot";
 import * as classes from "./HistoryLine.module.less";
 import { getSessionContext } from "dremio-ui-common/contexts/SessionContext.js";
-import { useMultiTabIsEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
-import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
+import { useMultiTabIsEnabled } from "#oss/components/SQLScripts/useMultiTabIsEnabled";
+import { isTabbableUrl } from "#oss/utils/explorePageTypeUtils";
 
 type HistoryLineProps = {
   historyItems?: any;
@@ -81,7 +81,7 @@ const HistoryLine = (props: HistoryLineProps) => {
                   (
                     item: Immutable.Map<string, any>,
                     index: number,
-                    arr: Immutable.List<any>
+                    arr: Immutable.List<any>,
                   ) => (
                     <TimeDot
                       location={location}
@@ -91,7 +91,7 @@ const HistoryLine = (props: HistoryLineProps) => {
                       tipVersion={tipVersion}
                       activeVersion={activeVersion}
                     />
-                  )
+                  ),
                 )}
             </div>
           </div>

@@ -23,15 +23,15 @@ import type {
 
 export const UsersResource = (config: ResourceConfig & SonarV3Config) => {
   return {
-    retrieve: (id: string) =>
+    retrieve: (id: string, { signal }: { signal?: AbortSignal } = {}) =>
       config
-        .sonarV3Request(`user/${id}`)
+        .sonarV3Request(`user/${id}`, { signal })
         .then((res) => res.json())
         .then((properties) => Ok(User.fromResource(properties)))
         .catch((e) => Err(e)),
-    retrieveByName: (name: string) =>
+    retrieveByName: (name: string, { signal }: { signal?: AbortSignal } = {}) =>
       config
-        .sonarV3Request(`user/by-name/${name}`)
+        .sonarV3Request(`user/by-name/${name}`, { signal })
         .then((res) => res.json())
         .then((properties) => Ok(User.fromResource(properties)))
         .catch((e) => Err(e)),

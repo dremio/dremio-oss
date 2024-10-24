@@ -21,7 +21,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.BlockedResourceDuration;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
-import com.dremio.sabot.exec.SchedulerMetrics;
+import com.dremio.sabot.exec.ExecutionMetrics;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.google.common.base.Joiner;
 import com.google.common.base.Stopwatch;
@@ -211,6 +211,10 @@ public class FragmentStats {
     startHeapAllocation = HeapAllocatedMXBeanWrapper.getCurrentThreadAllocatedBytes();
   }
 
+  public boolean hasRunStarted() {
+    return !notStartedYet;
+  }
+
   public void runStarted() {
     if (notStartedYet) {
       notStartedYet = false;
@@ -222,7 +226,7 @@ public class FragmentStats {
 
   public void sliceEnded(long runTimeNanos) {
     if (runTimeNanos > MAX_RUNTIME_THRESHOLD) {
-      SchedulerMetrics.getLongSlicesCounter().increment();
+      ExecutionMetrics.getLongSlicesCounter().increment();
       numLongSlices++;
     } else if (runTimeNanos < MIN_RUNTIME_THRESHOLD) {
       numShortSlices++;

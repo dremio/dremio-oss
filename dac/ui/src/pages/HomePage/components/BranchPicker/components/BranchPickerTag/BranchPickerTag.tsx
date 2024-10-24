@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Reference } from "@app/types/nessie";
-import { getFullPathByType, getShortHash } from "@app/utils/nessieUtils";
+import { Reference } from "#oss/types/nessie";
+import { getFullPathByType, getShortHash } from "#oss/utils/nessieUtils";
 import classNames from "clsx";
 import RefIcon from "../RefIcon/RefIcon";
 

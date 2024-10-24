@@ -17,7 +17,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import classNames from "clsx";
-import { base } from "@app/uiTheme/less/Aggregate/AggregateForm.less";
+import { base } from "#oss/uiTheme/less/Aggregate/AggregateForm.less";
 import {
   getColumnByName,
   isAlreadySelected,

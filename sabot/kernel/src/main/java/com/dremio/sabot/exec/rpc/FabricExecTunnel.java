@@ -22,6 +22,7 @@ import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.record.FragmentWritableBatch;
 import com.dremio.exec.rpc.ListeningCommand;
 import com.dremio.exec.rpc.RpcOutcomeListener;
+import com.dremio.sabot.exec.DynamicLoadRoutingMessage;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
@@ -55,6 +56,12 @@ public class FabricExecTunnel implements ExecTunnel {
   @Override
   public void sendOOBMessage(RpcOutcomeListener<Ack> outcomeListener, OutOfBandMessage message) {
     manager.runCommand(new SendOOBMessage(outcomeListener, message));
+  }
+
+  @Override
+  public void sendDLRMessage(
+      RpcOutcomeListener<Ack> outcomeListener, DynamicLoadRoutingMessage message) {
+    manager.runCommand(new SendDLRMessage(outcomeListener, message));
   }
 
   @Override
@@ -138,6 +145,26 @@ public class FabricExecTunnel implements ExecTunnel {
     @Override
     public String toString() {
       return "Send OOBMessage [" + message + "]";
+    }
+  }
+
+  private class SendDLRMessage extends ListeningCommand<Ack, ProxyConnection> {
+    private final DynamicLoadRoutingMessage message;
+
+    public SendDLRMessage(RpcOutcomeListener<Ack> listener, DynamicLoadRoutingMessage message) {
+      super(listener);
+      this.message = message;
+    }
+
+    @Override
+    public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
+      connection.send(
+          outcomeListener, RpcType.REQ_DLR_MESSAGE, message.toProtoMessage(), Ack.class);
+    }
+
+    @Override
+    public String toString() {
+      return "Send DLRMessage [" + message + "]";
     }
   }
 

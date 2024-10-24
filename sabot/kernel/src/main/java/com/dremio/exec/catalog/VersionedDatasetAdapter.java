@@ -178,9 +178,10 @@ public class VersionedDatasetAdapter {
         VersionContext versionContext = versionedDatasetId.getVersionContext().asVersionContext();
         catalogIdentity =
             getOwner(
-                new EntityPath(versionedTableKey),
-                versionContext.getValue(),
-                versionContext.getType().name());
+                    new EntityPath(versionedTableKey),
+                    versionContext.getValue(),
+                    versionContext.getType().name())
+                .orElse(null);
         if (catalogIdentity != null) {
           viewConfig.setOwner(catalogIdentity.getName());
         }
@@ -258,12 +259,12 @@ public class VersionedDatasetAdapter {
     if (optionManager.getOption(VERSIONED_SOURCE_VIEW_DELEGATION_ENABLED)) {
       try {
         VersionContext versionContext = versionedDatasetId.getVersionContext().asVersionContext();
-        CatalogIdentity catalogIdentity =
+        Optional<CatalogIdentity> catalogIdentity =
             getOwner(
                 new EntityPath(versionedTableKey),
                 versionContext.getValue(),
                 versionContext.getType().name());
-        versionedDatasetConfig.setOwner(catalogIdentity != null ? catalogIdentity.getName() : null);
+        versionedDatasetConfig.setOwner(catalogIdentity.map(CatalogIdentity::getName).orElse(null));
       } catch (Exception e) {
         throw UserException.dataReadError(e).buildSilently();
       }
@@ -293,9 +294,9 @@ public class VersionedDatasetAdapter {
     return new NamespaceTable(tableMetadata, metadataState, true);
   }
 
-  public CatalogIdentity getOwner(EntityPath entityPath, String refValue, String refType)
+  public Optional<CatalogIdentity> getOwner(EntityPath entityPath, String refValue, String refType)
       throws Exception {
-    return null;
+    return Optional.empty();
   }
 
   protected StoragePlugin getStoragePlugin() {

@@ -16,16 +16,16 @@
 
 import Immutable from "immutable";
 import { IntlShape } from "react-intl";
-import { ExploreJobsState } from "@app/reducers/explore/exploreJobs";
-import { JobSummary } from "@app/exports/types/JobSummary.type";
-import jobsUtils, { renderJobStatus } from "@app/utils/jobsUtils";
-import timeUtils from "@app/utils/timeUtils";
+import { ExploreJobsState } from "#oss/reducers/explore/exploreJobs";
+import { JobSummary } from "#oss/exports/types/JobSummary.type";
+import jobsUtils, { renderJobStatus } from "#oss/utils/jobsUtils";
+import timeUtils from "#oss/utils/timeUtils";
 import SQLCell from "./SQLCell";
 import ReflectionIcon from "./ReflectionIcon";
 import ColumnCell from "./ColumnCell";
 import DurationCell from "./DurationCell";
-import RealTimeTimer from "@app/components/RealTimeTimer";
-import { memoDeep } from "@app/utils/memoUtils";
+import RealTimeTimer from "#oss/components/RealTimeTimer";
+import { memoDeep } from "#oss/utils/memoUtils";
 
 const getFilteredSummaries = (
   jobSummaries: JobSummary[],

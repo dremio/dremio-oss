@@ -29,6 +29,7 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.options.OptionManager;
+import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
@@ -36,6 +37,7 @@ import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.services.fabric.api.FabricService;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.concurrent.ExecutorService;
 import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Test;
@@ -59,11 +61,12 @@ public class TestMockedCatalogServiceImpl {
                 () -> mock(OptionManager.class),
                 () -> mock(MetadataRefreshInfoBroadcaster.class),
                 mock(DremioConfig.class),
-                mock(EnumSet.class),
+                EnumSet.noneOf(Role.class),
                 mock(CatalogServiceMonitor.class),
                 mock(Provider.class),
                 () -> mock(VersionedDatasetAdapterFactory.class),
-                () -> mock(CatalogStatusEvents.class)));
+                () -> mock(CatalogStatusEvents.class),
+                () -> mock(ExecutorService.class)));
     QueryContext queryContext = mock(QueryContext.class);
     when(queryContext.getCatalogService()).thenReturn(catalogService);
 

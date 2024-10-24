@@ -15,8 +15,8 @@
  */
 import Immutable from "immutable";
 import { normalize } from "normalizr";
-import { RESET_HOME_CONTENTS, contentLoadActions } from "@app/actions/home";
-import { applyDecorators } from "@app/utils/decorators";
+import { RESET_HOME_CONTENTS, contentLoadActions } from "#oss/actions/home";
+import { applyDecorators } from "#oss/utils/decorators";
 
 /**
  * A reducer that maintain a content, such as files, folder and dataset for current
@@ -118,7 +118,7 @@ export function denormalizeFile(state, fileId) {
     return file.get("fileFormat")
       ? file.set(
           "fileFormat",
-          entities.getIn(["fileFormat", file.get("fileFormat")])
+          entities.getIn(["fileFormat", file.get("fileFormat")]),
         )
       : file;
   }

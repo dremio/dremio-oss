@@ -40,10 +40,18 @@ const getStyleLoader = (isCss: boolean) => {
     use: [
       {
         loader: MiniCssExtractPlugin.loader,
+        options: {
+          // Breaking change that's incompatible until we apply these adjustments,
+          // see https://github.com/webpack-contrib/mini-css-extract-plugin/releases/tag/v1.0.0
+          esModule: false,
+        },
       },
       {
         loader: "css-loader",
         options: {
+          // Breaking change that's incompatible until we apply these adjustments,
+          // see https://github.com/webpack-contrib/css-loader/releases/tag/v6.0.0
+          esModule: false,
           modules: !isCss && {
             mode: "local",
             localIdentName: "[name]__[local]___[hash:base64:5]",
@@ -63,7 +71,7 @@ export const getRules = ({
   additionalIncludes: string[];
 }) => [
   {
-    test: /\.worker\.[jt]s$/,
+    test: /(SQLParsingWorker|LayoutWorker)\.worker\.[jt]s$/,
     use: { loader: "worker-loader" },
   },
   {

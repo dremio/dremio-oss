@@ -21,6 +21,7 @@ import static org.junit.Assert.assertNotEquals;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.store.iceberg.IcebergTestTables;
 import org.apache.arrow.memory.BufferAllocator;
 
@@ -28,16 +29,16 @@ public class OptimizeTestWithEqualityDeletes extends BaseTestQuery {
   private static IcebergTestTables.Table tableWithEqDeletes;
 
   public static void init() throws Exception {
-    setSystemOption(ENABLE_OPTIMIZE_WITH_EQUALITY_DELETE.getOptionName(), "true");
+    setSystemOption(ENABLE_OPTIMIZE_WITH_EQUALITY_DELETE, true);
     tableWithEqDeletes = IcebergTestTables.PRODUCTS_WITH_EQ_DELETES.get();
   }
 
   public static void teardown() throws Exception {
-    resetSystemOption(ENABLE_OPTIMIZE_WITH_EQUALITY_DELETE.getOptionName());
+    resetSystemOption(ENABLE_OPTIMIZE_WITH_EQUALITY_DELETE);
     String forgetQuery =
         String.format("ALTER TABLE %s FORGET METADATA", tableWithEqDeletes.getTableName());
     runSQL(forgetQuery);
-    tableWithEqDeletes.close();
+    AutoCloseables.close(tableWithEqDeletes);
   }
 
   private static void assertOptimizeWithOptions(

@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.PassthroughQueryObserver;
 import com.dremio.exec.calcite.logical.ScanCrel;
@@ -110,7 +111,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
 
   @After
   public void tearDown() throws Exception {
-    icebergTable.close();
+    AutoCloseables.close(icebergTable);
   }
 
   /**

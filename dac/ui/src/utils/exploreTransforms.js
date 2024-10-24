@@ -39,8 +39,8 @@ class Transforms {
       nextRows = nextRows.map((row) =>
         row.set(
           "row",
-          row.get("row").filter((r, index) => index !== colIndex)
-        )
+          row.get("row").filter((r, index) => index !== colIndex),
+        ),
       );
       nextTable = nextTable.set("rows", nextRows);
     }

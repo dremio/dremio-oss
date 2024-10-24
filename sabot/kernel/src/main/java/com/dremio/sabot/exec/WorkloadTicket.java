@@ -43,7 +43,7 @@ import org.apache.arrow.memory.BufferAllocator;
  * WorkloadTicket.
  */
 public class WorkloadTicket extends TicketWithChildren {
-  protected final ConcurrentMap<QueryId, QueryTicket> queryTickets = new ConcurrentHashMap<>();
+  private final ConcurrentMap<QueryId, QueryTicket> queryTickets = new ConcurrentHashMap<>();
 
   private SchedulingGroup<AsyncTaskWrapper> schedulingGroup;
 
@@ -90,6 +90,8 @@ public class WorkloadTicket extends TicketWithChildren {
                         queryStarter.useWeightBasedScheduling(),
                         queryStarter.getApproximateQuerySize());
                 this.reserve();
+
+                ExecutionMetrics.getExecutorStartedQueries().increment();
                 return qTicket;
               } else {
                 return v;
@@ -97,6 +99,17 @@ public class WorkloadTicket extends TicketWithChildren {
             });
     queryTicket.reserve();
     queryStarter.buildAndStartQuery(queryTicket);
+  }
+
+  protected QueryTicket addQueryTicketIfMissing(QueryId queryId, QueryTicket ticket) {
+    QueryTicket result =
+        queryTickets.computeIfAbsent(
+            queryId,
+            (k) -> {
+              ExecutionMetrics.getExecutorStartedQueries().increment();
+              return ticket;
+            });
+    return (result == ticket) ? null : result;
   }
 
   /**
@@ -117,6 +130,11 @@ public class WorkloadTicket extends TicketWithChildren {
   public void removeQueryTicket(QueryTicket queryTicket) throws Exception {
     final QueryId queryId = queryTicket.getQueryId();
     final QueryTicket removedQueryTicket = queryTickets.remove(queryId);
+
+    ExecutionMetrics.getExecutorEndedQueries().increment();
+    ExecutionMetrics.getQueryPeakMemoryDistribution()
+        .record(removedQueryTicket.getAllocator().getPeakMemoryAllocation());
+
     Preconditions.checkState(
         removedQueryTicket == queryTicket,
         "closed query ticket was not found in the query tickets' map");

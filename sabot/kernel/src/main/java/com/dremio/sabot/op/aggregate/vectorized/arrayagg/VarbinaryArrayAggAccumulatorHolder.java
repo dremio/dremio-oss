@@ -48,6 +48,7 @@ public final class VarbinaryArrayAggAccumulatorHolder
   @Override
   public void addItemToVector(ByteArrayWrapper data, int index) {
     vector.set(index, data.getBytes());
+    vector.setValueCount(vector.getValueCount() + 1);
     accumulatedBytes += getSizeOfElement(data);
   }
 

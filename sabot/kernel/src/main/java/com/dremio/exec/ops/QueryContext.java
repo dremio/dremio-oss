@@ -308,7 +308,11 @@ public class QueryContext
 
   public UserDefinedFunctionCatalog getUserDefinedFunctionCatalog() {
     return new UserDefinedFunctionCatalogImpl(
-        this, getOptions(), getNamespaceService(), getCatalog());
+        this.getSchemaConfig(),
+        getOptions(),
+        getNamespaceService(),
+        getCatalogService(),
+        getCatalog());
   }
 
   public AccelerationManager getAccelerationManager() {

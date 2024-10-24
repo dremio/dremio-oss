@@ -17,6 +17,7 @@ package com.dremio.service.namespace;
 
 import static com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.datastore.LocalKVStoreProvider;
@@ -41,6 +42,7 @@ import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
+import com.dremio.services.pubsub.MessagePublisher;
 import com.dremio.test.DremioTest;
 import com.google.protobuf.ByteString;
 import java.util.Arrays;
@@ -66,7 +68,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
 
   private LegacyKVStoreProvider kvstore;
   private NamespaceService namespaceService;
-  private IndexedStore<String, NameSpaceContainer> namespaceStore;
+  private NamespaceStore namespaceStore;
   private IndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore;
   private KVStore<PartitionChunkId, PartitionProtobuf.MultiSplit> multiSplitStore;
 
@@ -80,8 +82,10 @@ public class TestNamespaceServiceCleanSplitOrphans {
     kvstore = storeProvider.asLegacy();
     kvstore.start();
 
-    namespaceService = new NamespaceServiceImpl(storeProvider, new CatalogStatusEventsImpl());
-    namespaceStore = storeProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+    namespaceService =
+        new NamespaceServiceImpl(
+            storeProvider, new CatalogStatusEventsImpl(), () -> mock(MessagePublisher.class));
+    namespaceStore = new NamespaceStore(() -> storeProvider);
     partitionChunksStore = storeProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
     multiSplitStore = storeProvider.getStore(NamespaceServiceImpl.MultiSplitStoreCreator.class);
 

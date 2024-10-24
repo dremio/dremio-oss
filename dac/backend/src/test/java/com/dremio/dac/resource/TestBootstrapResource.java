@@ -71,7 +71,8 @@ public class TestBootstrapResource extends BaseTestServer {
     doc("ensure test APIs disabled");
     try {
       expectStatus(
-          Response.Status.NOT_FOUND, getAPIv2().path("/test/clear").request().buildPost(null));
+          Response.Status.NOT_FOUND,
+          getHttpClient().getAPIv2().path("/test/clear").request().buildPost(null));
     } catch (AssertionError e) {
       throw new AssertionError("This test expects test APIs to be disabled", e);
     }
@@ -84,7 +85,11 @@ public class TestBootstrapResource extends BaseTestServer {
       GenericErrorMessage errorMessage =
           expectStatus(
               Response.Status.FORBIDDEN,
-              getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)),
+              getHttpClient()
+                  .getAPIv2()
+                  .path("/login")
+                  .request(JSON)
+                  .buildPost(Entity.json(userLogin)),
               GenericErrorMessage.class);
       assertThat(errorMessage.getErrorMessage()).isEqualTo(GenericErrorMessage.NO_USER_MSG);
     }
@@ -94,7 +99,7 @@ public class TestBootstrapResource extends BaseTestServer {
       GenericErrorMessage errorMessage =
           expectStatus(
               Response.Status.FORBIDDEN,
-              getAPIv2().path("users/all").request().buildGet(),
+              getHttpClient().getAPIv2().path("users/all").request().buildGet(),
               GenericErrorMessage.class);
       assertThat(errorMessage.getErrorMessage()).isEqualTo(GenericErrorMessage.NO_USER_MSG);
     }
@@ -109,7 +114,8 @@ public class TestBootstrapResource extends BaseTestServer {
               .setLastName("dremio")
               .build();
       expectSuccess(
-          getAPIv2()
+          getHttpClient()
+              .getAPIv2()
               .path("bootstrap/firstuser")
               .request(JSON)
               .buildPut(Entity.json(new UserForm(uc, "dremio123"))),
@@ -128,7 +134,8 @@ public class TestBootstrapResource extends BaseTestServer {
       UserExceptionMapper.ErrorMessageWithContext errorMessage =
           expectError(
               FamilyExpectation.CLIENT_ERROR,
-              getAPIv2()
+              getHttpClient()
+                  .getAPIv2()
                   .path("bootstrap/firstuser")
                   .request(JSON)
                   .buildPut(Entity.json(new UserForm(uc, "dremio123"))),

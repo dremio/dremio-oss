@@ -22,7 +22,6 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.genera
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.joinedTableKey;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tablePathWithFolders;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assume.assumeFalse;
 
 import com.dremio.dac.api.Space;
 import com.dremio.dac.model.job.JobDataFragment;
@@ -31,6 +30,7 @@ import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.List;
 import javax.ws.rs.client.Entity;
@@ -40,6 +40,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.projectnessie.client.api.NessieApiV1;
+import org.projectnessie.model.CommitMeta;
+import org.projectnessie.model.ContentKey;
+import org.projectnessie.model.Operation;
+import org.projectnessie.model.UDF;
 import org.projectnessie.tools.compatibility.api.NessieServerProperty;
 import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtension;
 
@@ -52,7 +57,6 @@ public class ITTestSysUserDefinedFunctions extends ITBaseTestVersioned {
 
   @BeforeEach
   public void setUp() throws Exception {
-    assumeFalse(isMultinode());
     allocator = getRootAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
     createSpace(DEFAULT_SPACE_NAME);
   }
@@ -65,7 +69,7 @@ public class ITTestSysUserDefinedFunctions extends ITBaseTestVersioned {
 
   @Test
   public void sysUdfsWithOneVersionedUdf() throws JobNotFoundException {
-    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getOptionName(), "true");
+    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED, true);
     final String functionName1 = generateUniqueFunctionName();
     List<String> functionKey1 = tablePathWithFolders(functionName1);
     runQuery(createUdfQuery(functionKey1));
@@ -85,7 +89,7 @@ public class ITTestSysUserDefinedFunctions extends ITBaseTestVersioned {
 
   @Test
   public void sysUdfsWithOnlyVersionedUdfs() throws JobNotFoundException {
-    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getOptionName(), "true");
+    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED, true);
     final String functionName1 = generateUniqueFunctionName();
     List<String> functionKey1 = tablePathWithFolders(functionName1);
     runQuery(createUdfQuery(functionKey1));
@@ -114,7 +118,7 @@ public class ITTestSysUserDefinedFunctions extends ITBaseTestVersioned {
 
   @Test
   public void sysUdfsWithCombinationUdfs() throws JobNotFoundException {
-    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getOptionName(), "true");
+    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED, true);
     final String versionedUdf1 = generateUniqueFunctionName();
     List<String> versionedUdfKey1 = tablePathWithFolders(versionedUdf1);
     runQuery(createUdfQuery(versionedUdfKey1));
@@ -143,8 +147,6 @@ public class ITTestSysUserDefinedFunctions extends ITBaseTestVersioned {
 
   @Test
   public void sysUdfsWithNonVersionedUdfs() throws JobNotFoundException {
-    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getOptionName(), "true");
-
     final String nonVersionedUdf = generateUniqueFunctionName();
     runQuery(createNonVersionedUdfQuery(Collections.singletonList(nonVersionedUdf)));
     JobDataFragment jobDataFragment =
@@ -158,7 +160,7 @@ public class ITTestSysUserDefinedFunctions extends ITBaseTestVersioned {
 
   @Test
   public void sysUdfsWithSupportKeyOff() throws JobNotFoundException {
-    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getOptionName(), "true");
+    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED, true);
     final String functionName1 = generateUniqueFunctionName();
     List<String> functionKey1 = tablePathWithFolders(functionName1);
     runQuery(createUdfQuery(functionKey1));
@@ -170,7 +172,7 @@ public class ITTestSysUserDefinedFunctions extends ITBaseTestVersioned {
     runQuery(createUdfQuery(functionKey3));
     final String nonVersionedUdf = generateUniqueFunctionName();
     runQuery(createNonVersionedUdfQuery(Collections.singletonList(nonVersionedUdf)));
-    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getOptionName(), "false");
+    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED, false);
     JobDataFragment jobDataFragment =
         runQueryAndGetResults(
             String.format(
@@ -180,16 +182,51 @@ public class ITTestSysUserDefinedFunctions extends ITBaseTestVersioned {
     assertThat(jobDataFragment.getReturnedRowCount() == 1).isTrue();
     assertThat(jobDataFragment.extractString("name", 0).contains(nonVersionedUdf)).isTrue();
     jobDataFragment.close();
-    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getOptionName(), "true");
+    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED, true);
     runQuery(dropUdfQuery(functionKey1));
     runQuery(dropUdfQuery(functionKey2));
     runQuery(dropUdfQuery(functionKey3));
     dropNonVersionedUdfQuery(Collections.singletonList(nonVersionedUdf));
   }
 
+  @Test
+  public void sysUdfsWithUdfMetadataNotAccessible() throws Exception {
+    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED, true);
+    final String functionName1 = generateUniqueFunctionName();
+    List<String> functionKey1 = tablePathWithFolders(functionName1);
+    runQuery(createUdfQuery(functionKey1));
+
+    // Directly commit a UDF to Nessie with the metadataLocation not accessible
+    final String functionNotAccessibleName = generateUniqueFunctionName();
+    List<String> functionNotAccessibleKey = Lists.newArrayList(functionNotAccessibleName);
+    NessieApiV1 nessieApi = getNessieClient();
+    nessieApi
+        .commitMultipleOperations()
+        .branch(nessieApi.getDefaultBranch())
+        .commitMeta(CommitMeta.fromMessage("test"))
+        .operation(
+            Operation.Put.of(
+                ContentKey.of(functionNotAccessibleKey),
+                UDF.udf("random_path_not_accessible", "versionId", "signatureId")))
+        .commit();
+
+    // Act
+    JobDataFragment jobDataFragment =
+        runQueryAndGetResults(
+            String.format(
+                "SELECT * FROM sys.user_defined_functions where name like '%%%s%%'",
+                DATAPLANE_PLUGIN_NAME),
+            allocator);
+    assertThat(jobDataFragment.getReturnedRowCount() == 1).isTrue();
+    assertThat(jobDataFragment.extractString("name", 0).contains(functionName1)).isTrue();
+    jobDataFragment.close();
+
+    runQuery(dropUdfQuery(functionKey1));
+  }
+
   protected void createSpace(String name) {
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getCatalogApi())
             .buildPost(Entity.json(new com.dremio.dac.api.Space(null, name, null, null, null))),
         new GenericType<Space>() {});
   }
@@ -197,9 +234,9 @@ public class ITTestSysUserDefinedFunctions extends ITBaseTestVersioned {
   protected void dropSpace(String name) {
     com.dremio.dac.api.Space s =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("/catalog/").path("by-path").path(name)).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path("by-path").path(name)).buildGet(),
             new GenericType<com.dremio.dac.api.Space>() {});
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/").path(s.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(s.getId())).buildDelete());
   }
 
   public static String createNonVersionedUdfQuery(final List<String> functionPath) {

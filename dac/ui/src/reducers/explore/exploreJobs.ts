@@ -19,10 +19,10 @@ import {
   FETCH_JOB_DETAILS,
   FETCH_JOB_SUMMARY,
   REMOVE_EXPLORE_JOB,
-} from "@app/actions/explore/exploreJobs";
-import { UPDATE_JOB_STATE } from "@app/actions/jobs/jobs";
-import { JobDetails } from "@app/exports/types/JobDetails.type";
-import { JobSummary } from "@app/exports/types/JobSummary.type";
+} from "#oss/actions/explore/exploreJobs";
+import { UPDATE_JOB_STATE } from "#oss/actions/jobs/jobs";
+import { JobDetails } from "#oss/exports/types/JobDetails.type";
+import { JobSummary } from "#oss/exports/types/JobSummary.type";
 
 export type ExploreJobsState = {
   jobDetails: Partial<{ [key: string]: JobDetails }>;

@@ -17,19 +17,22 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static java.util.Objects.requireNonNull;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.VersionedPlugin;
+import com.dremio.exec.planner.sql.handlers.direct.DirectHandlerValidator;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.options.OptionResolver;
 import com.dremio.options.TypeValidators;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 
 /** Base class for show handlers, create folder handler. */
-public abstract class BaseVersionHandler<T> implements SqlDirectHandler<T> {
+public abstract class BaseVersionHandler<T> implements SqlDirectHandler<T>, DirectHandlerValidator {
   private final Catalog catalog;
   private OptionResolver optionResolver;
 
@@ -83,5 +86,10 @@ public abstract class BaseVersionHandler<T> implements SqlDirectHandler<T> {
     }
 
     return storagePlugin.unwrap(VersionedPlugin.class);
+  }
+
+  @Override
+  public void validate(NamespaceKey key, VersionContext versionContext) {
+    // no-op
   }
 }

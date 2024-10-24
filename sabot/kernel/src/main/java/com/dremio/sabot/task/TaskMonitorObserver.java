@@ -18,5 +18,5 @@ package com.dremio.sabot.task;
 /** Implement this interface to observe from the TaskMonitor */
 public interface TaskMonitorObserver {
   /** The observer is called whenever the TaskMonitor runs */
-  void observeTaskMonitorEvent();
+  void observeTaskMonitorEvent(boolean statsUpdated);
 }

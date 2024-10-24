@@ -18,10 +18,14 @@ package com.dremio.exec.store.iceberg.nessie;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.context.RequestContext;
+import com.dremio.context.UserContext;
 import com.dremio.exec.catalog.VersionedPlugin.EntityType;
 import com.dremio.exec.store.ReferenceConflictException;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
 import com.dremio.plugins.NessieClient;
+import com.dremio.plugins.NessieCommitUsernameContext;
 import com.dremio.plugins.NessieContent;
 import com.dremio.plugins.NessieTableAdapter;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -30,8 +34,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.iceberg.BaseMetastoreTableOperations;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.exceptions.CommitFailedException;
@@ -57,6 +63,7 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
   private final String jobId;
   private final String userName;
   private String baseContentId;
+  private final @Nullable String nessieCommitUserId;
 
   public IcebergNessieVersionedTableOperations(
       OperatorStats operatorStats,
@@ -65,7 +72,8 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
       IcebergNessieVersionedTableIdentifier nessieVersionedTableIdentifier,
       @Nullable IcebergCommitOrigin commitOrigin,
       String jobId,
-      String userName) {
+      String userName,
+      @Nullable String nessieCommitUserId) {
     this.operatorStats = operatorStats;
     this.fileIO = fileIO;
     this.fullTableName = nessieVersionedTableIdentifier.getTableIdentifier().toString();
@@ -78,6 +86,7 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
     this.jobId = jobId;
     this.baseContentId = null;
     this.userName = userName;
+    this.nessieCommitUserId = nessieCommitUserId;
   }
 
   @Override
@@ -94,10 +103,14 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
   protected void doRefresh() {
     if (version.isBranch()) {
       version =
-          nessieClient.resolveVersionContext(VersionContext.ofBranch(version.getRefName()), jobId);
+          callWithContext(
+              () ->
+                  nessieClient.resolveVersionContext(
+                      VersionContext.ofBranch(version.getRefName()), jobId));
     }
     String metadataLocation = null;
-    Optional<NessieContent> maybeNessieContent = nessieClient.getContent(tableKey, version, jobId);
+    Optional<NessieContent> maybeNessieContent =
+        callWithContext(() -> nessieClient.getContent(tableKey, version, jobId));
     if (maybeNessieContent.isPresent()) {
       NessieContent nessieContent = maybeNessieContent.get();
       baseContentId = nessieContent.getContentId();
@@ -131,7 +144,8 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
   @Override
   protected void doCommit(TableMetadata base, TableMetadata metadata) {
     Stopwatch stopwatchWriteNewMetadata = Stopwatch.createStarted();
-    String newMetadataLocation = writeNewMetadata(metadata, currentVersion() + 1);
+    String newMetadataLocation =
+        writeNewMetadata(IcebergUtils.fixupDefaultProperties(metadata), currentVersion() + 1);
     long totalMetadataWriteTime = stopwatchWriteNewMetadata.elapsed(TimeUnit.MILLISECONDS);
     if (operatorStats != null) {
       operatorStats.addLongStat(
@@ -140,19 +154,22 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
     boolean threw = true;
     try {
       Stopwatch stopwatchCatalogUpdate = Stopwatch.createStarted();
-      nessieClient.commitTable(
-          tableKey,
-          newMetadataLocation,
-          new NessieTableAdapter(
-              metadata.currentSnapshot().snapshotId(),
-              metadata.currentSchemaId(),
-              metadata.defaultSpecId(),
-              metadata.sortOrder().orderId()),
-          version,
-          baseContentId,
-          commitOrigin,
-          jobId,
-          userName);
+      getUserNameAndIdWrappedRequestContext()
+          .run(
+              () ->
+                  nessieClient.commitTable(
+                      tableKey,
+                      newMetadataLocation,
+                      new NessieTableAdapter(
+                          metadata.currentSnapshot().snapshotId(),
+                          metadata.currentSchemaId(),
+                          metadata.defaultSpecId(),
+                          metadata.sortOrder().orderId()),
+                      version,
+                      baseContentId,
+                      commitOrigin,
+                      jobId,
+                      userName));
       threw = false;
       long totalCatalogUpdateTime = stopwatchCatalogUpdate.elapsed(TimeUnit.MILLISECONDS);
       if (operatorStats != null) {
@@ -179,7 +196,32 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
   }
 
   public void deleteKey() {
-    nessieClient.deleteCatalogEntry(tableKey, EntityType.ICEBERG_TABLE, version, userName);
+    getUserNameAndIdWrappedRequestContext()
+        .run(
+            () ->
+                nessieClient.deleteCatalogEntry(
+                    tableKey, EntityType.ICEBERG_TABLE, version, userName));
+  }
+
+  protected RequestContext getUserNameAndIdWrappedRequestContext() {
+    RequestContext currentContext = RequestContext.current();
+    if (StringUtils.isEmpty(nessieCommitUserId)) {
+      return currentContext.with(
+          NessieCommitUsernameContext.CTX_KEY, new NessieCommitUsernameContext(userName));
+    }
+    return currentContext
+        .with(UserContext.CTX_KEY, new UserContext(nessieCommitUserId))
+        .with(NessieCommitUsernameContext.CTX_KEY, new NessieCommitUsernameContext(userName));
+  }
+
+  private <T> T callWithContext(Callable<T> callable) {
+    try {
+      return getUserNameAndIdWrappedRequestContext().call(callable);
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override

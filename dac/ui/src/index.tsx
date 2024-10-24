@@ -29,20 +29,16 @@ import "dremio-ui-lib/dist/index.css";
 import "./index.scss";
 import "./main.less";
 import "./uiTheme/css/typography.css";
-
-import { dremioSpritePath } from "@app/utils/getIconPath";
 import Root from "./containers/Root";
 import configureStore from "./store/configureStore";
-import { configureDremioIcon } from "dremio-ui-lib/components";
-import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
+import { ErrorBoundary } from "#oss/components/ErrorBoundary/ErrorBoundary";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
-
 import $ from "jquery";
-
-import { applyTheme } from "dremio-ui-common/appTheme";
-
 import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { queryClient } from "./queryClient";
+import { applyTheme } from "./theme";
+
 setupMetrics();
 
 window.laDeprecated = (key) => {
@@ -64,11 +60,12 @@ if (process.env.NODE_ENV !== "development") {
 }
 
 const initApp = async () => {
+  applyTheme();
+
   if (process.env.ENABLE_MSW === "true") {
     await (await import("@inject/setupMsw")).browserMocks();
   }
 
-  configureDremioIcon(dremioSpritePath as unknown as any);
   startup.run();
   await additionalSetup();
 
@@ -78,9 +75,10 @@ const initApp = async () => {
     >
       <QueryClientProvider client={queryClient}>
         <Root store={store} />
+        <ReactQueryDevtools />
       </QueryClientProvider>
     </ErrorBoundary>,
   );
 };
-applyTheme();
+
 initApp();

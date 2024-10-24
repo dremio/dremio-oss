@@ -58,6 +58,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
@@ -117,6 +118,16 @@ public class TestIcebergUtils {
         IcebergUtils.getValidIcebergPath(new Path(testUrl), azureConf, "dremioAzureStorage://");
     Assert.assertEquals(
         "wasbs://testdir@azurev1databricks2.blob.core.windows.net/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro",
+        modifiedFileLocation);
+
+    Configuration datalakeCatalogAzureConf = new Configuration();
+    datalakeCatalogAzureConf.set("dremio.azure.account", "datalakecatalogazuredatabricks2");
+    datalakeCatalogAzureConf.set(ENABLE_AZURE_ABFSS_SCHEME, "true");
+    modifiedFileLocation =
+        IcebergUtils.getValidIcebergPath(
+            new Path(testUrl), datalakeCatalogAzureConf, "dremioAzureStorage://");
+    Assert.assertEquals(
+        "abfss://testdir@datalakecatalogazuredatabricks2.dfs.core.windows.net/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro",
         modifiedFileLocation);
 
     Configuration conf = new Configuration();
@@ -919,6 +930,37 @@ public class TestIcebergUtils {
     Assert.assertEquals(argumentCaptor.getValue(), df);
     verify(deleteFiles, times(1)).commit();
     verify(expireSnapshots, times(1)).commit();
+  }
+
+  @Test
+  public void testFixupDefaultPropertiesDoesNotChangeWhenAlreadySet() {
+    // Arrange
+
+    TableMetadata tableMetadata = mock(TableMetadata.class);
+    Map<String, String> properties = new HashMap<>();
+    properties.put("gc.enabled", "true");
+    properties.put("write.metadata.delete-after-commit.enabled", "true");
+    when(tableMetadata.properties()).thenReturn(properties);
+
+    // Act
+    IcebergUtils.fixupDefaultProperties(tableMetadata);
+
+    // Assert
+    verify(tableMetadata, times(0)).replaceProperties(any());
+  }
+
+  @Test
+  public void testFixupDefaultPropertiesCalled() {
+    // Arrange
+    TableMetadata tableMetadata = mock(TableMetadata.class);
+    Map<String, String> properties = new HashMap<>();
+    when(tableMetadata.properties()).thenReturn(properties);
+
+    // Act
+    IcebergUtils.fixupDefaultProperties(tableMetadata);
+
+    // Assert
+    verify(tableMetadata, times(1)).replaceProperties(DEFAULT_TABLE_PROPERTIES);
   }
 
   private Map<Integer, PartitionSpec> preparePartitionSpecMap() {

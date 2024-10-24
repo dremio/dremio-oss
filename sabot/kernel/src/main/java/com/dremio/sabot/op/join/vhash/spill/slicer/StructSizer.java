@@ -58,6 +58,23 @@ public class StructSizer implements Sizer {
     }
   }
 
+  @Override
+  public int getDataLengthFromIndex(int startIndex, int numberOfEntries) {
+    final int nFields = this.incoming.getField().getChildren().size();
+    int totalDataLength = 0;
+    int endIndex = startIndex + numberOfEntries;
+    for (; startIndex < endIndex; startIndex++) {
+      if (incoming.isNull(startIndex)) {
+        continue;
+      }
+      for (int i = 0; i < nFields; i++) {
+        final Sizer childVectorSizer = Sizer.get(this.incoming.getChildByOrdinal(i));
+        totalDataLength += childVectorSizer.getDataLengthFromIndex(startIndex, 1);
+      }
+    }
+    return totalDataLength;
+  }
+
   /**
    * Computes purely data size excludes size required for offsets/validity buffers
    *

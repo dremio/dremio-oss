@@ -17,7 +17,7 @@ import { PureComponent } from "react";
 import Immutable from "immutable";
 
 import PropTypes from "prop-types";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
+import * as classes from "#oss/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 import {
   title,

@@ -16,10 +16,10 @@
 import { injectIntl } from "react-intl";
 
 import AccountModalForm from "./AccountModalForm";
-import Modal from "@app/components/Modals/Modal";
-import FormUnsavedWarningHOC from "@app/components/Modals/FormUnsavedWarningHOC";
+import Modal from "#oss/components/Modals/Modal";
+import FormUnsavedWarningHOC from "#oss/components/Modals/FormUnsavedWarningHOC";
 
-import "@app/pages/HomePage/components/modals/Modal.less";
+import "#oss/pages/HomePage/components/modals/Modal.less";
 
 type AccountModalProps = {
   intl: { formatMessage: any };

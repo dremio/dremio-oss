@@ -24,7 +24,10 @@ import static java.util.stream.Collectors.toList;
 
 import com.dremio.catalog.exception.SourceDoesNotExistException;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CastExpression;
+import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.connector.metadata.DatasetNotFoundException;
@@ -43,11 +46,13 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.config.CopyIntoExtendedProperties;
 import com.dremio.exec.physical.config.CopyIntoExtendedProperties.PropertyKey;
 import com.dremio.exec.physical.config.ExtendedFormatOptions;
+import com.dremio.exec.physical.config.ExtendedProperty;
 import com.dremio.exec.physical.config.SimpleQueryContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
 import com.dremio.exec.physical.config.copyinto.CopyIntoTransformationProperties;
+import com.dremio.exec.physical.config.copyinto.CopyIntoTransformationProperties.Property;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.logical.ParseContext;
 import com.dremio.exec.planner.logical.RexToExpr;
@@ -73,6 +78,7 @@ import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.exec.store.metadatarefresh.RefreshExecTableMetadata;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingScanPrel;
+import com.dremio.exec.util.ColumnUtils;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionValue;
@@ -101,7 +107,6 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -230,35 +235,49 @@ public abstract class CopyIntoTablePlanBuilderBase {
     this.transformationProperties =
         getTransformationProperties(
             context,
+            copyIntoTableContext,
             relNode,
             transformationsRowType,
-            copyIntoTableContext.getTransformationColNames(),
             copyIntoTableContext.getMappings(),
             cluster.getRexBuilder());
   }
 
   /**
-   * Retrieves the transformation properties for the "Copy Into" operation. This method prepares the
-   * transformation expressions and schema based on the provided {@link RelNode} and {@link
-   * RelDataType} if the transformations are enabled in the context options.
+   * Retrieves the {@link CopyIntoTransformationProperties} for a COPY INTO operation with
+   * transformations.
    *
-   * @param context The optimizer rules context containing planner settings and options.
-   * @param relNode The relational node representing the logical plan.
-   * @param transformationRowType The row type for the transformations.
-   * @param transformationColNames The name of the columns involved in transformations
-   * @param mappings The list of mappings for the transformations.
-   * @param rexBuilder The RexBuilder used to construct RexNodes.
-   * @return An instance of {@link CopyIntoTransformationProperties} containing the transformation
-   *     expressions and schema.
-   * @throws UserException If transformations are not supported and the row type is provided.
+   * @param context The {@link OptimizerRulesContext} providing context for optimization rules.
+   * @param copyIntoTableContext The {@link CopyIntoTableContext} containing context-specific
+   *     details for the COPY INTO operation.
+   * @param relNode The {@link RelNode} representing the relational expression.
+   * @param transformationRowType The {@link RelDataType} representing the transformation row type.
+   * @param mappings The list of column mappings.
+   * @param rexBuilder The {@link RexBuilder} for creating expressions.
+   * @return The {@link CopyIntoTransformationProperties} containing the transformation properties,
+   *     or {@code null} if transformations are not applicable.
+   * @throws UserException If transformations are not supported, if the file format is not Parquet,
+   *     if the ON_ERROR option is not ABORT, or if the column mappings are incorrect.
    */
   private CopyIntoTransformationProperties getTransformationProperties(
       OptimizerRulesContext context,
+      CopyIntoTableContext copyIntoTableContext,
       RelNode relNode,
       RelDataType transformationRowType,
-      List<String> transformationColNames,
       List<String> mappings,
       RexBuilder rexBuilder) {
+
+    if (copyIntoTableContext.getSerializedTransformationProperties() != null) {
+      if (!context.getOptions().getOption(ExecConstants.COPY_INTO_ENABLE_TRANSFORMATIONS)) {
+        throw UserException.unsupportedError()
+            .message("Copy Into with transformations is not supported")
+            .buildSilently();
+      }
+
+      return ExtendedProperty.Util.deserialize(
+          copyIntoTableContext.getSerializedTransformationProperties(),
+          CopyIntoTransformationProperties.class);
+    }
+
     if (transformationRowType == null || !(relNode instanceof LogicalProject)) {
       return null;
     }
@@ -266,6 +285,18 @@ public abstract class CopyIntoTablePlanBuilderBase {
     if (!context.getOptions().getOption(ExecConstants.COPY_INTO_ENABLE_TRANSFORMATIONS)) {
       throw UserException.unsupportedError()
           .message("Copy Into with transformations is not supported")
+          .buildSilently();
+    }
+
+    if (format.getType() != FileType.PARQUET) {
+      throw UserException.unsupportedError()
+          .message("Copy Into transformations is only supported for Parquet inputs")
+          .buildSilently();
+    }
+
+    if (copyIntoTableContext.getCopyOptions().get(ON_ERROR) == CONTINUE) {
+      throw UserException.unsupportedError()
+          .message("Copy Into transformations with ON_ERROR 'continue' is not supported")
           .buildSilently();
     }
 
@@ -292,15 +323,62 @@ public abstract class CopyIntoTablePlanBuilderBase {
                             rexNode))
                 .collect(toList());
 
-    // build a batchschema using the transformation rowtype
-    SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
-    transformationRowType.getFieldList().stream()
-        .map(field -> field.getName().toLowerCase())
-        .filter(transformationColNames::contains)
-        .forEach(name -> schemaBuilder.addField(Field.nullable(name, Utf8.INSTANCE)));
+    // mapping was not provided, we should map the outcome of the transformations to the first n
+    // columns of the target table
+    if (mappings.isEmpty()) {
+      mappings =
+          IntStream.range(0, logicalExpressions.size())
+              .mapToObj(i -> targetTableSchema.getFields().get(i).getName())
+              .collect(toList());
+    }
 
-    return new CopyIntoTransformationProperties(
-        logicalExpressions, mappings, schemaBuilder.build());
+    if (mappings.size() != logicalExpressions.size()) {
+      throw UserException.parseError()
+          .message(
+              "Number of columns in mapping definition does not match number of projected columns within inner select.")
+          .buildSilently();
+    }
+
+    CopyIntoTransformationProperties props = new CopyIntoTransformationProperties();
+
+    for (int i = 0; i < logicalExpressions.size(); i++) {
+      LogicalExpression logicalExpression = logicalExpressions.get(i);
+      props.addProperty(
+          new Property(
+              logicalExpression,
+              getTransformationSourceColNames(ImmutableList.of(logicalExpression)),
+              mappings.get(i)));
+    }
+
+    return props;
+  }
+
+  /**
+   * Extracts the source column names from a list of logical expressions.
+   *
+   * @param logicalExpressions The list of {@link LogicalExpression} objects from which to extract
+   *     column names.
+   * @return A list of source column names extracted from the logical expressions.
+   */
+  private List<String> getTransformationSourceColNames(List<LogicalExpression> logicalExpressions) {
+    List<String> result = new ArrayList<>();
+    for (LogicalExpression logicalExpression : logicalExpressions) {
+      if (logicalExpression instanceof SchemaPath) {
+        result.add(
+            ((SchemaPath) logicalExpression)
+                .getRootSegment()
+                .getPath()
+                .substring(ColumnUtils.VIRTUAL_COLUMN_PREFIX.length())
+                .toLowerCase());
+      } else if (logicalExpression instanceof FunctionCall) {
+        result.addAll(getTransformationSourceColNames(((FunctionCall) logicalExpression).args));
+      } else if (logicalExpression instanceof CastExpression) {
+        result.addAll(
+            getTransformationSourceColNames(
+                ImmutableList.of(((CastExpression) logicalExpression).getInput())));
+      }
+    }
+    return result;
   }
 
   private UserException getSourceNotFoundException(final String sourceName) {
@@ -360,7 +438,7 @@ public abstract class CopyIntoTablePlanBuilderBase {
    * additional "history" column. In such cases, the input parameter {@code rowType} already
    * contains the enhanced schema, which is then translated into a {@link BatchSchema} object. The
    * preparation of {@code rowType} object is handled by {@link
-   * SqlCopyIntoTable#extendTableWithDataFileSystemColumns()}
+   * com.dremio.exec.planner.sql.parser.SqlCopyIntoTable#extendTableWithDataFileSystemColumns()}
    *
    * @param rowType definition of a row
    * @param originalSchema schema of the target table

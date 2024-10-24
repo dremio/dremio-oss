@@ -42,12 +42,14 @@ import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.normalizer.aggregaterewrite.AggregateCallRewriteRule;
 import com.dremio.exec.planner.normalizer.aggregaterewrite.ArrayAggExpandDistinctAggregateRule;
 import com.dremio.exec.planner.normalizer.aggregaterewrite.CollectToArrayAggRule;
+import com.dremio.exec.planner.normalizer.aggregaterewrite.ListaggToArrayAggConvertlet;
 import com.dremio.exec.planner.normalizer.aggregaterewrite.PercentileFunctionsRewriteRule;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.convertlet.FunctionConverterRule;
+import com.dremio.exec.planner.sql.convertlet.RexNodeConverterRule;
 import com.dremio.exec.planner.sql.evaluator.FunctionEvaluatorRule;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.ContextInformation;
+import com.google.common.collect.ImmutableSet;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 
@@ -71,21 +73,30 @@ public class NormalizerRuleSets {
     // needs to be expanded
     // For example a Tabular UDF with a RexSubquery that has a scalarUDF that has a Tabular UDF
     // We have to use a HepPlanner due to the circular nature of the rules.
+    DremioRuleSetBuilder builder =
+        new DremioRuleSetBuilder(optionResolver)
+            .add(new TabularUserDefinedFunctionExpanderRule(userDefinedFunctionExpander))
+            .add(new RexNodeConverterRule(optionResolver, userDefinedFunctionExpander))
+            // RexSubquery To Correlate Rules
+            // These rules are needed since RelOptRules can't operate on the RelNode inside a
+            // RexSubquery
+            .add(CONVERT_FILTER_SUB_QUERY_TO_CORRELATE)
+            .add(CONVERT_JOIN_SUB_QUERY_TO_CORRELATE)
+            .add(CONVERT_PROJECT_SUB_QUERY_TO_CORRELATE)
+            .add(UnionCastRule.INSTANCE);
+    if (optionResolver.getOption(PlannerSettings.ENABLE_QUALIFIED_AGGREGATE_REWRITE)) {
+      builder.add(QualifiedAggregateToSubqueryRule.INSTANCE);
+    }
+
+    if (optionResolver.getOption(PlannerSettings.REWRITE_LISTAGG_TO_ARRAY_AGG)) {
+      builder.add(
+          new AggregateCallRewriteRule(ImmutableSet.of(ListaggToArrayAggConvertlet.INSTANCE)));
+    }
+
     return new HepPlannerRunner.HepPlannerRunnerConfig()
         .setPlannerPhase(PlannerPhase.ENTITY_EXPANSION)
         .getHepMatchOrder(HepMatchOrder.ARBITRARY)
-        .setRuleSet(
-            new DremioRuleSetBuilder(optionResolver)
-                .add(new TabularUserDefinedFunctionExpanderRule(userDefinedFunctionExpander))
-                .add(new FunctionConverterRule(optionResolver, userDefinedFunctionExpander))
-                // RexSubquery To Correlate Rules
-                // These rules are needed since RelOptRules can't operate on the RelNode inside a
-                // RexSubquery
-                .add(CONVERT_FILTER_SUB_QUERY_TO_CORRELATE)
-                .add(CONVERT_JOIN_SUB_QUERY_TO_CORRELATE)
-                .add(CONVERT_PROJECT_SUB_QUERY_TO_CORRELATE)
-                .add(UnionCastRule.INSTANCE)
-                .build());
+        .setRuleSet(builder.build());
   }
 
   public HepPlannerRunner.HepPlannerRunnerConfig createOperatorExpansion() {
@@ -112,7 +123,7 @@ public class NormalizerRuleSets {
         .getHepMatchOrder(HepMatchOrder.ARBITRARY)
         .setRuleSet(
             new DremioRuleSetBuilder(optionResolver)
-                .add(AggregateCallRewriteRule.INSTANCE)
+                .add(AggregateCallRewriteRule.create(optionResolver))
                 .add(
                     CoreRules.AGGREGATE_EXPAND_DISTINCT_AGGREGATES,
                     PlannerSettings.ENABLE_DISTINCT_AGG_WITH_GROUPING_SETS)

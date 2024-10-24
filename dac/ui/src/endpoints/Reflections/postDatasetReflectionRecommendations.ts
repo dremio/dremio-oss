@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import APICall from "@app/core/APICall";
+import APICall from "#oss/core/APICall";
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 
 type Params = {

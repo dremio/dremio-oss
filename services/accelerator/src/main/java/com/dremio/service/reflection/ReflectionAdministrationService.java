@@ -52,6 +52,8 @@ public interface ReflectionAdministrationService {
   ReflectionId createExternalReflection(
       String name, List<String> datasetPath, List<String> targetDatasetPath);
 
+  Optional<ExternalReflection> getExternalReflectionById(String id);
+
   Iterable<ExternalReflection> getExternalReflectionByDatasetPath(List<String> datasetPath);
 
   void dropExternalReflection(String id);

@@ -851,9 +851,7 @@ public class ITDataplanePluginMergeBranch extends ITDataplanePluginTestSetup {
 
   @Test
   public void mergeBranchFeatureFlagTurnedOff() throws Exception {
-    try {
-      setSystemOption(ENABLE_MERGE_BRANCH_BEHAVIOR, "false");
-
+    try (AutoCloseable ignored = withSystemOption(ENABLE_MERGE_BRANCH_BEHAVIOR, false)) {
       final String tableName = generateUniqueTableName();
       final List<String> tablePath = tablePathWithFolders(tableName);
       runSQL(createTableQueryWithAt(tablePath, DEFAULT_BRANCH_NAME));
@@ -877,8 +875,6 @@ public class ITDataplanePluginMergeBranch extends ITDataplanePluginTestSetup {
       assertQueryThrowsExpectedError(
           mergeBranchWithMergeOptions(branchName, DEFAULT_BRANCH_NAME, mergeBranchOptions),
           "Specifying merge behavior is not supported");
-    } finally {
-      setSystemOption(ENABLE_MERGE_BRANCH_BEHAVIOR, "true");
     }
   }
 }

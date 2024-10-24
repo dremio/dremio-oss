@@ -91,11 +91,11 @@ describe("resourceDecorators", function () {
             totalRAM: 30,
             totalCores: 3,
           },
-        })
+        }),
       );
 
       expect(resourceDecorators.decorateProvision(provision)).to.be.equal(
-        result
+        result,
       );
     });
 
@@ -104,11 +104,11 @@ describe("resourceDecorators", function () {
         containers: {},
       });
       const result = provision.merge(
-        Immutable.fromJS({ workersSummary: defaultWorkSummary })
+        Immutable.fromJS({ workersSummary: defaultWorkSummary }),
       );
 
       expect(resourceDecorators.decorateProvision(provision)).to.be.equal(
-        result
+        result,
       );
     });
 
@@ -137,11 +137,11 @@ describe("resourceDecorators", function () {
             ...defaultWorkSummary,
             active: 4,
           },
-        })
+        }),
       );
 
       expect(resourceDecorators.decorateProvision(provision)).to.be.equal(
-        result
+        result,
       );
     });
 
@@ -186,11 +186,11 @@ describe("resourceDecorators", function () {
             totalRAM: 10,
             totalCores: 2,
           },
-        })
+        }),
       );
 
       expect(resourceDecorators.decorateProvision(provision)).to.be.equal(
-        result
+        result,
       );
     });
   });

@@ -15,16 +15,16 @@
  */
 
 import { FormattedMessage } from "react-intl";
-import SettingsBtn from "@app/components/Buttons/SettingsBtn";
+import SettingsBtn from "#oss/components/Buttons/SettingsBtn";
 // @ts-ignore
 import { IconButton } from "dremio-ui-lib";
 import { Avatar } from "dremio-ui-lib/components";
-import { VersionedPageTabsType } from "@app/exports/pages/VersionedHomePage/VersionedHomePage";
-import { Tag } from "@app/services/nessie/client";
-import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+import { VersionedPageTabsType } from "#oss/exports/pages/VersionedHomePage/VersionedHomePage";
+import { Tag } from "#oss/services/nessie/client";
+import { nameToInitials } from "#oss/exports/utilities/nameToInitials";
 import VersionedGitActionsMenu from "../../VersionedGitActionsMenu/VersionedGitActionsMenu";
-import { convertISOStringWithTooltip } from "@app/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
-import { getShortHash } from "@app/utils/nessieUtils";
+import { convertISOStringWithTooltip } from "#oss/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
+import { getShortHash } from "#oss/utils/nessieUtils";
 import CopyButton from "components/Buttons/CopyButton";
 
 export const getTagsTableColumns = () => {

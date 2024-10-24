@@ -18,6 +18,7 @@ package com.dremio.exec.store.dfs.system.evolution.step;
 import java.util.Collections;
 import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Type.PrimitiveType;
 import org.immutables.value.Value;
@@ -32,10 +33,11 @@ public abstract class SystemIcebergTableSchemaUpdateStep implements SystemIceber
   /**
    * Returns the list of columns that were added in this schema evolution step.
    *
-   * @return The list of added columns.
+   * @return The list of added columns. One entry in the list contains the name, the type and an
+   *     isOptional flag of the column
    */
   @Value.Default
-  public List<Pair<String, Type>> getAddedColumns() {
+  public List<Triple<String, Type, Boolean>> getAddedColumns() {
     return Collections.emptyList();
   }
 

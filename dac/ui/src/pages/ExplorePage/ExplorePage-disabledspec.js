@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 import Immutable from "immutable";
-import { hashHeightTopSplitter } from "@app/constants/explorePage/heightTopSplitter";
+import { hashHeightTopSplitter } from "#oss/constants/explorePage/heightTopSplitter";
 import { ExplorePageView as ExplorePage } from "./ExplorePage";
 
 describe("ExplorePage", () => {

@@ -82,7 +82,10 @@ public class TestFormatTools extends BaseTestServer {
     String fileUrlPath = getUrlPath("/singlefile_parquet_dir/0_0_0.parquet");
     FileFormatUI fileFormat =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dfs_static_test_hadoop/file_format/" + fileUrlPath))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dfs_static_test_hadoop/file_format/" + fileUrlPath))
                 .buildGet(),
             FileFormatUI.class);
     assertTrue(fileFormat.getFileFormat() instanceof ParquetFileConfig);
@@ -95,7 +98,9 @@ public class TestFormatTools extends BaseTestServer {
     FileFormatUI fileFormat =
         expectSuccess(
             getBuilder(
-                    getAPIv2().path("/source/dfs_static_test_hadoop/file_format/" + tableUrlPath))
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dfs_static_test_hadoop/file_format/" + tableUrlPath))
                 .buildGet(),
             FileFormatUI.class);
     assertTrue(fileFormat.getFileFormat() instanceof IcebergFileConfig);
@@ -104,22 +109,24 @@ public class TestFormatTools extends BaseTestServer {
 
   @Test
   public void testIcebergTablePreviewData() throws Exception {
-    setSystemOption("dac.format.preview.batch_size", "1000");
-    IcebergTestTables.Table icebergTable =
-        IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES.get();
-    try {
+    try (AutoCloseable ignore = withSystemOption(FormatTools.BATCH_SIZE, 1000);
+        IcebergTestTables.Table icebergTable =
+            IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES.get()) {
       String tableUrlPath = icebergTable.getLocation();
       FileFormatUI fileFormat =
           expectSuccess(
               getBuilder(
-                      getAPIv2().path("/source/dfs_static_test_hadoop/file_format/" + tableUrlPath))
+                      getHttpClient()
+                          .getAPIv2()
+                          .path("/source/dfs_static_test_hadoop/file_format/" + tableUrlPath))
                   .buildGet(),
               FileFormatUI.class);
       assertTrue(fileFormat.getFileFormat() instanceof IcebergFileConfig);
       JobDataFragment data =
           expectSuccess(
               getBuilder(
-                      getAPIv2()
+                      getHttpClient()
+                          .getAPIv2()
                           .path("/source/dfs_static_test_hadoop/file_preview/" + tableUrlPath))
                   .buildPost(Entity.json(fileFormat.getFileFormat())),
               JobDataFragment.class);
@@ -131,11 +138,6 @@ public class TestFormatTools extends BaseTestServer {
       assertEquals("source_id", data.getColumns().get(3).getName());
       assertEquals("product_name", data.getColumns().get(4).getName());
       assertEquals("amount", data.getColumns().get(5).getName());
-    } finally {
-      resetSystemOption("dac.format.preview.batch_size");
-      if (icebergTable != null) {
-        icebergTable.close();
-      }
     }
   }
 
@@ -149,7 +151,9 @@ public class TestFormatTools extends BaseTestServer {
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getAPIv2().path("/source/dfs_static_test_hadoop/file_preview" + tableUrlPath))
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dfs_static_test_hadoop/file_preview" + tableUrlPath))
                 .buildPost(Entity.json(icebergFileConfig)),
             UserExceptionMapper.ErrorMessageWithContext.class);
     assertTrue(

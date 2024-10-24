@@ -16,11 +16,11 @@
 import moize from "moize";
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import { type SupportFlagResponse } from "./SupportFlagResponse.type";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import { useEffect, useState } from "react";
-import sentryUtil from "@app/utils/sentryUtil";
-import { store } from "@app/store/store";
-import { fetchSupportFlagsSuccess } from "@app/actions/supportFlags";
+import sentryUtil from "#oss/utils/sentryUtil";
+import { store } from "#oss/store/store";
+import { fetchSupportFlagsSuccess } from "#oss/actions/supportFlags";
 
 export const getSupportFlagUrl = (supportKey: string) =>
   new APIV2Call().paths(`settings/${supportKey}`).toString();

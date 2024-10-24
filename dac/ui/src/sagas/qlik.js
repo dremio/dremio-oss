@@ -33,10 +33,10 @@ import { getUserName } from "selectors/account";
 import { getLocation } from "selectors/routing";
 
 import { constructFullPath, getUniqueName } from "utils/pathUtils";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import { getLocationChangePredicate } from "./utils";
 
-import FileUtils from "@app/utils/FileUtils";
+import FileUtils from "#oss/utils/FileUtils";
 
 export const DSN = "Dremio Connector";
 
@@ -147,7 +147,7 @@ export function* openQlikSense(action) {
 
     const qlikApp = yield call(
       [qlikGlobal, qlikGlobal.createApp],
-      applicationName
+      applicationName,
     );
     const qlikDoc = yield call(
       [qlikGlobal, qlikGlobal.openDoc],
@@ -155,11 +155,11 @@ export function* openQlikSense(action) {
       null,
       null,
       null,
-      true
+      true,
     );
     yield call(
       [qlikDoc, qlikDoc.createConnection],
-      getConnectionConfig(window.location.hostname, username, password)
+      getConnectionConfig(window.location.hostname, username, password),
     );
     yield call([qlikDoc, qlikDoc.setScript], qlikConfig);
 
@@ -185,7 +185,7 @@ export function* requestPassword() {
       title: laDeprecated("Qlik Sense"),
       confirmText: laDeprecated("Continue"),
       text: laDeprecated(
-        "Qlik Sense requires your Dremio password to continue:"
+        "Qlik Sense requires your Dremio password to continue:",
       ),
       promptLabel: laDeprecated("Password"),
       showPrompt: true,
@@ -262,6 +262,6 @@ export function showQlikErrorWrapper(dataset, messageKey) {
 
 export function showQlikCustomErrorWrapper(dataset, error) {
   return showQlikError(
-    Immutable.fromJS({ code: "QLIK_CUSTOM_ERROR", moreInfo: error.message })
+    Immutable.fromJS({ code: "QLIK_CUSTOM_ERROR", moreInfo: error.message }),
   );
 }

@@ -17,15 +17,15 @@ import { PureComponent } from "react";
 import Immutable from "immutable";
 import { connect } from "react-redux";
 import { FormattedMessage } from "react-intl";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import PropTypes from "prop-types";
 import { Spinner } from "dremio-ui-lib/components";
 
 import exploreUtils from "utils/explore/exploreUtils";
 import exploreTransforms from "utils/exploreTransforms";
-import jobsUtils from "@app/utils/jobsUtils";
+import jobsUtils from "#oss/utils/jobsUtils";
 
-import { LIST, MAP, STRUCT } from "@app/constants/DataTypes";
+import { LIST, MAP, STRUCT } from "#oss/constants/DataTypes";
 import * as jobPaths from "dremio-ui-common/paths/jobs.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
@@ -35,7 +35,7 @@ import {
   getPaginationUrl,
   getExploreState,
   getColumnFilter,
-} from "@app/selectors/explore";
+} from "#oss/selectors/explore";
 import { getViewState } from "selectors/resources";
 import { resetViewState } from "actions/resources";
 import { accessEntity } from "actions/resources/lru";
@@ -46,34 +46,34 @@ import {
 } from "actions/explore/dataset/transform";
 
 import { FULL_CELL_VIEW_ID } from "actions/explore/dataset/data";
-import { isSqlChanged } from "@app/sagas/utils";
-import { ErrorBoundary } from "@app/components/OldErrorBoundary";
+import { isSqlChanged } from "#oss/sagas/utils";
+import { ErrorBoundary } from "#oss/components/OldErrorBoundary";
 
 import { LOAD_TRANSFORM_CARDS_VIEW_ID } from "actions/explore/recommended";
 
 import { constructFullPath } from "utils/pathUtils";
-import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
+import { PageTypes } from "#oss/pages/ExplorePage/pageTypes";
 import {
   sqlEditorTableColumns,
   pendingSQLJobs,
-} from "@app/constants/Constants";
+} from "#oss/constants/Constants";
 import {
   renderJobStatus,
   getJobIdsList,
   getSqlList,
   getFilteredSqlList,
-} from "@app/utils/jobsUtils";
-import StatefulTableViewer from "@app/components/StatefulTableViewer";
+} from "#oss/utils/jobsUtils";
+import StatefulTableViewer from "#oss/components/StatefulTableViewer";
 import { Button, IconButton } from "dremio-ui-lib/components";
 
-import JobListingPage from "@app/pages/JobPageNew/JobListingPage";
+import JobListingPage from "#oss/pages/JobPageNew/JobListingPage";
 import { parseQueryState } from "utils/jobsQueryState";
 import { updateQueryState } from "actions/jobs/jobs";
 import { Tooltip } from "dremio-ui-lib";
-import { cancelJobAndShowNotification } from "@app/actions/jobs/jobs";
+import { cancelJobAndShowNotification } from "#oss/actions/jobs/jobs";
 
-import Message from "@app/components/Message";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
+import Message from "#oss/components/Message";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
 import DropdownForSelectedText from "./DropdownForSelectedText";
 import ExploreCellLargeOverlay from "./ExploreCellLargeOverlay";
 import ExploreTable from "./ExploreTable";
@@ -134,7 +134,7 @@ export class ExploreTableController extends PureComponent {
     dataset: Immutable.Map(),
   };
 
-  transformPreconfirmed = false; // eslint-disable-line react/sort-comp
+  transformPreconfirmed = false;
 
   constructor(props) {
     super(props);
@@ -456,7 +456,7 @@ export class ExploreTableController extends PureComponent {
           if (column.get("name") === columnName && !column.get("status")) {
             return column
               .set("status", "TRANSFORM_ON")
-              .set("color", "var(--color--brand--100)");
+              .set("color", "var(--fill--primary--selected--hover)");
           }
           return column;
         });
@@ -479,7 +479,7 @@ export class ExploreTableController extends PureComponent {
           hide={this.hideCellMore}
           openPopover={this.state.openPopover}
           selectAll={this.selectAll}
-          style={{ width: "400px" }}
+          style={{ width: "398px" }}
         />
       </ErrorBoundary>
     ) : null;

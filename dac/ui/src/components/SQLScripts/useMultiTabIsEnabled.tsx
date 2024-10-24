@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { useSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { SQLRUNNER_TABS_UI } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 import { forwardRef } from "react";
 
 export const useMultiTabIsEnabled = () => {

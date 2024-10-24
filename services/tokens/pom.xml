@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>25.1.1-202409260159070462-716c0676</version>
+    <version>${revision}</version>
   </parent>
   <artifactId>dremio-services-tokens</artifactId>
   <name>Services - Tokens</name>
@@ -61,6 +61,20 @@
       <artifactId>dremio-services-authenticator</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-users</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.nimbusds</groupId>
+      <artifactId>nimbus-jose-jwt</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.threeten</groupId>
+      <artifactId>threeten-extra</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -84,7 +98,7 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>com.dremio.tools</groupId>
+        <groupId>com.dremio.build-tools</groupId>
         <artifactId>dremio-protostuff-maven-plugin</artifactId>
         <executions>
           <execution>
@@ -118,4 +132,35 @@
     </plugins>
   </build>
 
+  <!-- MapR 6.2 uses BC Fips libraries which are not compatible with main BC artifacts -->
+  <profiles>
+    <profile>
+      <id>notmapr</id>
+      <activation>
+        <property>
+          <name>!mapr</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcpkix-jdk18on</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>mapr</id>
+      <activation>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcpkix-fips</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>

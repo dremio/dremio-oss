@@ -18,11 +18,17 @@ package com.dremio.plugins.dataplane.exec;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_ACCESS_DENIED;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_NOT_FOUND;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_PARTIAL_FAILURES;
+import static com.dremio.exec.store.iceberg.logging.VacuumLogProto.ErrorType.NOT_FOUND_EXCEPTION;
+import static com.dremio.exec.store.iceberg.logging.VacuumLogProto.ErrorType.PERMISSION_EXCEPTION;
+import static com.dremio.exec.store.iceberg.logging.VacuumLogProto.ErrorType.UNKNOWN;
+import static com.dremio.exec.store.iceberg.logging.VacuumLoggingUtil.createNessieExpireSnapshotLog;
+import static com.dremio.exec.store.iceberg.logging.VacuumLoggingUtil.getVacuumLogger;
 import static com.dremio.plugins.dataplane.exec.NessieCommitsRecordReader.readTableMetadata;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.logging.StructuredLogger;
 import com.dremio.common.util.S3ConnectionConstants;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.context.JobIdContext;
@@ -47,6 +53,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.catalog.Namespace;
@@ -75,6 +82,7 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
   public static final String FS_EXPIRY_PARALLELISM_CONF_KEY = "vacuum.expiry_action.parallelism";
   private static final Logger LOGGER =
       LoggerFactory.getLogger(NessieIcebergExpirySnapshotsReader.class);
+  private static final StructuredLogger vacuumLogger = getVacuumLogger();
 
   private final NessieApiV2 nessieApi;
   private CompletableFuture<?> producer;
@@ -83,6 +91,7 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
   private final Semaphore slots;
   private final String schemeVariate;
   private final String fsScheme;
+  private final String queryId;
 
   public NessieIcebergExpirySnapshotsReader(
       OperatorContext context,
@@ -107,6 +116,7 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
     this.expiryActionsQueue = new ConcurrentLinkedQueue<>();
     this.schemeVariate = schemeVariate;
     this.fsScheme = fsScheme;
+    this.queryId = QueryIdHelper.getQueryId(context.getFragmentHandle().getQueryId());
   }
 
   @Override
@@ -164,10 +174,11 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
             tableHolder.getTableId().name(), tableHolder.getVersionContext().getRefName());
     Stopwatch tracker = Stopwatch.createStarted();
     boolean status = false;
+    IcebergTable table = tableHolder.getTable();
+    String metadataLocation = table.getMetadataLocation();
+    String tableName = tableHolder.getTableId().name();
+
     try {
-      IcebergTable table = tableHolder.getTable();
-      String metadataLocation = table.getMetadataLocation();
-      String tableName = tableHolder.getTableId().name();
       String namespace =
           Optional.ofNullable(tableHolder.getTableId().namespace())
               .map(Namespace::toString)
@@ -205,15 +216,49 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
                   schemeVariate,
                   fsScheme));
       status = true;
+      vacuumLogger.info(
+          createNessieExpireSnapshotLog(
+              queryId,
+              tableId,
+              metadataLocation,
+              snapshotsScanOptions,
+              ret.get().getExpiredSnapshots().stream()
+                  .map(snapshotEntry -> String.valueOf(snapshotEntry.getSnapshotId()))
+                  .collect(Collectors.toList())),
+          "");
       return ret;
     } catch (NotFoundException nfe) {
-      LOGGER.warn("Skipping since table metadata is missing for the table " + tableId, nfe);
+      String message = "Skipping since table metadata is missing for the table " + tableId;
+      LOGGER.warn(message, nfe);
+      vacuumLogger.warn(
+          createNessieExpireSnapshotLog(
+              queryId,
+              tableId,
+              metadataLocation,
+              snapshotsScanOptions,
+              NOT_FOUND_EXCEPTION,
+              message + "./n" + nfe.toString()),
+          "");
       context.getStats().addLongStat(NUM_PARTIAL_FAILURES, 1L);
       context.getStats().addLongStat(NUM_NOT_FOUND, 1L);
       return Optional.empty();
     } catch (UserException e) {
+      vacuumLogger.warn(
+          createNessieExpireSnapshotLog(
+              queryId, tableId, metadataLocation, snapshotsScanOptions, UNKNOWN, e.toString()),
+          "");
       if (UserBitShared.DremioPBError.ErrorType.PERMISSION.equals(e.getErrorType())) {
-        LOGGER.warn("Skipping since access is denied on the table " + tableId, e);
+        String message = "Skipping since access is denied on the table ";
+        vacuumLogger.warn(
+            createNessieExpireSnapshotLog(
+                queryId,
+                tableId,
+                metadataLocation,
+                snapshotsScanOptions,
+                PERMISSION_EXCEPTION,
+                message),
+            "");
+        LOGGER.warn(message + tableId, e);
         context.getStats().addLongStat(NUM_PARTIAL_FAILURES, 1L);
         context.getStats().addLongStat(NUM_ACCESS_DENIED, 1L);
         return Optional.empty();

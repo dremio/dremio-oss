@@ -22,7 +22,9 @@ import static org.junit.Assert.assertEquals;
 
 import com.dremio.dac.api.Dataset;
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.DatasetUIWithHistory;
+import com.dremio.dac.explore.model.DatasetVersionResourcePath;
 import com.dremio.dac.explore.model.HistoryItem;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.NewUntitledFromParentRequest;
@@ -83,7 +85,7 @@ public class TestDatasetVersionResource extends BaseTestServer {
     Dataset newVDS = createVDS(Arrays.asList("dsvTest", "testVDS"), "select * from sys.version");
     Dataset vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)),
+            getBuilder(getHttpClient().getAPIv3().path("catalog")).buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
     // create a derivation of the VDS
@@ -92,7 +94,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     // set references payload
     WebTarget target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("datasets")
             .path("new_untitled")
             .queryParam("parentDataset", parentDataset)
@@ -119,7 +122,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
     // set empty references payload
     datasetVersion = DatasetVersion.newVersion();
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("datasets")
             .path("new_untitled")
             .queryParam("parentDataset", parentDataset)
@@ -141,14 +145,15 @@ public class TestDatasetVersionResource extends BaseTestServer {
     Dataset newVDS = createVDS(Arrays.asList("dsvTest", "previewVDS"), "select * from sys.version");
     Dataset vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)),
+            getBuilder(getHttpClient().getAPIv3().path("catalog")).buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
     // create a derivation of the VDS
     String parentDataset = String.join(".", vds.getPath());
     DatasetVersion datasetVersion = DatasetVersion.newVersion();
     WebTarget target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("datasets")
             .path("new_untitled")
             .queryParam("parentDataset", parentDataset)
@@ -174,7 +179,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     // save the derivation a new VDS
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path("tmp.UNTITLED")
             .path("version")
@@ -199,7 +205,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
     sourceVersionReferenceList.add(new SourceVersionReference("source3", versionContext3));
 
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath)
             .path("version")
@@ -221,7 +228,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     // save the transform as a third VDS
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath)
             .path("version")
@@ -239,7 +247,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
     String dsPath2 = String.join(".", dswh2.getDataset().getFullPath());
 
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath2)
             .path("version")
@@ -262,14 +271,15 @@ public class TestDatasetVersionResource extends BaseTestServer {
         createVDS(Arrays.asList("dsvTest", "preview_VDS"), "select * from sys.version");
     Dataset vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)),
+            getBuilder(getHttpClient().getAPIv3().path("catalog")).buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
     // create a derivation of the VDS
     String parentDataset = String.join(".", vds.getPath());
     DatasetVersion datasetVersion = DatasetVersion.newVersion();
     WebTarget target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("datasets")
             .path("new_untitled")
             .queryParam("parentDataset", parentDataset)
@@ -295,7 +305,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     // save the derivation a new VDS
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path("tmp.UNTITLED")
             .path("version")
@@ -320,7 +331,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
     sourceVersionReferenceList.add(new SourceVersionReference("source3", versionContext3));
 
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath)
             .path("version")
@@ -347,14 +359,15 @@ public class TestDatasetVersionResource extends BaseTestServer {
         createVDS(Arrays.asList("dsvTest", "transformAndRunVDS"), "select * from sys.version");
     Dataset vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)),
+            getBuilder(getHttpClient().getAPIv3().path("catalog")).buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
     // create a derivation of the VDS
     String parentDataset = String.join(".", vds.getPath());
     DatasetVersion datasetVersion = DatasetVersion.newVersion();
     WebTarget target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("datasets")
             .path("new_untitled")
             .queryParam("parentDataset", parentDataset)
@@ -365,7 +378,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
         new GenericType<InitialPreviewResponse>() {});
 
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path("tmp.UNTITLED")
             .path("version")
@@ -381,7 +395,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
     // set references payload
     datasetVersion = DatasetVersion.newVersion();
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath)
             .path("version")
@@ -453,14 +468,15 @@ public class TestDatasetVersionResource extends BaseTestServer {
         createVDS(Arrays.asList("dsvTest", "transformAndRun_VDS"), "select * from sys.version");
     Dataset vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)),
+            getBuilder(getHttpClient().getAPIv3().path("catalog")).buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
     // create a derivation of the VDS
     String parentDataset = String.join(".", vds.getPath());
     DatasetVersion datasetVersion = DatasetVersion.newVersion();
     WebTarget target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("datasets")
             .path("new_untitled")
             .queryParam("parentDataset", parentDataset)
@@ -471,7 +487,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
         new GenericType<InitialPreviewResponse>() {});
 
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path("tmp.UNTITLED")
             .path("version")
@@ -487,7 +504,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
     // set references payload
     datasetVersion = DatasetVersion.newVersion();
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath)
             .path("version")
@@ -561,14 +579,15 @@ public class TestDatasetVersionResource extends BaseTestServer {
     Dataset newVDS = createVDS(Arrays.asList("dsvTest", "myVDS"), "select * from sys.version");
     Dataset vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)),
+            getBuilder(getHttpClient().getAPIv3().path("catalog")).buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
     // create a derivation of the VDS
     String parentDataset = String.join(".", vds.getPath());
     DatasetVersion datasetVersion = DatasetVersion.newVersion();
     WebTarget target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("datasets")
             .path("new_untitled")
             .queryParam("parentDataset", parentDataset)
@@ -581,7 +600,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     // save the derivation a new VDS
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path("tmp.UNTITLED")
             .path("version")
@@ -598,7 +618,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
     String dsPath = String.join(".", dswh.getDataset().getFullPath());
 
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath)
             .path("version")
@@ -616,7 +637,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     // save the transform as a third VDS
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath)
             .path("version")
@@ -634,7 +656,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
     String dsPath2 = String.join(".", dswh2.getDataset().getFullPath());
 
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath2)
             .path("version")
@@ -653,14 +676,15 @@ public class TestDatasetVersionResource extends BaseTestServer {
             Arrays.asList("dsvTest", "badVDSParent"), "select version, commit_id from sys.version");
     parentVDS =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(parentVDS)),
+            getBuilder(getHttpClient().getAPIv3().path("catalog"))
+                .buildPost(Entity.json(parentVDS)),
             new GenericType<Dataset>() {});
 
     Dataset newVDS =
         createVDS(Arrays.asList("dsvTest", "badVDS"), "select version from dsvTest.badVDSParent");
     newVDS =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)),
+            getBuilder(getHttpClient().getAPIv3().path("catalog")).buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
     // update the parent to no longer include the version field
@@ -678,7 +702,7 @@ public class TestDatasetVersionResource extends BaseTestServer {
             parentVDS.getFormat(),
             null);
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("catalog").path(updatedParentVDS.getId()))
+        getBuilder(getHttpClient().getAPIv3().path("catalog").path(updatedParentVDS.getId()))
             .buildPut(Entity.json(updatedParentVDS)),
         new GenericType<Dataset>() {});
 
@@ -686,7 +710,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
     String dsPath = String.join(".", newVDS.getPath());
     DatasetVersion datasetVersion = DatasetVersion.newVersion();
     WebTarget target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("datasets")
             .path("new_untitled")
             .queryParam("parentDataset", dsPath)
@@ -703,7 +728,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     // edit original sql is a preview call with a limit of 0
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath)
             .path("version")
@@ -723,14 +749,16 @@ public class TestDatasetVersionResource extends BaseTestServer {
         createVDS(Arrays.asList("dsvTest", "renameParentVDS"), "select * from sys.version");
     Dataset vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(parentVDS)),
+            getBuilder(getHttpClient().getAPIv3().path("catalog"))
+                .buildPost(Entity.json(parentVDS)),
             new GenericType<Dataset>() {});
 
     // create a derivation of parentVDS
     String parentDataset = String.join(".", parentVDS.getPath());
     DatasetVersion datasetVersion = DatasetVersion.newVersion();
     WebTarget target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("datasets")
             .path("new_untitled")
             .queryParam("parentDataset", parentDataset)
@@ -743,7 +771,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     // save the derivation a new VDS
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path("tmp.UNTITLED")
             .path("version")
@@ -760,7 +789,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
     String dsPath = String.join(".", dswh.getDataset().getFullPath());
 
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath)
             .path("version")
@@ -778,7 +808,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     // save the transform as a third VDS
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath)
             .path("version")
@@ -793,7 +824,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     // the history of the original VDS should not be broken after save as a new VDS
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(String.join(".", dswh.getDataset().getFullPath()))
             .path("version")
@@ -810,7 +842,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
         new DatasetPath(Arrays.asList("dsvTest", "renameVDS-new")));
 
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(String.join(".", dswh2.getDataset().getFullPath()))
             .path("version")
@@ -831,7 +864,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
     datasetVersion = DatasetVersion.newVersion();
 
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("datasets")
             .path("new_untitled")
             .queryParam("parentDataset", parentDataset)
@@ -842,8 +876,10 @@ public class TestDatasetVersionResource extends BaseTestServer {
             getBuilder(target).buildPost(Entity.json(null)),
             new GenericType<InitialPreviewResponse>() {});
 
+    DatasetUI datasetUI = initialPreviewResponse.getDataset();
+    DatasetVersionResourcePath versionResourcePath = datasetUI.toDatasetVersionPath();
     InitialPreviewResponse reapplyResult =
-        reapply(getDatasetVersionPath(initialPreviewResponse.getDataset()));
+        getHttpClient().getDatasetApi().reapply(versionResourcePath);
   }
 
   // Ensure DDL statements won't work with save
@@ -854,7 +890,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
             Arrays.asList("dsvTest", "saveInvalidVDS"),
             "CREATE TABLE \"$scratch\".\"ctas\" AS select 1");
     expectStatus(
-        BAD_REQUEST, getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)));
+        BAD_REQUEST,
+        getBuilder(getHttpClient().getAPIv3().path("catalog")).buildPost(Entity.json(newVDS)));
   }
 
   @Test
@@ -863,14 +900,15 @@ public class TestDatasetVersionResource extends BaseTestServer {
         createVDS(Arrays.asList("dsvTest", "initalSaveVDS"), "select * from sys.version");
     Dataset vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)),
+            getBuilder(getHttpClient().getAPIv3().path("catalog")).buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
     // create a derivation of the VDS
     String parentDataset = String.join(".", vds.getPath());
     DatasetVersion datasetVersion = DatasetVersion.newVersion();
     WebTarget target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("datasets")
             .path("new_untitled")
             .queryParam("parentDataset", parentDataset)
@@ -881,7 +919,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
         new GenericType<InitialPreviewResponse>() {});
 
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path("tmp.UNTITLED")
             .path("version")
@@ -896,7 +935,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     datasetVersion = DatasetVersion.newVersion();
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath)
             .path("version")
@@ -915,7 +955,8 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     // save the transform as a view - should fail since it's a create statement
     target =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("dataset")
             .path(dsPath)
             .path("version")
@@ -941,7 +982,7 @@ public class TestDatasetVersionResource extends BaseTestServer {
             Arrays.asList("dsvTest", "testDuplicateColumns"),
             "select n_name, n_name as n_name0 from cp.\"tpch/nation.parquet\" order by 1 asc");
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)),
+        getBuilder(getHttpClient().getAPIv3().path("catalog")).buildPost(Entity.json(newVDS)),
         new GenericType<Dataset>() {});
 
     try (final JobDataFragment data =

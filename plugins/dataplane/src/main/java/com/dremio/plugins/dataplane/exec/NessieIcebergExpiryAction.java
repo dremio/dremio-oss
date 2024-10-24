@@ -15,7 +15,8 @@
  */
 package com.dremio.plugins.dataplane.exec;
 
-import static org.apache.iceberg.TableProperties.GC_ENABLED;
+import static com.dremio.exec.planner.VacuumCatalogUtil.isGCEnabledForIcebergTable;
+import static org.apache.iceberg.DremioTableProperties.NESSIE_GC_ENABLED;
 import static org.apache.iceberg.TableProperties.MAX_SNAPSHOT_AGE_MS;
 import static org.apache.iceberg.TableProperties.MIN_SNAPSHOTS_TO_KEEP;
 
@@ -27,6 +28,8 @@ import com.dremio.exec.store.iceberg.IcebergExpiryAction;
 import com.dremio.exec.store.iceberg.SnapshotEntry;
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
@@ -41,13 +44,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.util.PropertyUtil;
 
 /** Nessie specific variants in the expiry actions. */
 public class NessieIcebergExpiryAction extends IcebergExpiryAction {
 
   private static final List<String> TABLE_OVERRIDE_PROPERTY_KEYS =
-      ImmutableList.of(GC_ENABLED, MAX_SNAPSHOT_AGE_MS, MIN_SNAPSHOTS_TO_KEEP);
+      ImmutableList.of(NESSIE_GC_ENABLED, MAX_SNAPSHOT_AGE_MS, MIN_SNAPSHOTS_TO_KEEP);
 
   public NessieIcebergExpiryAction(
       SupportsIcebergMutablePlugin icebergMutablePlugin,
@@ -92,7 +94,7 @@ public class NessieIcebergExpiryAction extends IcebergExpiryAction {
             .min()
             .orElse(System.currentTimeMillis());
     Predicate<TableMetadata.MetadataLogEntry> shouldRetain =
-        PropertyUtil.propertyAsBoolean(tableMetadata.properties(), GC_ENABLED, true)
+        isGCEnabledForIcebergTable(tableMetadata.properties())
             ? me -> me.timestampMillis() >= oldestSnapshotTimestamp
             : Predicates.alwaysTrue();
 
@@ -137,5 +139,12 @@ public class NessieIcebergExpiryAction extends IcebergExpiryAction {
       tableProps.setTableName(dbName + "." + tableName);
     }
     return tableProps;
+  }
+
+  @Override
+  protected List<SnapshotEntry> expireTableSnapshots(
+      IcebergModel icebergModel, IcebergTableIdentifier tableId) {
+    return icebergModel.expireSnapshotsForVersionedTable(
+        tableId, vacuumOptions.getOlderThanInMillis(), vacuumOptions.getRetainLast());
   }
 }

@@ -28,7 +28,7 @@ import {
   base,
   columnElement,
   select as selectCls,
-} from "@app/pages/ExplorePage/components/MultiplySort/components/DragSortColumn.less";
+} from "#oss/pages/ExplorePage/components/MultiplySort/components/DragSortColumn.less";
 
 import Select from "../../Fields/Select";
 import DragAreaColumn from "../../DragComponents/DragAreaColumn";
@@ -55,7 +55,7 @@ class DragMeasureColumn extends Component {
     const column = getColumnByName(allColumns, columnName);
     return isMeasureValidForColumnType(
       field.measure.value,
-      column && column.get("type")
+      column && column.get("type"),
     );
   };
 
@@ -63,7 +63,7 @@ class DragMeasureColumn extends Component {
     const { field, allColumns, index } = this.props;
     const selectedColumn = getColumnByName(allColumns, field.column.value);
     const measureItems = getMeasuresForColumnType(
-      selectedColumn && selectedColumn.get("type")
+      selectedColumn && selectedColumn.get("type"),
     );
 
     return (

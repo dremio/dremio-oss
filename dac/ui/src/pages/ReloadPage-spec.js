@@ -40,7 +40,7 @@ describe("ReloadPage", () => {
     const wrapper = shallow(<ReloadPage {...props} />, { context });
     expect(wrapper).to.have.length(1);
     expect(context.router.replace).to.have.been.calledWith(
-      props.location.state.to
+      props.location.state.to,
     );
   });
 

@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { EngineActionMenu } from "@app/pages/AdminPage/subpages/Provisioning/components/EngineActionMenu";
-import { StartStopButton } from "@app/pages/AdminPage/subpages/Provisioning/components/EngineActionCell";
+import { EngineActionMenu } from "#oss/pages/AdminPage/subpages/Provisioning/components/EngineActionMenu";
+import { StartStopButton } from "#oss/pages/AdminPage/subpages/Provisioning/components/EngineActionCell";
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     renderButton() {
       const { engine, handleStartStop } = this.props;
 

@@ -17,11 +17,12 @@ import { Err, Ok } from "ts-results-es";
 import type { ResourceConfig, V3Config } from "../../_internal/types/Config.js";
 import { Project } from "./Project.js";
 import { projectEntityToProperties } from "./utils.js";
+import type { SignalParam } from "../../_internal/types/Params.js";
 
 export const ProjectsResource = (config: ResourceConfig & V3Config) => {
   const deleteProject = (id: string) =>
     config
-      .v3Request(`projects/${id}`, { method: "DELETE" })
+      .v3Request(`projects/${id}`, { keepalive: true, method: "DELETE" })
       .then(() => Ok(undefined))
       .catch((e) => Err(e));
   const projectMethods = {
@@ -37,9 +38,9 @@ export const ProjectsResource = (config: ResourceConfig & V3Config) => {
     delete: deleteProject,
     list: () => {
       return {
-        async *data() {
+        async *data({ signal }: SignalParam = {}) {
           yield* await config
-            .v3Request("projects")
+            .v3Request("projects", { signal })
             .then((res) => res.json())
             .then(
               (projects) =>
@@ -54,9 +55,9 @@ export const ProjectsResource = (config: ResourceConfig & V3Config) => {
         },
       };
     },
-    retrieve: (id: string) =>
+    retrieve: (id: string, { signal }: SignalParam = {}) =>
       config
-        .v3Request(`projects/${id}`)
+        .v3Request(`projects/${id}`, { signal })
         .then((res) => res.json())
         .then((properties) =>
           Ok(

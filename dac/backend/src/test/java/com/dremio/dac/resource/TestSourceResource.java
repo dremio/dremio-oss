@@ -37,6 +37,7 @@ import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.exec.store.dfs.PDFSConf;
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.source.proto.SourceChangeState;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -44,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.Entity;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
 import org.junit.rules.TemporaryFolder;
 
 /** Tests {@link SourceResource} API */
@@ -67,12 +69,13 @@ public class TestSourceResource extends BaseTestServer {
       source.setConfig(nas);
 
       expectSuccess(
-          getBuilder(getAPIv2().path(String.format("/source/%s", sourceName)))
+          getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", sourceName)))
               .buildPut(Entity.entity(source, JSON)));
 
       final SourceUI result =
           expectSuccess(
-              getBuilder(getAPIv2().path(String.format("/source/%s", sourceName))).buildGet(),
+              getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", sourceName)))
+                  .buildGet(),
               SourceUI.class);
 
       assertEquals(source.getFullPathList(), result.getFullPathList());
@@ -97,12 +100,13 @@ public class TestSourceResource extends BaseTestServer {
     source.setDisableMetadataValidityCheck(true);
 
     expectSuccess(
-        getBuilder(getAPIv2().path(String.format("/source/%s", sourceName)))
+        getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", sourceName)))
             .buildPut(Entity.entity(source, JSON)));
 
     final SourceUI result =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", sourceName))).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", sourceName)))
+                .buildGet(),
             SourceUI.class);
 
     assertEquals(source.getFullPathList(), result.getFullPathList());
@@ -126,12 +130,13 @@ public class TestSourceResource extends BaseTestServer {
     source.setConfig(nas);
 
     expectSuccess(
-        getBuilder(getAPIv2().path(String.format("/source/%s", sourceName)))
+        getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", sourceName)))
             .buildPut(Entity.entity(source, JSON)));
 
     final SourceUI result =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", sourceName))).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", sourceName)))
+                .buildGet(),
             SourceUI.class);
 
     assertEquals(source.getFullPathList(), result.getFullPathList());
@@ -156,14 +161,16 @@ public class TestSourceResource extends BaseTestServer {
   public void testHomeSourceCrossSelectOption() throws Exception {
     final SourceUI result =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "__home"))).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", "__home")))
+                .buildGet(),
             SourceUI.class);
     assertTrue(result.getAllowCrossSourceSelection());
     result.setAllowCrossSourceSelection(false);
     updateSourceWithoutValidation(result);
     final SourceUI updateResult =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "__home"))).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", "__home")))
+                .buildGet(),
             SourceUI.class);
     assertFalse(result.getAllowCrossSourceSelection());
     assertTrue(updateResult.getAllowCrossSourceSelection());
@@ -173,21 +180,28 @@ public class TestSourceResource extends BaseTestServer {
   public void testSystemSourceCrossSelectOption() throws Exception {
     final SourceUI resultAccel =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "__accelerator"))).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path(String.format("/source/%s", "__accelerator")))
+                .buildGet(),
             SourceUI.class);
     assertTrue(resultAccel.getAllowCrossSourceSelection());
     resultAccel.setAllowCrossSourceSelection(false);
     updateSourceWithoutValidation(resultAccel);
     final SourceUI updateResultAccel =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "__accelerator"))).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path(String.format("/source/%s", "__accelerator")))
+                .buildGet(),
             SourceUI.class);
     assertFalse(resultAccel.getAllowCrossSourceSelection());
     assertTrue(updateResultAccel.getAllowCrossSourceSelection());
 
     final SourceUI resultJob =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "__jobResultsStore")))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path(String.format("/source/%s", "__jobResultsStore")))
                 .buildGet(),
             SourceUI.class);
     assertTrue(resultJob.getAllowCrossSourceSelection());
@@ -195,7 +209,10 @@ public class TestSourceResource extends BaseTestServer {
     updateSourceWithoutValidation(resultJob);
     final SourceUI updateResultJob =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "__jobResultsStore")))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path(String.format("/source/%s", "__jobResultsStore")))
                 .buildGet(),
             SourceUI.class);
     assertFalse(resultJob.getAllowCrossSourceSelection());
@@ -203,21 +220,26 @@ public class TestSourceResource extends BaseTestServer {
 
     final SourceUI resultScratch =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "$scratch"))).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", "$scratch")))
+                .buildGet(),
             SourceUI.class);
     assertTrue(resultScratch.getAllowCrossSourceSelection());
     resultScratch.setAllowCrossSourceSelection(false);
     updateSourceWithoutValidation(resultScratch);
     final SourceUI updateResultScratch =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "$scratch"))).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", "$scratch")))
+                .buildGet(),
             SourceUI.class);
     assertFalse(resultScratch.getAllowCrossSourceSelection());
     assertTrue(updateResultScratch.getAllowCrossSourceSelection());
 
     final SourceUI resultDownload =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "__datasetDownload")))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path(String.format("/source/%s", "__datasetDownload")))
                 .buildGet(),
             SourceUI.class);
     assertTrue(resultDownload.getAllowCrossSourceSelection());
@@ -225,7 +247,10 @@ public class TestSourceResource extends BaseTestServer {
     updateSourceWithoutValidation(resultDownload);
     final SourceUI updateResultDownload =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "__datasetDownload")))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path(String.format("/source/%s", "__datasetDownload")))
                 .buildGet(),
             SourceUI.class);
     assertFalse(resultDownload.getAllowCrossSourceSelection());
@@ -233,14 +258,16 @@ public class TestSourceResource extends BaseTestServer {
 
     final SourceUI resultSupport =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "__support"))).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", "__support")))
+                .buildGet(),
             SourceUI.class);
     assertTrue(resultSupport.getAllowCrossSourceSelection());
     resultSupport.setAllowCrossSourceSelection(false);
     updateSourceWithoutValidation(resultSupport);
     final SourceUI updateResultSupport =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "__support"))).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", "__support")))
+                .buildGet(),
             SourceUI.class);
     assertFalse(resultSupport.getAllowCrossSourceSelection());
     assertTrue(updateResultSupport.getAllowCrossSourceSelection());
@@ -248,7 +275,8 @@ public class TestSourceResource extends BaseTestServer {
     final SourceUI resultLogs =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path(String.format("/source/%s", "__logs"))
                         .queryParam("includeContents", false))
                 .buildGet(),
@@ -259,7 +287,8 @@ public class TestSourceResource extends BaseTestServer {
     final SourceUI updateResultLogs =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path(String.format("/source/%s", "__logs"))
                         .queryParam("includeContents", false))
                 .buildGet(),
@@ -294,7 +323,7 @@ public class TestSourceResource extends BaseTestServer {
 
       expectStatus(
           BAD_REQUEST,
-          getBuilder(getAPIv2().path(String.format("/source/%s", sourceName)))
+          getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", sourceName)))
               .buildPut(Entity.entity(source, JSON)));
     }
   }
@@ -303,17 +332,49 @@ public class TestSourceResource extends BaseTestServer {
   public void testCanNotDeleteSourcesWithInternalConnectionConfType() {
     final SourceUI accelerator =
         expectSuccess(
-            getBuilder(getAPIv2().path(String.format("/source/%s", "__accelerator"))).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path(String.format("/source/%s", "__accelerator")))
+                .buildGet(),
             SourceUI.class);
 
     expectStatus(
         BAD_REQUEST,
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path(
                         String.format(
                             "/source/%s", PathUtils.encodeURIComponent(accelerator.getId()))))
             .buildDelete());
+  }
+
+  @Test
+  @Disabled("DX-95117: Will be re-enabled when async source modification flag is on")
+  public void testSourceResourceReturnsCorrectSourceChangeState() throws Exception {
+    final String sourceName = "tmpSrc";
+    {
+      final NASConf nas = new NASConf();
+      nas.path = folder.getRoot().getPath();
+      SourceUI source = new SourceUI();
+      source.setName(sourceName);
+      source.setCtime(System.currentTimeMillis());
+      source.setConfig(nas);
+
+      expectSuccess(
+          getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", sourceName)))
+              .buildPut(Entity.entity(source, JSON)));
+
+      final SourceUI result =
+          expectSuccess(
+              getBuilder(getHttpClient().getAPIv2().path(String.format("/source/%s", sourceName)))
+                  .buildGet(),
+              SourceUI.class);
+
+      assertEquals(SourceChangeState.SOURCE_CHANGE_STATE_NONE, result.getSourceChangeState());
+
+      getNamespaceService()
+          .deleteSource(new SourcePath(sourceName).toNamespaceKey(), result.getTag());
+    }
   }
 
   private void updateSource(SourceUI source) throws ExecutionSetupException, NamespaceException {

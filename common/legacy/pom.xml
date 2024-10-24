@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.common</groupId>
     <artifactId>dremio-common-parent</artifactId>
-    <version>25.1.1-202409260159070462-716c0676</version>
+    <version>${revision}</version>
   </parent>
 
   <!-- Dremio common module used to be a single large module. In Sept 2023 it was moved to this legacy module to assist
@@ -225,7 +225,7 @@
     <plugins>
       <plugin>
         <!-- generate sources from fmpp -->
-        <groupId>com.dremio.tools</groupId>
+        <groupId>com.dremio.build-tools</groupId>
         <artifactId>dremio-fmpp-maven-plugin</artifactId>
         <executions>
           <execution>

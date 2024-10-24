@@ -36,7 +36,7 @@ const styles = {
   base: {
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "var(--color--navy--700)",
+    backgroundColor: "var(--fill--login)",
     overflow: "hidden",
   },
 };

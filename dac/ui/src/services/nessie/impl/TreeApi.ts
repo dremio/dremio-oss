@@ -20,7 +20,7 @@ import SwaggerConfig, {
   createSwaggerConfig,
   createSwaggerV2Config,
 } from "./SwaggerConfig";
-import { DremioV2Api } from "@app/types/nessie";
+import { DremioV2Api } from "#oss/types/nessie";
 
 //Use default Atlantis project API
 const TreeApi = new DefaultApi(SwaggerConfig);
@@ -29,32 +29,32 @@ const TreeApi = new DefaultApi(SwaggerConfig);
 export const getTreeApi = moize(
   function (endpoint?: string) {
     return new DefaultApi(
-      createSwaggerConfig(endpoint?.replace("/nessie/", "/nessieV1/"))
+      createSwaggerConfig(endpoint?.replace("/nessie/", "/nessieV1/")),
     );
   },
   {
     maxSize: 10,
-  }
+  },
 );
 
 export const getApiV2 = moize(
   function (endpoint?: string): DremioV2Api {
     // return new V2BetaApi(createSwaggerV2Config(endpoint));
     const v2Api = new V2BetaApi(
-      createSwaggerV2Config(endpoint)
+      createSwaggerV2Config(endpoint),
     ) as unknown as DremioV2Api;
     v2Api.memoGetDefaultReference = moize.promise(
       () => v2Api.getReferenceByNameV2({ ref: "-" }),
       {
         isDeepEqual: true,
         maxSize: 1000,
-      }
+      },
     );
     return v2Api;
   },
   {
     maxSize: 50,
-  }
+  },
 );
 
 export function getEntries(req: GetEntriesRequest) {

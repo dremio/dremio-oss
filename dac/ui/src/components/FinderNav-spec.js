@@ -54,12 +54,12 @@ describe("FinderNav", () => {
   it("shows the nav item section if it is collapsiable and is expanded", () => {
     // Collapsed case
     let wrapper = shallow(
-      <FinderNav {...commonProps} isCollapsible isCollapsed />
+      <FinderNav {...commonProps} isCollapsible isCollapsed />,
     );
     expect(wrapper.hasClass("finder-nav--collapsed")).to.be.true;
     // Expanded case
     wrapper = shallow(
-      <FinderNav {...commonProps} isCollapsible isCollapsed={false} />
+      <FinderNav {...commonProps} isCollapsible isCollapsed={false} />,
     );
     expect(wrapper.hasClass("finder-nav--collapsed")).to.be.false;
   });
@@ -67,7 +67,7 @@ describe("FinderNav", () => {
   it("invoke the toggle callback when the toggle control is clicked", () => {
     const onToggle = sinon.spy();
     const instance = shallow(
-      <FinderNav {...commonProps} isCollapsible onToggle={onToggle} />
+      <FinderNav {...commonProps} isCollapsible onToggle={onToggle} />,
     ).instance();
     instance.onToggleClick();
     expect(onToggle).to.be.calledOnce;

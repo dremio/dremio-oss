@@ -33,6 +33,7 @@ import com.dremio.search.pubsub.SearchDocumentSubscription;
 import com.dremio.service.namespace.CatalogEventProto;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogpubsub.CatalogEventsTopic;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
@@ -51,6 +52,7 @@ import com.dremio.services.pubsub.MessagePublisher;
 import com.dremio.services.pubsub.MessageSubscriber;
 import com.dremio.services.pubsub.PubSubClient;
 import com.dremio.services.pubsub.inprocess.InProcessPubSubClientProvider;
+import com.dremio.services.pubsub.inprocess.InProcessPubSubEventListener;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import io.opentelemetry.api.OpenTelemetry;
@@ -64,25 +66,21 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /** Tests for {@link CatalogSearchPublisher}. */
 @ExtendWith(MockitoExtension.class)
 public class TestCatalogSearchPublisherImpl {
-  private static final String SPACE_NAME = "space";
-  private static final String VIEW_NAME = "view";
+  private static final String SPACE_NAME = "spa.ce";
+  private static final String VIEW_NAME = "vi\"ew";
   private static final ImmutableList<String> VIEW_PATH = ImmutableList.of(SPACE_NAME, VIEW_NAME);
-  private static final String VIEW_PATH_STRING = String.join(".", VIEW_PATH);
   private static final String COLUMN_A = "a";
   private static final String COLUMN_B = "b";
 
-  private static final String FUNCTION_NAME = "function";
+  private static final String FUNCTION_NAME = "myFunction";
   private static final String FUNCTION_BODY = "SELECT * FROM sys.views";
   private static final ImmutableList<String> FUNCTION_PATH = ImmutableList.of(FUNCTION_NAME);
-  private static final String FUNCTION_PATH_STRING = String.join(".", FUNCTION_PATH);
 
   private LocalKVStoreProvider kvStoreProvider;
   private NamespaceServiceImpl namespaceService;
@@ -93,9 +91,6 @@ public class TestCatalogSearchPublisherImpl {
   private final TestSearchDocumentConsumer searchDocumentConsumer =
       new TestSearchDocumentConsumer();
   private MessagePublisher<CatalogEventProto.CatalogEventMessage> catalogEventsPublisher;
-
-  @Captor
-  private ArgumentCaptor<SearchDocumentMessageProto.SearchDocumentMessage> documentMessageCaptor;
 
   @BeforeEach
   public void setUp() throws Exception {
@@ -115,10 +110,22 @@ public class TestCatalogSearchPublisherImpl {
 
     // Create pubsub client.
     InProcessPubSubClientProvider pubSubClientProvider =
-        new InProcessPubSubClientProvider(() -> optionManager, OpenTelemetry.noop(), null);
+        new InProcessPubSubClientProvider(
+            () -> optionManager, OpenTelemetry::noop, () -> InProcessPubSubEventListener.NO_OP);
     PubSubClient pubSubClient = pubSubClientProvider.get();
 
-    namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
+    // Get catalog events publisher.
+    catalogEventsPublisher =
+        pubSubClient.getPublisher(
+            CatalogEventsTopic.class, new ImmutableMessagePublisherOptions.Builder().build());
+
+    namespaceService =
+        new NamespaceServiceImpl(
+            kvStoreProvider,
+            new CatalogStatusEventsImpl(),
+            // No-op dml callbacks as this is meant to be a unit test and not test integration with
+            // NS service eventing
+            CatalogEventMessagePublisherProvider.NO_OP);
     wikiStore = new CollaborationWikiStore(legacyKVStoreProvider);
     tagStore = new CollaborationTagStore(legacyKVStoreProvider);
 
@@ -127,11 +134,6 @@ public class TestCatalogSearchPublisherImpl {
         new CatalogSearchPublisherImpl(
             () -> namespaceService, legacyKVStoreProvider, pubSubClientProvider);
     catalogSearchPublisher.start();
-
-    // Get catalog events publisher.
-    catalogEventsPublisher =
-        pubSubClient.getPublisher(
-            CatalogEventsTopic.class, new ImmutableMessagePublisherOptions.Builder().build());
 
     // Start subscriber for search documents.
     MessageSubscriber<SearchDocumentMessageProto.SearchDocumentMessage> searchDocumentSubscriber =
@@ -195,11 +197,30 @@ public class TestCatalogSearchPublisherImpl {
                 SearchDocumentMessageProto.SearchDocumentMessage.SearchDocumentEventType
                     .SEARCH_DOCUMENT_EVENT_TYPE_DELETED)
             .setDocumentId(
-                SearchDocumentIdProto.SearchDocumentId.newBuilder()
-                    .setPath(VIEW_PATH_STRING)
-                    .build())
+                SearchDocumentIdProto.SearchDocumentId.newBuilder().addAllPath(VIEW_PATH).build())
             .build(),
         searchDocumentConsumer.getMessages().get(0).getMessage());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"__accelerator", "$scratch", "information_schema"})
+  public void test_ignoreEvent(String root) throws Exception {
+    // Notify consumer.
+    CatalogEventProto.CatalogEventMessage catalogEventMessage =
+        CatalogEventProto.CatalogEventMessage.newBuilder()
+            .addEvents(
+                CatalogEventProto.CatalogEventMessage.CatalogEvent.newBuilder()
+                    .addPath(root)
+                    .setEventType(
+                        CatalogEventProto.CatalogEventMessage.CatalogEventType
+                            .CATALOG_EVENT_TYPE_CREATED)
+                    .build())
+            .build();
+    CountDownLatch latch = searchDocumentConsumer.initLatch();
+    catalogEventsPublisher.publish(catalogEventMessage);
+
+    // Wait for search document.
+    assertFalse(latch.await(1, TimeUnit.SECONDS));
   }
 
   @ParameterizedTest
@@ -248,14 +269,20 @@ public class TestCatalogSearchPublisherImpl {
                     : SearchDocumentMessageProto.SearchDocumentMessage.SearchDocumentEventType
                         .SEARCH_DOCUMENT_EVENT_TYPE_CREATED)
             .setDocumentId(
-                SearchDocumentIdProto.SearchDocumentId.newBuilder()
-                    .setPath(VIEW_PATH_STRING)
-                    .build())
+                SearchDocumentIdProto.SearchDocumentId.newBuilder().addAllPath(VIEW_PATH).build())
             .setDocument(
                 SearchDocumentProto.SearchDocument.newBuilder()
+                    .setCategory(SearchDocumentProto.SearchDocument.Category.CATEGORY_VIEW)
                     .setCatalogObject(
                         SearchDocumentProto.CatalogObject.newBuilder()
-                            .setPath(VIEW_PATH_STRING)
+                            .addAllPath(VIEW_PATH)
+                            .addAllSubPaths(
+                                ImmutableList.of(
+                                    String.format("\"%s\"", SPACE_NAME),
+                                    String.format("\"%s\"", VIEW_NAME.replace("\"", "\"\"")),
+                                    String.format(
+                                        "\"%s\".\"%s\"",
+                                        SPACE_NAME, VIEW_NAME.replace("\"", "\"\""))))
                             .setType("VIEW")
                             .setWiki("Text")
                             .addLabels("test")
@@ -316,18 +343,20 @@ public class TestCatalogSearchPublisherImpl {
                         .SEARCH_DOCUMENT_EVENT_TYPE_CREATED)
             .setDocumentId(
                 SearchDocumentIdProto.SearchDocumentId.newBuilder()
-                    .setPath(FUNCTION_PATH_STRING)
+                    .addAllPath(FUNCTION_PATH)
                     .build())
             .setDocument(
                 SearchDocumentProto.SearchDocument.newBuilder()
+                    .setCategory(SearchDocumentProto.SearchDocument.Category.CATEGORY_UDF)
                     .setCatalogObject(
                         SearchDocumentProto.CatalogObject.newBuilder()
-                            .setPath(FUNCTION_PATH_STRING)
-                            .setType("UDF")
+                            .addAllPath(FUNCTION_PATH)
+                            .addAllSubPaths(FUNCTION_PATH)
+                            .setType("FUNCTION")
                             .setWiki("Text")
                             .addLabels("test")
                             .addLabels("eng")
-                            .setUdfSql(FUNCTION_BODY)
+                            .setFunctionSql(FUNCTION_BODY)
                             .build())
                     .build())
             .build(),
@@ -382,7 +411,7 @@ public class TestCatalogSearchPublisherImpl {
         messages = new ArrayList<>();
     private CountDownLatch latch;
 
-    private CountDownLatch initLatch() {
+    public CountDownLatch initLatch() {
       latch = new CountDownLatch(1);
       return latch;
     }
@@ -395,7 +424,7 @@ public class TestCatalogSearchPublisherImpl {
       latch.countDown();
     }
 
-    private List<MessageContainerBase<SearchDocumentMessageProto.SearchDocumentMessage>>
+    public List<MessageContainerBase<SearchDocumentMessageProto.SearchDocumentMessage>>
         getMessages() {
       return messages;
     }

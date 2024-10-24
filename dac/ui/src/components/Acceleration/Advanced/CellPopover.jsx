@@ -17,11 +17,11 @@ import { Component } from "react";
 import Immutable from "immutable";
 
 import PropTypes from "prop-types";
-import { Popover } from "@app/components/Popover";
+import { Popover } from "#oss/components/Popover";
 import MenuItem from "@mui/material/MenuItem";
 import { get } from "lodash/object";
 
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import "#oss/uiTheme/less/Acceleration/Acceleration.less";
 
 import DragTarget from "components/DragComponents/DragTarget";
 import DragSource from "components/DragComponents/DragSource";
@@ -31,10 +31,10 @@ import {
   measureTypeLabels,
   cellType,
   granularityValue,
-} from "@app/constants/AccelerationConstants";
+} from "#oss/constants/AccelerationConstants";
 
-import { checkboxStandalone } from "@app/components/Fields/Checkbox.less";
-import { menuSelected as menuSelectedClass } from "@app/uiTheme/less/Acceleration/CellPopover.less";
+import { checkboxStandalone } from "#oss/components/Fields/Checkbox.less";
+import { menuSelected as menuSelectedClass } from "#oss/uiTheme/less/Acceleration/CellPopover.less";
 
 /**
  * Exported for tests only
@@ -429,7 +429,7 @@ const styles = {
   columnDragHover: {
     width: "100%",
     height: 20,
-    backgroundColor: "#EBF9F6",
+    backgroundColor: "var(--fill--primary--selected)",
   },
   // used by MenuItem component
   menuItem: {

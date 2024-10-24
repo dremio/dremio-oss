@@ -44,7 +44,7 @@
       border: 0;
       align-items: center;
       border-radius: 4px;
-      background: var(--color--neutral--100);
+      background: var(--fill--tertiary);
       height: 23px;
       .fa {
         margin: 0;
@@ -60,11 +60,11 @@
       position: absolute;
       left: -102px;
       top: 100%;
-      background: #f2f2f2;
+      background: var(--fill--secondary);
       list-style: none;
       margin: 0;
       padding: 4px 0;
-      border: 1px solid #aaa;
+      border: 1px solid var(--border--neutral);
       box-shadow: var(--dremio--shadow--layer-1);
       border-radius: 4px;
       width: 155px;
@@ -77,13 +77,13 @@
         cursor: pointer;
         position: relative;
         &:hover {
-          background: var(--color--neutral--100);
+          background: var(--fill--tertiary);
           > .drop-down {
             display: block !important;
           }
         }
         &.separator {
-          border-bottom: 1px solid #d7d7d7;
+          border-bottom: 1px solid var(--border--neutral);
           padding-bottom: 5px;
           margin-bottom: 5px;
         }
@@ -106,7 +106,7 @@
       }
     }
     .min-arrow {
-      color: #aaa;
+      color: var(--icon--primary);
       font-size: 11px;
       line-height: 1px;
       vertical-align: middle;

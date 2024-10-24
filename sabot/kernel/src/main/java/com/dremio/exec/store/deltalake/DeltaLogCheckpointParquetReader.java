@@ -26,6 +26,7 @@ import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_METADAT
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_METADATA_PARTITION_COLS;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_METADATA_SCHEMA_STRING;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_PROTOCOL;
+import static com.dremio.exec.store.deltalake.DeltaConstants.FORMAT_NOT_SUPPORTED_VERSION;
 import static com.dremio.exec.store.deltalake.DeltaConstants.PROTOCOL_MIN_READER_VERSION;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STATS;
 import static com.dremio.exec.store.deltalake.DeltaConstants.STATS_PARSED_NUM_RECORDS;
@@ -138,7 +139,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
   // The factor by which the row count estimate in data files has to be multiplied
   private double estimationFactor;
   private long numAddedFilesReadLimit;
-  private int minReaderVersionSupported = 0;
+  private int minReaderVersionSupported = 2;
   private long noStatsFileSize = 0L;
 
   @Override
@@ -161,9 +162,6 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
         DeltaLogReaderUtils.isFullRowCountEnabled(context.getOptionManager());
     final boolean isMapDataTypeEnabled =
         context.getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
-    final boolean isColumnMappingEnabled =
-        context.getOptionManager().getOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING);
-    minReaderVersionSupported = isColumnMappingEnabled ? 2 : 1;
 
     try (BufferAllocator allocator =
             context.getAllocator().newChildAllocator(BUFFER_ALLOCATOR_NAME, 0, Long.MAX_VALUE);
@@ -178,64 +176,60 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
         long totalBlocks = 0L;
         logger.debug(
             "Reading footer for checkpoint parquet file {}", fileAttributesCurrent.getPath());
-        try {
 
-          MutableParquetMetadata footer =
-              readCheckpointParquetFooter(
-                  fs,
-                  operatorContext,
-                  fileAttributesCurrent.getPath(),
-                  fileAttributesCurrent.size(),
-                  fileAttributesCurrent.lastModifiedTime().toMillis());
-          totalBlocks += footer.getBlocks().size();
-          populateAddedFiles(footer.getBlocks());
-          snapSplitsList.addAll(generateSplits(fileAttributesCurrent, version, footer));
+        MutableParquetMetadata footer =
+            readCheckpointParquetFooter(
+                fs,
+                operatorContext,
+                fileAttributesCurrent.getPath(),
+                fileAttributesCurrent.size(),
+                fileAttributesCurrent.lastModifiedTime().toMillis());
+        totalBlocks += footer.getBlocks().size();
+        populateAddedFiles(footer.getBlocks());
+        snapSplitsList.addAll(generateSplits(fileAttributesCurrent, version, footer));
 
-          final SchemaDerivationHelper schemaHelper =
-              SchemaDerivationHelper.builder()
-                  .readInt96AsTimeStamp(
-                      operatorContext
-                          .getOptions()
-                          .getOption(PARQUET_READER_INT96_AS_TIMESTAMP)
-                          .getBoolVal())
-                  .dateCorruptionStatus(
-                      ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION)
-                  .mapDataTypeEnabled(operatorContext.getOptions().getOption(ENABLE_MAP_DATA_TYPE))
-                  .build();
+        final SchemaDerivationHelper schemaHelper =
+            SchemaDerivationHelper.builder()
+                .readInt96AsTimeStamp(
+                    operatorContext
+                        .getOptions()
+                        .getOption(PARQUET_READER_INT96_AS_TIMESTAMP)
+                        .getBoolVal())
+                .dateCorruptionStatus(
+                    ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION)
+                .mapDataTypeEnabled(operatorContext.getOptions().getOption(ENABLE_MAP_DATA_TYPE))
+                .build();
 
-          // create mutator and BatchSchema for UnifiedParquetReader initialization
-          Field addField = createFieldFromFooter(DELTA_FIELD_ADD, footer, schemaHelper);
-          Field metadataField = createFieldFromFooter(DELTA_FIELD_METADATA, footer, schemaHelper);
-          Field protocolField = createFieldFromFooter(DELTA_FIELD_PROTOCOL, footer, schemaHelper);
+        // create mutator and BatchSchema for UnifiedParquetReader initialization
+        Field addField = createFieldFromFooter(DELTA_FIELD_ADD, footer, schemaHelper);
+        Field metadataField = createFieldFromFooter(DELTA_FIELD_METADATA, footer, schemaHelper);
+        Field protocolField = createFieldFromFooter(DELTA_FIELD_PROTOCOL, footer, schemaHelper);
 
-          mutator.addField(metadataField, StructVector.class);
-          mutator.addField(addField, StructVector.class);
-          mutator.addField(protocolField, StructVector.class);
-          mutator.getAndResetSchemaChanged();
-          mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
+        mutator.addField(metadataField, StructVector.class);
+        mutator.addField(addField, StructVector.class);
+        mutator.addField(protocolField, StructVector.class);
+        mutator.getAndResetSchemaChanged();
+        mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
 
-          final BatchSchema tableSchema =
-              new BatchSchema(ImmutableList.of(addField, metadataField, protocolField));
+        final BatchSchema tableSchema =
+            new BatchSchema(ImmutableList.of(addField, metadataField, protocolField));
 
-          try (AllRowGroupsParquetReader parquetReader =
-              createParquetReader(
-                  operatorContext, fs, fileAttributesCurrent.getPath(), tableSchema)) {
-            parquetReader.setup(mutator);
-            mutator.allocate(BATCH_SIZE);
+        try (AllRowGroupsParquetReader parquetReader =
+            createParquetReader(
+                operatorContext, fs, fileAttributesCurrent.getPath(), tableSchema)) {
+          parquetReader.setup(mutator);
+          mutator.allocate(BATCH_SIZE);
 
-            int recordCount = parquetReader.next();
-            if (isFullRowCountEnabled) {
-              processWithFullRowCount(
-                  parquetReader, rootFolder, operatorContext, fs, recordCount, mutator);
-            } else {
-              processWithEstimatedRowCount(
-                  parquetReader, rootFolder, operatorContext, fs, recordCount, mutator);
-            }
+          int recordCount = parquetReader.next();
+          if (isFullRowCountEnabled) {
+            processWithFullRowCount(
+                parquetReader, rootFolder, operatorContext, fs, recordCount, mutator);
+          } else {
+            processWithEstimatedRowCount(
+                parquetReader, rootFolder, operatorContext, fs, recordCount, mutator);
           }
-        } catch (Exception e) {
-          logger.error("IOException occurred while reading deltalake table", e);
-          throw new IOException(e);
         }
+
         if (totalBlocks == 0) {
           throw new IOException("Illegal Deltalake checkpoint parquet file(s) with no row groups");
         }
@@ -317,8 +311,11 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       snap.setSchema(schemaString, partitionCols, configuration);
       snap.setSplits(snapSplitsList);
       return snap;
-    } catch (Exception e) {
+    } catch (IOException e) {
       logger.error("IOException occurred while reading deltalake table", e);
+      throw e;
+    } catch (Exception e) {
+      logger.error("Exception occurred while reading deltalake table", e);
       throw new IOException(e);
     }
   }
@@ -521,7 +518,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
         if (minReaderVersion > minReaderVersionSupported) {
           throw new IOException(
               String.format(
-                  "Protocol version %s is incompatible for Dremio plugin", minReaderVersion));
+                  FORMAT_NOT_SUPPORTED_VERSION, minReaderVersion, minReaderVersionSupported));
         }
         return true;
       }

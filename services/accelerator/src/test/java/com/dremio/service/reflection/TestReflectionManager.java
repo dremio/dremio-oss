@@ -978,7 +978,7 @@ public class TestReflectionManager {
   }
 
   @Test
-  public void testStartRefreshForIcebergReflection() throws Exception {
+  public void testStartRefreshForIcebergReflection() {
     ReflectionId reflectionId = new ReflectionId("r_id");
 
     ReflectionEntry reflectionEntry = new ReflectionEntry().setId(reflectionId).setState(REFRESH);
@@ -1029,7 +1029,7 @@ public class TestReflectionManager {
   }
 
   @Test
-  public void testStartRefreshForNonIcebergReflection() throws Exception {
+  public void testStartRefreshForNonIcebergReflection() {
     ReflectionId reflectionId = new ReflectionId("r_id");
 
     ReflectionEntry reflectionEntry = new ReflectionEntry().setId(reflectionId).setState(REFRESH);
@@ -1153,8 +1153,7 @@ public class TestReflectionManager {
     DependencyResolutionContextFactory factory =
         new DependencyResolutionContextFactory(settings, requestsStore, subject.optionManager);
     DependencyResolutionContext context = factory.create();
-    final CatalogEntityKey key =
-        CatalogEntityKey.fromNamespaceKey(new NamespaceKey(ImmutableList.of("root", "path")));
+    final CatalogEntityKey key = CatalogEntityKey.of("root", "path");
     final AccelerationSettings testSettings =
         new AccelerationSettings().setMethod(RefreshMethod.INCREMENTAL);
     when(settings.getReflectionSettings(key)).thenReturn(testSettings);
@@ -1194,7 +1193,7 @@ public class TestReflectionManager {
 
     final CatalogEntityKey keyAtProd =
         CatalogEntityKey.newBuilder()
-            .keyComponents(ImmutableList.of("root", "path"))
+            .keyComponents("root", "path")
             .tableVersionContext(new TableVersionContext(TableVersionType.BRANCH, "prod"))
             .build();
     final AccelerationSettings testSettingsAtProd =
@@ -1203,7 +1202,7 @@ public class TestReflectionManager {
 
     final CatalogEntityKey keyAtStaging =
         CatalogEntityKey.newBuilder()
-            .keyComponents(ImmutableList.of("root", "path"))
+            .keyComponents("root", "path")
             .tableVersionContext(new TableVersionContext(TableVersionType.BRANCH, "staging"))
             .build();
     final AccelerationSettings testSettingsAtStaging =
@@ -1769,6 +1768,45 @@ public class TestReflectionManager {
     verify(subject.userStore).delete(reflectionId);
     verify(subject.namespaceService).deleteFolder(reflectionFolderKey, folderConfig.getTag());
   }
+
+  @Test
+  public void testTimeoutSubmittingRefreshJob() {
+    ReflectionId reflectionId = new ReflectionId("r_id");
+
+    ReflectionEntry entry =
+        new ReflectionEntry()
+            .setId(reflectionId)
+            .setState(ReflectionState.ACTIVE)
+            .setType(ReflectionType.RAW);
+
+    long noDependencyRefreshPeriodMs = 5555L;
+    IllegalStateException expectedException =
+        new IllegalStateException("Caller interrupted while waiting for job submission");
+
+    Subject subject = new Subject();
+    when(subject.dependencyManager.shouldRefresh(
+            entry, noDependencyRefreshPeriodMs, subject.dependencyResolutionContext))
+        .thenReturn(true);
+    when(subject.reflectionManager.refreshPendingHelper(
+            entry, noDependencyRefreshPeriodMs, subject.dependencyResolutionContext))
+        .thenReturn(true);
+    ClusterCoordinator clusterCoordinator = mock(ClusterCoordinator.class);
+    when(clusterCoordinator.getExecutorEndpoints()).thenReturn(singletonList(null));
+    when(subject.sabotContext.getClusterCoordinator()).thenReturn(clusterCoordinator);
+    SoftwareCoordinatorModeInfo softwareCoordinatorModeInfo = new SoftwareCoordinatorModeInfo();
+    when(subject.sabotContext.getCoordinatorModeInfoProvider())
+        .thenReturn(() -> softwareCoordinatorModeInfo);
+    when(subject.refreshStartHandler.startJob(eq(entry), anyLong(), any()))
+        .thenThrow(expectedException);
+
+    subject.reflectionManager.handleEntry(
+        entry,
+        noDependencyRefreshPeriodMs,
+        new ReflectionManager.EntryCounts(),
+        subject.dependencyResolutionContext);
+    assertFalse(
+        "Reflection refresh should have failed", entry.getLastFailure().getMessage().isEmpty());
+  }
 }
 
 class Subject {
@@ -1802,6 +1840,10 @@ class Subject {
 
   @VisibleForTesting
   ReflectionManager.WakeUpCallback wakeUpCallback =
+      Mockito.mock(ReflectionManager.WakeUpCallback.class);
+
+  @VisibleForTesting
+  ReflectionManager.WakeUpCallback wakeUpCacheRefresherCallback =
       Mockito.mock(ReflectionManager.WakeUpCallback.class);
 
   @VisibleForTesting
@@ -1861,6 +1903,7 @@ class Subject {
             reflectionGoalChecker,
             refreshStartHandler,
             contextFactory,
-            datasetEventHub));
+            datasetEventHub,
+            wakeUpCacheRefresherCallback));
   }
 }

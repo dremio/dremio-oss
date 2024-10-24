@@ -87,7 +87,7 @@ describe("AccelerationAdvanced", () => {
     let rawReflections;
     beforeEach(() => {
       aggregationReflections = Immutable.fromJS(
-        commonProps.values.aggregationReflections
+        commonProps.values.aggregationReflections,
       );
       rawReflections = Immutable.fromJS(commonProps.values.rawReflections);
       wrapper = shallow(<AccelerationAdvanced {...commonProps} />);
@@ -97,7 +97,7 @@ describe("AccelerationAdvanced", () => {
     it("should return true when aggregationReflections and rawReflections are equal", () => {
       const result = instance.areAdvancedReflectionsFieldsEqual(
         aggregationReflections,
-        rawReflections
+        rawReflections,
       );
 
       expect(result).to.be.true;
@@ -106,11 +106,11 @@ describe("AccelerationAdvanced", () => {
     it("should return false when aggregationReflections has been changed", () => {
       const changedAggregationReflections = aggregationReflections.setIn(
         [0, "fakeFieldList"],
-        Immutable.fromJS([{ name: "foo" }])
+        Immutable.fromJS([{ name: "foo" }]),
       );
       const result = instance.areAdvancedReflectionsFieldsEqual(
         changedAggregationReflections,
-        rawReflections
+        rawReflections,
       );
 
       expect(result).to.be.false;
@@ -119,11 +119,11 @@ describe("AccelerationAdvanced", () => {
     it("should return false when rawReflections has been changed", () => {
       const changedRawLayouts = rawReflections.setIn(
         [0, "fakeFieldList"],
-        Immutable.fromJS([{ name: "foo" }])
+        Immutable.fromJS([{ name: "foo" }]),
       );
       const result = instance.areAdvancedReflectionsFieldsEqual(
         aggregationReflections,
-        changedRawLayouts
+        changedRawLayouts,
       );
 
       expect(result).to.be.false;
@@ -136,7 +136,7 @@ describe("AccelerationAdvanced", () => {
       ]);
       const result = instance.areAdvancedReflectionsFieldsEqual(
         aggregationReflections,
-        changedRawLayouts
+        changedRawLayouts,
       );
 
       expect(result).to.be.false;
@@ -145,18 +145,18 @@ describe("AccelerationAdvanced", () => {
     it("should return true if aggregation field has changed and then has returned to initial state", () => {
       const changedAggregationReflections = aggregationReflections.setIn(
         [0, "fakeFieldList"],
-        Immutable.fromJS([{ name: "foo" }])
+        Immutable.fromJS([{ name: "foo" }]),
       );
       const result = instance.areAdvancedReflectionsFieldsEqual(
         changedAggregationReflections,
-        rawReflections
+        rawReflections,
       );
 
       expect(result).to.be.false;
 
       const initResult = instance.areAdvancedReflectionsFieldsEqual(
         aggregationReflections,
-        rawReflections
+        rawReflections,
       );
 
       expect(initResult).to.be.true;
@@ -165,18 +165,18 @@ describe("AccelerationAdvanced", () => {
     it("should return true if raw field has changed and then has returned to initial state", () => {
       const changedRawLayouts = rawReflections.setIn(
         [0, "fakeFieldList"],
-        Immutable.fromJS([{ name: "foo" }])
+        Immutable.fromJS([{ name: "foo" }]),
       );
       const result = instance.areAdvancedReflectionsFieldsEqual(
         aggregationReflections,
-        changedRawLayouts
+        changedRawLayouts,
       );
 
       expect(result).to.be.false;
 
       const initResult = instance.areAdvancedReflectionsFieldsEqual(
         aggregationReflections,
-        rawReflections
+        rawReflections,
       );
 
       expect(initResult).to.be.true;
@@ -203,13 +203,13 @@ describe("AccelerationAdvanced", () => {
       wrapper = shallow(<AccelerationAdvanced {...props} />);
       const changedAggregationReflections = aggregationReflections.setIn(
         [0, "fakeFieldList"],
-        Immutable.fromJS([{ name: "bar" }, { name: "foo" }])
+        Immutable.fromJS([{ name: "bar" }, { name: "foo" }]),
       );
       const result = wrapper
         .instance()
         .areAdvancedReflectionsFieldsEqual(
           changedAggregationReflections,
-          rawReflections
+          rawReflections,
         );
 
       expect(result).to.be.true;
@@ -238,13 +238,13 @@ describe("AccelerationAdvanced", () => {
       wrapper = shallow(<AccelerationAdvanced {...props} />);
       const changedAggregationReflections = aggregationReflections.setIn(
         [0, "sortFields"],
-        Immutable.fromJS([{ name: "foo" }, { name: "bar" }])
+        Immutable.fromJS([{ name: "foo" }, { name: "bar" }]),
       );
       const result = wrapper
         .instance()
         .areAdvancedReflectionsFieldsEqual(
           changedAggregationReflections,
-          rawReflections
+          rawReflections,
         );
 
       expect(result).to.be.true;
@@ -273,13 +273,13 @@ describe("AccelerationAdvanced", () => {
       wrapper = shallow(<AccelerationAdvanced {...props} />);
       const changedAggregationReflections = aggregationReflections.setIn(
         [0, "sortFields"],
-        Immutable.fromJS([{ name: "bar" }, { name: "foo" }])
+        Immutable.fromJS([{ name: "bar" }, { name: "foo" }]),
       );
       const result = wrapper
         .instance()
         .areAdvancedReflectionsFieldsEqual(
           changedAggregationReflections,
-          rawReflections
+          rawReflections,
         );
 
       expect(result).to.be.false;
@@ -288,11 +288,11 @@ describe("AccelerationAdvanced", () => {
     it("should return false if enabled value is different from initial state", () => {
       const changedAggregationReflections = aggregationReflections.setIn(
         [0, "enabled"],
-        true
+        true,
       );
       const result = instance.areAdvancedReflectionsFieldsEqual(
         aggregationReflections,
-        changedAggregationReflections
+        changedAggregationReflections,
       );
 
       expect(result).to.be.false;
@@ -300,7 +300,7 @@ describe("AccelerationAdvanced", () => {
       const changedRawLayouts = rawReflections.setIn([0, "enabled"], true);
       const anotherResult = instance.areAdvancedReflectionsFieldsEqual(
         aggregationReflections,
-        changedRawLayouts
+        changedRawLayouts,
       );
 
       expect(anotherResult).to.be.false;
@@ -309,11 +309,11 @@ describe("AccelerationAdvanced", () => {
     it("should return false if non-array value is different from initial state", () => {
       const changedAggregationReflections = aggregationReflections.setIn(
         [0, "booly"],
-        false
+        false,
       );
       const result = instance.areAdvancedReflectionsFieldsEqual(
         aggregationReflections,
-        changedAggregationReflections
+        changedAggregationReflections,
       );
 
       expect(result).to.be.false;
@@ -321,7 +321,7 @@ describe("AccelerationAdvanced", () => {
       const changedRawLayouts = rawReflections.setIn([0, "booly"], false);
       const anotherResult = instance.areAdvancedReflectionsFieldsEqual(
         aggregationReflections,
-        changedRawLayouts
+        changedRawLayouts,
       );
 
       expect(anotherResult).to.be.false;

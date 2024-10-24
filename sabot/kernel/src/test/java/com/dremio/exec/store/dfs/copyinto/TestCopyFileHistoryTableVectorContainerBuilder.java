@@ -51,7 +51,7 @@ public class TestCopyFileHistoryTableVectorContainerBuilder
   }
 
   private void assertContainerSchema(int schemaVersion) {
-    Schema schema = CopyFileHistoryTableSchemaProvider.getSchema(schemaVersion);
+    Schema schema = new CopyFileHistoryTableSchemaProvider(schemaVersion).getSchema();
     try (VectorContainer container =
         CopyFileHistoryTableVectorContainerBuilder.initializeContainer(getAllocator(), schema)) {
       assertThat(container.getSchema().getFieldCount()).isEqualTo(schema.columns().size());
@@ -61,7 +61,7 @@ public class TestCopyFileHistoryTableVectorContainerBuilder
 
   private void assertContainerContent(
       long schemaVersion, List<CopyIntoFileLoadInfo> fileLoadInfos, long timestamp) {
-    Schema schema = CopyFileHistoryTableSchemaProvider.getSchema(schemaVersion);
+    Schema schema = new CopyFileHistoryTableSchemaProvider(schemaVersion).getSchema();
     try (VectorContainer container = buildVector(schema, fileLoadInfos, timestamp)) {
       assertThat(container.getRecordCount()).isEqualTo(fileLoadInfos.size());
       int recordCount = fileLoadInfos.size();

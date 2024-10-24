@@ -43,7 +43,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
@@ -222,7 +221,6 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     currentRecordReader.allocate(fieldVectorMap);
     int records;
     while ((records = currentRecordReader.next()) == 0) {
-      addBoostSplits();
       currentRecordReader.close();
       currentRecordReader = null;
       context.getStats();
@@ -263,10 +261,6 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
    * add splits to the underlying recordreaderiterator
    */
   protected abstract void addSplits(List<SplitAndPartitionInfo> splits);
-
-  protected void addBoostSplits() throws IOException {
-    return;
-  }
 
   @Override
   public boolean hasBufferedRemaining() {

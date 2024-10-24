@@ -28,6 +28,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class TestSearchDocumentIdStoreImpl {
+  private static final String PROJECT_ID = "project_id";
+  private static final String ORG_ID = "org_id";
   private LocalKVStoreProvider kvStoreProvider;
   private SearchDocumentIdStoreImpl store;
 
@@ -35,7 +37,7 @@ public class TestSearchDocumentIdStoreImpl {
   public void setUp() throws Exception {
     kvStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
     kvStoreProvider.start();
-    store = new SearchDocumentIdStoreImpl(kvStoreProvider);
+    store = new SearchDocumentIdStoreImpl(() -> kvStoreProvider);
   }
 
   @AfterEach
@@ -51,10 +53,14 @@ public class TestSearchDocumentIdStoreImpl {
   @Test
   public void testPutGet() {
     SearchDocumentIdProto.SearchDocumentId documentId =
-        SearchDocumentIdProto.SearchDocumentId.newBuilder().setPath("main").build();
+        SearchDocumentIdProto.SearchDocumentId.newBuilder()
+            .putContext(PROJECT_ID, "ProjectId")
+            .putContext(ORG_ID, "OrgId")
+            .addPath("main")
+            .build();
     Document<String, SearchDocumentIdProto.SearchDocumentId> document = store.put(documentId, null);
     assertThat(document.getTag()).isNotNull();
-    assertThat(document.getKey()).isEqualTo("8b22daab2ff3ca18302bf93f08a11562");
+    assertThat(document.getKey()).isEqualTo("bb6398240be08d7b796cdccb9afeb018");
 
     Optional<Document<String, SearchDocumentIdProto.SearchDocumentId>> optionalDocument =
         store.get(documentId);
@@ -64,9 +70,36 @@ public class TestSearchDocumentIdStoreImpl {
   }
 
   @Test
+  public void testComputeKey() {
+    SearchDocumentIdProto.SearchDocumentId documentIdA =
+        SearchDocumentIdProto.SearchDocumentId.newBuilder()
+            .putContext(PROJECT_ID, "ProjectIdA")
+            .putContext(ORG_ID, "OrgIdA")
+            .addPath("main")
+            .build();
+    SearchDocumentIdProto.SearchDocumentId documentIdB =
+        SearchDocumentIdProto.SearchDocumentId.newBuilder()
+            .putContext(PROJECT_ID, "ProjectIdB")
+            .putContext(ORG_ID, "OrgIdB")
+            .addPath("main")
+            .build();
+    SearchDocumentIdProto.SearchDocumentId documentIdC =
+        SearchDocumentIdProto.SearchDocumentId.newBuilder().addPath("main").build();
+    String documentAKey = store.computeKey(documentIdA);
+    assertThat(documentAKey).isEqualTo("8a545208de38c72b9fbc4acf1eb3d6b3");
+    String documentBKey = store.computeKey(documentIdB);
+    assertThat(documentBKey).isEqualTo("9d1d6c48349e3b1b65ceb6236889e65a");
+    String documentCKey = store.computeKey(documentIdC);
+    assertThat(documentCKey).isEqualTo("d1cb0ea303259b25d920e0e6f20ebac9");
+    assertThat(documentAKey).isNotEqualTo(documentBKey);
+    assertThat(documentAKey).isNotEqualTo(documentCKey);
+    assertThat(documentBKey).isNotEqualTo(documentCKey);
+  }
+
+  @Test
   public void testDelete() {
     SearchDocumentIdProto.SearchDocumentId documentId =
-        SearchDocumentIdProto.SearchDocumentId.newBuilder().setPath("main").build();
+        SearchDocumentIdProto.SearchDocumentId.newBuilder().addPath("main").build();
     Document<String, SearchDocumentIdProto.SearchDocumentId> document = store.put(documentId, null);
     assertTrue(store.get(documentId).isPresent());
 

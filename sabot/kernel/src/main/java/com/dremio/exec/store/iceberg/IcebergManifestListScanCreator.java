@@ -72,7 +72,7 @@ public class IcebergManifestListScanCreator
             config.getIcebergExtendedProp(),
             config.getManifestContent(),
             config.getIsInternalIcebergScanTableMetadata(),
-            IcebergUtils.getDefaultPathScheme(fs.getScheme()));
+            IcebergUtils.getDefaultPathScheme(fs.getScheme(), plugin.getFsConfCopy()));
     return new ScanOperator(
         fragmentExecContext, config, context, RecordReaderIterator.from(reader));
   }

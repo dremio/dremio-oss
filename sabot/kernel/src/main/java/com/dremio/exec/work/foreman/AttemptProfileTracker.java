@@ -80,6 +80,10 @@ public class AttemptProfileTracker {
   private long startTime;
   private long endTime;
   private long cancelStartTime;
+  private long screenOperatorCompletionTime;
+  private long screenCompletionRpcReceivedAt;
+  private long lastNodeCompletionRpcReceivedAt;
+  private long lastNodeCompletionRpcStartedAt;
   private List<AttemptEvent> stateList = new ArrayList<>();
 
   private volatile UserBitShared.QueryProfile planningProfile;
@@ -465,7 +469,7 @@ public class AttemptProfileTracker {
 
     @Override
     public void queryStarted(UserRequest query, String user) {
-      markStartTime();
+      super.queryStarted(query, user);
     }
 
     @Override
@@ -502,19 +506,50 @@ public class AttemptProfileTracker {
     endPlanningTime = System.currentTimeMillis();
   }
 
-  private void markStartTime() {
-    startTime = System.currentTimeMillis();
+  void markStartTime(long startTimeMs) {
+    startTime = startTimeMs;
   }
 
   private void addCommandPoolWaitTime(long waitInMillis) {
     commandPoolWait += waitInMillis;
   }
 
-  void markEndTime() {
-    endTime = System.currentTimeMillis();
+  void markEndTime(long endTimeMs) {
+    endTime = endTimeMs;
   }
 
   long getTime() {
     return Math.max(0, endTime - startTime);
+  }
+
+  public long getEndTime() {
+    return endTime;
+  }
+
+  public void markExecutionTime(
+      long screenOperatorCompletionTime,
+      long screenCompletionRpcReceivedAt,
+      long lastNodeCompletionRpcReceivedAt,
+      long lastNodeCompletionRpcStartedAt) {
+    this.screenOperatorCompletionTime = screenOperatorCompletionTime;
+    this.screenCompletionRpcReceivedAt = screenCompletionRpcReceivedAt;
+    this.lastNodeCompletionRpcReceivedAt = lastNodeCompletionRpcReceivedAt;
+    this.lastNodeCompletionRpcStartedAt = lastNodeCompletionRpcStartedAt;
+  }
+
+  public long getScreenOperatorCompletionTime() {
+    return screenOperatorCompletionTime;
+  }
+
+  public long getScreenCompletionRpcReceivedAt() {
+    return screenCompletionRpcReceivedAt;
+  }
+
+  public long getLastNodeCompletionRpcReceivedAt() {
+    return lastNodeCompletionRpcReceivedAt;
+  }
+
+  public long getLastNodeCompletionRpcStartedAt() {
+    return lastNodeCompletionRpcStartedAt;
   }
 }

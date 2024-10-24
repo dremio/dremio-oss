@@ -25,6 +25,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
@@ -37,8 +38,7 @@ import org.antlr.runtime.RecognitionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// @JsonDeserialize(using = LogicalExpression.De.class)  // Excluded as we need to register this
-// with the SabotConfig.
+@JsonDeserialize(using = LogicalExpression.De.class)
 @JsonSerialize(using = LogicalExpression.Se.class)
 public interface LogicalExpression extends Iterable<LogicalExpression> {
   static final Logger logger = LoggerFactory.getLogger(LogicalExpression.class);

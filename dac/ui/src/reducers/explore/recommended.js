@@ -56,32 +56,32 @@ export default function grid(oldState, action) {
     case ActionTypes.RUN_SELECTION_TRANSFORM_START: {
       return state.setIn(
         ["transform", transformType, method, "cards"],
-        Immutable.List()
+        Immutable.List(),
       );
     }
 
     case ActionTypes.RUN_SELECTION_TRANSFORM_SUCCESS: {
       const mappedData = transformViewMapper.mapTransformRules(
         action.payload,
-        actionType
+        actionType,
       );
       const cards = mappedData.length ? mappedData : mappedData.cards;
       const values = mappedData.values || {};
       return state
         .setIn(
           ["transform", transformType, method, "cards"],
-          Immutable.fromJS(cards)
+          Immutable.fromJS(cards),
         )
         .setIn(
           ["transform", transformType, method, "values"],
-          Immutable.fromJS(values)
+          Immutable.fromJS(values),
         );
     }
 
     case ActionTypes.RUN_SELECTION_TRANSFORM_FAILURE: {
       return state.setIn(
         ["transform", transformType, method, "cards"],
-        Immutable.fromJS([])
+        Immutable.fromJS([]),
       );
     }
 
@@ -92,17 +92,17 @@ export default function grid(oldState, action) {
       if (!state.getIn(["transform", transformType, method, "cards"])) {
         return state.setIn(
           ["transform", transformType, method, "cards"],
-          Immutable.fromJS([{ isInProgress: true, isFailed: false }])
+          Immutable.fromJS([{ isInProgress: true, isFailed: false }]),
         );
       }
       return state
         .setIn(
           ["transform", transformType, method, "cards", index, "isInProgress"],
-          true
+          true,
         )
         .setIn(
           ["transform", transformType, method, "cards", index, "isFailed"],
-          false
+          false,
         );
     }
 
@@ -110,9 +110,9 @@ export default function grid(oldState, action) {
     case ActionTypes.UPDATE_TRANSFORM_CARD: {
       let cards = transformViewMapper.mapTransformRules(
         { cards: [action.payload] },
-        actionType
+        actionType,
       );
-      cards = cards ? cards.cards ?? cards : [];
+      cards = cards ? (cards.cards ?? cards) : [];
       const examplesList = (cards[0] && cards[0].examplesList) || [];
       const unmatchedCount = (cards[0] && cards[0].unmatchedCount) || 0;
       const matchedCount = (cards[0] && cards[0].matchedCount) || 0;
@@ -132,7 +132,7 @@ export default function grid(oldState, action) {
 
       return state.setIn(
         ["transform", transformType, method, "cards"],
-        nextCards.set(index, card)
+        nextCards.set(index, card),
       );
     }
 
@@ -153,11 +153,11 @@ export default function grid(oldState, action) {
       return state
         .setIn(
           ["transform", transformType, method, "values", "matchedCount"],
-          action.payload.matchedValues
+          action.payload.matchedValues,
         )
         .setIn(
           ["transform", transformType, method, "values", "unmatchedCount"],
-          action.payload.unmatchedValues
+          action.payload.unmatchedValues,
         );
     }
 
@@ -174,22 +174,22 @@ export default function grid(oldState, action) {
         .setIn(["cleanData", "newFieldName"], action.payload.newFieldName)
         .setIn(
           ["cleanData", "newFieldNamePrefix"],
-          action.payload.newFieldNamePrefix
+          action.payload.newFieldNamePrefix,
         )
         .setIn(
           ["cleanData", "single"],
           Immutable.fromJS(
-            transforms.setDesiredTypes(action.payload.convertToSingles)
-          )
+            transforms.setDesiredTypes(action.payload.convertToSingles),
+          ),
         )
         .setIn(["cleanData", "split", "dataTypes"], action.payload.split)
         .setIn(
           ["cleanData", "split", "availableValuesCount"],
-          action.payload.availableValuesCount
+          action.payload.availableValuesCount,
         )
         .setIn(
           ["cleanData", "split", "availableValues"],
-          action.payload.availableValues
+          action.payload.availableValues,
         );
     }
 

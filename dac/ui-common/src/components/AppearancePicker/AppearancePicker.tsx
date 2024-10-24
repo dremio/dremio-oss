@@ -38,8 +38,8 @@ const ThemePreviewCard: FC<{
         appearance: "none",
         borderRadius: "4px",
         ...(selected && {
-          "--border--color": "var(--color--brand--300)",
-          borderColor: "var(--color--brand--300)",
+          "--border--color": "var(--border--focused)",
+          borderColor: "var(--border--focused)",
         }),
       }}
       {...rest}
@@ -68,20 +68,12 @@ const ThemePreviewCard: FC<{
   );
 };
 
-const PreviewTag = () => (
-  <span
-    className="dremio-tag text-normal bg-secondary"
-    style={{ fontSize: "0.75em", marginLeft: "2px" }}
-  >
-    Preview
-  </span>
-);
-
-export const AppearancePicker = () => {
+export const AppearancePicker: FC<{ onThemeChanged: () => void }> = (props) => {
   const [theme, setThemeLocal] = useState(() => getTheme());
   const handleChange = (theme: Themes) => () => {
     setTheme(theme);
     setThemeLocal(theme);
+    props.onThemeChanged?.();
   };
   const { t } = getIntlContext();
   return (
@@ -108,10 +100,7 @@ export const AppearancePicker = () => {
           />
           <ThemePreviewCard
             label={
-              <div>
-                {t("AccountSettings.AppearancePicker.ThemeTitle.DARK")}{" "}
-                <PreviewTag />
-              </div>
+              <div>{t("AccountSettings.AppearancePicker.ThemeTitle.DARK")}</div>
             }
             selected={theme === Themes.DARK}
             onClick={handleChange(Themes.DARK)}
@@ -120,21 +109,7 @@ export const AppearancePicker = () => {
           <ThemePreviewCard
             label={
               <div>
-                {t(
-                  "AccountSettings.AppearancePicker.ThemeTitle.HIGH_CONTRAST_LIGHT",
-                )}{" "}
-                <PreviewTag />
-              </div>
-            }
-            selected={theme === Themes.HIGH_CONTRAST_LIGHT}
-            onClick={handleChange(Themes.HIGH_CONTRAST_LIGHT)}
-            theme={Themes.HIGH_CONTRAST_LIGHT}
-          />
-          <ThemePreviewCard
-            label={
-              <div>
-                {t("AccountSettings.AppearancePicker.ThemeTitle.AUTO_SYSTEM")}{" "}
-                <PreviewTag />
+                {t("AccountSettings.AppearancePicker.ThemeTitle.AUTO_SYSTEM")}
               </div>
             }
             selected={theme === Themes.SYSTEM_AUTO}

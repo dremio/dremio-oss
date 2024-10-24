@@ -305,6 +305,10 @@ public class IcebergTableProps {
     return tableProperties != null ? tableProperties : Collections.emptyMap();
   }
 
+  public void setTableProperties(Map<String, String> tableProperties) {
+    this.tableProperties = tableProperties;
+  }
+
   @JsonIgnore
   public PartitionSpec getDeserializedPartitionSpec() {
     return (partitionSpec == null)

@@ -105,7 +105,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       as === "button"
         ? {
             "aria-busy": pending ? "true" : "false",
-            "aria-live": "assertive",
             disabled: isDisabled(props),
             type,
           }

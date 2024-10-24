@@ -72,6 +72,8 @@ public class ViewExpansionContext {
 
   private Map<SubstitutionUtils.VersionedPath, DefaultSubstitutionInfo> defaultSubstitutionInfos;
 
+  public static String DEFAULT_RAW_TARGET = "default_raw_reflection_matching_target";
+
   public ViewExpansionContext(CatalogIdentity catalogIdentity) {
     super();
 
@@ -178,7 +180,7 @@ public class ViewExpansionContext {
         dremioMaterialization,
         ImmutableList.of(
             RelWithInfo.create(info.substitution, "default_raw_reflection_matching", info.elapsed)),
-        RelWithInfo.create(info.target, "default_raw_reflection_matching_target", Duration.ZERO),
+        RelWithInfo.create(info.target, DEFAULT_RAW_TARGET, Duration.ZERO),
         0,
         true);
   }

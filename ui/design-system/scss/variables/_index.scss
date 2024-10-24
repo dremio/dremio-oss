@@ -28,7 +28,3 @@
   @include shared;
   @include color.dark;
 }
-@mixin high_contrast_light {
-  @include shared;
-  @include color.high_contrast_light;
-}

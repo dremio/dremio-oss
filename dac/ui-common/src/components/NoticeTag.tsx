@@ -57,9 +57,12 @@ export const NoticeTag = (props: NoticeTagProps) => {
     <div
       className={clsx(
         className,
-        "bg-neutral-50 dremio-typography-less-important px-1 py-05 rounded-md",
+        "dremio-typography-less-important px-1 py-05 rounded-md",
       )}
-      style={{ whiteSpace: "nowrap" }}
+      style={{
+        whiteSpace: "nowrap",
+        backgroundColor: "var(--fill--secondary)",
+      }}
     >
       {inProgress ? inProgressMessage : completedMessage}
     </div>

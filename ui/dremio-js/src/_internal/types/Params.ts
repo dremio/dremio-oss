@@ -25,3 +25,7 @@ export type LimitParams = {
 export type OffsetParams = {
   offset: number;
 };
+
+export type SignalParam = {
+  signal?: AbortSignal;
+};

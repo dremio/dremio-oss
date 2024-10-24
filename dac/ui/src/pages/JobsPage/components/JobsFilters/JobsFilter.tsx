@@ -15,18 +15,18 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import { cloneDeep, debounce } from "lodash";
 import Immutable from "immutable";
 import { WithRouterProps, withRouter } from "react-router";
 import { useResourceSnapshot } from "smart-resource/react";
 
-import ContainsText from "@app/pages/JobPage/components/JobsFilters/ContainsText";
-import StartTimeSelect from "@app/pages/JobPage/components/JobsFilters/StartTimeSelect/StartTimeSelect";
-import * as IntervalTypes from "@app/pages/JobPage/components/JobsFilters/StartTimeSelect/IntervalTypes";
-import FilterSelectMenu from "@app/components/Fields/FilterSelectMenu";
+import ContainsText from "#oss/pages/JobPage/components/JobsFilters/ContainsText";
+import StartTimeSelect from "#oss/pages/JobPage/components/JobsFilters/StartTimeSelect/StartTimeSelect";
+import * as IntervalTypes from "#oss/pages/JobPage/components/JobsFilters/StartTimeSelect/IntervalTypes";
+import FilterSelectMenu from "#oss/components/Fields/FilterSelectMenu";
 
-import { UsersForJobsResource } from "@app/exports/resources/UsersForJobsResource";
+import { UsersForJobsResource } from "#oss/exports/resources/UsersForJobsResource";
 import { JobsQueryParams } from "dremio-ui-common/types/Jobs.types";
 import { formatQueryState } from "dremio-ui-common/utilities/jobs.js";
 import {
@@ -38,9 +38,10 @@ import {
   transformToSelectedItems,
 } from "./utils";
 import additionalJobsControls from "@inject/shared/AdditionalJobsControls";
-import { QueuesResource } from "@app/resources/QueuesResource";
+import { QueuesResource } from "#oss/resources/QueuesResource";
 import { getPrivilegeContext } from "dremio-ui-common/contexts/PrivilegeContext.js";
 import { MultiCheckboxPopover } from "dremio-ui-lib/components";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 
 import * as classes from "./JobsFilters.module.less";
 
@@ -110,6 +111,7 @@ const JobsFilters = withRouter(
       type: string,
       rangeObj: Immutable.List<any>,
     ) => {
+      localStorageUtils?.setJobsDateTimeFilter(type);
       const range = rangeObj && rangeObj.toJS && rangeObj.toJS();
       const fromDate = range && range[0];
       const toDate = range && range[1];

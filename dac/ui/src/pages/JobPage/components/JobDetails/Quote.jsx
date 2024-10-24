@@ -74,7 +74,7 @@ export class Quote extends PureComponent {
                 <td style={styles.fieldOutput}>Output Records:</td>
                 <td style={styles.value}>
                   {jobsUtils.getFormattedRecords(
-                    jobIOData.get("outputRecords")
+                    jobIOData.get("outputRecords"),
                   )}
                 </td>
                 <td style={styles.truncated}>
@@ -84,7 +84,7 @@ export class Quote extends PureComponent {
                       &nbsp; Automatic Truncation{" "}
                       <HoverHelp
                         content={laDeprecated(
-                          "UI Jobs are automatically truncated."
+                          "UI Jobs are automatically truncated.",
                         )}
                       />
                     </div>

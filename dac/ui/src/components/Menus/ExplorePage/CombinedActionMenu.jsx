@@ -20,7 +20,7 @@ import { connect } from "react-redux";
 import Immutable from "immutable";
 import { injectIntl } from "react-intl";
 import { CombinedActionMenuMixin } from "dyn-load/components/Menus/ExplorePage/CombinedActionMenuMixin";
-import { getAllJobDetails } from "@app/selectors/exploreJobs";
+import { getAllJobDetails } from "#oss/selectors/exploreJobs";
 import { HoverHelp } from "dremio-ui-lib";
 
 import Menu from "./Menu";

@@ -317,7 +317,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
 
     Space space =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)),
+            getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newSpace)),
             new GenericType<Space>() {});
     SpaceConfig spaceConfig = getNamespaceService().getSpace(new NamespaceKey(newSpace.getName()));
 
@@ -328,21 +328,21 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     // make sure that trying to create the space again fails
     expectStatus(
         Response.Status.CONFLICT,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)));
+        getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newSpace)));
 
     Space newSpace1 = new Space(space.getId(), space.getName(), space.getTag(), null, null);
     expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId()))
+        getBuilder(getHttpClient().getCatalogApi().path(space.getId()))
             .buildPut(Entity.json(newSpace1)));
     Space space1 =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(space.getId())).buildGet(),
             new GenericType<Space>() {});
     assertEquals(spaceConfig.getCtime(), space1.getCreatedAt());
 
     // delete the space
     expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(spaceConfig.getId().getId()))
+        getBuilder(getHttpClient().getCatalogApi().path(spaceConfig.getId().getId()))
             .buildDelete());
     assertThatThrownBy(
             () -> getNamespaceService().getSpace(new NamespaceKey(spaceConfig.getName())))
@@ -356,7 +356,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
       Space newSpace = new Space(null, "final frontier", null, null, null);
       Space space =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)),
+              getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newSpace)),
               new GenericType<Space>() {});
 
       // no children at this point
@@ -370,13 +370,13 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
       // make sure folder shows up under space
       space =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(),
+              getBuilder(getHttpClient().getCatalogApi().path(space.getId())).buildGet(),
               new GenericType<Space>() {});
 
       // make sure that trying to create the folder again fails
       expectStatus(
           Response.Status.CONFLICT,
-          getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)));
+          getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newFolder)));
 
       // one child at this point
       assertEquals(space.getChildren().size(), 1);
@@ -385,10 +385,10 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
       if (deleteFolderFirst) {
         // delete the folder
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildDelete());
+            getBuilder(getHttpClient().getCatalogApi().path(folder.getId())).buildDelete());
         space =
             expectSuccess(
-                getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(),
+                getBuilder(getHttpClient().getCatalogApi().path(space.getId())).buildGet(),
                 new GenericType<Space>() {});
         assertEquals(space.getChildren().size(), 0);
 
@@ -399,7 +399,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
         // delete the folder
         expectError(
             FamilyExpectation.CLIENT_ERROR,
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildDelete(),
+            getBuilder(getHttpClient().getCatalogApi().path(folder.getId())).buildDelete(),
             ValidationErrorMessage.class);
       }
     }
@@ -412,7 +412,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
       Space newSpace = new Space(null, "mySpace123", null, null, null);
       Space space =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)),
+              getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newSpace)),
               new GenericType<Space>() {});
 
       // no children at this point
@@ -424,7 +424,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
       // make sure function shows up under space
       space =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(),
+              getBuilder(getHttpClient().getCatalogApi().path(space.getId())).buildGet(),
               new GenericType<Space>() {});
       assertEquals(space.getChildren().size(), 1);
 
@@ -433,7 +433,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
 
         space =
             expectSuccess(
-                getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(),
+                getBuilder(getHttpClient().getCatalogApi().path(space.getId())).buildGet(),
                 new GenericType<Space>() {});
         assertEquals(space.getChildren().size(), 0);
 
@@ -494,7 +494,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
 
   private ResponseList<CatalogItem> getRootEntities(
       final List<CatalogServiceHelper.DetailType> detailsToInclude) {
-    WebTarget api = getPublicAPI(3).path(CATALOG_PATH);
+    WebTarget api = getHttpClient().getCatalogApi();
 
     if (detailsToInclude != null) {
       for (CatalogServiceHelper.DetailType detail : detailsToInclude) {
@@ -509,7 +509,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
   private Space createSpace(final String spaceName) {
     Space newSpace = new Space(null, spaceName, null, null, null);
     return expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)),
+        getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newSpace)),
         new GenericType<Space>() {});
   }
 
@@ -522,7 +522,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     Folder newFolder = new Folder(null, Arrays.asList(space.getName(), "myFolder"), null, null);
     Folder folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)),
+            getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newFolder)),
             new GenericType<Folder>() {});
 
     // create a VDS in the space
@@ -531,18 +531,18 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
             Arrays.asList(space.getName(), "myFolder", "myVDS"), "select * from sys.version");
     Dataset vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)),
+            getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
     // make sure that trying to create the vds again fails
     expectStatus(
         Response.Status.CONFLICT,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)));
+        getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newVDS)));
 
     // folder should now have children
     folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(folder.getId())).buildGet(),
             new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 1);
     assertEquals(folder.getChildren().get(0).getId(), vds.getId());
@@ -563,13 +563,13 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
             null);
     vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(renamedVDS.getId()))
+            getBuilder(getHttpClient().getCatalogApi().path(renamedVDS.getId()))
                 .buildPut(Entity.json(renamedVDS)),
             new GenericType<Dataset>() {});
 
     folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(folder.getId())).buildGet(),
             new GenericType<Folder>() {});
     assertEquals(1, folder.getChildren().size());
     assertEquals(vds.getId(), folder.getChildren().get(0).getId());
@@ -591,7 +591,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
             null);
     vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(modifiedVDS.getId()))
+            getBuilder(getHttpClient().getCatalogApi().path(modifiedVDS.getId()))
                 .buildPut(Entity.json(modifiedVDS)),
             new GenericType<Dataset>() {});
     assertEquals(modifiedVDS.getSql(), vds.getSql());
@@ -605,10 +605,10 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     assertEquals("version", fieldsFromDatasetConfig.get(0).getName());
 
     // delete the vds
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(vds.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(vds.getId())).buildDelete());
     folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(folder.getId())).buildGet(),
             new GenericType<Folder>() {});
     assertEquals(0, folder.getChildren().size());
 
@@ -655,7 +655,9 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     l(NamespaceService.class).addOrUpdateDataset(path1.toNamespaceKey(), dataset1);
 
     DatasetPath vdsPath = new DatasetPath(ImmutableList.of("@dremio", "myFile.json"));
-    createDatasetFromSQLAndSave(vdsPath, "SELECT * FROM \"myFile.json\"", asList(sourceName));
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSave(vdsPath, "SELECT * FROM \"myFile.json\"", asList(sourceName));
 
     final String query = "select * from \"myFile.json\"";
     submitJobAndWaitUntilCompletion(
@@ -747,7 +749,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     newSource2.setAllowCrossSourceSelection(true);
     newSource2 =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId()))
+            getBuilder(getHttpClient().getCatalogApi().path(newSource2.getId()))
                 .buildPut(Entity.json(newSource2)),
             new GenericType<Source>() {});
 
@@ -787,7 +789,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     newSource2.setAllowCrossSourceSelection(true);
     newSource2 =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId()))
+            getBuilder(getHttpClient().getCatalogApi().path(newSource2.getId()))
                 .buildPut(Entity.json(newSource2)),
             new GenericType<Source>() {});
 
@@ -892,7 +894,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     newSource2.setAllowCrossSourceSelection(true);
     newSource2 =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId()))
+            getBuilder(getHttpClient().getCatalogApi().path(newSource2.getId()))
                 .buildPut(Entity.json(newSource2)),
             new GenericType<Source>() {});
 
@@ -927,7 +929,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     newSource2.setAllowCrossSourceSelection(true);
     newSource2 =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId()))
+            getBuilder(getHttpClient().getCatalogApi().path(newSource2.getId()))
                 .buildPut(Entity.json(newSource2)),
             new GenericType<Source>() {});
 
@@ -1052,11 +1054,11 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
 
     Source source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),
+            getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newSource)),
             new GenericType<Source>() {});
     newSource =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(source.getId())).buildGet(),
             new GenericType<Source>() {});
 
     final DatasetPath path = new DatasetPath(ImmutableList.of(sourceName, fileName));
@@ -1076,7 +1078,9 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     if (vdsName != null) {
       DatasetPath vdsPath = new DatasetPath(ImmutableList.of("@dremio", vdsName));
       final String query = String.format("SELECT * FROM %s.\"%s\"", sourceName, fileName);
-      createDatasetFromSQLAndSave(vdsPath, query, asList(sourceName));
+      getHttpClient()
+          .getDatasetApi()
+          .createDatasetFromSQLAndSave(vdsPath, query, asList(sourceName));
     }
 
     return newSource;
@@ -1123,11 +1127,11 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
 
     Source source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),
+            getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newSource)),
             new GenericType<Source>() {});
     newSource =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(source.getId())).buildGet(),
             new GenericType<Source>() {});
 
     DatasetPath path = new DatasetPath(ImmutableList.of(sourceName1, "nestedDir"));
@@ -1445,7 +1449,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     // make sure we can fetch the source by id
     source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(source.getId())).buildGet(),
             new GenericType<Source>() {});
 
     // make sure that trying to create the source again fails
@@ -1458,13 +1462,13 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     newSource.setConfig(nasConf);
     expectStatus(
         Response.Status.CONFLICT,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)));
+        getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newSource)));
 
     // edit source
     source.setAccelerationRefreshPeriodMs(0);
     source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId()))
+            getBuilder(getHttpClient().getCatalogApi().path(source.getId()))
                 .buildPut(Entity.json(source)),
             new GenericType<Source>() {});
 
@@ -1475,11 +1479,10 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     Folder newFolder = new Folder(null, Arrays.asList(source.getName(), "myFolder"), null, null);
     expectStatus(
         Response.Status.BAD_REQUEST,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)));
+        getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newFolder)));
 
     // delete source
-    expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(source.getId())).buildDelete());
 
     Source finalSource = source;
     assertThatThrownBy(
@@ -1508,8 +1511,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
       source.setConfig(conf);
 
       expectStatus(
-          BAD_REQUEST,
-          getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(source)));
+          BAD_REQUEST, getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(source)));
     }
   }
 
@@ -1535,8 +1537,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
       expectStatus(
           BAD_REQUEST,
           getBuilder(
-                  getPublicAPI(3)
-                      .path(CATALOG_PATH)
+                  getHttpClient()
+                      .getCatalogApi()
                       .path(PathUtils.encodeURIComponent(source.getId())))
               .buildPut(Entity.json(source)));
     }
@@ -1554,8 +1556,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     expectStatus(
         Response.Status.BAD_REQUEST,
         getBuilder(
-                getPublicAPI(3)
-                    .path(CATALOG_PATH)
+                getHttpClient()
+                    .getCatalogApi()
                     .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id)))
             .buildDelete());
   }
@@ -1572,8 +1574,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     Folder folder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
@@ -1597,8 +1599,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     File file =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(com.dremio.common.utils.PathUtils.encodeURIComponent(fileId)))
                 .buildGet(),
             new GenericType<File>() {});
@@ -1610,8 +1612,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     dataset =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(com.dremio.common.utils.PathUtils.encodeURIComponent(fileId)))
                 .buildPost(Entity.json(dataset)),
             new GenericType<Dataset>() {});
@@ -1619,35 +1621,34 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     // load the dataset
     dataset =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildGet(),
             new GenericType<Dataset>() {});
 
     // verify listing
     folder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 19);
 
     // unpromote file
-    expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildDelete());
 
     // dataset should no longer exist
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+        getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildGet());
 
     // verify listing
     folder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
@@ -1661,8 +1662,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     Folder dsFolder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderId)))
                 .buildGet(),
             new GenericType<Folder>() {});
@@ -1674,8 +1675,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     folder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(
                             com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildGet(),
@@ -1698,8 +1699,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     Dataset datasetPromoted =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(
                             com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildPost(Entity.json(dataset)),
@@ -1708,7 +1709,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     // load the promoted dataset
     dataset =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(datasetPromoted.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(datasetPromoted.getId())).buildGet(),
             new GenericType<Dataset>() {});
 
     // Verify the response from POST matches the response from GET
@@ -1724,13 +1725,12 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
         datasetPromoted.getAccelerationRefreshPolicy().getGracePeriodMs());
 
     // unpromote the folder
-    expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildDelete());
 
     // dataset should no longer exist
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+        getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildGet());
   }
 
   @Test
@@ -1748,7 +1748,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     // create the source
     Source source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),
+            getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newSource)),
             new GenericType<Source>() {});
 
     FakeSource config = (FakeSource) source.getConfig();
@@ -1763,7 +1763,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
 
     source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId()))
+            getBuilder(getHttpClient().getCatalogApi().path(source.getId()))
                 .buildPut(Entity.json(source)),
             new GenericType<Source>() {});
     config = (FakeSource) source.getConfig();
@@ -1783,7 +1783,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
 
     // create the source
     return expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),
+        getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newSource)),
         new GenericType<Source>() {});
   }
 
@@ -1804,7 +1804,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     // load home space
     Home home =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(homeId)).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(homeId)).buildGet(),
             new GenericType<Home>() {});
 
     int size = home.getChildren().size();
@@ -1813,26 +1813,26 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     Folder newFolder = new Folder(null, Arrays.asList(home.getName(), "myFolder"), null, null);
     Folder folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)),
+            getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newFolder)),
             new GenericType<Folder>() {});
     assertEquals(newFolder.getPath(), folder.getPath());
 
     // make sure folder shows up under space
     home =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(homeId)).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(homeId)).buildGet(),
             new GenericType<Home>() {});
     assertEquals(home.getChildren().size(), size + 1);
 
     // make sure that trying to create the folder again fails
     expectStatus(
         Response.Status.CONFLICT,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)));
+        getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(newFolder)));
 
     // load folder
     folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(folder.getId())).buildGet(),
             new GenericType<Folder>() {});
 
     // store a VDS in the folder
@@ -1842,34 +1842,32 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
 
     Dataset newVDS =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(vds)),
+            getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(vds)),
             new GenericType<Dataset>() {});
 
     // folder should have children now
     folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(folder.getId())).buildGet(),
             new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 1);
 
     // delete vds
-    expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newVDS.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(newVDS.getId())).buildDelete());
 
     // folder should have no children now
     folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(folder.getId())).buildGet(),
             new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 0);
 
     // delete folder
-    expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(folder.getId())).buildDelete());
 
     home =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(homeId)).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(homeId)).buildGet(),
             new GenericType<Home>() {});
     assertEquals(home.getChildren().size(), size);
   }
@@ -1882,10 +1880,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     Source source =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
-                        .path("by-path")
-                        .path(createdSource.getName()))
+                    getHttpClient().getCatalogApi().path("by-path").path(createdSource.getName()))
                 .buildGet(),
             new GenericType<Source>() {});
     assertEquals(source.getId(), createdSource.getId());
@@ -1893,8 +1888,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     // test getting a folder by path
     expectSuccess(
         getBuilder(
-                getPublicAPI(3)
-                    .path(CATALOG_PATH)
+                getHttpClient()
+                    .getCatalogApi()
                     .path("by-path")
                     .path(createdSource.getName())
                     .path("json"))
@@ -1904,8 +1899,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     // test getting a file with a url character in name (?)
     expectSuccess(
         getBuilder(
-                getPublicAPI(3)
-                    .path(CATALOG_PATH)
+                getHttpClient()
+                    .getCatalogApi()
                     .path("by-path")
                     .path(createdSource.getName())
                     .path("testfiles")
@@ -1925,8 +1920,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
 
     Folder dsFolder =
         expectSuccess(
-            getBuilder(
-                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(folderId)))
+            getBuilder(getHttpClient().getCatalogApi().path(PathUtils.encodeURIComponent(folderId)))
                 .buildGet(),
             new GenericType<Folder>() {});
 
@@ -1937,8 +1931,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     Folder folder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildGet(),
             new GenericType<Folder>() {});
@@ -1949,8 +1943,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     dataset =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildPost(Entity.json(dataset)),
             new GenericType<Dataset>() {});
@@ -1958,32 +1952,30 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     // load the promoted dataset
     dataset =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildGet(),
             new GenericType<Dataset>() {});
 
     // unpromote the folder
-    expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildDelete());
 
     // dataset should no longer exist
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+        getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildGet());
 
     // re-promote the folder by using by-path
     dataset = createPDS(folder.getPath(), parquetFileConfig);
     dataset =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildPost(Entity.json(dataset)),
             new GenericType<Dataset>() {});
 
     // unpromote the folder
-    expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildDelete());
   }
 
   @Test
@@ -1991,21 +1983,21 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     // test non-existent id
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("bad-id")).buildGet());
+        getBuilder(getHttpClient().getCatalogApi().path("bad-id")).buildGet());
 
     // test non-existent internal id
     expectStatus(
         Response.Status.NOT_FOUND,
         getBuilder(
-                getPublicAPI(3)
-                    .path(CATALOG_PATH)
+                getHttpClient()
+                    .getCatalogApi()
                     .path(CatalogServiceHelper.generateInternalId(Arrays.asList("bad-id"))))
             .buildGet());
 
     // test non-existent path
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path("doesnot").path("exist"))
+        getBuilder(getHttpClient().getCatalogApi().path("by-path").path("doesnot").path("exist"))
             .buildGet());
   }
 
@@ -2018,7 +2010,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
 
     Space result =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(space.getName()))
+            getBuilder(getHttpClient().getCatalogApi().path("by-path").path(space.getName()))
                 .buildGet(),
             new GenericType<Space>() {});
     assertEquals(2, result.getChildren().size());
@@ -2026,8 +2018,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     result =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path("by-path")
                         .path(space.getName())
                         .queryParam("exclude", "children"))
@@ -2037,15 +2029,15 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
 
     result =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(space.getId())).buildGet(),
             new GenericType<Space>() {});
     assertEquals(2, result.getChildren().size());
 
     result =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(space.getId())
                         .queryParam("exclude", "children"))
                 .buildGet(),
@@ -2065,8 +2057,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     Folder folder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
@@ -2080,8 +2072,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     Folder dsFolder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderId)))
                 .buildGet(),
             new GenericType<Folder>() {});
@@ -2093,8 +2085,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     folder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(
                             com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildGet(),
@@ -2118,8 +2110,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     dataset =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(
                             com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildPost(Entity.json(dataset)),
@@ -2128,7 +2120,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     // load the promoted dataset
     dataset =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildGet(),
             new GenericType<Dataset>() {});
     assertEquals(RefreshMethod.INCREMENTAL, dataset.getAccelerationRefreshPolicy().getMethod());
     assertFalse(dataset.getAccelerationRefreshPolicy().getNeverRefresh());
@@ -2149,7 +2141,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     Dataset newPDS = createPDS(dataset, refreshSettings);
     dataset =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId()))
+            getBuilder(getHttpClient().getCatalogApi().path(dataset.getId()))
                 .buildPut(Entity.json(newPDS)),
             new GenericType<Dataset>() {});
     assertEquals(RefreshMethod.FULL, dataset.getAccelerationRefreshPolicy().getMethod());
@@ -2163,13 +2155,12 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
         dataset.getAccelerationRefreshPolicy().getGracePeriodMs());
 
     // unpromote the folder
-    expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildDelete());
 
     // dataset should no longer exist
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+        getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildGet());
   }
 
   @ParameterizedTest
@@ -2209,7 +2200,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
       int macChildren = 7;
       String pageToken = null;
       do {
-        WebTarget target = getPublicAPI(3).path(CATALOG_PATH);
+        WebTarget target = getHttpClient().getCatalogApi();
         if (byId) {
           target = target.path(spaceId);
         } else {
@@ -2227,7 +2218,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
         space.getChildren().forEach(c -> allChildrenPaths.add(String.join(".", c.getPath())));
       } while (pageToken != null);
     } else {
-      WebTarget target = getPublicAPI(3).path(CATALOG_PATH);
+      WebTarget target = getHttpClient().getCatalogApi();
       if (byId) {
         target = target.path(spaceId);
       } else {
@@ -2257,7 +2248,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     int numFolders = 20;
     for (int i = 0; i < numFolders; i++) {
       expectSuccess(
-          getBuilder(getPublicAPI(3).path(CATALOG_PATH))
+          getBuilder(getHttpClient().getCatalogApi())
               .buildPost(
                   Entity.json(
                       new Folder(
@@ -2270,14 +2261,13 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     // Get page token.
     Source source =
         expectSuccess(
-            getBuilder(
-                    getPublicAPI(3).path(CATALOG_PATH).path(sourceId).queryParam("maxChildren", 3))
+            getBuilder(getHttpClient().getCatalogApi().path(sourceId).queryParam("maxChildren", 3))
                 .buildGet(),
             Source.class);
     CatalogPageToken catalogPageToken = CatalogPageToken.fromApiToken(source.getNextPageToken());
 
     // Get an error with invalid token.
-    WebTarget target = getPublicAPI(3).path(CATALOG_PATH).path(sourceId);
+    WebTarget target = getHttpClient().getCatalogApi().path(sourceId);
     String pageToken;
     if (useInvalidTokenOrPath) {
       pageToken =
@@ -2321,7 +2311,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     for (int i = 0; i < numFolders; i++) {
       String folderName = String.format("folder%03d", i);
       expectSuccess(
-          getBuilder(getPublicAPI(3).path(CATALOG_PATH))
+          getBuilder(getHttpClient().getCatalogApi())
               .buildPost(
                   Entity.json(
                       new Folder(null, asList(NESSIE_SOURCE_NAME, folderName), null, null))));
@@ -2340,7 +2330,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
       int maxChildren = 7;
       String pageToken = null;
       do {
-        WebTarget target = getPublicAPI(3).path(CATALOG_PATH);
+        WebTarget target = getHttpClient().getCatalogApi();
         if (byId) {
           target = target.path(sourceId);
         } else {
@@ -2359,7 +2349,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
       } while (pageToken != null);
     } else {
       // Don't paginate.
-      WebTarget target = getPublicAPI(3).path(CATALOG_PATH);
+      WebTarget target = getHttpClient().getCatalogApi();
       if (byId) {
         target = target.path(sourceId);
       } else {
@@ -2394,7 +2384,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
       String folderName = String.format("folder%03d", i);
       Folder folder =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(CATALOG_PATH))
+              getBuilder(getHttpClient().getCatalogApi())
                   .buildPost(
                       Entity.json(
                           new Folder(null, asList(NESSIE_SOURCE_NAME, folderName), null, null))),
@@ -2419,8 +2409,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     ResponseList<CatalogEntity> responseListByIds =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path("by-ids")
                         .queryParam("maxChildren", Integer.toString(maxChildren)))
                 .buildPost(Entity.json(entityIds)),
@@ -2430,8 +2420,8 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     ResponseList<CatalogEntity> responseListByPaths =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
+                    getHttpClient()
+                        .getCatalogApi()
                         .path("by-paths")
                         .queryParam("maxChildren", Integer.toString(maxChildren)))
                 .buildPost(Entity.json(entityPaths)),
@@ -2465,8 +2455,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
     Dataset dataset =
         createVDS(Arrays.asList(space.getName(), viewName), "select * from sys.version");
 
-    expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(dataset.getId())).buildDelete());
 
     assertTrue(getNamespaceService().getEntityById(new EntityId(dataset.getId())).isEmpty());
   }
@@ -2536,7 +2525,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
   private Dataset createVDS(List<String> path, String sql) {
     Dataset vds = getVDSConfig(path, sql);
     return expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(vds)),
+        getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(vds)),
         new GenericType<Dataset>() {});
   }
 
@@ -2550,7 +2539,7 @@ public class TestCatalogResource extends BaseTestServerJunit5 {
 
   private Folder createFolder(Folder folder) {
     return expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(folder)),
+        getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(folder)),
         new GenericType<Folder>() {});
   }
 }

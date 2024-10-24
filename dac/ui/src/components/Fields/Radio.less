@@ -22,10 +22,13 @@
   margin-right: 7px;
   border: 1px solid var(--border--neutral--solid);
   border-radius: 100%;
-  background: #fff;
+  background: var(--fill--primary);
   position: relative;
   &.checked {
-    background: var(--fill--brand--solid);
+    background: var(--fill--toggle--checked);
+  }
+  &:hover {
+    border: 1px solid var(--fill--toggle--checked--hover);
   }
 }
 
@@ -34,7 +37,7 @@
   top: 4px;
   left: 4px;
   @size: 8px;
-  background: #fff;
+  background: var(--fill--primary);
   width: @size;
   height: @size;
   border-radius: 100%;

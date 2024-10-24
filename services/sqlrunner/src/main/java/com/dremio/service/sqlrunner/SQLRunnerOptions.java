@@ -22,4 +22,7 @@ import com.dremio.options.TypeValidators;
 public class SQLRunnerOptions {
   public static final TypeValidators.BooleanValidator SQLRUNNER_TABS_UI =
       new TypeValidators.BooleanValidator("sqlrunner.tabs_ui", true);
+
+  public static final TypeValidators.BooleanValidator SQLRUNNER_USE_SHOW_CONTEXT =
+      new TypeValidators.BooleanValidator("sqlrunner.useshowcontext.enabled", false);
 }

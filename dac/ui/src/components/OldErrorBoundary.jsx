@@ -17,7 +17,7 @@ import { Component, forwardRef, PureComponent } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import { showAppError } from "actions/prodError";
-import sentryUtil from "@app/utils/sentryUtil";
+import sentryUtil from "#oss/utils/sentryUtil";
 
 const mapDispatchToProps = {
   showAppError,

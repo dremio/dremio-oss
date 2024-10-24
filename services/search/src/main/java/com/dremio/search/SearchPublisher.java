@@ -15,11 +15,10 @@
  */
 package com.dremio.search;
 
+import com.dremio.service.Service;
+
 /**
  * Implementation listens to search document events and then publishes the documents to the search
  * index.
  */
-public interface SearchPublisher {
-  /** Starts listening to search document events. */
-  void start();
-}
+public interface SearchPublisher extends Service {}

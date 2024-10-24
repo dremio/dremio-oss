@@ -25,13 +25,11 @@ export const FIELDS = [
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     renderFooter() {
       return null;
     },
   });
   Object.assign(input, {
-    // eslint-disable-line no-restricted-properties
     getFields() {
       return FIELDS;
     },

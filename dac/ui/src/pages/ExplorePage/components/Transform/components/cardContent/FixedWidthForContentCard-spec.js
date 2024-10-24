@@ -77,7 +77,7 @@ describe("testing FixedWidthForContentCard", () => {
     for (const example of examples) {
       const result = FixedWidthForContentCard.getExampleTextParts(
         example[0],
-        WIDTH_CARDS
+        WIDTH_CARDS,
       );
       expect(result).to.eql(example[1]);
     }
@@ -87,40 +87,40 @@ describe("testing FixedWidthForContentCard", () => {
     sinon.spy(FixedWidthForContentCard.prototype, "componentDidMount");
     mount(<FixedWidthForContentCard example={examples[0][0]} index={0} />);
     expect(
-      FixedWidthForContentCard.prototype.componentDidMount.calledOnce
+      FixedWidthForContentCard.prototype.componentDidMount.calledOnce,
     ).to.equal(true);
   });
 
   it("should render string for card", () => {
     examples.forEach((example, index) => {
       const wrapper = mount(
-        <FixedWidthForContentCard example={example[0]} index={index} />
+        <FixedWidthForContentCard example={example[0]} index={index} />,
       );
       expect(wrapper.find(".fixed_width").children()).to.have.length(3);
 
       // width 0
       expect(wrapper.find(".fixed_width").children().at(0).text()).to.equal("");
       expect(wrapper.find(".fixed_width").children().at(1).text()).to.equal(
-        example[1][1][0]
+        example[1][1][0],
       );
       expect(wrapper.find(".fixed_width").children().at(2).text()).to.equal("");
 
       wrapper.setState({ width: 1 });
       expect(wrapper.find(".fixed_width").children().at(0).text()).to.equal("");
       expect(wrapper.find(".fixed_width").children().at(1).text()).to.equal(
-        example[1][1][0]
+        example[1][1][0],
       );
       expect(wrapper.find(".fixed_width").children().at(2).text()).to.equal("");
 
       wrapper.setState({ width: WIDTH_CARDS });
       expect(wrapper.find(".fixed_width").children().at(0).text()).to.equal(
-        example[1][0][0]
+        example[1][0][0],
       );
       expect(wrapper.find(".fixed_width").children().at(1).text()).to.equal(
-        example[1][1][0]
+        example[1][1][0],
       );
       expect(wrapper.find(".fixed_width").children().at(2).text()).to.equal(
-        example[1][2][0]
+        example[1][2][0],
       );
     });
   });

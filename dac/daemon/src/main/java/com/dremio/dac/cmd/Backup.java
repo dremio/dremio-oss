@@ -45,6 +45,7 @@ import java.security.GeneralSecurityException;
 import java.util.Optional;
 import javax.inject.Provider;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.immutables.value.Value;
@@ -356,8 +357,7 @@ public class Backup {
         } else {
           LOGGER.info("Running backup using Admin CLI process");
           result.setBackupStats(
-              backupUsingCliProcess(
-                  dacConfig, options, credentialsService, target, checkSSLCertificates));
+              backupUsingCliProcess(dacConfig, options, credentialsService, checkSSLCertificates));
         }
       }
       return result.setExitStatus(0).build();
@@ -371,7 +371,6 @@ public class Backup {
       DACConfig dacConfig,
       BackupManagerOptions options,
       CredentialsService credentialsService,
-      URI target,
       boolean checkSSLCertificates)
       throws Exception {
 
@@ -389,6 +388,9 @@ public class Backup {
         AdminLogger.log(
             "Reuse checkpoint previously created. We will only perform a backup without the files");
       } else {
+        // We need an absolute path to have the URI (scheme thanks to File class).
+        URI localCheckpointPath =
+            new File(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING)).toURI();
         // backup using same process is a 3 steps process: create DB checkpoint, backup files and
         // backup DB
         checkpoint =
@@ -398,9 +400,21 @@ public class Backup {
                 options.userName,
                 options.password,
                 checkSSLCertificates,
-                target,
+                localCheckpointPath,
                 !options.json,
                 !options.profiles);
+
+        // Retrieve the folder name of the backup
+        String folderName =
+            FilenameUtils.getBaseName(new File(checkpoint.getCheckpointPath()).toString());
+        String backupDir = Path.of(options.backupDir).resolve(folderName).toString();
+        // Backup will be in a different folder than the checkpoint, but we must use the same folder
+        // name (ie. dremio_backup_XXX)
+        checkpoint =
+            new ImmutableCheckpointInfo.Builder()
+                .setCheckpointPath(checkpoint.getCheckpointPath())
+                .setBackupDestinationDir(backupDir)
+                .build();
         AdminLogger.log("Checkpoint created");
       }
 

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import sentryUtil from "@app/utils/sentryUtil";
+import sentryUtil from "#oss/utils/sentryUtil";
 import { SQLScriptsProps } from "./SQLScripts";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { useSqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/providers/useSqlRunnerSession.js";
@@ -24,17 +24,17 @@ import {
   loadJobTabs,
   pollScriptJobs,
   setTabView,
-} from "@app/actions/resources/scripts";
-import { store } from "@app/store/store";
-import { getExploreState, selectTabDataset } from "@app/selectors/explore";
+} from "#oss/actions/resources/scripts";
+import { store } from "#oss/store/store";
+import { getExploreState, selectTabDataset } from "#oss/selectors/explore";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
 import {
   closeTab,
   selectTab,
 } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
-import { getLocation } from "@app/selectors/routing";
-import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
-import { deleteQuerySelectionsFromStorage } from "@app/sagas/utils/querySelections";
+import { getLocation } from "#oss/selectors/routing";
+import { isTabbableUrl } from "#oss/utils/explorePageTypeUtils";
+import { deleteQuerySelectionsFromStorage } from "#oss/sagas/utils/querySelections";
 import { isTemporaryScript } from "dremio-ui-common/sonar/SqlRunnerSession/utilities/temporaryTabs.js";
 
 export const ALL_MINE_SCRIPTS_TABS = {

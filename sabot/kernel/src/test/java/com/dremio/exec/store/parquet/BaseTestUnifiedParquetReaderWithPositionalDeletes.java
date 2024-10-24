@@ -17,13 +17,13 @@ package com.dremio.exec.store.parquet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.store.iceberg.IcebergTestTables;
 import com.dremio.exec.store.iceberg.deletes.ParquetRowLevelDeleteFileReaderFactory;
 import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFileReader;
 import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFilter;
 import com.dremio.exec.store.iceberg.deletes.PositionalDeleteIterator;
 import com.dremio.io.file.Path;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import java.util.Iterator;
 import java.util.function.Predicate;
@@ -40,44 +40,33 @@ public class BaseTestUnifiedParquetReaderWithPositionalDeletes
   // [ 0, 1, 2, 10, 11, 12, 20, 21, 22, ..., 990, 991, 992 ]
   protected static final Path MULTI_ROWGROUP_DELETE_FILE_0 =
       Path.of(
-          "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/delete-2021-00.parquet");
+          IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH
+              + "/data/2021/delete-2021-00.parquet");
   // Test file with 30 deletes spread equally across 3 different data files.  Deleted positions in
   // each data file are
   // [ 5, 105, ..., 905 ]
   protected static final Path MULTI_ROWGROUP_DELETE_FILE_1 =
       Path.of(
-          "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/delete-2021-01.parquet");
+          IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH
+              + "/data/2021/delete-2021-01.parquet");
   // Test file with 1000 rows split across two row groups.  First row group has 552 rows, second has
   // 448.
   // order_id values range from 8000 - 8999
   protected static final Path DATA_FILE_2 =
       Path.of(
-          "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet");
+          IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH
+              + "/data/2021/2021-02.parquet");
 
   protected static final Path DATA_FILE_2_LONG =
       Path.of(
-          "/tmp/iceberg-test-tables/v2"
-              + "/longDir"
-              + Strings.repeat("0", 100)
-              + "/longDir_1_"
-              + Strings.repeat("0", 100)
-              + "/longDir_2_"
-              + Strings.repeat("0", 100)
-              + "/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet");
-
+          IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_LONG_FULL_PATH
+              + "/data/2021/2021-02.parquet");
   protected static final Path MULTI_ROWGROUP_DELETE_FILE_0_LONG =
       Path.of(
-          "/tmp/iceberg-test-tables/v2"
-              + "/longDir"
-              + Strings.repeat("0", 100)
-              + "/longDir_1_"
-              + Strings.repeat("0", 100)
-              + "/longDir_2_"
-              + Strings.repeat("0", 100)
-              + "/multi_rowgroup_orders_with_deletes/data/2021/delete-2021-00.parquet");
+          IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_LONG_FULL_PATH
+              + "/data/2021/delete-2021-00.parquet");
 
   protected static IcebergTestTables.Table table;
-
   protected static IcebergTestTables.Table tableLongPath;
 
   @BeforeClass
@@ -88,8 +77,7 @@ public class BaseTestUnifiedParquetReaderWithPositionalDeletes
 
   @AfterClass
   public static void cleanupTestData() throws Exception {
-    table.close();
-    tableLongPath.close();
+    AutoCloseables.close(table, tableLongPath);
   }
 
   protected void readAndValidateOrderIdConditionAndRowCount(

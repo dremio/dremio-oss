@@ -24,6 +24,10 @@ import org.apache.arrow.memory.ArrowBuf;
 public interface Partition extends AutoCloseable {
   int INITIAL_VAR_FIELD_AVERAGE_SIZE = 10;
 
+  default long getSpillNanos() {
+    return 0;
+  }
+
   /**
    * Handle pivoted (only keys are pivoted) records of a build batch.
    *

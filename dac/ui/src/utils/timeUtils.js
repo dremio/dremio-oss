@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 
 const INVALID_DATE_MSG = "Invalid date";
 
@@ -80,7 +80,7 @@ class TimeUtils {
 
   formatDateToMonthDayYearTimeStamp(
     time,
-    invalidDateString = INVALID_DATE_MSG
+    invalidDateString = INVALID_DATE_MSG,
   ) {
     const t = moment(time);
     return t.isValid() ? t.format("MMM DD, YYYY h:mm:ss A") : invalidDateString;
@@ -90,7 +90,7 @@ class TimeUtils {
     time,
     invalidDateString = laDeprecated(INVALID_DATE_MSG),
     locale = window.navigator.language,
-    format = "x"
+    format = "x",
   ) {
     if (time === "") return invalidDateString;
     const t = moment(time, format, locale);

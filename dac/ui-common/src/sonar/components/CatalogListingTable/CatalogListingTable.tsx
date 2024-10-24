@@ -37,7 +37,7 @@ export const CatalogListingTable = ({
 
   const sortedColumns = useExternalStoreState(
     catalogListingListingTable.store,
-    (state: any) => state.sortedColumns
+    (state: any) => state.sortedColumns,
   );
 
   useEffect(() => {

@@ -18,7 +18,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 
 import { Radio, PrevalidatedTextField, DateInput } from "components/Fields";
-import { isDateType } from "@app/constants/DataTypes";
+import { isDateType } from "#oss/constants/DataTypes";
 import { formContext } from "uiTheme/radium/typography";
 import { LINE_START_CENTER } from "uiTheme/radium/flexStyle";
 

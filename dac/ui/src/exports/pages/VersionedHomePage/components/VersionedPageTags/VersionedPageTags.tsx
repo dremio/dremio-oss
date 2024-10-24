@@ -16,20 +16,20 @@
 
 import { useState } from "react";
 import { type WithRouterProps } from "react-router";
-import VersionedPageTableHeader from "@app/exports/pages/VersionedHomePage/components/VersionedPageTableHeader/VersionedPageTableHeader";
+import VersionedPageTableHeader from "#oss/exports/pages/VersionedHomePage/components/VersionedPageTableHeader/VersionedPageTableHeader";
 import VersionedPageTagsTable from "./components/VersionedPageTagsTable";
 import { Spinner } from "dremio-ui-lib/components";
-import { VersionedPageTabsType } from "@app/exports/pages/VersionedHomePage/VersionedHomePage";
+import { VersionedPageTabsType } from "#oss/exports/pages/VersionedHomePage/VersionedHomePage";
 import {
   constructVersionedEntityUrl,
   useVersionedPageContext,
-} from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
+} from "#oss/exports/pages/VersionedHomePage/versioned-page-utils";
 import { useVersionedPageTags } from "./components/useVersionedPageTags";
-import { isSmartFetchLoading } from "@app/utils/isSmartFetchLoading";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
-import { setReference } from "@app/actions/nessie/nessie";
+import { isSmartFetchLoading } from "#oss/utils/isSmartFetchLoading";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
+import { setReference } from "#oss/actions/nessie/nessie";
 import { useDispatch } from "react-redux";
-import { Tag } from "@app/services/nessie/client";
+import { Tag } from "#oss/services/nessie/client";
 import { useIntl } from "react-intl";
 
 import * as classes from "./VersionedPageTags.module.less";

@@ -101,6 +101,9 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
     this.retryer =
         Retryer.newBuilder()
             .retryIfExceptionOfType(RuntimeException.class)
+            .retryIfExceptionOfType(
+                java.util.concurrent.TimeoutException
+                    .class) // e.g. name resolution timeout in asynchttpclient
             .setWaitStrategy(
                 Retryer.WaitStrategy.EXPONENTIAL, BASE_MILLIS_TO_WAIT, MAX_MILLIS_TO_WAIT)
             .setMaxRetries(10)

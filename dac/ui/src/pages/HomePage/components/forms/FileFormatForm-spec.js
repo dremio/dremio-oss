@@ -19,7 +19,12 @@ import { injectIntl } from "react-intl";
 import Immutable from "immutable";
 import { minimalFormProps } from "testUtil";
 import { FileFormatForm } from "./FileFormatForm";
-import { ExcelFormatForm, TextFormatForm, XLSFormatForm, ParquetFormatForm } from "./FormatForms";
+import {
+  ExcelFormatForm,
+  TextFormatForm,
+  XLSFormatForm,
+  ParquetFormatForm,
+} from "./FormatForms";
 
 const FileFormatFormIntl = injectIntl(FileFormatForm);
 describe("FileFormatForm", () => {
@@ -76,7 +81,7 @@ describe("FileFormatForm", () => {
 
     it("renders type field", () => {
       expect(wrapper.find("Select").first().props().value).to.eql(
-        commonProps.fields.type.value
+        commonProps.fields.type.value,
       );
     });
 
@@ -88,7 +93,7 @@ describe("FileFormatForm", () => {
         type: { value: "Excel" },
       });
       wrapper = shallow(
-        <FileFormatFormIntl {...commonProps} fields={excelFields} />
+        <FileFormatFormIntl {...commonProps} fields={excelFields} />,
       );
       expect(wrapper.find("ExcelFormatForm")).to.have.length(1);
     });
@@ -158,7 +163,7 @@ describe("FileFormatForm", () => {
         },
         values: {
           type: "Parquet",
-          isFolder: true
+          isFolder: true,
         },
       });
       expect(wrapper.find(TextFormatForm)).to.have.length(0);
@@ -179,7 +184,7 @@ describe("FileFormatForm", () => {
         },
         values: {
           type: "Parquet",
-          isFolder: false
+          isFolder: false,
         },
       });
       expect(wrapper.find(TextFormatForm)).to.have.length(0);

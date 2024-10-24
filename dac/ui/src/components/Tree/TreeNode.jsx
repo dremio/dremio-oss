@@ -18,24 +18,24 @@ import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import classNames from "clsx";
-import { intl } from "@app/utils/intl";
-import { DATASET_TYPES_TO_ICON_TYPES } from "@app/constants/datasetTypes";
-import { clearResourceTreeByName as clearResourceTreeByNameAction } from "@app/actions/resources/tree";
+import { intl } from "#oss/utils/intl";
+import { DATASET_TYPES_TO_ICON_TYPES } from "#oss/constants/datasetTypes";
+import { clearResourceTreeByName as clearResourceTreeByNameAction } from "#oss/actions/resources/tree";
 import {
   CONTAINER_ENTITY_TYPES,
   DATASET_ENTITY_TYPES,
-} from "@app/constants/Constants";
+} from "#oss/constants/Constants";
 import {
   getFullPathFromResourceTree,
   getIsStarred,
-} from "@app/components/Tree/resourceTreeUtils.ts";
+} from "#oss/components/Tree/resourceTreeUtils.ts";
 
 import DragSource from "components/DragComponents/DragSource";
 import EllipsedText from "components/EllipsedText";
-import { typeToIconType } from "@app/constants/DataTypes";
-import { PureEntityIcon } from "@app/pages/HomePage/components/EntityIcon";
-import { icon as iconCls } from "@app/uiTheme/less/DragComponents/ColumnMenuItem.less";
-import { selectState } from "@app/selectors/nessie/nessie";
+import { typeToIconType } from "#oss/constants/DataTypes";
+import { PureEntityIcon } from "#oss/pages/HomePage/components/EntityIcon";
+import { icon as iconCls } from "#oss/uiTheme/less/DragComponents/ColumnMenuItem.less";
+import { selectState } from "#oss/selectors/nessie/nessie";
 
 import { Popover, IconButton, Tooltip } from "dremio-ui-lib/components";
 import Spinner from "../Spinner";
@@ -43,17 +43,18 @@ import Message from "../Message";
 
 import "./ResourceTree.less";
 import "./TreeNode.less";
-import "@app/components/Dataset/DatasetItemLabel.less";
-import { isBranchSelected, getSourceById } from "@app/utils/nessieUtils";
+import "#oss/components/Dataset/DatasetItemLabel.less";
+import { isBranchSelected, getSourceById } from "#oss/utils/nessieUtils";
 import { getNodeBranchId } from "./resourceTreeUtils";
 import DatasetSummaryOverlay from "../Dataset/DatasetSummaryOverlay";
 import { ARSFeatureSwitch } from "@inject/utils/arsUtils";
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
-import SourceBranchPicker from "@app/pages/HomePage/components/SourceBranchPicker/SourceBranchPicker";
+import SourceBranchPicker from "#oss/pages/HomePage/components/SourceBranchPicker/SourceBranchPicker";
 import { TreeConfigContext } from "./treeConfigContext";
-import { getSourceMap } from "@app/selectors/home";
+import { getSourceMap } from "#oss/selectors/home";
 import EntitySummaryOverlay from "../EntitySummaryOverlay/EntitySummaryOverlay";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 // Rendering the popover is slow when there are many tree nodes, only render when focused or hovered
 const WrappedPopover = ({ children, ...rest }) => {
@@ -104,6 +105,7 @@ export const TreeNode = (props) => {
     clearResourceTreeByName,
     isMultiQueryRunning,
     level = 0,
+    isManageAccessEnabled,
   } = props;
   const nessieSource = useMemo(() => {
     // Pass the toJS'd version to children so that this doesn't have to be called again
@@ -125,6 +127,7 @@ export const TreeNode = (props) => {
   const [errorMessage, setErrorMessage] = useState(
     intl.formatMessage({ id: "Message.Code.WS_CLOSED.Message" }),
   );
+  const { t } = getIntlContext();
   const [loadingTimer, setLoadingtimer] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -417,6 +420,7 @@ export const TreeNode = (props) => {
       >
         {isColumnItem ? (
           <dremio-icon
+            class="icon-primary"
             name={`data-types/${typeToIconType[node.get("type")]}`}
             style={style.icon24}
           ></dremio-icon>
@@ -431,6 +435,7 @@ export const TreeNode = (props) => {
             sourceType={nessieSource?.type}
             style={style.icon}
             enableTooltip={hovered}
+            isManageAccessEnabled={isManageAccessEnabled}
           />
         )}
         {nessieDisabled || showSummaryOverlay ? (
@@ -532,6 +537,25 @@ export const TreeNode = (props) => {
         }}
       >
         {tooltipElement}
+        {nodeToRender.get("metadataOutdated") && !isColumnItem && (
+          <Tooltip
+            portal
+            placement="top"
+            content={t("Sonar.Dataset.DataGraph.OutdatedWarning")}
+            style={{ width: 300 }}
+          >
+            <dremio-icon
+              name="interface/warning"
+              alt="Warning"
+              style={{
+                paddingLeft: 4,
+                width: 24,
+                height: 24,
+                color: "var(--fill--warning--solid)",
+              }}
+            />
+          </Tooltip>
+        )}
         {isSource && !!nessieSource && (
           <SourceBranchPicker
             redirect={false}

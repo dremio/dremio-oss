@@ -21,24 +21,21 @@ import Immutable from "immutable";
 import deepEqual from "deep-equal";
 import classNames from "clsx";
 import { compose } from "redux";
-
 import { connect } from "react-redux";
 import exploreUtils from "utils/explore/exploreUtils";
 import { splitFullPath, constructFullPath } from "utils/pathUtils";
-
 import DragTarget from "components/DragComponents/DragTarget";
 import { Tooltip as OldTooltip } from "components/Tooltip";
 import { IconButton } from "dremio-ui-lib/components";
-
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
-import { getExploreState } from "@app/selectors/explore";
-import { getSupportFlags } from "@app/selectors/supportFlags";
-import { fetchSupportFlags } from "@app/actions/supportFlags";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
+import { getExploreState } from "#oss/selectors/explore";
+import { getSupportFlags } from "#oss/selectors/supportFlags";
+import { fetchSupportFlags } from "#oss/actions/supportFlags";
 import config from "@inject/utils/config";
 import { isEnterprise, isCommunity } from "dyn-load/utils/versionUtils";
-import { SQL_DARK_THEME, SQL_LIGHT_THEME } from "@app/utils/sql-editor";
+import { SQL_DARK_THEME, SQL_LIGHT_THEME } from "#oss/utils/sql-editor";
 import { ContextPicker } from "./components/ContextPicker";
-import { addDatasetATSyntax } from "@app/utils/nessieUtils";
+import { addDatasetATSyntax } from "#oss/utils/nessieUtils";
 import {
   renderExtraSQLToolbarIcons,
   EXTRA_KEYBOARD_BINDINGS_MAC,
@@ -72,6 +69,7 @@ export class SqlAutoComplete extends Component {
     editorWidth: PropTypes.any,
     isMultiQueryRunning: PropTypes.bool,
     hasExtraSQLPanelContent: PropTypes.bool,
+    isDarkMode: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -96,7 +94,6 @@ export class SqlAutoComplete extends Component {
       targetRef: createRef(),
     };
     this.state = {
-      isContrast: localStorageUtils.getSqlThemeContrast(),
       isAutocomplete: localStorageUtils.getSqlAutocomplete(),
       sidePanelEnabled: this.props.sidePanelEnabled,
       manuallyEnableAutocomplete: false,
@@ -121,6 +118,7 @@ export class SqlAutoComplete extends Component {
 
   shouldComponentUpdate(nextProps, nextState, nextContext) {
     return (
+      nextProps.isDarkMode !== this.props.isDarkMode ||
       nextProps.defaultValue !== this.props.defaultValue ||
       nextProps.context !== this.props.context ||
       nextContext.location.query.version !==
@@ -384,13 +382,6 @@ export class SqlAutoComplete extends Component {
     }
   }
 
-  handleThemeClick() {
-    localStorageUtils.setSqlThemeContrast(!this.state.isContrast);
-    this.setState((state) => {
-      return { isContrast: !state.isContrast };
-    });
-  }
-
   handleAutocompleteClick() {
     localStorageUtils.setSqlAutocomplete(!this.state.isAutocomplete);
     this.setState((state) => {
@@ -426,8 +417,7 @@ export class SqlAutoComplete extends Component {
   };
 
   showAutocomplete() {
-    const { supportFlags } = this.props;
-
+    const { supportFlags, isDarkMode } = this.props;
     //  if its enterprise read supportFlag from dremioConfig else read it from API
     const isEnterpriseFlag = isEnterprise && isEnterprise();
     const isCommunityFlag = isCommunity && isCommunity();
@@ -444,7 +434,7 @@ export class SqlAutoComplete extends Component {
         source: this.state.isAutocomplete
           ? "sql-editor/sqlAutoCompleteEnabled"
           : "sql-editor/sqlAutoCompleteDisabled",
-        className: this.state.isContrast ? "sql__darkIcon" : "sql__lightIcon",
+        className: isDarkMode ? "sql__darkIcon" : "sql__lightIcon",
         id: "toggle--autocomplete-icon",
         dataQa: "toggle-autocomplete-icon",
       });
@@ -477,6 +467,7 @@ export class SqlAutoComplete extends Component {
       hasExtraSQLPanelContent,
       toggleExtraSQLPanel,
       sqlSize,
+      isDarkMode,
     } = this.props;
 
     const { query } = this.context.location;
@@ -489,9 +480,7 @@ export class SqlAutoComplete extends Component {
 
     const keyboardShortcuts = this.getKeyboardShortcuts();
     const isFormatterEnabled = this.isFormatterEnabled();
-    const iconColor = this.state.isContrast
-      ? "sql__darkIcon"
-      : "sql__lightIcon";
+    const iconColor = isDarkMode ? "sql__darkIcon" : "sql__lightIcon";
 
     return (
       <DragTarget
@@ -502,7 +491,7 @@ export class SqlAutoComplete extends Component {
         <div
           className={classNames(
             "sqlAutocomplete",
-            this.state.isContrast ? SQL_DARK_THEME : SQL_LIGHT_THEME,
+            isDarkMode ? SQL_DARK_THEME : SQL_LIGHT_THEME,
           )}
           name={this.props.name}
           style={{
@@ -519,7 +508,7 @@ export class SqlAutoComplete extends Component {
                   value={this.props.context}
                   onChange={this.updateContext}
                   className={`sqlAutocomplete__contextText-${
-                    this.state.isContrast ? "dark" : "light"
+                    isDarkMode ? "dark" : "light"
                   }`}
                 />
               )}
@@ -528,21 +517,6 @@ export class SqlAutoComplete extends Component {
               className: iconColor,
               source: "sql-editor/function",
               tooltip: "Functions",
-              id: "toggle-icon",
-            })}
-            {this.renderIconButton({
-              onClick: this.handleThemeClick.bind(this),
-              className: iconColor,
-              source: "sql-editor/sqlThemeSwitcher",
-              tooltip: (
-                <FormattedMessage
-                  id={
-                    this.state.isContrast
-                      ? "Common.Theme.Dark"
-                      : "Common.Theme.Light"
-                  }
-                />
-              ),
               id: "toggle-icon",
             })}
             {this.showAutocomplete()}
@@ -557,9 +531,7 @@ export class SqlAutoComplete extends Component {
             >
               <dremio-icon
                 name="sql-editor/keyboard"
-                class={
-                  this.state.isContrast ? "sql__darkIcon" : "sql__lightIcon"
-                }
+                class={isDarkMode ? "sql__darkIcon" : "sql__lightIcon"}
               ></dremio-icon>
               <OldTooltip
                 key="tooltip"
@@ -620,7 +592,7 @@ export class SqlAutoComplete extends Component {
               renderExtraSQLToolbarIcons({
                 renderIconButton: this.renderIconButton,
                 toggleExtraSQLPanel: toggleExtraSQLPanel,
-                isContrast: this.state.isContrast,
+                isDarkMode: isDarkMode,
               })}
           </div>
           <SqlEditorContainer
@@ -639,7 +611,6 @@ export class SqlAutoComplete extends Component {
             queryContext={context}
             serverSqlErrors={serverSqlErrors}
             style={{ height: sqlSize - 2 }} // account for top/bottom 1px borders
-            theme={this.state.isContrast ? SQL_DARK_THEME : SQL_LIGHT_THEME}
           />
           {this.props.children}
         </div>

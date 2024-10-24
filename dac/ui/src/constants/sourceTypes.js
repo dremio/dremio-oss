@@ -15,6 +15,8 @@
  */
 
 // Note: These IDs need to match values in source.proto
+export const UNITY = "UNITY";
+export const POLARIS = "POLARIS";
 export const REDSHIFT = "REDSHIFT";
 export const S3 = "S3";
 export const ELASTIC = "ELASTIC";
@@ -43,6 +45,7 @@ export const DB2 = "DB2";
 export const DREMIOTODREMIO = "DREMIOTODREMIO";
 export const DRUID = "DRUID";
 export const AZURE_SAMPLE_SOURCE = "SAMPLE_SOURCE";
+export const RESTCATALOG = "RESTCATALOG";
 export const HOME = "HOME";
 export const INTERNAL = "INTERNAL";
 
@@ -66,6 +69,7 @@ export const sourceProperties = [
   { label: "HDFS", sourceType: HDFS },
   { label: "Hive 2.x", sourceType: HIVE },
   { label: "Hive 3.x", sourceType: HIVE3 },
+  { label: "REST Iceberg Catalog", sourceType: RESTCATALOG },
   { label: "MapR-FS", sourceType: MAPRFS },
   { label: "Microsoft SQL Server", sourceType: SQLSERVER },
   { label: "MongoDB", sourceType: MONGODB, beta: true },
@@ -73,6 +77,8 @@ export const sourceProperties = [
   { label: "NAS", sourceType: NAS },
   { label: "Oracle", sourceType: ORACLE },
   { label: "PostgreSQL", sourceType: POSTGRESQL },
+  { label: "Unity Catalog", sourceType: UNITY },
+  { label: "Polaris Catalog", sourceType: POLARIS },
   { label: "Azure Data Lake Store", sourceType: ADL, beta: true },
   { label: "AWS Glue Catalog", sourceType: AWSGLUE, beta: true },
   { label: "Google Cloud Storage", sourceType: GCS, beta: true },
@@ -84,10 +90,23 @@ export const sourceProperties = [
   { label: "IBM Db2", sourceType: DB2 },
 ];
 
+export const lakehouseSourceType = {
+  [HIVE]: true,
+  [HIVE3]: true,
+  [AWSGLUE]: true,
+  [RESTCATALOG]: true,
+  [NESSIE]: true,
+  [UNITY]: true,
+  [POLARIS]: true,
+};
+
 export const metastoresSourceType = {
   [HIVE]: true,
   [HIVE3]: true,
   [AWSGLUE]: true,
+  [RESTCATALOG]: true,
+  [UNITY]: true,
+  [POLARIS]: true,
 };
 
 export const objectStorageSourceType = {
@@ -114,11 +133,22 @@ export const dataLakeSourceType = {
   [AWSGLUE]: true,
   [GCS]: true,
   [HISTORYTABLES]: true,
+  [RESTCATALOG]: true,
+  [UNITY]: true,
+  [POLARIS]: true,
 };
 
-const dataPlaneSources = {
+export const dataPlaneSources = {
   [NESSIE]: true,
   [ARCTIC]: true,
+};
+
+export const versionedSoftwareSourceType = {
+  [NESSIE]: true,
+};
+
+export const isLakehouseSourceType = (sourceType) => {
+  return lakehouseSourceType[sourceType];
 };
 
 export const isDatabaseType = (sourceType) => {
@@ -143,6 +173,10 @@ export const isMetastoreSourceType = (sourceType) => {
 
 export const isObjectStorageSourceType = (sourceType) => {
   return objectStorageSourceType[sourceType];
+};
+
+export const isVersionedSoftwareSource = (sourceType) => {
+  return versionedSoftwareSourceType[sourceType];
 };
 
 export const SHARING_TAB_JSON_TEMPLATE = {};

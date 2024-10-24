@@ -15,8 +15,12 @@
  */
 package com.dremio.exec.planner.plancache;
 
+import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.time.Instant.ofEpochMilli;
+import static org.slf4j.LoggerFactory.getLogger;
 
+import com.dremio.common.WakeupHandler;
 import com.dremio.context.RequestContext;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.protector.ForemenWorkManager;
@@ -25,22 +29,29 @@ import com.dremio.service.reflection.DatasetEventHub;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
+import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import javax.inject.Provider;
+import org.slf4j.Logger;
 
 public class CacheRefresherServiceImpl implements Service, CacheRefresherService {
+  public static final Logger LOGGER = getLogger(CacheRefresherServiceImpl.class);
 
   private final Provider<SabotContext> sabotContextProvider;
   private final DatasetEventHub datasetEventHub;
   private final ReflectionServiceImpl reflectionService;
   private final Provider<SchedulerService> schedulerService;
+  private final ExecutorService executorService;
   private final Provider<RequestContext> requestContextProvider;
   private final ReflectionGoalsStore goalsStore;
   private final ReflectionEntriesStore entriesStore;
   private final Supplier<PlanCacheInvalidationHelper> planCacheInvalidationHelper;
 
   private CacheRefresher cacheRefresher;
+  private WakeupHandler cacheRefresherWakeupHandler;
+  private boolean isClosed = false;
 
   public CacheRefresherServiceImpl(
       final Provider<SabotContext> sabotContextProvider,
@@ -50,11 +61,13 @@ public class CacheRefresherServiceImpl implements Service, CacheRefresherService
       ReflectionServiceImpl reflectionService,
       DatasetEventHub datasetEventHub,
       ReflectionGoalsStore goalsStore,
-      ReflectionEntriesStore entriesStore) {
+      ReflectionEntriesStore entriesStore,
+      final ExecutorService executorService) {
     this.sabotContextProvider = checkNotNull(sabotContextProvider, "sabotContextProvider");
     this.datasetEventHub = checkNotNull(datasetEventHub, "datasetEventHub");
     this.reflectionService = reflectionService;
     this.schedulerService = schedulerService;
+    this.executorService = checkNotNull(executorService, "executor service required");
     this.requestContextProvider = requestContextProvider;
     this.goalsStore = goalsStore;
     this.entriesStore = entriesStore;
@@ -69,20 +82,57 @@ public class CacheRefresherServiceImpl implements Service, CacheRefresherService
   public void start() throws Exception {
     PlanCacheSynchronizer planCacheSynchronizer =
         new PlanCacheSynchronizer(goalsStore, entriesStore, planCacheInvalidationHelper);
-    cacheRefresher =
-        new CacheRefresher(
-            reflectionService,
-            planCacheSynchronizer,
-            sabotContextProvider.get().getOptionManager(),
-            schedulerService.get(),
-            requestContextProvider);
-    cacheRefresher.scheduleNextCacheRefresh(0);
+    cacheRefresher = new CacheRefresher(reflectionService, planCacheSynchronizer);
+    cacheRefresherWakeupHandler =
+        new WakeupHandler(executorService, cacheRefresher, requestContextProvider);
+    scheduleCacheRefresh();
     datasetEventHub.addDatasetRemovedHandler(
         new PlanCacheDatasetRemoveHandler(planCacheInvalidationHelper));
   }
 
   @Override
   public void close() throws Exception {
-    cacheRefresher.close();
+    isClosed = true;
+  }
+
+  @Override
+  public void wakeupCacheRefresher(String reason) {
+    cacheRefresherWakeupHandler.handle(reason);
+  }
+
+  private void scheduleCacheRefresh() {
+    schedulerService
+        .get()
+        .schedule(
+            Schedule.SingleShotBuilder.at(ofEpochMilli(System.currentTimeMillis())).build(),
+            new Runnable() {
+              @Override
+              public void run() {
+                cacheRefresherWakeupHandler.handle(
+                    "Periodic plan cache and materialization cache refresh");
+                if (isClosed) {
+                  return;
+                }
+                long cacheUpdateDelay;
+                try {
+                  cacheUpdateDelay =
+                      sabotContextProvider
+                          .get()
+                          .getOptionManager()
+                          .getOption(MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS);
+                } catch (Exception e) {
+                  LOGGER.warn("Failed to retrieve materialization cache refresh delay", e);
+                  cacheUpdateDelay =
+                      MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS.getDefault().getNumVal();
+                }
+                schedulerService
+                    .get()
+                    .schedule(
+                        Schedule.SingleShotBuilder.at(
+                                ofEpochMilli(System.currentTimeMillis() + cacheUpdateDelay))
+                            .build(),
+                        this);
+              }
+            });
   }
 }

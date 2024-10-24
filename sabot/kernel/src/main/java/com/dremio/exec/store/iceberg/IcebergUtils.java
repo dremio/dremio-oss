@@ -20,16 +20,19 @@ import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATI
 import static com.dremio.exec.catalog.CatalogUtil.getAndValidateSourceForTableManagement;
 import static com.dremio.exec.hadoop.DremioHadoopUtils.getContainerName;
 import static com.dremio.exec.hadoop.DremioHadoopUtils.pathWithoutContainer;
+import static com.dremio.exec.store.SystemSchemas.CLUSTERING_TABLE_PROPERTY;
 import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
 import static com.dremio.exec.store.iceberg.IcebergSerDe.serializedSchemaAsJson;
 import static com.dremio.exec.store.iceberg.model.IcebergBaseCommand.DREMIO_JOB_ID_ICEBERG_PROPERTY;
-import static com.dremio.io.file.Path.AZURE_AUTHORITY_SUFFIX;
+import static com.dremio.io.file.Path.AZURE_BLOB_AUTHORITY_SUFFIX;
+import static com.dremio.io.file.Path.AZURE_DFS_AUTHORITY_SUFFIX;
 import static com.dremio.io.file.Path.AZURE_FILE_SYSTEM;
 import static com.dremio.io.file.Path.CONTAINER_SEPARATOR;
 import static com.dremio.io.file.Path.GCS_FILE_SYSTEM;
 import static com.dremio.io.file.Path.S3_FILE_SYSTEM;
 import static com.dremio.io.file.Path.SEPARATOR;
 import static com.dremio.io.file.UriSchemes.ADL_SCHEME;
+import static com.dremio.io.file.UriSchemes.AZURE_ABFS_SCHEME;
 import static com.dremio.io.file.UriSchemes.AZURE_SCHEME;
 import static com.dremio.io.file.UriSchemes.FILE_SCHEME;
 import static com.dremio.io.file.UriSchemes.GCS_SCHEME;
@@ -39,6 +42,8 @@ import static com.dremio.io.file.UriSchemes.S3A_SCHEME;
 import static com.dremio.io.file.UriSchemes.S3_SCHEME;
 import static com.dremio.io.file.UriSchemes.SCHEME_SEPARATOR;
 import static org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY;
+import static org.apache.iceberg.TableProperties.GC_ENABLED;
+import static org.apache.iceberg.TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED;
 
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
@@ -228,6 +233,8 @@ public class IcebergUtils {
   private static final int ICEBERG_TIMESTAMP_PRECISION = 6;
   public static final Pattern LOCALSORT_BY_PATTERN =
       Pattern.compile("LOCALSORT\\s*BY", Pattern.CASE_INSENSITIVE);
+  public static final Pattern CLUSTER_BY_PATTERN =
+      Pattern.compile("CLUSTER\\s*BY", Pattern.CASE_INSENSITIVE);
 
   public static final String VIEW_FORMAT_VERSION_JSON_KEY =
       "format-version"; // Exists in both V0 and V1 formats
@@ -237,6 +244,16 @@ public class IcebergUtils {
       "view-definition"; // Only exists in V0 Iceberg view format
   public static final String READ_POSITIONAL_DELETE_JOIN_MODE_PROPERTY =
       "dremio.read.positional_delete_join_mode";
+
+  public static final String ENABLE_AZURE_ABFSS_SCHEME = "dremio.azure.enable_abfs_scheme";
+
+  public static final Map<String, String> DEFAULT_TABLE_PROPERTIES =
+      new HashMap<>() {
+        {
+          put(GC_ENABLED, "false");
+          put(METADATA_DELETE_AFTER_COMMIT_ENABLED, "false");
+        }
+      };
 
   public enum ReadPositionalDeleteJoinMode {
     BROADCAST("broadcast"),
@@ -797,15 +814,17 @@ public class IcebergUtils {
       String modifiedPath = removeLeadingSlash(pathStr);
       if (fsScheme.equalsIgnoreCase(
           FileSystemConf.CloudFileSystemScheme.AZURE_STORAGE_FILE_SYSTEM_SCHEME.getScheme())) {
+        boolean isAbfs = "true".equalsIgnoreCase(conf.get(ENABLE_AZURE_ABFSS_SCHEME));
+        String azureScheme = isAbfs ? AZURE_ABFS_SCHEME : AZURE_SCHEME;
         String accountName = conf.get("dremio.azure.account");
         StringBuilder urlBuilder = new StringBuilder();
         // If the scheme from the path is a variant of AzureFileSystem, use the variant.
         if (schemeVariate != null
-            && !AZURE_SCHEME.equalsIgnoreCase(schemeVariate)
+            && !azureScheme.equalsIgnoreCase(schemeVariate)
             && AZURE_FILE_SYSTEM.contains(schemeVariate.toLowerCase(Locale.ROOT))) {
           urlBuilder.append(schemeVariate.toLowerCase(Locale.ROOT));
         } else {
-          urlBuilder.append(AZURE_SCHEME);
+          urlBuilder.append(azureScheme);
         }
         urlBuilder.append(SCHEME_SEPARATOR);
         if (!StringUtils.isEmpty(path.toUri().getAuthority())) {
@@ -814,7 +833,8 @@ public class IcebergUtils {
           urlBuilder.append(modifiedPath);
         } else {
           urlBuilder.append(getContainerName(path));
-          urlBuilder.append(CONTAINER_SEPARATOR + accountName + AZURE_AUTHORITY_SUFFIX);
+          String suffix = isAbfs ? AZURE_DFS_AUTHORITY_SUFFIX : AZURE_BLOB_AUTHORITY_SUFFIX;
+          urlBuilder.append(CONTAINER_SEPARATOR + accountName + suffix);
           urlBuilder.append(pathWithoutContainer(path));
         }
         return urlBuilder.toString();
@@ -913,14 +933,16 @@ public class IcebergUtils {
   }
 
   /** Map FS scheme to default FilePath Scheme */
-  public static String getDefaultPathScheme(String fsScheme) {
+  public static String getDefaultPathScheme(String fsScheme, Configuration conf) {
     if (fsScheme == null) {
       return null;
     }
     if (fsScheme.equalsIgnoreCase(
             FileSystemConf.CloudFileSystemScheme.AZURE_STORAGE_FILE_SYSTEM_SCHEME.getScheme())
         || AZURE_FILE_SYSTEM.contains(fsScheme)) {
-      return AZURE_SCHEME;
+      return ("true".equalsIgnoreCase(conf.get(ENABLE_AZURE_ABFSS_SCHEME)))
+          ? AZURE_ABFS_SCHEME
+          : AZURE_SCHEME;
     } else if (fsScheme.equalsIgnoreCase(
             FileSystemConf.CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme())
         || S3_FILE_SYSTEM.contains(fsScheme)) {
@@ -1303,6 +1325,19 @@ public class IcebergUtils {
     return options.getOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER);
   }
 
+  public static void validateIcebergAutoClusteringIfDeclared(String sql, OptionManager options)
+      throws UserException {
+    if (CLUSTER_BY_PATTERN.matcher(sql).find() && !isIcebergAutoClusteringFeatureEnabled(options)) {
+      throw UserException.unsupportedError()
+          .message("Iceberg Auto Clustering Operations are disabled")
+          .buildSilently();
+    }
+  }
+
+  public static boolean isIcebergAutoClusteringFeatureEnabled(OptionManager options) {
+    return options.getOption(ExecConstants.ENABLE_ICEBERG_AUTO_CLUSTERING);
+  }
+
   public static void validateTablePropertiesRequest(OptionManager options) {
     if (!options.getOption(ExecConstants.ENABLE_ICEBERG_TABLE_PROPERTIES)) {
       throw UserException.unsupportedError()
@@ -1455,6 +1490,32 @@ public class IcebergUtils {
             config.getContext().getSession().getSessionVersionForSource(key.getRoot())));
   }
 
+  public static boolean hasClusteringColumns(DremioTable table) {
+    IcebergMetadata metadata = table.getDatasetConfig().getPhysicalDataset().getIcebergMetadata();
+    if (!hasClusteringColumnsProperty(metadata)) {
+      return false;
+    }
+
+    String sortOrderString = metadata.getSortOrder();
+    SortOrder sortOrder =
+        IcebergSerDe.deserializeSortOrderFromJson(
+            SchemaConverter.getBuilder().build().toIcebergSchema(table.getSchema()),
+            sortOrderString);
+    return sortOrder != null && !sortOrder.isUnsorted();
+  }
+
+  public static boolean hasClusteringColumnsProperty(IcebergMetadata metadata) {
+    Preconditions.checkArgument(metadata != null);
+    Map<String, String> tableProperties =
+        convertListTablePropertiesToMap(metadata.getTablePropertiesList());
+
+    String clusteringTableProperty = tableProperties.get(CLUSTERING_TABLE_PROPERTY);
+    if (clusteringTableProperty == null || !Boolean.parseBoolean(clusteringTableProperty)) {
+      return false;
+    }
+    return true;
+  }
+
   public static CreateTableEntry getIcebergCreateTableEntry(
       SqlHandlerConfig config,
       Catalog catalog,
@@ -1546,10 +1607,12 @@ public class IcebergUtils {
             .setIcebergSpecificOptions(icebergOptions)
             .setOperation(getTableFormatOperation(sqlOperator));
 
+    boolean withWriteAsClustering = false;
     if (optimizeOptions != null) {
       tableFormatOptionsBuilder.setMinInputFilesBeforeOptimize(optimizeOptions.getMinInputFiles());
       tableFormatOptionsBuilder.setTargetFileSize(optimizeOptions.getTargetFileSizeBytes());
       isSingleWriter = optimizeOptions.isSingleDataWriter();
+      withWriteAsClustering = hasClusteringColumns(table);
     }
 
     // Add current snapshotId info, as DML and OPTIMIZE committers need this info.
@@ -1573,7 +1636,8 @@ public class IcebergUtils {
                 readDefinition.getExtendedProperty(),
                 version,
                 properties,
-                false)
+                false,
+                withWriteAsClustering)
             .withCombineSmallFileOptions(combineSmallFileOptions);
 
     Schema schema = SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema);
@@ -1917,9 +1981,7 @@ public class IcebergUtils {
   public static org.apache.iceberg.TableMetadata loadTableMetadata(
       FileIO io, OperatorContext context, String metadataLocation) {
     org.apache.iceberg.TableMetadata tableMetadata = TableMetadataParser.read(io, metadataLocation);
-    if (!context.getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION)) {
-      checkForPartitionSpecEvolution(tableMetadata);
-    }
+    checkForPartitionSpecEvolution(context, tableMetadata);
     return tableMetadata;
   }
 
@@ -1944,7 +2006,11 @@ public class IcebergUtils {
   }
 
   private static void checkForPartitionSpecEvolution(
-      org.apache.iceberg.TableMetadata tableMetadata) {
+      OperatorContext context, org.apache.iceberg.TableMetadata tableMetadata) {
+    if (context.getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION)) {
+      return;
+    }
+
     if (tableMetadata.specs().size() > 1) {
       throw UserException.unsupportedError()
           .message("Iceberg tables with partition spec evolution are not supported")
@@ -1977,8 +2043,15 @@ public class IcebergUtils {
         plugin.createFS(
             icebergTableProps.getTableLocation(), createTableEntry.getUserName(), null)) {
       FileIO fileIO = plugin.createIcebergFileIO(fs, null, null, null, null);
-      IcebergModel icebergModel =
-          plugin.getIcebergModel(icebergTableProps, createTableEntry.getUserName(), null, fileIO);
+      IcebergModel icebergModel;
+      icebergModel =
+          plugin.getIcebergModel(
+              icebergTableProps,
+              createTableEntry.getUserName(),
+              null,
+              fileIO,
+              createTableEntry.getUserId());
+
       return icebergModel.getIcebergTable(
           icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()));
     } catch (IOException ex) {
@@ -2197,5 +2270,19 @@ public class IcebergUtils {
             .getEqualityDeleteStats();
 
     return deleteStats != null && deleteStats.getRecordCount() > 0;
+  }
+
+  public static final org.apache.iceberg.TableMetadata fixupDefaultProperties(
+      org.apache.iceberg.TableMetadata tableMetadata) {
+    Preconditions.checkNotNull(tableMetadata, "tableMetadata is required.");
+    Map<String, String> properties = new HashMap<>(tableMetadata.properties());
+    boolean propertiesUpdated = false;
+    if (properties.putIfAbsent(GC_ENABLED, "false") == null) {
+      propertiesUpdated = true;
+    }
+    if (properties.putIfAbsent(METADATA_DELETE_AFTER_COMMIT_ENABLED, "false") == null) {
+      propertiesUpdated = true;
+    }
+    return propertiesUpdated ? tableMetadata.replaceProperties(properties) : tableMetadata;
   }
 }

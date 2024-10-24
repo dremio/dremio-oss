@@ -18,8 +18,8 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import CopyToClipboard from "react-copy-to-clipboard";
 import { addNotification } from "actions/notification";
-import CopyButtonIcon from "@app/components/Buttons/CopyButtonIcon";
-import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
+import CopyButtonIcon from "#oss/components/Buttons/CopyButtonIcon";
+import { MSG_CLEAR_DELAY_SEC } from "#oss/constants/Constants";
 
 export class CopyButton extends Component {
   static propTypes = {

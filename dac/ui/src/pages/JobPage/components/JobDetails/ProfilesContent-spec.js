@@ -60,10 +60,10 @@ describe("ProfilesContent", () => {
   it("should render profile items in reverse order", () => {
     const wrapper = shallow(<ProfilesContent {...commonProps} />);
     expect(wrapper.find(".profiles").find("div").at(1).text()).to.eql(
-      "Attempt 2 (Insufficient Memory)Profile »"
+      "Attempt 2 (Insufficient Memory)Profile »",
     );
     expect(wrapper.find(".profiles").find("div").at(3).text()).to.eql(
-      "Attempt 1 (Schema Learning)Profile »"
+      "Attempt 1 (Schema Learning)Profile »",
     );
   });
 
@@ -72,12 +72,12 @@ describe("ProfilesContent", () => {
     const profiles = wrapper.find(".profiles > div");
     profiles.at(0).find("a").simulate("click");
     expect(commonProps.showJobProfile).to.be.calledWith(
-      "/profiles/insufficient"
+      "/profiles/insufficient",
     );
     commonProps.showJobProfile.resetHistory();
     profiles.at(1).find("a").simulate("click");
     expect(commonProps.showJobProfile).to.be.calledWith(
-      "/profiles/schema-learning"
+      "/profiles/schema-learning",
     );
   });
 });

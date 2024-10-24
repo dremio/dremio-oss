@@ -20,7 +20,7 @@ import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.exec.planner.sql.parser.SqlTableVersionSpec;
-import com.dremio.service.namespace.NamespaceKey;
+import java.util.List;
 
 public class CatalogEntityKeyUtil {
 
@@ -31,15 +31,13 @@ public class CatalogEntityKeyUtil {
    * otherwise, use the version context of the source from session context; 3) Set version context
    * to null if it is NOT_SPECIFIED.
    *
-   * @param namespaceKey namespace key
+   * @param path path of the entity
    * @param statementVersionSpec version spec from SQL statement
    * @param sessionVersion version context of the source of the entity
    * @return CatalogEntityKey of the entity
    */
   public static CatalogEntityKey buildCatalogEntityKey(
-      NamespaceKey namespaceKey,
-      SqlTableVersionSpec statementVersionSpec,
-      VersionContext sessionVersion) {
+      List<String> path, SqlTableVersionSpec statementVersionSpec, VersionContext sessionVersion) {
     TableVersionContext versionContext = null;
 
     if (statementVersionSpec != null) {
@@ -55,6 +53,9 @@ public class CatalogEntityKeyUtil {
       versionContext = null;
     }
 
-    return CatalogEntityKey.namespaceKeyToCatalogEntityKey(namespaceKey, versionContext);
+    return CatalogEntityKey.newBuilder()
+        .keyComponents(path)
+        .tableVersionContext(versionContext)
+        .build();
   }
 }

@@ -18,7 +18,6 @@ import { ENGINE_FILTER_ITEMS } from "dyn-load/constants/provisioningPage/provisi
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     getFilterItems() {
       return ENGINE_FILTER_ITEMS;
     },

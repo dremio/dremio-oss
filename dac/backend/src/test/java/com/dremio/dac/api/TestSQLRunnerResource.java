@@ -75,8 +75,9 @@ public class TestSQLRunnerResource extends BaseTestServer {
 
     SQLRunnerSessionJson session =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), session.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), session.getUserId());
     assertTrue(session.getScriptIds().isEmpty());
     assertTrue(session.getCurrentScriptId().isEmpty());
   }
@@ -91,7 +92,7 @@ public class TestSQLRunnerResource extends BaseTestServer {
 
     SQLRunnerSessionProto.SQLRunnerSession expiredSession =
         SQLRunnerSessionProto.SQLRunnerSession.newBuilder()
-            .setUserId(this.getUls().getUserId())
+            .setUserId(getHttpClient().getUserLoginSession().getUserId())
             .addAllScriptIds(Lists.newArrayList(scriptId1, scriptId2))
             .setCurrentScriptId(scriptId1)
             .setTtlExpireAt(System.currentTimeMillis() - 1)
@@ -100,8 +101,9 @@ public class TestSQLRunnerResource extends BaseTestServer {
 
     SQLRunnerSessionJson session =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), session.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), session.getUserId());
     assertTrue(session.getScriptIds().isEmpty());
     assertTrue(session.getCurrentScriptId().isEmpty());
   }
@@ -113,8 +115,9 @@ public class TestSQLRunnerResource extends BaseTestServer {
 
     SQLRunnerSessionJson session =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), session.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), session.getUserId());
     assertTrue(session.getScriptIds().isEmpty());
     assertTrue(session.getCurrentScriptId().isEmpty());
 
@@ -125,13 +128,15 @@ public class TestSQLRunnerResource extends BaseTestServer {
         new SQLRunnerSessionJson(
             null, Lists.newArrayList(scriptId1, scriptId2, "script_deleted"), "script_deleted");
     expectSuccess(
-        getBuilder(getAPIv2().path(SESSION_PATH)).buildPut(Entity.json(changedSession)),
+        getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH))
+            .buildPut(Entity.json(changedSession)),
         SQLRunnerSessionJson.class);
 
     SQLRunnerSessionJson newSession =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), newSession.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), newSession.getUserId());
     assertEquals(2, newSession.getScriptIds().size());
     assertEquals(scriptId1, newSession.getCurrentScriptId());
   }
@@ -143,8 +148,9 @@ public class TestSQLRunnerResource extends BaseTestServer {
 
     SQLRunnerSessionJson session =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), session.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), session.getUserId());
     assertTrue(session.getScriptIds().isEmpty());
     assertTrue(session.getCurrentScriptId().isEmpty());
 
@@ -157,13 +163,15 @@ public class TestSQLRunnerResource extends BaseTestServer {
         new SQLRunnerSessionJson(
             null, Lists.newArrayList(scriptId1, scriptId2, scriptId3), scriptId3);
     expectSuccess(
-        getBuilder(getAPIv2().path(SESSION_PATH)).buildPut(Entity.json(changedSession)),
+        getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH))
+            .buildPut(Entity.json(changedSession)),
         SQLRunnerSessionJson.class);
 
     SQLRunnerSessionJson newSession =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), newSession.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), newSession.getUserId());
     assertEquals(3, newSession.getScriptIds().size());
     assertEquals(scriptId3, newSession.getCurrentScriptId());
 
@@ -171,13 +179,15 @@ public class TestSQLRunnerResource extends BaseTestServer {
         new SQLRunnerSessionJson(
             null, Lists.newArrayList(scriptId1, scriptId2, scriptId3, scriptId4), scriptId4);
     expectSuccess(
-        getBuilder(getAPIv2().path(SESSION_PATH)).buildPut(Entity.json(changedSession1)),
+        getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH))
+            .buildPut(Entity.json(changedSession1)),
         SQLRunnerSessionJson.class);
 
     SQLRunnerSessionJson newSession1 =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), newSession1.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), newSession1.getUserId());
     assertEquals(4, newSession1.getScriptIds().size());
     assertEquals(scriptId4, newSession1.getCurrentScriptId());
   }
@@ -189,45 +199,52 @@ public class TestSQLRunnerResource extends BaseTestServer {
 
     SQLRunnerSessionJson session =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), session.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), session.getUserId());
     assertTrue(session.getScriptIds().isEmpty());
     assertTrue(session.getCurrentScriptId().isEmpty());
 
     String scriptId1 = createScript();
     expectSuccess(
-        getBuilder(getAPIv2().path(TABS_PATH).path(scriptId1)).buildPut(Entity.json("{}")),
+        getBuilder(getHttpClient().getAPIv2().path(TABS_PATH).path(scriptId1))
+            .buildPut(Entity.json("{}")),
         SQLRunnerSessionJson.class);
 
     SQLRunnerSessionJson newSession =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), newSession.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), newSession.getUserId());
     assertEquals(1, newSession.getScriptIds().size());
     assertTrue(newSession.getScriptIds().contains(scriptId1));
     assertEquals(scriptId1, newSession.getCurrentScriptId());
 
     String scriptId2 = createScript();
     expectSuccess(
-        getBuilder(getAPIv2().path(TABS_PATH).path(scriptId2)).buildPut(Entity.json("{}")),
+        getBuilder(getHttpClient().getAPIv2().path(TABS_PATH).path(scriptId2))
+            .buildPut(Entity.json("{}")),
         SQLRunnerSessionJson.class);
 
     newSession =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), newSession.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), newSession.getUserId());
     assertEquals(2, newSession.getScriptIds().size());
     assertTrue(newSession.getScriptIds().contains(scriptId1));
     assertEquals(scriptId2, newSession.getCurrentScriptId());
 
     // Add the same script one more time, should still have only 2 tabs
     expectSuccess(
-        getBuilder(getAPIv2().path(TABS_PATH).path(scriptId2)).buildPut(Entity.json("{}")),
+        getBuilder(getHttpClient().getAPIv2().path(TABS_PATH).path(scriptId2))
+            .buildPut(Entity.json("{}")),
         SQLRunnerSessionJson.class);
     newSession =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), newSession.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), newSession.getUserId());
     assertEquals(2, newSession.getScriptIds().size());
     assertEquals(scriptId2, newSession.getCurrentScriptId());
   }
@@ -239,38 +256,45 @@ public class TestSQLRunnerResource extends BaseTestServer {
 
     SQLRunnerSessionJson session =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), session.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), session.getUserId());
     assertTrue(session.getScriptIds().isEmpty());
     assertTrue(session.getCurrentScriptId().isEmpty());
 
     String scriptId1 = createScript();
     expectSuccess(
-        getBuilder(getAPIv2().path(TABS_PATH).path(scriptId1)).buildPut(Entity.json("{}")),
+        getBuilder(getHttpClient().getAPIv2().path(TABS_PATH).path(scriptId1))
+            .buildPut(Entity.json("{}")),
         SQLRunnerSessionJson.class);
     expectError(
         FamilyExpectation.CLIENT_ERROR,
-        getBuilder(getAPIv2().path(TABS_PATH).path(scriptId1)).buildDelete(),
+        getBuilder(getHttpClient().getAPIv2().path(TABS_PATH).path(scriptId1)).buildDelete(),
         UserExceptionMapper.ErrorMessageWithContext.class);
 
     String scriptId2 = createScript();
     expectSuccess(
-        getBuilder(getAPIv2().path(TABS_PATH).path(scriptId2)).buildPut(Entity.json("{}")),
+        getBuilder(getHttpClient().getAPIv2().path(TABS_PATH).path(scriptId2))
+            .buildPut(Entity.json("{}")),
         SQLRunnerSessionJson.class);
 
     // Delete non-existing tab
     final String scriptId3 = UUID.randomUUID().toString();
     Response resp =
-        expectSuccess(getBuilder(getAPIv2().path(TABS_PATH).path(scriptId3)).buildDelete());
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path(TABS_PATH).path(scriptId3)).buildDelete());
     assertEquals(Response.Status.NO_CONTENT.getStatusCode(), resp.getStatus());
 
-    resp = expectSuccess(getBuilder(getAPIv2().path(TABS_PATH).path(scriptId1)).buildDelete());
+    resp =
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path(TABS_PATH).path(scriptId1)).buildDelete());
     assertEquals(Response.Status.NO_CONTENT.getStatusCode(), resp.getStatus());
 
     SQLRunnerSessionJson newSession =
         expectSuccess(
-            getBuilder(getAPIv2().path(SESSION_PATH)).buildGet(), SQLRunnerSessionJson.class);
-    assertEquals(this.getUls().getUserId(), newSession.getUserId());
+            getBuilder(getHttpClient().getAPIv2().path(SESSION_PATH)).buildGet(),
+            SQLRunnerSessionJson.class);
+    assertEquals(getHttpClient().getUserLoginSession().getUserId(), newSession.getUserId());
     assertEquals(1, newSession.getScriptIds().size());
     assertFalse(newSession.getScriptIds().contains(scriptId1));
     assertNotEquals(scriptId1, newSession.getCurrentScriptId());
@@ -316,7 +340,8 @@ public class TestSQLRunnerResource extends BaseTestServer {
 
     ScriptData createdScript =
         expectSuccess(
-            getBuilder(getAPIv2().path(SCRIPTS_PATH)).buildPost(Entity.json(scriptData)),
+            getBuilder(getHttpClient().getAPIv2().path(SCRIPTS_PATH))
+                .buildPost(Entity.json(scriptData)),
             ScriptData.class);
     return createdScript.getId();
   }

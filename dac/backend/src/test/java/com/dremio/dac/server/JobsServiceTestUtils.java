@@ -265,7 +265,7 @@ public final class JobsServiceTestUtils {
             .build());
   }
 
-  static void resetSystemOption(JobsService jobsService, String optionName) {
+  public static void resetSystemOption(JobsService jobsService, String optionName) {
     final String query = String.format("ALTER SYSTEM RESET \"%s\"", optionName);
     submitJobAndWaitUntilCompletion(
         jobsService,

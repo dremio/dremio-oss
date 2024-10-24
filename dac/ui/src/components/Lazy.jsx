@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import * as React from "react";
-import LoadingOverlay from "@app/components/LoadingOverlay";
+import LoadingOverlay from "#oss/components/LoadingOverlay";
 
 /**
  * A wrapper around React.lazy, which returns a functional component. It passes props through to

@@ -45,23 +45,23 @@ class InjectionResolver {
 
     if (injectionPath) {
       pathsToCheck.push(
-        this.createInfo(originalPath, `${injectionPath}/${relativePath}`)
+        this.createInfo(originalPath, `${injectionPath}/${relativePath}`),
       );
     }
     if (dcsPath) {
-      pathsToCheck.push(this.createInfo(originalPath, `@dcs/${relativePath}`));
+      pathsToCheck.push(this.createInfo(originalPath, `#dc/${relativePath}`));
     }
     pathsToCheck.push(
-      this.createInfo(originalPath, `dyn-load/${relativePath}`)
+      this.createInfo(originalPath, `dyn-load/${relativePath}`),
     );
-    pathsToCheck.push(this.createInfo(originalPath, `@app/${relativePath}`));
+    pathsToCheck.push(this.createInfo(originalPath, `#oss/${relativePath}`));
     // As last resort, go to the stub module that does nothing.
     pathsToCheck.push(
       this.createInfo(
         originalPath,
         stubModule,
-        `'${originalPath}' is redirected to stub module: ${stubModule}`
-      )
+        `'${originalPath}' is redirected to stub module: ${stubModule}`,
+      ),
     );
     return pathsToCheck;
   }
@@ -95,10 +95,10 @@ class InjectionResolver {
                 newRequest,
                 message,
                 resolveContext,
-                callback
+                callback,
               );
             },
-            outerCallback
+            outerCallback,
           );
           return;
         }
@@ -123,7 +123,7 @@ class InjectionResolver {
       if (module.startsWith(alias)) {
         try {
           if (dcsPath) {
-            return originalRequire.call(this, module.replace(alias, "@dcs/"));
+            return originalRequire.call(this, module.replace(alias, "#dc/"));
           }
         } catch (e) {
           // ignored
@@ -135,7 +135,7 @@ class InjectionResolver {
         }
 
         try {
-          return originalRequire.call(this, module.replace(alias, "@app/"));
+          return originalRequire.call(this, module.replace(alias, "#oss/"));
         } catch (e) {
           // ignored
         }

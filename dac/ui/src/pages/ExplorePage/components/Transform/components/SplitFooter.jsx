@@ -25,11 +25,11 @@ import { applyValidators, isRequired } from "utils/validation";
 import { formLabel } from "uiTheme/radium/typography";
 import classNames from "clsx";
 
-import { sectionMargin } from "@app/uiTheme/less/layout.less";
+import { sectionMargin } from "#oss/uiTheme/less/layout.less";
 import {
   fieldsHorizontalSpacing,
   rowMargin,
-} from "@app/uiTheme/less/forms.less";
+} from "#oss/uiTheme/less/forms.less";
 
 class SplitFooter extends PureComponent {
   static getFields() {

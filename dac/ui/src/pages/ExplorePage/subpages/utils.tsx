@@ -15,7 +15,7 @@
  */
 
 import { showNavCrumbs } from "@inject/components/NavCrumbs/NavCrumbs";
-import { memoOne } from "@app/utils/memoUtils";
+import { memoOne } from "#oss/utils/memoUtils";
 import { cloneDeep } from "lodash";
 import { FormattedMessage } from "react-intl";
 import { QueryStatusType } from "../components/SqlEditor/SqlQueryTabs/utils";

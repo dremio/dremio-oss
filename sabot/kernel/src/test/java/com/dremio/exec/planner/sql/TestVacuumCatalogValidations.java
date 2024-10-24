@@ -35,10 +35,6 @@ public class TestVacuumCatalogValidations extends BaseTestQuery {
   }
 
   private static AutoCloseable enableVacuumCatalog() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_CATALOG, "true");
-    return () ->
-        setSystemOption(
-            ExecConstants.ENABLE_ICEBERG_VACUUM_CATALOG,
-            ExecConstants.ENABLE_ICEBERG_VACUUM_CATALOG.getDefault().getBoolVal().toString());
+    return withSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_CATALOG, true);
   }
 }

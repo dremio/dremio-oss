@@ -30,8 +30,9 @@ import {
   isDatabaseType,
   isMetastoreSourceType,
   isObjectStorageSourceType,
-} from "@app/constants/sourceTypes";
-import { isVersionedSource } from "@app/utils/sourceUtils";
+  isLakehouseSourceType,
+} from "#oss/constants/sourceTypes";
+import { isVersionedSource } from "@inject/utils/sourceUtils";
 import { withCatalogARSFlag } from "@inject/utils/arsUtils";
 import AllSourcesView from "./AllSourcesView";
 
@@ -60,17 +61,20 @@ export class AllSources extends PureComponent {
     const isArcticSource = loc.includes("/sources/arctic/list");
     const isObjectStorageSource = loc.includes("/sources/objectStorage/list");
     const isMetastoreSource = loc.includes("/sources/metastore/list");
+    const isLakehouseSource = loc.includes("/sources/lakehouse/list");
 
     /*eslint no-nested-ternary: "off"*/
     const headerId = isExternalSource
       ? "Source.AllDatabaseSources"
       : isObjectStorageSource
         ? "Source.AllObjectStorage"
-        : isMetastoreSource
-          ? "Source.AllMetastores"
-          : isArcticSource
-            ? "Source.AllArcticCatalogs"
-            : "Source.AllNessieCatalogs";
+        : isLakehouseSource
+          ? "Source.AllLakehouse"
+          : isMetastoreSource
+            ? "Source.AllMetastores"
+            : isArcticSource
+              ? "Source.AllArcticCatalogs"
+              : "Source.AllNessieCatalogs";
 
     const title = intl.formatMessage({ id: headerId });
     const metastoreSource = sources.filter((source) =>
@@ -84,6 +88,11 @@ export class AllSources extends PureComponent {
     const databaseSources = sources.filter((source) =>
       isDatabaseType(source.get("type")),
     );
+
+    const lakehouseSources = sources.filter((source) =>
+      isLakehouseSourceType(source.get("type")),
+    );
+
     const versionedSources = sources.filter((source) => {
       const isVersioned = isVersionedSource(source.get("type"));
       const homeSource = getHomeSource(sources);
@@ -97,9 +106,11 @@ export class AllSources extends PureComponent {
       ? databaseSources
       : isObjectStorageSource
         ? objectStorageSource
-        : isMetastoreSource
-          ? metastoreSource
-          : versionedSources;
+        : isLakehouseSource
+          ? lakehouseSources
+          : isMetastoreSource
+            ? metastoreSource
+            : versionedSources;
 
     return (
       <HomePage location={location}>
@@ -107,6 +118,7 @@ export class AllSources extends PureComponent {
         <AllSourcesView
           title={title}
           filters={this.filters}
+          isLakehouseSource={isLakehouseSource}
           isExternalSource={isExternalSource}
           isDataPlaneSource={isDataPlaneSource}
           isObjectStorageSource={isObjectStorageSource}

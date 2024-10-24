@@ -19,6 +19,8 @@ import static java.util.Objects.requireNonNull;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.common.util.Retryer;
+import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.iceberg.dremioudf.api.catalog.NoSuchUdfException;
 import com.dremio.exec.store.iceberg.dremioudf.api.udf.SQLUdfRepresentation;
 import com.dremio.exec.store.iceberg.dremioudf.core.udf.BaseUdfOperations;
@@ -27,16 +29,24 @@ import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
 import com.dremio.plugins.NessieClient;
 import com.dremio.plugins.NessieContent;
 import com.dremio.plugins.NessieUdfAdapter;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 import org.apache.iceberg.io.FileIO;
+import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieContentNotFoundException;
+import org.projectnessie.error.NessieErrorDetails;
 import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.error.ReferenceConflicts;
+import org.projectnessie.model.Conflict;
 import org.projectnessie.model.ContentKey;
 
 public class VersionedUdfOperations extends BaseUdfOperations {
-  private static final int MAX_RETRIES = 2;
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(VersionedUdfOperations.class);
+  private static final int MAX_RETRIES_REFRESH = 2;
+  private static final int MAX_RETRIES_COMMIT = 5;
   private static final Predicate<Exception> RETRY_IF =
       exec -> !exec.getClass().getCanonicalName().contains("Unrecoverable");
   private final FileIO fileIO;
@@ -46,6 +56,7 @@ public class VersionedUdfOperations extends BaseUdfOperations {
   private ResolvedVersionContext versionContext;
   private String baseContentId;
   private IcebergCommitOrigin commitOrigin;
+  private final Retryer udfUpdateRetryer;
 
   public VersionedUdfOperations(
       FileIO fileIO,
@@ -60,6 +71,12 @@ public class VersionedUdfOperations extends BaseUdfOperations {
     this.baseContentId = null;
     this.commitOrigin = null;
     this.userName = userName;
+    this.udfUpdateRetryer =
+        Retryer.newBuilder()
+            .retryOnExceptionFunc(VersionedUdfOperations::isRetriable)
+            .setMaxRetries(MAX_RETRIES_COMMIT)
+            .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 100, 500)
+            .build();
   }
 
   @Override
@@ -92,12 +109,20 @@ public class VersionedUdfOperations extends BaseUdfOperations {
         throw new NoSuchUdfException("UDF does not exist: %s in %s", udfKey, versionContext);
       }
     }
-    refreshFromMetadataLocation(metadataLocation, RETRY_IF, MAX_RETRIES);
+    refreshFromMetadataLocation(metadataLocation, RETRY_IF, MAX_RETRIES_REFRESH);
   }
 
   @Override
   protected void doCommit(UdfMetadata base, UdfMetadata metadata) {
+    try {
+      udfUpdateRetryer.run(() -> doCommitHelper(base, metadata));
+    } catch (Retryer.OperationFailedAfterRetriesException e) {
+      logger.warn("Max retries reached, commitTable failed", e);
+      throw e;
+    }
+  }
 
+  private void doCommitHelper(UdfMetadata base, UdfMetadata metadata) {
     String newMetadataLocation = writeNewMetadataIfRequired(metadata);
     boolean failure = true;
     try {
@@ -118,6 +143,11 @@ public class VersionedUdfOperations extends BaseUdfOperations {
           commitOrigin,
           userName);
       failure = false;
+    } catch (ReferenceConflictException e) {
+      if (isRetriable(e)) {
+        doRefresh();
+      }
+      throw e;
     } finally {
       if (failure) {
         io().deleteFile(newMetadataLocation);
@@ -138,5 +168,24 @@ public class VersionedUdfOperations extends BaseUdfOperations {
   protected VersionedUdfOperations withCommitOrigin(IcebergCommitOrigin commitOrigin) {
     this.commitOrigin = commitOrigin;
     return this;
+  }
+
+  private static boolean isRetriable(Throwable t) {
+    if (t.getCause() instanceof NessieConflictException) {
+      NessieErrorDetails errors = ((NessieConflictException) t.getCause()).getErrorDetails();
+      if (errors instanceof ReferenceConflicts) {
+        boolean alreadyExists =
+            ((ReferenceConflicts) errors)
+                .conflicts().stream()
+                    .anyMatch(x -> x.conflictType() == Conflict.ConflictType.KEY_EXISTS);
+        if (alreadyExists) {
+          return false;
+        }
+        return ((ReferenceConflicts) errors)
+            .conflicts().stream()
+                .anyMatch(x -> x.conflictType() == Conflict.ConflictType.VALUE_DIFFERS);
+      }
+    }
+    return t instanceof UncheckedIOException;
   }
 }

@@ -36,7 +36,7 @@ export const positionOf = (position: Skippable<Position>): Position =>
 export const advancePosition = (
   query: string,
   position: Position,
-  advanceBy: number
+  advanceBy: number,
 ): Skippable<Position> => {
   if (advanceBy === 0) {
     return value(position);

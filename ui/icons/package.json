@@ -10,12 +10,12 @@
     "dist-manifest.json": "tsx ./scripts/writeIconManifest",
     "prepare": "node --run dist-sprite.svg && node --run dist-manifest.json"
   },
-  "packageManager": "pnpm@9.3.0",
+  "packageManager": "pnpm@9.9.0",
   "devDependencies": {
     "@types/node": "^20.12.7",
     "glob": "^10.3.12",
     "svg-sprite": "^2.0.4",
     "tsx": "^4.7.2",
-    "typescript": "^5.4.5"
+    "typescript": "5.5.4"
   }
 }

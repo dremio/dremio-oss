@@ -21,12 +21,12 @@ import { connect } from "react-redux";
 import {
   getNormalizedEntityPathByUrl,
   getSortedSources,
-} from "@app/selectors/home";
-import { getEntityType, getSourceNameFromUrl } from "@app/utils/pathUtils";
+} from "#oss/selectors/home";
+import { getEntityType, getSourceNameFromUrl } from "#oss/utils/pathUtils";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
-import { getUserName } from "@app/selectors/account";
+import { getUserName } from "#oss/selectors/account";
 
-import { getRefQueryParams } from "@app/utils/nessieUtils";
+import { getRefQueryParams } from "#oss/utils/nessieUtils";
 
 class Home extends Component {
   static propTypes = {
@@ -57,7 +57,7 @@ const mapStateToProps = (state, props) => {
   // we must use router location value, as redux location could be out of sync
   const getContentUrl = getNormalizedEntityPathByUrl(
     pathname,
-    getUserName(state)
+    getUserName(state),
   );
 
   const sourceName = getSourceNameFromUrl(getContentUrl);

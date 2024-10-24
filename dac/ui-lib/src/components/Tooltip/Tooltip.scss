@@ -38,15 +38,15 @@
 
 // Custom tooltip
 .richTooltip {
-  background-color: white !important;
+  background-color: var(--fill--popover) !important;
   max-width: 400px !important;
   color: var(--text--primary) !important;
   padding: 16px 0px 20px 0px !important;
   box-shadow: var(--dremio--shadow--layer-1) !important;
   .MuiTooltip-arrow {
-    color: white !important;
+    color: var(--fill--popover) !important;
   }
   .MuiTooltip-arrow::before {
-    background-color: white !important;
+    background-color: var(--fill--popover) !important;
   }
 }

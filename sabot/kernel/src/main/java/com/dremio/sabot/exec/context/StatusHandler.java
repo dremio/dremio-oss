@@ -50,6 +50,10 @@ public class StatusHandler implements RpcOutcomeListener<Ack> {
     exception.addException(new RpcException("Data not accepted downstream."));
   }
 
+  public DeferredException getException() {
+    return exception;
+  }
+
   @Override
   public void interrupted(final InterruptedException e) {
     exception.addException(e);

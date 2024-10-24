@@ -27,6 +27,7 @@ import NavPanel from "components/Nav/NavPanel";
 import { getFormTabs } from "@inject/pages/HomePage/components/modals/utils";
 import { sourceFormWrapper } from "uiTheme/less/forms.less";
 import { scrollRightContainerWithHeader } from "uiTheme/less/layout.less";
+import { showSourceIcon } from "@inject/utils/sourceUtils";
 import { FormContext } from "./formContext";
 
 const SOURCE_FIELDS = [
@@ -77,7 +78,7 @@ class ConfigurableSourceForm extends Component {
       navTabs,
       fields,
       permissions,
-      selectedTabName
+      selectedTabName,
     );
 
     const tabConfig =
@@ -129,6 +130,7 @@ class ConfigurableSourceForm extends Component {
                     tabConfig={tabConfig}
                     formConfig={sourceFormConfig}
                     EntityType={this.props.EntityType}
+                    showIcon={showSourceIcon(sourceFormConfig.sourceType)}
                     accessControlId={this.props.fields.id.initialValue}
                   />
                 )}
@@ -151,7 +153,7 @@ export default class ConfigurableSourceFormWrapper extends Component {
     const { sourceFormConfig } = this.props;
     const tabs = sourceFormConfig.form.getTabs();
     const navTabs = Immutable.OrderedMap(
-      tabs.map((tab) => [tab.getName(), tab.getName()])
+      tabs.map((tab) => [tab.getName(), tab.getName()]),
     );
     this.state = {
       selectedTabName: "",
@@ -165,7 +167,7 @@ export default class ConfigurableSourceFormWrapper extends Component {
       },
       [],
       mapStateToProps,
-      null
+      null,
     )(ConfigurableSourceForm);
   }
 
@@ -175,7 +177,7 @@ export default class ConfigurableSourceFormWrapper extends Component {
     const tabConfig = FormUtils.findTabWithError(
       sourceFormConfig.form,
       fieldsWithError,
-      this.state.selectedTabName
+      this.state.selectedTabName,
     );
     this.setState({ selectedTabName: tabConfig.getName() });
   };
@@ -201,7 +203,7 @@ function mapStateToProps(state, props) {
   const initialValues = FormUtils.mergeInitValuesWithConfig(
     props.initialValues,
     state,
-    props
+    props,
   );
   return {
     initialValues,

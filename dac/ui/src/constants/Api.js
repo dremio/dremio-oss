@@ -28,7 +28,7 @@ class Api {
   toString() {
     console.warn(
       "Default import deprecated, use { API_URL } from '@app/constants/Api.js'" +
-        " notation instead of API_URL from '@app/constants/Api'"
+        " notation instead of API_URL from '@app/constants/Api'",
     );
     return API_URL;
   }

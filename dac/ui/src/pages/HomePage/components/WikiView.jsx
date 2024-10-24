@@ -23,16 +23,16 @@ import ViewStateWrapper from "components/ViewStateWrapper";
 import {
   SectionTitle,
   getIconButtonConfig,
-} from "@app/pages/ExplorePage/components/Wiki/SectionTitle";
-import WikiEmptyState from "@app/components/WikiEmptyState";
-import { WikiModal } from "@app/pages/ExplorePage/components/Wiki/WikiModal";
-import { wikiSaved as wikiSavedAction } from "@app/actions/home";
+} from "#oss/pages/ExplorePage/components/Wiki/SectionTitle";
+import WikiEmptyState from "#oss/components/WikiEmptyState";
+import { WikiModal } from "#oss/pages/ExplorePage/components/Wiki/WikiModal";
+import { wikiSaved as wikiSavedAction } from "#oss/actions/home";
 import {
   getWikiValue,
   getWikiVersion,
   isWikiLoading,
   getErrorInfo,
-} from "@app/selectors/home";
+} from "#oss/selectors/home";
 import {
   wikiWrapper,
   wikiWidget,
@@ -40,8 +40,8 @@ import {
   editor,
   wikiTitle,
 } from "./WikiView.less";
-import { WikiEmptyStateARS } from "@app/components/WikiEmptyStateARS";
-import { isVersionedSource } from "@app/utils/sourceUtils";
+import { WikiEmptyStateARS } from "#oss/components/WikiEmptyStateARS";
+import { isVersionedSource } from "@inject/utils/sourceUtils";
 
 const ViewModes = ["default", "edit", "expanded"].reduce(
   (enumResult, value) => {

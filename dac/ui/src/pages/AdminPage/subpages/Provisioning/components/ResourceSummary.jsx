@@ -34,7 +34,7 @@ export default class ResourceSummary extends Component {
     }
 
     const totalRam = NumberFormatUtils.roundNumberField(
-      entity.getIn(["workersSummary", "totalRAM"]) / 1024
+      entity.getIn(["workersSummary", "totalRAM"]) / 1024,
     );
     const totalCores = entity.getIn(["workersSummary", "totalCores"]);
     return (

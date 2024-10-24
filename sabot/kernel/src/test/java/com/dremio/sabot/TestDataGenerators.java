@@ -46,7 +46,8 @@ public class TestDataGenerators extends BaseTestOperator {
     // add date field
     addFieldInfos(fieldInfos, new ArrowType.Date(DateUnit.MILLISECOND), 1, SortOrder.DESCENDING, 1);
 
-    SortDataGenerator sdg = new SortDataGenerator(fieldInfos, allocator, 10_000, batchSize, 15);
+    BatchDataGenerator sdg =
+        new BatchDataGenerator(fieldInfos, allocator, 10_000, batchSize, 15, Integer.MAX_VALUE);
 
     VectorContainer container = (VectorContainer) sdg.getOutput();
 
@@ -86,11 +87,11 @@ public class TestDataGenerators extends BaseTestOperator {
       ArrowType type = vw.getField().getType();
       ValueVector vv = vw.getValueVector();
       if (type.equals(integerType)) {
-        for (int i = 0; i < batchSize; i++) {
+        for (int i = 0; i < vv.getValueCount(); i++) {
           integerOutput.add(((Integer) vv.getObject(i)));
         }
       } else if (type.equals(stringType)) {
-        for (int i = 0; i < batchSize; i++) {
+        for (int i = 0; i < vv.getValueCount(); i++) {
           stringOutputs.add(vv.getObject(i).toString());
         }
       }
@@ -119,7 +120,8 @@ public class TestDataGenerators extends BaseTestOperator {
     addFieldInfos(
         fieldInfos, new ArrowType.Date(DateUnit.MILLISECOND), 10_000, SortOrder.DESCENDING, 1);
 
-    SortDataGenerator sdg = new SortDataGenerator(fieldInfos, allocator, 10_000, batchSize, 15);
+    BatchDataGenerator sdg =
+        new BatchDataGenerator(fieldInfos, allocator, 10_000, batchSize, 15, Integer.MAX_VALUE);
 
     VectorContainer container = (VectorContainer) sdg.getOutput();
 

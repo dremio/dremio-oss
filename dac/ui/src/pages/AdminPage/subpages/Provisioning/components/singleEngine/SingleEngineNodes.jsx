@@ -17,7 +17,7 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 
-import StatefulTableViewer from "@app/components/StatefulTableViewer";
+import StatefulTableViewer from "#oss/components/StatefulTableViewer";
 import SingleEngineNodesMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineNodesMixin";
 
 @SingleEngineNodesMixin

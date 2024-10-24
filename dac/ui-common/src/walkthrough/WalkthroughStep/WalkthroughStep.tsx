@@ -170,7 +170,7 @@ export const WalkthroughStep = (props: WalkthroughStepProps) => {
           </ol>
         )}
         {props.postSteps && <div>{props.postSteps}</div>}
-        <div className="flex flex-row items-center">
+        <div className="flex flex-row items-center bg-brand-500">
           <Button
             variant="tertiary"
             className="text-sm"

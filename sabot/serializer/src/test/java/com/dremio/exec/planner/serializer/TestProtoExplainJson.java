@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.serializer;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.dremio.BaseTestQuery;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
@@ -38,11 +40,12 @@ public class TestProtoExplainJson extends BaseTestQuery {
     config = SabotConfig.create(properties);
     openClient();
     localFs = HadoopFileSystem.getLocal(new Configuration());
-    setSessionOption(ExecConstants.ENABLE_VERBOSE_ERRORS_KEY, "true");
+    setSessionOption(ExecConstants.ENABLE_VERBOSE_ERRORS, true);
   }
 
   @Test
   public void basicQuerySerializes() throws Exception {
-    checkFirstRecordContains("explain json for select 1", "json", "PLogicalValues");
+    assertThat(getValueInFirstRecord("explain json for select 1", "json"))
+        .contains("PLogicalValues");
   }
 }

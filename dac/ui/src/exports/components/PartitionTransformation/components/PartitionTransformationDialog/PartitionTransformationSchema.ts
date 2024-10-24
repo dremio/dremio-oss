@@ -24,7 +24,7 @@ export const PartitionTransformationSchema = z.object({
     .gte(1, "Input must be between an integer between 1 and 2147483647")
     .lte(
       2147483647,
-      "Input must be between an integer between 1 and 2147483647"
+      "Input must be between an integer between 1 and 2147483647",
     )
     .int(),
 });

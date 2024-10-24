@@ -799,6 +799,7 @@ void ParseTableProperty(SqlNodeList tablePropertyNameList, SqlNodeList tableProp
  *       [ (STRIPED, HASH, ROUNDROBIN) PARTITION BY (field1, field2, ..) ]
  *       [ DISTRIBUTE BY (field1, field2, ..) ]
  *       [ LOCALSORT BY (field1, field2, ..) ]
+ *       [ CLUSTER BY (field1, field2, ..) ]
  *       [ TBLPROPERTIES ('property_name' = 'property_value', ...) ]
  *       [ STORE AS (opt1 => val1, opt2 => val3, ...) ]
  *       [ LOCATION location]
@@ -817,6 +818,7 @@ SqlNode SqlCreateTable() :
     SqlNodeList partitionTransformList;
     SqlNodeList distributeFieldList;
     SqlNodeList sortFieldList;
+    SqlNodeList clusterKeyList;
     SqlLiteral singleWriter;
     SqlNode query;
     boolean ifNotExists = false;
@@ -830,6 +832,7 @@ SqlNode SqlCreateTable() :
         partitionTransformList = SqlNodeList.EMPTY;
         distributeFieldList = SqlNodeList.EMPTY;
         sortFieldList =  SqlNodeList.EMPTY;
+        clusterKeyList =  SqlNodeList.EMPTY;
         formatOptions = SqlNodeList.EMPTY;
         location = null;
         singleWriter = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
@@ -868,6 +871,9 @@ SqlNode SqlCreateTable() :
     )?
     (   <LOCALSORT> <BY>
         sortFieldList = ParseRequiredFieldList("Sort")
+    )?
+    (   <CLUSTER> <BY>
+        clusterKeyList = ParseRequiredFieldList("Cluster")
     )?
     (   <TBLPROPERTIES>
         <LPAREN>
@@ -917,7 +923,7 @@ SqlNode SqlCreateTable() :
                 {
                     return new SqlCreateTable(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy,
                         partitionTransformList, formatOptions, location, singleWriter, sortFieldList,
-                        distributeFieldList, policy, query, tablePropertyNameList, tablePropertyValueList, sqlTableVersionSpec);
+                        distributeFieldList, policy, query, tablePropertyNameList, tablePropertyValueList, sqlTableVersionSpec, clusterKeyList);
                 }
             )
             |
@@ -925,7 +931,7 @@ SqlNode SqlCreateTable() :
                 {
                     return new SqlCreateEmptyTable(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy,
                         partitionTransformList, formatOptions, location, singleWriter, sortFieldList,
-                        distributeFieldList, policy, tablePropertyNameList, tablePropertyValueList, sqlTableVersionSpec);
+                        distributeFieldList, policy, tablePropertyNameList, tablePropertyValueList, sqlTableVersionSpec, clusterKeyList);
                 }
             )
         )
@@ -1864,8 +1870,8 @@ SqlNode SqlShowCreate() :
 }
 
 /**
- * ALTER ENGINE <engine_name>
- * [MIN_REPLICAS = <no of replicas>]
+ * ALTER ENGINE <engine_name> SET
+ * [MIN_REPLICAS = <no of replicas>],
  * [MAX_REPLICAS = <no of replicas>]
 **/
 SqlNode SqlAlterEngine():
@@ -1879,13 +1885,21 @@ SqlNode SqlAlterEngine():
     <ALTER> { pos = getPos(); }
     <ENGINE>
     engineName = SimpleIdentifier()
-    [
-        <MIN_REPLICAS> minReplicas = UnsignedNumericLiteral()
-    ]
-    [
-        <MAX_REPLICAS> maxReplicas = UnsignedNumericLiteral()
-    ]
-
-    { return new SqlAlterEngine(pos, engineName, minReplicas, maxReplicas); }
+    <SET>
+    <LPAREN>
+    (
+      (
+          <MIN_REPLICAS> <EQ> minReplicas = UnsignedNumericLiteral()
+          ( <COMMA> <MAX_REPLICAS> <EQ> maxReplicas = UnsignedNumericLiteral() )?
+      )
+      |
+      (
+          <MAX_REPLICAS> <EQ> maxReplicas = UnsignedNumericLiteral()
+          ( <COMMA> <MIN_REPLICAS> <EQ> minReplicas = UnsignedNumericLiteral() )?
+      )
+    )?
+    <RPAREN>
+    {
+        return new SqlAlterEngine(pos, engineName, minReplicas, maxReplicas);
+    }
 }
-

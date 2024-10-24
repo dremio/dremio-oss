@@ -20,7 +20,7 @@ import {
   getJobColumnLabels,
   //@ts-ignore
 } from "dremio-ui-common/sonar/components/JobsTable/jobsPageTableColumns.js";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import { isEqual } from "lodash";
 

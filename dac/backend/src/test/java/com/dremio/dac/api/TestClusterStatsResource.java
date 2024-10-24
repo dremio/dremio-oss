@@ -37,7 +37,7 @@ public class TestClusterStatsResource extends BaseTestServer {
   public void testListSources() throws Exception {
     ClusterStatsResource.ClusterStats stats =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(PATH)).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(PATH)).buildGet(),
             ClusterStatsResource.ClusterStats.class);
     assertNotNull(stats);
     assertEquals(stats.getSources().size(), getSourceService().getSources().size());
@@ -70,7 +70,7 @@ public class TestClusterStatsResource extends BaseTestServer {
   public void testEdition() throws Exception {
     ClusterStatsResource.ClusterStats stats =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(PATH)).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(PATH)).buildGet(),
             ClusterStatsResource.ClusterStats.class);
     assertEquals(stats.getEdition(), DremioEdition.getAsString().toLowerCase(Locale.ROOT));
   }
@@ -80,7 +80,7 @@ public class TestClusterStatsResource extends BaseTestServer {
     // default, coord/exec nodes should be listed
     ClusterStatsResource.ClusterStats stats =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(PATH)).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(PATH)).buildGet(),
             ClusterStatsResource.ClusterStats.class);
     assertNotNull(stats.getExecutors());
     assertEquals(1, stats.getExecutors().size());
@@ -90,7 +90,8 @@ public class TestClusterStatsResource extends BaseTestServer {
 
     stats =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(PATH).queryParam("showCompactStats", true)).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(PATH).queryParam("showCompactStats", true))
+                .buildGet(),
             ClusterStatsResource.ClusterStats.class);
     assertNull(stats.getExecutors());
     assertNull(stats.getCoordinators());

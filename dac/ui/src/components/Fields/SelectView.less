@@ -15,7 +15,7 @@
  */
 
 .select {
-  composes: inline-flex-container flex-align-center from "~@app/uiTheme/less/layout.less";
+  composes: inline-flex-container flex-align-center from "~#oss/uiTheme/less/layout.less";
   border: none;
 
   &:hover {
@@ -29,7 +29,7 @@
 
 .disabled {
   cursor: default;
-  background-color: var(--border--neutral);
+  background-color: var(--fill--disabled);
   border-color: var(--border--neutral--solid) !important;
 
   span {

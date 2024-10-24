@@ -87,9 +87,7 @@ public class TestDatasetHashUtils {
     when(t1RelOptTable.unwrap(DremioTable.class)).thenReturn(t1Table);
     when(t1Node.getTable()).thenReturn(t1RelOptTable);
     when(catalog.getTable(new NamespaceKey(ImmutableList.of("t1")))).thenReturn(t1Table);
-    when(catalog.getTableSnapshot(
-            CatalogEntityKey.fromNamespaceKey(new NamespaceKey(ImmutableList.of("t1")))))
-        .thenReturn(t1Table);
+    when(catalog.getTableSnapshot(CatalogEntityKey.of("t1"))).thenReturn(t1Table);
 
     // Create datasetconfig and relnode for view v1
     v1Config =
@@ -107,8 +105,7 @@ public class TestDatasetHashUtils {
     ParentDataset parentDataset = new ParentDataset().setDatasetPathList(ImmutableList.of("t1"));
     virtualDataset.setParentsList(ImmutableList.of(parentDataset));
     when(catalog.getTable(new NamespaceKey("v1"))).thenReturn(v1Table);
-    when(catalog.getTableSnapshot(CatalogEntityKey.fromNamespaceKey(new NamespaceKey("v1"))))
-        .thenReturn(v1Table);
+    when(catalog.getTableSnapshot(CatalogEntityKey.of("v1"))).thenReturn(v1Table);
     when(v1Node.getInput(0)).thenReturn(t1Node);
 
     // Create datasetconfig and relnode for view v2
@@ -127,8 +124,7 @@ public class TestDatasetHashUtils {
     ParentDataset parentDataset2 = new ParentDataset().setDatasetPathList(ImmutableList.of("v1"));
     virtualDataset2.setParentsList(ImmutableList.of(parentDataset2));
     when(catalog.getTable(new NamespaceKey("v2"))).thenReturn(v2Table);
-    when(catalog.getTableSnapshot(CatalogEntityKey.fromNamespaceKey(new NamespaceKey("v2"))))
-        .thenReturn(v2Table);
+    when(catalog.getTableSnapshot(CatalogEntityKey.of("v2"))).thenReturn(v2Table);
     when(v2Node.getInput(0)).thenReturn(v1Node);
   }
 
@@ -166,13 +162,13 @@ public class TestDatasetHashUtils {
     when(v1Node.getVersionContext()).thenReturn(etlTableVersionContext);
     when(catalog.getTableSnapshot(
             CatalogEntityKey.newBuilder()
-                .keyComponents(ImmutableList.of("v1"))
+                .keyComponents("v1")
                 .tableVersionContext(etlTableVersionContext)
                 .build()))
         .thenReturn(v1Table);
     when(catalog.getTableSnapshot(
             CatalogEntityKey.newBuilder()
-                .keyComponents(ImmutableList.of("t1"))
+                .keyComponents("t1")
                 .tableVersionContext(etlTableVersionContext)
                 .build()))
         .thenReturn(t1Table);
@@ -254,9 +250,7 @@ public class TestDatasetHashUtils {
     // Update t1 to be branch main
     when(t1TableMetadata.getVersionContext())
         .thenReturn(new TableVersionContext(TableVersionType.BRANCH, "main"));
-    when(catalog.getTableSnapshot(
-            CatalogEntityKey.newBuilder().keyComponents(ImmutableList.of("t1")).build()))
-        .thenReturn(t1Table);
+    when(catalog.getTableSnapshot(CatalogEntityKey.of("t1"))).thenReturn(t1Table);
 
     // Create datasetconfig and relnode for table t1 at branch dev
     DatasetConfig t1ConfigAtDev =
@@ -273,9 +267,7 @@ public class TestDatasetHashUtils {
     RelOptTable t1RelOptTableAtDev = mock(RelOptTable.class);
     when(t1RelOptTableAtDev.unwrap(DremioTable.class)).thenReturn(t1TableAtDev);
     when(t1NodeAtDev.getTable()).thenReturn(t1RelOptTableAtDev);
-    when(catalog.getTableSnapshot(
-            CatalogEntityKey.newBuilder().keyComponents(ImmutableList.of("t1")).build()))
-        .thenReturn(t1TableAtDev);
+    when(catalog.getTableSnapshot(CatalogEntityKey.of("t1"))).thenReturn(t1TableAtDev);
 
     assertNotEquals(
         DatasetHashUtils.computeDatasetHash(catalog, t1Node, false),

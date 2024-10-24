@@ -131,7 +131,7 @@ export function isRequiredIfAnotherPropertyEqual(
   key,
   dependetKey,
   dependetValue,
-  label
+  label,
 ) {
   return function (values) {
     if (!get(values, key) && get(values, dependetKey) === dependetValue) {
@@ -159,7 +159,7 @@ export function isWholeNumber(key, label = key) {
       return set(
         {},
         key,
-        `${label} must be an integer greater than or equal to zero.`
+        `${label} must be an integer greater than or equal to zero.`,
       );
     }
   };
@@ -178,13 +178,13 @@ export const isIntegerWithLimits = (
   key,
   label = key,
   lowLimit = null,
-  topLimit = null
+  topLimit = null,
 ) => {
   const isIntegerChecker = isInteger(key, label);
   if (lowLimit === null && topLimit === null) return isIntegerChecker;
   invariant(
     lowLimit === null || topLimit === null || lowLimit <= topLimit,
-    "lowLimit must be <= topLimit"
+    "lowLimit must be <= topLimit",
   );
   let limitMessage;
   if (topLimit !== null && lowLimit !== null) {
@@ -212,7 +212,7 @@ export const isIntegerWithLimits = (
 export const isIntegerKey1LessThenKey2 = (
   key1,
   key2,
-  label = key1 + ", " + key2
+  label = key1 + ", " + key2,
 ) => {
   const isKey1Integer = isInteger(key1, `${key1} is not an integer`);
   const isKey2Integer = isInteger(key1, `${key2} is not an integer`);
@@ -220,7 +220,7 @@ export const isIntegerKey1LessThenKey2 = (
   return (values) => {
     const isKey1IntegerResult = isKey1Integer(
       values,
-      `${key1} is not an integer`
+      `${key1} is not an integer`,
     );
     if (get(isKey1IntegerResult, key1)) {
       return isKey1IntegerResult;
@@ -228,7 +228,7 @@ export const isIntegerKey1LessThenKey2 = (
 
     const isKey2IntegerResult = isKey2Integer(
       values,
-      `${key2} is not an integer`
+      `${key2} is not an integer`,
     );
     if (get(isKey2IntegerResult, key2)) {
       return isKey2IntegerResult;
@@ -329,11 +329,11 @@ export function getListErrorsFromNestedReduxFormErrorEntity(errors) {
   listOfErrors.forEach((error) => {
     if (Array.isArray(errors[error])) {
       resultList.push(
-        ...errors[error].map(getListErrorsFromNestedReduxFormErrorEntity)
+        ...errors[error].map(getListErrorsFromNestedReduxFormErrorEntity),
       );
     } else if (typeof errors[error] === "object") {
       resultList.push(
-        ...getListErrorsFromNestedReduxFormErrorEntity(errors[error])
+        ...getListErrorsFromNestedReduxFormErrorEntity(errors[error]),
       );
     } else {
       resultList.push(errors[error]);

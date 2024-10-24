@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* eslint-disable react/prop-types */
+
 import { useRef } from "react";
 import TagsModal from "pages/HomePage/components/modals/TagsModal/TagsModal";
-import { Tag } from "@app/pages/ExplorePage/components/TagsEditor/Tag";
+import { Tag } from "#oss/pages/ExplorePage/components/TagsEditor/Tag";
 import { useOverflowIndex } from "dremio-ui-lib/components";
 import clsx from "clsx";
 

@@ -24,7 +24,7 @@ function createIntlShape() {
       locale: locale.language,
       messages: locale.localeStrings as unknown as Record<string, string>,
     },
-    cache
+    cache,
   );
 }
 

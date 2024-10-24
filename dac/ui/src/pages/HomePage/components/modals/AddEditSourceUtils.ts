@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { REFLECTION_ARCTIC_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import sentryUtil from "@app/utils/sentryUtil";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { REFLECTION_ARCTIC_ENABLED } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import sentryUtil from "#oss/utils/sentryUtil";
 
 // Enable reflection related tab to form if it's a versioned source and the support flag is on
 export async function isVersionedReflectionsEnabled() {

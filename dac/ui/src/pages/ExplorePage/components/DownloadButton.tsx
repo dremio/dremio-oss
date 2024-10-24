@@ -23,9 +23,9 @@ import {
   Spinner,
   Tooltip,
 } from "dremio-ui-lib/components";
-import DownloadMenu from "@app/components/Menus/ExplorePage/DownloadMenu";
-import { useAsyncDownload } from "@app/exports/providers/useAsyncDownload";
-import { getAllJobDetails } from "@app/selectors/exploreJobs";
+import DownloadMenu from "#oss/components/Menus/ExplorePage/DownloadMenu";
+import { useAsyncDownload } from "#oss/exports/providers/useAsyncDownload";
+import { getAllJobDetails } from "#oss/selectors/exploreJobs";
 
 export type DownloadButtonProps = {
   dataset: Immutable.Map<string, any>;

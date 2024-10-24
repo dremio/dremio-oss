@@ -15,13 +15,13 @@
  */
 package com.dremio.service.jobtelemetry.server.store;
 
-import com.dremio.service.jobtelemetry.server.TempLegacyKVStoreProviderCreator;
+import com.dremio.service.jobtelemetry.server.TempLocalKVStoreProviderCreator;
 
 /** Test for local profile store. */
 public class TestLocalProfileStore extends AbstractTestProfileStore {
 
   @Override
   public ProfileStore getProfileStore() throws Exception {
-    return new LocalProfileStore(TempLegacyKVStoreProviderCreator.create());
+    return new LocalProfileStore(TempLocalKVStoreProviderCreator.create());
   }
 }

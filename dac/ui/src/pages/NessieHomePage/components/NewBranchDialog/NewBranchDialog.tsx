@@ -22,11 +22,11 @@ import {
   ModalContainer,
   DialogContent,
 } from "dremio-ui-lib/components";
-import { setReference } from "@app/actions/nessie/nessie";
+import { setReference } from "#oss/actions/nessie/nessie";
 import { TextField } from "@mui/material";
-import { Reference } from "@app/types/nessie";
+import { Reference } from "#oss/types/nessie";
 import { useNessieContext } from "../../utils/context";
-import { ReferenceType } from "@app/services/nessie/client/index";
+import { ReferenceType } from "#oss/services/nessie/client/index";
 
 import "./NewBranchDialog.less";
 
@@ -89,7 +89,7 @@ function NewBranchDialog({
 
       if (setSuccessMessage) {
         setSuccessMessage(
-          <FormattedMessage id="RepoView.Dialog.CreateBranch.Success" />
+          <FormattedMessage id="RepoView.Dialog.CreateBranch.Success" />,
         );
       }
 
@@ -102,15 +102,15 @@ function NewBranchDialog({
     } catch (error: any) {
       if (error.status === 400) {
         setErrorText(
-          <FormattedMessage id="RepoView.Dialog.CreateBranch.Error.InvalidName" />
+          <FormattedMessage id="RepoView.Dialog.CreateBranch.Error.InvalidName" />,
         );
       } else if (error.status === 409) {
         setErrorText(
-          <FormattedMessage id="RepoView.Dialog.CreateBranch.Error.Conflict" />
+          <FormattedMessage id="RepoView.Dialog.CreateBranch.Error.Conflict" />,
         );
       } else {
         setErrorText(
-          <FormattedMessage id="RepoView.Dialog.DeleteBranch.Error" />
+          <FormattedMessage id="RepoView.Dialog.DeleteBranch.Error" />,
         );
       }
 

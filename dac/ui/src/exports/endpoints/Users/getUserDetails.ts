@@ -18,7 +18,7 @@ import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import moize from "moize";
 import { type UserDetails } from "./UserDetails.type";
 import { joinName } from "../../utilities/joinName";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 type GetUserParams = { id: string };
 
@@ -37,5 +37,5 @@ export const getUserDetails = moize(
         };
       });
   },
-  { isPromise: true, isDeepEqual: true, maxSize: Infinity }
+  { isPromise: true, isDeepEqual: true, maxSize: Infinity },
 );

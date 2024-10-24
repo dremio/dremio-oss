@@ -20,10 +20,10 @@ import { Radio } from "components/Fields";
 import NewFieldSection from "components/Forms/NewFieldSection";
 import TransformForm, {
   formWrapperProps,
-} from "@app/pages/ExplorePage/components/forms/TransformForm";
-import { transformProps } from "@app/pages/ExplorePage/components/forms/TransformationPropTypes";
-import { radioStacked } from "@app/uiTheme/less/forms.less";
-import { sectionMargin } from "@app/uiTheme/less/layout.less";
+} from "#oss/pages/ExplorePage/components/forms/TransformForm";
+import { transformProps } from "#oss/pages/ExplorePage/components/forms/TransformationPropTypes";
+import { radioStacked } from "#oss/uiTheme/less/forms.less";
+import { sectionMargin } from "#oss/uiTheme/less/layout.less";
 
 const SECTIONS = [NewFieldSection];
 
@@ -89,5 +89,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(DateToNumberForm);

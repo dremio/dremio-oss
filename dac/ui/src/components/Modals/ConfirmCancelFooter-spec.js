@@ -43,22 +43,22 @@ describe("ConfirmCancelFooter", () => {
   //DX-28985
   xit("should hide the cancel button when hideCancel is set", () => {
     const wrapper = shallow(
-      <ConfirmCancelFooter {...commonProps} hideCancel />
+      <ConfirmCancelFooter {...commonProps} hideCancel />,
     );
     expect(wrapper.find("SimpleButton")).to.have.length(1);
     expect(wrapper.find("SimpleButton").first().props()["data-qa"]).to.eql(
-      "confirm"
+      "confirm",
     );
   });
 
   //DX-28985
   xit("should hide the cancel button when no cancel function", () => {
     const wrapper = shallow(
-      <ConfirmCancelFooter {...commonProps} cancel={null} />
+      <ConfirmCancelFooter {...commonProps} cancel={null} />,
     );
     expect(wrapper.find("SimpleButton")).to.have.length(1);
     expect(wrapper.find("SimpleButton").first().props()["data-qa"]).to.eql(
-      "confirm"
+      "confirm",
     );
   });
 

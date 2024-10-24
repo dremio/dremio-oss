@@ -15,7 +15,7 @@
  */
 
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-import { DatasetGraphResponse } from "@app/exports/types/DatasetGraph.type";
+import { DatasetGraphResponse } from "#oss/exports/types/DatasetGraph.type";
 
 const getDatasetGraphUrl = (jobId: string) =>
   getApiContext().createSonarUrl(`jobs-listing/v1.0/${jobId}/datasetGraph`);

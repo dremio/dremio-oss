@@ -28,6 +28,7 @@
       - "ALTER TABLE mytable AT "
       - "ALTER TABLE mytable ALTER "
       - "ALTER TABLE mytable CHANGE "
+      - "ALTER TABLE mytable CLUSTER "
       - "ALTER TABLE mytable CREATE "
       - "ALTER TABLE mytable DISABLE "
       - "ALTER TABLE mytable DROP "
@@ -732,6 +733,8 @@
     paths:
       - "ALTER TABLE mytable DROP "
       - "ALTER TABLE mytable DROP myIdentifier "
+      - "ALTER TABLE mytable DROP CLUSTERING "
+      - "ALTER TABLE mytable DROP CLUSTERING KEY "
       - "ALTER TABLE mytable DROP PARTITION "
       - "ALTER TABLE mytable DROP PARTITION FIELD "
       - "ALTER TABLE mytable DROP PARTITION FIELD myIdentifier "
@@ -788,6 +791,17 @@
       - "ALTER TABLE mytable LOCALSORT "
       - "ALTER TABLE mytable LOCALSORT BY "
       - "ALTER TABLE mytable LOCALSORT BY ( "
+    pathsWithIdentifierCompletion: []
+-
+  description: "ALTER TABLE + CLUSTER"
+  input:
+    maxDepth: 2
+    prefix: "ALTER TABLE mytable CLUSTER"
+  output:
+    paths:
+      - "ALTER TABLE mytable CLUSTER "
+      - "ALTER TABLE mytable CLUSTER BY "
+      - "ALTER TABLE mytable CLUSTER BY ( "
     pathsWithIdentifierCompletion: []
 -
   description: "ALTER TABLE + MODIFY"

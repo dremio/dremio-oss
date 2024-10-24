@@ -66,7 +66,7 @@ describe("VirtualizedTableViewer-spec", () => {
 
     it.skip("should calculate speed", () => {
       const instance = shallow(
-        <VirtualizedTableViewer {...commonProps} />
+        <VirtualizedTableViewer {...commonProps} />,
       ).instance();
       instance.lastScrollTime = 0;
       instance.handleScroll({ scrollTop: 200 });
@@ -77,7 +77,7 @@ describe("VirtualizedTableViewer-spec", () => {
 
     it.skip("should flush and schedule flush if scrolling slowly", () => {
       const instance = shallow(
-        <VirtualizedTableViewer {...commonProps} />
+        <VirtualizedTableViewer {...commonProps} />,
       ).instance();
       instance.lastScrollTime = 0;
       instance.handleScroll({ scrollTop: 10 });
@@ -88,7 +88,7 @@ describe("VirtualizedTableViewer-spec", () => {
 
     it.skip("should only schedule flush if scrolling fast", () => {
       const instance = shallow(
-        <VirtualizedTableViewer {...commonProps} />
+        <VirtualizedTableViewer {...commonProps} />,
       ).instance();
       instance.lastScrollTime = 0;
       instance.handleScroll({ scrollTop: 10000 });

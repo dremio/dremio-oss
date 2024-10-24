@@ -49,6 +49,19 @@ class VariableSizer implements Sizer {
   }
 
   @Override
+  public int getDataLengthFromIndex(int startIndex, int numberOfEntries) {
+
+    final long startOffset =
+        incoming.getOffsetBuffer().getInt((long) startIndex * OFFSET_SIZE_BYTES);
+    final long endOffset =
+        incoming
+            .getOffsetBuffer()
+            .getInt((long) (startIndex + numberOfEntries) * OFFSET_SIZE_BYTES);
+
+    return (int) (endOffset - startOffset);
+  }
+
+  @Override
   public void reset() {
     cachedSv2Addr = 0;
   }

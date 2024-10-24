@@ -49,7 +49,7 @@ describe("FormSection", () => {
         }}
       >
         <div />
-      </VisibilityControl>
+      </VisibilityControl>,
     );
     expect(wrapper.contains(<div />)).to.equal(false);
   });
@@ -63,7 +63,7 @@ describe("FormSection", () => {
         }}
       >
         <div />
-      </VisibilityControl>
+      </VisibilityControl>,
     );
     expect(wrapper.contains(<div />)).to.equal(true);
   });

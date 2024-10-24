@@ -15,7 +15,7 @@
  */
 
 import { useState } from "react";
-import { SearchField } from "@app/components/Fields";
+import { SearchField } from "#oss/components/Fields";
 import { useIntl } from "react-intl";
 import { IconButton } from "dremio-ui-lib";
 import * as classes from "./ShrinkableSearch.module.less";
@@ -51,7 +51,7 @@ const ShrinkableSearch = ({ search, tooltip }: ShrinkableSearchProps) => {
       onClick={() => setSearchActive(true)}
       className={classes["searchButton"]}
     >
-      <dremio-icon name="interface/search" />
+      <dremio-icon name="interface/search" class="icon-primary" />
     </IconButton>
   );
 };

@@ -30,6 +30,7 @@ import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.ass
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertIcebergTableExistsAtSubPath;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasCommitForTable;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasTable;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.getSubPathFromNessieTableContent;
 
 import com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup;
 import java.util.Arrays;
@@ -52,7 +53,8 @@ public class ITDataplanePluginCtas extends ITDataplanePluginTestSetup {
     // Assert
     assertNessieHasCommitForTable(tablePath, Operation.Put.class, DEFAULT_BRANCH_NAME, this);
     assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), this);
     // Verify with select also
     assertTableHasExpectedNumRows(tablePath, 5);
 
@@ -72,7 +74,8 @@ public class ITDataplanePluginCtas extends ITDataplanePluginTestSetup {
     // Assert
     assertNessieHasCommitForTable(tablePath, Operation.Put.class, DEFAULT_BRANCH_NAME, this);
     assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), this);
     // Verify with select also
     assertTableHasExpectedNumRows(tablePath, 5);
 
@@ -94,7 +97,8 @@ public class ITDataplanePluginCtas extends ITDataplanePluginTestSetup {
     // Assert
     assertNessieHasCommitForTable(tablePath, Operation.Put.class, devBranch, this);
     assertNessieHasTable(tablePath, devBranch, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, devBranch, this), this);
   }
 
   @Test
@@ -132,7 +136,8 @@ public class ITDataplanePluginCtas extends ITDataplanePluginTestSetup {
 
     // Assert1
     // Verify iceberg manifest/avro/metadata.json files on FS
-    assertIcebergFilesExistAtSubPath(table1Path, 1, 1, 1, 1);
+    assertIcebergFilesExistAtSubPath(
+        getSubPathFromNessieTableContent(table1Path, DEFAULT_BRANCH_NAME, this), 1, 1, 1, 1, this);
 
     // Act2
     runSQL(createTableAsQuery(table2Path, 10));
@@ -140,9 +145,11 @@ public class ITDataplanePluginCtas extends ITDataplanePluginTestSetup {
 
     // Assert2
     // Verify iceberg manifest/avro/metadata.json files on FS
-    assertIcebergFilesExistAtSubPath(table2Path, 1, 1, 1, 1);
+    assertIcebergFilesExistAtSubPath(
+        getSubPathFromNessieTableContent(table2Path, DEFAULT_BRANCH_NAME, this), 1, 1, 1, 1, this);
     // Verify that table1's files are isolated from creation of table2
-    assertIcebergFilesExistAtSubPath(table1Path, 1, 1, 1, 1);
+    assertIcebergFilesExistAtSubPath(
+        getSubPathFromNessieTableContent(table1Path, DEFAULT_BRANCH_NAME, this), 1, 1, 1, 1, this);
 
     // Cleanup
     runSQL(dropTableQuery(table1Path));

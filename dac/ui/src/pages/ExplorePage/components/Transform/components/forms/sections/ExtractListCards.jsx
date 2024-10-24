@@ -16,7 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import Cards from "@app/pages/ExplorePage/components/Transform/components/Cards";
+import Cards from "#oss/pages/ExplorePage/components/Transform/components/Cards";
 import ExtractListCard from "./ExtractListCard";
 
 class ExtractListCards extends Component {

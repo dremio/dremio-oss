@@ -15,8 +15,8 @@
  */
 import { put } from "redux-saga/effects";
 
-import { log } from "@app/utils/logger";
-import { checkUser, CHECK_USER_SUCCESS } from "@app/actions/account";
+import { log } from "#oss/utils/logger";
+import { checkUser, CHECK_USER_SUCCESS } from "#oss/actions/account";
 
 export function* isAuthorized() {
   log("send request to the server to check is a user authorized");

@@ -32,8 +32,8 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
-    backgroundColor: "#fff",
-    border: "1px solid #f2f2f2",
+    backgroundColor: "var(--fill--primary)",
+    border: "1px solid var(--border--neutral)",
     cursor: "pointer",
   },
 };

@@ -121,7 +121,7 @@ export class TransformForm extends Component {
       !deepEqual(
         this.props.values.cards[this.props.values.activeCard],
         nextCardValues,
-        { strict: true }
+        { strict: true },
       );
     if (isCardsChanged) {
       this.updateCard(nextProps);
@@ -154,7 +154,7 @@ export class TransformForm extends Component {
     const { activeCard } = props.values;
     this.props.loadTransformCardPreview(
       activeCard,
-      props.values.cards[activeCard]
+      props.values.cards[activeCard],
     );
   }
 

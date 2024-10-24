@@ -47,6 +47,20 @@ class FixedSizer implements Sizer {
   }
 
   @Override
+  public int getDataLengthFromIndex(int startIndex, int numberOfEntries) {
+    int dataLen = 0;
+    int endIndex = startIndex + numberOfEntries;
+    for (; startIndex < endIndex; startIndex++) {
+      if (incoming.isNull(startIndex)) {
+        continue;
+      }
+      dataLen += (dataSizeInBits / BYTE_SIZE_BITS);
+    }
+
+    return dataLen;
+  }
+
+  @Override
   public void reset() {
     // no caching
   }

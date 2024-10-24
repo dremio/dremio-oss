@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 import clsx from "clsx";
-import { constructFullPath } from "@app/utils/pathUtils";
+import { constructFullPath } from "#oss/utils/pathUtils";
 import { useCallback, useRef } from "react";
 import Modal from "components/Modals/Modal";
 import SelectContextForm from "../../forms/SelectContextForm";
-import { TagContent } from "@app/pages/HomePage/components/BranchPicker/components/BranchPickerTag/BranchPickerTag";
+import { TagContent } from "#oss/pages/HomePage/components/BranchPicker/components/BranchPickerTag/BranchPickerTag";
 import { Spinner } from "dremio-ui-lib/components";
 import {
   getContextValue,
@@ -32,13 +32,13 @@ import { useDispatch } from "react-redux";
 import {
   resetRefs as resetRefsAction,
   type DatasetReference,
-} from "@app/actions/nessie/nessie";
+} from "#oss/actions/nessie/nessie";
 import { useSelector } from "react-redux";
-import { getHomeSource, getSortedSources } from "@app/selectors/home";
+import { getHomeSource, getSortedSources } from "#oss/selectors/home";
 import { useIsArsEnabled } from "@inject/utils/arsUtils";
-import { clearResourceTree } from "@app/actions/resources/tree";
-import { getViewState } from "@app/selectors/resources";
-import { useFilterTreeArs } from "@app/utils/datasetTreeUtils";
+import { clearResourceTree } from "#oss/actions/resources/tree";
+import { getViewState } from "#oss/selectors/resources";
+import { useFilterTreeArs } from "#oss/utils/datasetTreeUtils";
 
 type ContextPickerProps = {
   value: any;
@@ -61,14 +61,14 @@ export const ContextPicker = ({
     (refs: DatasetReference) => {
       resetRefsAction(refs)(dispatch);
     },
-    [dispatch]
+    [dispatch],
   );
 
   const isSourcesLoading = useSelector(
-    (state) => getViewState(state, "AllSources")?.get("isInProgress") ?? true
+    (state) => getViewState(state, "AllSources")?.get("isInProgress") ?? true,
   );
   const homeSource = useSelector((state) =>
-    getHomeSource(getSortedSources(state))
+    getHomeSource(getSortedSources(state)),
   );
   const nessieState = useSelector((state: any) => state.nessie);
   const [refState, refLoading] = getCtxState({

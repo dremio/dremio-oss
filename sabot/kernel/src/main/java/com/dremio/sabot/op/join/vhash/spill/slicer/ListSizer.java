@@ -59,6 +59,17 @@ public class ListSizer implements Sizer {
   }
 
   @Override
+  public int getDataLengthFromIndex(int startIndex, int numberOfEntries) {
+    int startOffset = incoming.getOffsetBuffer().getInt((long) startIndex * OFFSET_SIZE_BYTES);
+    int endOffset =
+        incoming
+            .getOffsetBuffer()
+            .getInt((long) (startIndex + numberOfEntries) * OFFSET_SIZE_BYTES);
+    final Sizer childVectorSizer = Sizer.get(incoming.getDataVector());
+    return childVectorSizer.getDataLengthFromIndex(startOffset, (endOffset - startOffset));
+  }
+
+  @Override
   public int computeBitsNeeded(
       final ArrowBuf sv2Buffer, final int startIndex, final int numberOfRecords) {
     // space to save buffer of offset values

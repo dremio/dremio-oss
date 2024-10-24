@@ -18,13 +18,13 @@ import PropTypes from "prop-types";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
 import Immutable from "immutable";
 
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
 import filterMappers from "utils/mappers/ExplorePage/Transform/filterMappers";
 import NewFieldSection from "components/Forms/NewFieldSection";
-import { getDefaultValue } from "@app/constants/DataTypes";
+import { getDefaultValue } from "#oss/constants/DataTypes";
 import Tabs from "components/Tabs";
-import { isDateType } from "@app/constants/DataTypes";
+import { isDateType } from "#oss/constants/DataTypes";
 import exploreUtils from "utils/explore/exploreUtils";
 import TransformForm, { formWrapperProps } from "../../../forms/TransformForm";
 import ReplaceFooter from "./../ReplaceFooter";
@@ -151,7 +151,7 @@ export class ReplaceRangeForm extends Component {
               type: "ReplaceRange",
               ...fieldsMappers.getReplaceRange(
                 values,
-                transform.get("columnType")
+                transform.get("columnType"),
               ),
             },
           }
@@ -159,7 +159,7 @@ export class ReplaceRangeForm extends Component {
             ...filterMappers.getCommonFilterValues(values, transform),
             filter: filterMappers.mapFilterExcludeRange(
               values,
-              transform.get("columnType")
+              transform.get("columnType"),
             ),
           };
 
@@ -234,5 +234,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(ReplaceRangeForm);

@@ -18,6 +18,7 @@ package com.dremio.exec.store.hive.exec;
 import java.io.IOException;
 import java.io.InputStream;
 
+import com.google.common.base.Preconditions;
 import org.apache.hadoop.fs.PositionedReadable;
 import org.apache.hadoop.fs.Seekable;
 
@@ -31,6 +32,7 @@ public class FSInputStreamWrapper extends InputStream implements Seekable, Posit
   private final FSInputStream fsInputStream;
 
   public FSInputStreamWrapper(FSInputStream fsInputStream) {
+    Preconditions.checkNotNull(fsInputStream);
     this.fsInputStream = fsInputStream;
   }
 
@@ -71,5 +73,10 @@ public class FSInputStreamWrapper extends InputStream implements Seekable, Posit
   public boolean seekToNewSource(long position) throws IOException {
     fsInputStream.setPosition(position);
     return true;
+  }
+
+  @Override
+  public void close() throws IOException {
+    fsInputStream.close();
   }
 }

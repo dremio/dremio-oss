@@ -43,6 +43,7 @@ import java.io.IOException;
 public class CreateParquetTableEntry
     implements CreateTableEntry, SystemIcebergTablePluginAwareCreateTableEntry {
   private final String userName;
+  private final String userId;
   private final MutablePlugin plugin;
   private final String location;
   private final WriterOptions options;
@@ -56,6 +57,7 @@ public class CreateParquetTableEntry
   @JsonCreator
   public CreateParquetTableEntry(
       @JsonProperty("userName") String userName,
+      @JsonProperty("userId") String userId,
       @JsonProperty("pluginId") StoragePluginId pluginId,
       @JsonProperty("location") String location,
       @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps,
@@ -64,6 +66,7 @@ public class CreateParquetTableEntry
       @JsonProperty("sourceTablePluginId") StoragePluginId sourceTablePluginId,
       @JacksonInject StoragePluginResolver storagePluginResolver) {
     this.userName = userName;
+    this.userId = userId;
     this.plugin = storagePluginResolver.getSource(pluginId);
     this.location = location;
     this.options = options;
@@ -90,11 +93,12 @@ public class CreateParquetTableEntry
       IcebergTableProps icebergTableProps,
       WriterOptions options,
       NamespaceKey datasetPath) {
-    this(userName, plugin, location, icebergTableProps, options, datasetPath, null);
+    this(userName, null, plugin, location, icebergTableProps, options, datasetPath, null);
   }
 
   public CreateParquetTableEntry(
       String userName,
+      final String userId,
       MutablePlugin plugin,
       String location,
       IcebergTableProps icebergTableProps,
@@ -102,6 +106,7 @@ public class CreateParquetTableEntry
       NamespaceKey datasetPath,
       StoragePluginId sourceTablePluginId) {
     this.userName = userName;
+    this.userId = userId;
     this.plugin = plugin;
     this.location = location;
     this.options = options;
@@ -146,6 +151,11 @@ public class CreateParquetTableEntry
   @Override
   public String getUserName() {
     return userName;
+  }
+
+  @Override
+  public String getUserId() {
+    return userId;
   }
 
   @Override

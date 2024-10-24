@@ -46,13 +46,13 @@ public class TestViewCreator extends BaseTestServer {
     JobsService jobsService = l(JobsService.class);
 
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
             .buildPost(
                 Entity.json(new com.dremio.dac.api.Space(null, "mySpace", null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
 
     expectSuccess(
-        getBuilder(getAPIv2().path("space/mySpace/folder/"))
+        getBuilder(getHttpClient().getAPIv2().path("space/mySpace/folder/"))
             .buildPost(Entity.json("{\"name\": \"myFolder\"}")),
         Folder.class);
 
@@ -98,13 +98,13 @@ public class TestViewCreator extends BaseTestServer {
   @Test
   public void createQueryDDLSql() {
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
             .buildPost(
                 Entity.json(new com.dremio.dac.api.Space(null, "mySpace", null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
 
     expectSuccess(
-        getBuilder(getAPIv2().path("space/mySpace/folder/"))
+        getBuilder(getHttpClient().getAPIv2().path("space/mySpace/folder/"))
             .buildPost(Entity.json("{\"name\": \"myFolder\"}")),
         Folder.class);
 

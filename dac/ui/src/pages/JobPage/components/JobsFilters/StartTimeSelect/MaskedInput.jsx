@@ -79,7 +79,7 @@ class MaskedInput extends PureComponent {
       const daysInCurrentMonth = new Date(
         yearInProps,
         monthInProps,
-        0
+        0,
       ).getDate();
 
       stateHasIncorrectValue =
@@ -169,7 +169,7 @@ class MaskedInput extends PureComponent {
       {
         inputsList,
       },
-      callBack
+      callBack,
     );
   }
 
@@ -211,7 +211,7 @@ class MaskedInput extends PureComponent {
           showPlaceholder: placeholdersList[index] === valueList[index],
           separator,
         });
-      })
+      }),
     );
     return {
       inputsList,

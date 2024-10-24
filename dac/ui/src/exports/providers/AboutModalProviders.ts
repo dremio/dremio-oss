@@ -17,14 +17,14 @@
 import { useEffect } from "react";
 import { useResourceSnapshot } from "smart-resource1/react";
 
-import { BuildInfoResource } from "@app/exports/resources/BuildInfoResource";
-import { DailyJobStatsResource } from "@app/exports/resources/DailyJobStatsResource";
-import { JobsAndUsersResource } from "@app/exports/resources/JobsAndUsersResource";
-import { UserStatsResource } from "@app/exports/resources/UserStatsResource";
-import { USE_NEW_STATS_API } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { useSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { BuildInfoResource } from "#oss/exports/resources/BuildInfoResource";
+import { DailyJobStatsResource } from "#oss/exports/resources/DailyJobStatsResource";
+import { JobsAndUsersResource } from "#oss/exports/resources/JobsAndUsersResource";
+import { UserStatsResource } from "#oss/exports/resources/UserStatsResource";
+import { USE_NEW_STATS_API } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import { useSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
 
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 
 const NUM_DAYS = 7;
 const START = moment().subtract(NUM_DAYS, "days").unix() * 1000;

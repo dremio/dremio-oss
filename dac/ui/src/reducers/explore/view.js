@@ -38,8 +38,8 @@ import {
   WAIT_FOR_JOB_RESULTS,
   SET_EXPLORE_TABLE_LOADING,
   SET_EDITOR_CONTENTS,
-} from "@app/actions/explore/view";
-import { isLoaded } from "@app/reducers/reducerFactories";
+} from "#oss/actions/explore/view";
+import { isLoaded } from "#oss/reducers/reducerFactories";
 import { combineReducers } from "redux";
 import {
   SELECT_ACTIVE_SCRIPT,
@@ -47,7 +47,7 @@ import {
   REPLACE_SCRIPT_CONTENTS,
   REMOVE_TAB_VIEW,
   SET_TAB_VIEW,
-} from "@app/actions/resources/scripts";
+} from "#oss/actions/resources/scripts";
 
 export const EXPLORE_VIEW_ID = "EXPLORE_VIEW_ID";
 export const EXPLORE_TABLE_ID = "EXPLORE_TABLE_ID";

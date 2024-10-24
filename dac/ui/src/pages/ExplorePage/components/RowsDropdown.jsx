@@ -71,7 +71,7 @@ class RowsDropdown extends PureComponent {
           onClick={this.setCurrentValue.bind(this, i * STEP)}
         >
           {i * STEP} rows
-        </div>
+        </div>,
       );
     }
     return items;

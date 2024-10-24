@@ -17,27 +17,27 @@
 import { useMemo, useState } from "react";
 import { useIntl } from "react-intl";
 import { type WithRouterProps } from "react-router";
-import PageBreadcrumbHeader from "@app/pages/NessieHomePage/components/PageBreadcrumbHeader/PageBreadcrumbHeader";
+import PageBreadcrumbHeader from "#oss/pages/NessieHomePage/components/PageBreadcrumbHeader/PageBreadcrumbHeader";
 import VersionedPageCommitsTable from "./VersionedPageCommitsTable";
 import {
   constructVersionedEntityUrl,
   parseVersionedEntityUrl,
   useVersionedPageContext,
-} from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
+} from "#oss/exports/pages/VersionedHomePage/versioned-page-utils";
 import { Spinner } from "dremio-ui-lib/components";
-import { SearchField } from "@app/components/Fields";
-import { VersionedPageTabsType } from "@app/exports/pages/VersionedHomePage/VersionedHomePage";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import { SearchField } from "#oss/components/Fields";
+import { VersionedPageTabsType } from "#oss/exports/pages/VersionedHomePage/VersionedHomePage";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
 import { useVersionedPageCommits } from "./utils/useVersionedPageCommits";
-import { isSmartFetchLoading } from "@app/utils/isSmartFetchLoading";
+import { isSmartFetchLoading } from "#oss/utils/isSmartFetchLoading";
 import { debounce } from "lodash";
 import { getGoToDataButton } from "./utils/utils";
-import { LogEntryV2 as LogEntry } from "@app/services/nessie/client/index";
+import { LogEntryV2 as LogEntry } from "#oss/services/nessie/client/index";
 import { useDispatch } from "react-redux";
-import { setReference } from "@app/actions/nessie/nessie";
+import { setReference } from "#oss/actions/nessie/nessie";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
-import * as headerClasses from "@app/exports/pages/VersionedHomePage/components/VersionedPageTableHeader/VersionedPageTableHeader.module.less";
+import * as headerClasses from "#oss/exports/pages/VersionedHomePage/components/VersionedPageTableHeader/VersionedPageTableHeader.module.less";
 import * as classes from "./VersionedPageCommits.module.less";
 
 type VersionedPageCommitsProps = WithRouterProps;

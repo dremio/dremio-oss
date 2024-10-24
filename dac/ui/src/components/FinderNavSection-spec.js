@@ -17,7 +17,7 @@ import { shallow } from "enzyme";
 
 import Immutable from "immutable";
 
-import FinderNavItem from "@app/components/FinderNavItem";
+import FinderNavItem from "#oss/components/FinderNavItem";
 import FinderNavSection from "./FinderNavSection";
 
 describe("FinderNavSection", () => {
@@ -44,14 +44,14 @@ describe("FinderNavSection", () => {
     wrapper = shallow(<FinderNavSection {...commonProps} maxItemsCount={2} />);
     expect(wrapper.find(".show-more-btn")).to.have.length(1);
     expect(wrapper.find(".show-more-btn").props().children).to.equal(
-      "Show All (3) »"
+      "Show All (3) »",
     );
     expect(wrapper.find(FinderNavItem)).to.have.length(2);
   });
 
   it("without hidden items", () => {
     const wrapper = shallow(
-      <FinderNavSection {...commonProps} maxItemsCount={100} />
+      <FinderNavSection {...commonProps} maxItemsCount={100} />,
     );
     expect(wrapper.find(".show-more-btn")).have.length(0);
     expect(wrapper.find(FinderNavItem)).have.length(commonProps.items.size);

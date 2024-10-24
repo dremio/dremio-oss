@@ -146,11 +146,9 @@ public class TestIcebergSnapshotFunction extends IcebergMetadataTestTable {
     int minBatchSize = 4;
 
     try (AutoCloseable closeableForMinSetting =
-        setSystemOptionWithAutoReset(
-            TARGET_BATCH_RECORDS_MIN.getOptionName(), Integer.toString(minBatchSize))) {
+        withSystemOption(TARGET_BATCH_RECORDS_MIN, minBatchSize)) {
       try (AutoCloseable closeableForMaxSetting =
-          setSystemOptionWithAutoReset(
-              TARGET_BATCH_RECORDS_MAX.getOptionName(), Integer.toString(maxBatchSize))) {
+          withSystemOption(TARGET_BATCH_RECORDS_MAX, maxBatchSize)) {
         for (int i = 0; i < numberOfNewSnapshots; ++i) {
           // note: table is reset after each test case
           String insertCommand =

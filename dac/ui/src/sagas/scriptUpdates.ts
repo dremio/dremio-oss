@@ -19,23 +19,23 @@ import {
   POLL_SCRIPT_JOBS,
   REFRESH_SCRIPTS_RESOURCE,
   REPLACE_SCRIPT_CONTENTS,
-} from "@app/actions/resources/scripts";
+} from "#oss/actions/resources/scripts";
 import { replaceScript } from "dremio-ui-common/sonar/scripts/endpoints/replaceScript.js";
-import { store } from "@app/store/store";
-import { getQueryStatuses } from "@app/selectors/jobs";
+import { store } from "#oss/store/store";
+import { getQueryStatuses } from "#oss/selectors/jobs";
 import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
 import { doJobFetch } from "./performTransform";
-import { setQueryStatuses } from "@app/actions/explore/view";
-import { resetViewState } from "@app/actions/resources";
-import { EXPLORE_VIEW_ID } from "@app/reducers/explore/view";
+import { setQueryStatuses } from "#oss/actions/explore/view";
+import { resetViewState } from "#oss/actions/resources";
+import { EXPLORE_VIEW_ID } from "#oss/reducers/explore/view";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
 import { isEqual } from "lodash";
 import { NotFoundError } from "dremio-ui-common/errors/NotFoundError";
-import { EXPLORE_PAGE_LOCATION_CHANGED } from "@app/actions/explore/dataset/data";
-import { getImmutableTable } from "@app/selectors/explore";
-import { getJobSummaries } from "@app/selectors/exploreJobs";
-import { JobState } from "@app/utils/jobsUtils";
-import { deleteQuerySelectionsFromStorage } from "@app/sagas/utils/querySelections";
+import { EXPLORE_PAGE_LOCATION_CHANGED } from "#oss/actions/explore/dataset/data";
+import { getImmutableTable } from "#oss/selectors/explore";
+import { getJobSummaries } from "#oss/selectors/exploreJobs";
+import { JobState } from "#oss/utils/jobsUtils";
+import { deleteQuerySelectionsFromStorage } from "#oss/sagas/utils/querySelections";
 
 const logger = getLoggingContext().createLogger("sagas/scriptUpdates");
 

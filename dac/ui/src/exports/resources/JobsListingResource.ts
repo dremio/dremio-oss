@@ -18,7 +18,7 @@ import { SmartResource } from "smart-resource1";
 import { listJobs } from "../endpoints/JobsListing/listJobs";
 import moize from "moize";
 import { JobsQueryParams } from "dremio-ui-common/types/Jobs.types";
-import { formatJobsBackendQuery } from "@app/pages/JobsPage/jobs-page-utils";
+import { formatJobsBackendQuery } from "#oss/pages/JobsPage/jobs-page-utils";
 import { PollingResource } from "../utilities/PollingResource";
 
 export const jobsCache = moize.promise(listJobs, {
@@ -29,7 +29,7 @@ export const jobsCache = moize.promise(listJobs, {
 
 const paginatedJobsFetcher = async (
   pageCount: number,
-  query: JobsQueryParams
+  query: JobsQueryParams,
 ) => {
   let result;
   let next = null;
@@ -77,5 +77,5 @@ export const JobsPollingResource = new PollingResource(
       }),
       pageToken: { limit: 100 },
     }),
-  { pollingInterval: 5000 }
+  { pollingInterval: 5000 },
 );

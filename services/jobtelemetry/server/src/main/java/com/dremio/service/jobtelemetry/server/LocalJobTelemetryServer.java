@@ -19,11 +19,16 @@ package com.dremio.service.jobtelemetry.server;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableExecutorService;
 import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.options.OptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.service.Service;
 import com.dremio.service.grpc.GrpcServerBuilderFactory;
 import com.dremio.service.jobtelemetry.JobTelemetryRpcUtils;
+import com.dremio.service.jobtelemetry.server.store.LegacyLocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
 import com.dremio.telemetry.utils.GrpcTracerFacade;
@@ -35,10 +40,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Local job telemetry server, running on coordinator node. */
+@Options
 public class LocalJobTelemetryServer implements Service {
   private static final Logger logger = LoggerFactory.getLogger(LocalJobTelemetryServer.class);
+  public static final BooleanValidator ENABLE_INTERMEDIATE_PROFILE_BLOB_STORAGE =
+      new BooleanValidator("intermediate.profile.blob.storage", false);
+  private Provider<OptionManager> optionManagerProvider;
   private final GrpcServerBuilderFactory grpcFactory;
-  private final Provider<LegacyKVStoreProvider> kvStoreProvider;
+  private final Provider<LegacyKVStoreProvider> legacyKvStoreProvider;
+  private final Provider<KVStoreProvider> kvStoreProvider;
   private final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint;
   private final Function<String, CloseableExecutorService> executorServiceFactory;
   private ContextMigratingCloseableExecutorService executorService;
@@ -48,21 +58,30 @@ public class LocalJobTelemetryServer implements Service {
   private Server server;
 
   public LocalJobTelemetryServer(
+      Provider<OptionManager> optionManagerProvider,
       GrpcServerBuilderFactory grpcServerBuilderFactory,
-      Provider<LegacyKVStoreProvider> kvStoreProvider,
+      Provider<KVStoreProvider> kvStoreProvider,
+      Provider<LegacyKVStoreProvider> legacyKvStoreProvider,
       Provider<CoordinationProtos.NodeEndpoint> selfEndpoint,
       GrpcTracerFacade tracer,
       Function<String, CloseableExecutorService> executorServiceFactory) {
     this.grpcFactory = grpcServerBuilderFactory;
     this.kvStoreProvider = kvStoreProvider;
+    this.legacyKvStoreProvider = legacyKvStoreProvider;
     this.selfEndpoint = selfEndpoint;
     this.tracer = tracer;
     this.executorServiceFactory = executorServiceFactory;
+    this.optionManagerProvider = optionManagerProvider;
   }
 
   @Override
   public void start() throws Exception {
-    profileStore = new LocalProfileStore(kvStoreProvider.get());
+    boolean enableKVstoreProfileStorage =
+        optionManagerProvider.get().getOption(ENABLE_INTERMEDIATE_PROFILE_BLOB_STORAGE);
+    profileStore =
+        enableKVstoreProfileStorage
+            ? new LocalProfileStore(kvStoreProvider.get())
+            : new LegacyLocalProfileStore(legacyKvStoreProvider.get());
     profileStore.start();
 
     executorService =

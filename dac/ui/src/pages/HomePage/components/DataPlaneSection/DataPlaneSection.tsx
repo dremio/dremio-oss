@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 import { useIntl } from "react-intl";
-import FinderNav from "@app/components/FinderNav";
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
+import FinderNav from "#oss/components/FinderNav";
+import ViewStateWrapper from "#oss/components/ViewStateWrapper";
 import SourceBranchPicker from "../SourceBranchPicker/SourceBranchPicker";
-import { spacesSourcesListSpinnerStyleFinderNav } from "@app/pages/HomePage/HomePageConstants";
+import { spacesSourcesListSpinnerStyleFinderNav } from "#oss/pages/HomePage/HomePageConstants";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
@@ -48,7 +48,7 @@ function DataPlaneSection({
     ? commonPaths.arctic.link({
         projectId: getSonarContext()?.getSelectedProjectId?.(),
       })
-    : commonPaths.nessie.link({});
+    : commonPaths.lakehouse.link({});
   return (
     <div
       className="left-tree-wrap"
@@ -71,12 +71,12 @@ function DataPlaneSection({
           title={intl.formatMessage({
             id: hasProjectId
               ? "Source.ArcticCatalogs"
-              : "Source.NessieCatalogs",
+              : "Source.LakehouseCatalogs",
           })}
           addTooltip={intl.formatMessage({
             id: hasProjectId
               ? "Source.AddArcticCatalog"
-              : "Source.AddNessieCatalog",
+              : "Source.AddLakehouse",
           })}
           isInProgress={sourcesViewState.get("isInProgress")}
           addHref={addHref}

@@ -171,9 +171,18 @@ Sources.Settings.SecretStore.ProviderLabel.DREMIO: Dremio
 Sources.Settings.SecretStore.ProviderLabel.NONE: Select a provider
 Sources.Settings.SecretStore.Placeholder: Insert your private key
 
-AccountSettings.AppearancePicker.Title: Appearance
-AccountSettings.AppearancePicker.Description: Choose if Dremio’s appearance should be light, dark, or follow your device’s settings. Some themes are in preview and may have inconsistencies.
+AccountSettings.AppearancePicker.Common.Description: Any changes here will only apply to your account. You may need to refresh your browser for changes to take effect.
+AccountSettings.AppearancePicker.Title: Theme
+AccountSettings.AppearancePicker.Description: Choose between light, dark, or device-responsive themes for your Dremio experience.
 AccountSettings.AppearancePicker.ThemeTitle.LIGHT: Light
 AccountSettings.AppearancePicker.ThemeTitle.DARK: Dark
-AccountSettings.AppearancePicker.ThemeTitle.HIGH_CONTRAST_LIGHT: High contrast
-AccountSettings.AppearancePicker.ThemeTitle.AUTO_SYSTEM: System
+AccountSettings.AppearancePicker.ThemeTitle.AUTO_SYSTEM: Device-responsive
+
+Common.ModifierKey.CMD.Short: Cmd
+Common.ModifierKey.CMD.Long: Command
+Common.ModifierKey.CMD.Symbol: ⌘
+Common.ModifierKey.CMD.Combo: ⌘{key}
+Common.ModifierKey.CTRL.Short: Ctrl
+Common.ModifierKey.CTRL.Long: Control
+Common.ModifierKey.CTRL.Symbol: ^
+Common.ModifierKey.CTRL.Combo: Ctrl + {key}

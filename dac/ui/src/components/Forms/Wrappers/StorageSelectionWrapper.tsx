@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { DATAPLANE_STORAGE_SELECTION_UI_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { useSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { DATAPLANE_STORAGE_SELECTION_UI_ENABLED } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 import ContainerSelection from "components/Forms/ContainerSelection";
 
 export default function StorageSelectionWrapper({
@@ -27,7 +27,7 @@ export default function StorageSelectionWrapper({
   fields: Record<string, any>;
 }) {
   const [enabled, loading] = useSupportFlag(
-    DATAPLANE_STORAGE_SELECTION_UI_ENABLED
+    DATAPLANE_STORAGE_SELECTION_UI_ENABLED,
   );
 
   return (

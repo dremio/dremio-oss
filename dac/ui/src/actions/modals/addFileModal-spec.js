@@ -17,7 +17,7 @@ import { expect } from "chai";
 import Immutable from "immutable";
 import { RSAA } from "redux-api-middleware";
 
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import * as Actions from "./addFileModal";
 
 describe("addFileModal actions", () => {

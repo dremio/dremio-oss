@@ -26,6 +26,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.scheduler.Schedule;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import java.time.Clock;
 import java.time.LocalTime;
 import java.util.Random;
@@ -37,19 +38,22 @@ public class CatalogMaintenanceRunnableProvider {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(CatalogMaintenanceRunnableProvider.class);
 
-  private static final String LOCAL_TASK_LEADER_NAME = "catalog_maintenance";
+  private static final String LOCAL_TASK_LEADER_NAME_FORMAT = "catalog_maintenance_%s";
 
   private final Provider<OptionManager> optionManagerProvider;
   private final KVStoreProvider storeProvider;
   private final Provider<NamespaceService> namespaceServiceProvider;
+  private final ImmutableSet<String> versionedSourceTypes;
 
   public CatalogMaintenanceRunnableProvider(
       Provider<OptionManager> optionManagerProvider,
       KVStoreProvider storeProvider,
-      Provider<NamespaceService> namespaceServiceProvider) {
+      Provider<NamespaceService> namespaceServiceProvider,
+      ImmutableSet<String> versionedSourceTypes) {
     this.optionManagerProvider = optionManagerProvider;
     this.storeProvider = storeProvider;
     this.namespaceServiceProvider = namespaceServiceProvider;
+    this.versionedSourceTypes = versionedSourceTypes;
   }
 
   public ImmutableList<CatalogMaintenanceRunnable> get(long randomSeed) {
@@ -67,33 +71,56 @@ public class CatalogMaintenanceRunnableProvider {
     return ImmutableList.of(
         CatalogMaintenanceRunnable.builder()
             .setName("DeleteDatasetOrphans")
-            .setSchedule(makeDailySchedule(deleteOrphansTime))
+            .setSchedule(makeDailySchedule(deleteOrphansTime, 0, "delete_dataset_orphans"))
             .setRunnable(
-                () ->
+                () -> {
+                  try {
                     DatasetVersionMutator.deleteOrphans(
                         optionManagerProvider,
                         storeProvider.getStore(DatasetVersionMutator.VersionStoreCreator.class),
-                        (int) optionManager.getOption(ExecConstants.JOB_MAX_AGE_IN_DAYS)))
+                        (int) optionManager.getOption(ExecConstants.JOB_MAX_AGE_IN_DAYS));
+                  } catch (Exception e) {
+                    logger.error("Failed to run DatasetVersionMutator.deleteOrphans", e);
+                  }
+                })
             .build(),
         CatalogMaintenanceRunnable.builder()
             .setName("TrimVersions")
-            .setSchedule(makeDailySchedule(trimVersionsTime))
+            .setSchedule(
+                makeDailySchedule(
+                    trimVersionsTime,
+                    optionManager.getOption(
+                        NamespaceOptions.DATASET_VERSIONS_TRIMMER_SCHEDULE_SECONDS),
+                    "trim_dataset_versions"))
             .setRunnable(
-                () ->
+                () -> {
+                  try {
                     DatasetVersionTrimmer.trimHistory(
                         Clock.systemUTC(),
                         storeProvider.getStore(DatasetVersionMutator.VersionStoreCreator.class),
                         namespaceServiceProvider.get(),
+                        versionedSourceTypes,
                         (int) optionManager.getOption(NamespaceOptions.DATASET_VERSIONS_LIMIT),
-                        minAgeInDays))
+                        minAgeInDays);
+                  } catch (Exception e) {
+                    logger.error("Failed to run DatasetVersionTrimmer.trimHistory", e);
+                  }
+                })
             .build());
   }
 
-  private static Schedule makeDailySchedule(LocalTime time) {
-    return Schedule.Builder.everyDays(1, time)
-        .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
-        .releaseOwnershipAfter(1, TimeUnit.DAYS)
-        .build();
+  private static Schedule makeDailySchedule(LocalTime time, long everySeconds, String nameSuffix) {
+    if (everySeconds != 0 && everySeconds != 24 * 3600) {
+      return Schedule.Builder.everySeconds(everySeconds)
+          .asClusteredSingleton(String.format(LOCAL_TASK_LEADER_NAME_FORMAT, nameSuffix))
+          .releaseOwnershipAfter(1, TimeUnit.DAYS)
+          .build();
+    } else {
+      return Schedule.Builder.everyDays(1, time)
+          .asClusteredSingleton(String.format(LOCAL_TASK_LEADER_NAME_FORMAT, nameSuffix))
+          .releaseOwnershipAfter(1, TimeUnit.DAYS)
+          .build();
+    }
   }
 
   private static LocalTime fromDayFraction(double fraction) {

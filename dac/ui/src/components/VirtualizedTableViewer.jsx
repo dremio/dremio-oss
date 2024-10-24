@@ -21,15 +21,15 @@ import Draggable from "react-draggable";
 import classNames from "clsx";
 import Immutable, { List } from "immutable";
 
-import { humanSorter, getSortValue } from "@app/utils/sort";
+import { humanSorter, getSortValue } from "#oss/utils/sort";
 import { stopPropagation } from "../utils/reactEventUtils";
 import {
   getSortIconName,
   SortDirection,
-} from "@app/components/Table/TableUtils";
+} from "#oss/components/Table/TableUtils";
 import { virtualizedRow } from "./VirtualizedTableViewer.less";
-import { intl } from "@app/utils/intl";
-import "@app/components/Table/TableHeader.less";
+import { intl } from "#oss/utils/intl";
+import "#oss/components/Table/TableHeader.less";
 
 const ROW_HEIGHT = 30;
 const HEADER_HEIGHT = 30;

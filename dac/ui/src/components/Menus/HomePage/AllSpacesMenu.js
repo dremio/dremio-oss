@@ -22,7 +22,7 @@ import { compose } from "redux";
 
 import { removeSpace } from "actions/resources/spaces";
 import AllSpacesMenuMixin from "dyn-load/components/Menus/HomePage/AllSpacesMenuMixin";
-import { getSpaceVersion, getSpaceName } from "@app/selectors/home";
+import { getSpaceVersion, getSpaceName } from "#oss/selectors/home";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
@@ -101,5 +101,5 @@ export class AllSpacesMenu extends PureComponent {
 
 export default compose(
   connect(mapStateToProps, mapDispatchToProps),
-  withRouter
+  withRouter,
 )(AllSpacesMenu);

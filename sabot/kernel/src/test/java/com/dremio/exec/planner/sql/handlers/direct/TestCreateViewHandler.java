@@ -101,7 +101,7 @@ public class TestCreateViewHandler extends DremioTest {
 
   private static final CatalogEntityKey RESOLVED_CATALOG_ENTITY_VIEW_KEY =
       CatalogEntityKey.newBuilder()
-          .keyComponents(Arrays.asList(DEFAULT_SOURCE_NAME, VIEW_PATH))
+          .keyComponents(DEFAULT_SOURCE_NAME, VIEW_PATH)
           .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
           .build();
   private static final NamespaceKey DEFAULT_SCHEMA = DEFAULT_SOURCE_KEY;

@@ -67,19 +67,19 @@ describe("pathUtils", () => {
 
     it("should return source name with folders", () => {
       expect(parseResourceId("/source/foo/folder/f1/f2", "@test_user")).to.eql(
-        '"foo"."f1"."f2"'
+        '"foo"."f1"."f2"',
       );
     });
 
     it("should return username for home path with folder", () => {
       expect(
-        parseResourceId("/home/@test_user/folder/ff", "@test_user")
+        parseResourceId("/home/@test_user/folder/ff", "@test_user"),
       ).to.eql('"@test_user"."ff"');
     });
 
     it("should handle folders with dot in name", () => {
       expect(
-        parseResourceId("/home/@test_user/folder/with.dot", "@test_user")
+        parseResourceId("/home/@test_user/folder/with.dot", "@test_user"),
       ).to.eql('"@test_user"."with.dot"');
     });
   });
@@ -101,16 +101,16 @@ describe("pathUtils", () => {
 
     it("should not be quoted pathParts if preventQuoted=true", () => {
       expect(constructFullPath(["Tphc-Sample", "ds3"], true)).to.eql(
-        "Tphc-Sample.ds3"
+        "Tphc-Sample.ds3",
       );
     });
 
     it("should be quoted if token of path is SQL word", () => {
       expect(constructFullPath(["TphcSample", "INSERT"])).to.eql(
-        'TphcSample."INSERT"'
+        'TphcSample."INSERT"',
       );
       expect(constructFullPath(["TphcSample", "insert"])).to.eql(
-        'TphcSample."insert"'
+        'TphcSample."insert"',
       );
     });
 
@@ -120,13 +120,13 @@ describe("pathUtils", () => {
 
     it("should be quoted if token of path start with a number", () => {
       expect(constructFullPath(["Tphc-Sample", "2ds1"])).to.eql(
-        '"Tphc-Sample"."2ds1"'
+        '"Tphc-Sample"."2ds1"',
       );
     });
 
     it("should encode path if we have shouldEncode=true", () => {
       expect(constructFullPath(["Tphc-Sample"], false, true)).to.eql(
-        "%22Tphc-Sample%22"
+        "%22Tphc-Sample%22",
       );
     });
 
@@ -154,13 +154,13 @@ describe("pathUtils", () => {
   describe("getInitialResourceLocation", () => {
     it('should return location as "@dremio" if fullPath is undefined', () => {
       expect(
-        getInitialResourceLocation(undefined, "VIRTUAL_DATASET", "dremio")
+        getInitialResourceLocation(undefined, "VIRTUAL_DATASET", "dremio"),
       ).to.eql('"@dremio"');
     });
 
     it('should return location as "@dremio" if fullPath[0] is tmp', () => {
       expect(getInitialResourceLocation(["tmp"], "DATASET", "dremio")).to.eql(
-        '"@dremio"'
+        '"@dremio"',
       );
     });
 
@@ -169,8 +169,8 @@ describe("pathUtils", () => {
         getInitialResourceLocation(
           ["Prod-Sample"],
           "PHYSICAL_DATASET",
-          "dremio"
-        )
+          "dremio",
+        ),
       ).to.eql('"@dremio"');
     });
 
@@ -180,8 +180,8 @@ describe("pathUtils", () => {
         getInitialResourceLocation(
           ["Prod-Sample", "ds1"],
           "VIRTUAL_DATASET",
-          "dremio"
-        )
+          "dremio",
+        ),
       ).to.eql('"Prod-Sample".ds1');
     });
 
@@ -191,8 +191,8 @@ describe("pathUtils", () => {
         getInitialResourceLocation(
           ["Prod-Sample", "ds1"],
           "PHYSICAL_DATASET_HOME_FILE",
-          "dremio"
-        )
+          "dremio",
+        ),
       ).to.eql('"Prod-Sample".ds1');
     });
   });
@@ -200,7 +200,7 @@ describe("pathUtils", () => {
   describe("getUniqueName", () => {
     it("should return passed in name if it is unique", () => {
       expect(getUniqueName("unique", (name) => ![].includes(name))).to.eql(
-        "unique"
+        "unique",
       );
     });
 
@@ -208,8 +208,8 @@ describe("pathUtils", () => {
       expect(
         getUniqueName(
           "name",
-          (name) => !["name", "name (1)", "name (2)"].includes(name)
-        )
+          (name) => !["name", "name (1)", "name (2)"].includes(name),
+        ),
       ).to.eql("name (3)");
     });
   });

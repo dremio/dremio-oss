@@ -24,16 +24,16 @@ import {
   REMOVE_ENTRY,
   RESET_REFS,
   SET_REFERENCES_LIST,
-} from "@app/actions/nessie/nessie";
-import { ARCTIC_STATE_PREFIX, NESSIE_REF_PREFIX } from "@app/constants/nessie";
-import { NessieRootState, NessieState } from "@app/types/nessie";
+} from "#oss/actions/nessie/nessie";
+import { ARCTIC_STATE_PREFIX, NESSIE_REF_PREFIX } from "#oss/constants/nessie";
+import { NessieRootState, NessieState } from "#oss/types/nessie";
 import nessieErrorReducer from "./nessieErrorReducer";
 import nessieLoadingReducer from "./nessieLoadingReducer";
 import { initializeDatasetRefs, initializeRefState } from "./utils";
 import {
   convertReferencesListToRootState,
   getStateRefsOmitted,
-} from "@app/utils/nessieUtils";
+} from "#oss/utils/nessieUtils";
 
 export const initialState: NessieState = {
   defaultReference: null,
@@ -46,7 +46,7 @@ export const initialState: NessieState = {
 
 function nessieReducer(
   oldState = initialState,
-  action: NessieActionTypes
+  action: NessieActionTypes,
 ): NessieState {
   let state = oldState;
   const loadingState = nessieLoadingReducer(state.loading, action); //Automatically handles loading flags for req,success,failure
@@ -85,7 +85,7 @@ function nessieReducer(
 //Map: sourceId -> NessieState
 function nessieRootReducer(
   state = {} as NessieRootState,
-  action: NessieActionTypes | NessieRootActionTypes
+  action: NessieActionTypes | NessieRootActionTypes,
 ): NessieRootState {
   const { type } = action;
   if (!type.startsWith("NESSIE_")) {

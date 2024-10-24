@@ -36,6 +36,7 @@ import com.google.common.base.Defaults;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Sets;
 import io.protostuff.ByteString;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
@@ -47,11 +48,13 @@ import java.io.ObjectOutput;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.inject.Provider;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -264,6 +267,80 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
       }
     }
     return countEncryptionHappen;
+  }
+
+  /**
+   * Calls the SecretsCreator to clean up any encrypted secrets found in this conf. This should
+   * happen failing to create a conf.
+   *
+   * @param secretsCreator the SecretCreator used when creating this conf.
+   * @return the number of secrets that have been deleted.
+   */
+  public int deleteSecrets(SecretsCreator secretsCreator) {
+    return deleteSecretsExcept(secretsCreator, Sets.newHashSet());
+  }
+
+  /**
+   * Calls the SecretsCreator to clean up any encrypted secrets found in this conf, excluding
+   * secrets found in the other given conf. This should happen after updating an existing conf.
+   *
+   * @param secretsCreator the SecretCreator used when creating or updating this conf.
+   * @param newConf the conf containing secrets still in use.
+   * @return the number of secrets that have been deleted.
+   */
+  public int deleteSecretsExcept(SecretsCreator secretsCreator, ConnectionConf newConf) {
+    // Fetch all secrets in the new config first, to exclude them from deletion.
+    final Set<URI> secretsInUse = Sets.newHashSet();
+    for (Field field : FieldUtils.getAllFields(newConf.getClass())) {
+      if (field.getType().equals(SecretRef.class)) {
+        try {
+          final SecretRef secretRef = (SecretRef) field.get(newConf);
+          final URI secretUri = SecretRef.getURI(secretRef);
+          if (SecretRef.isNullOrEmpty(secretRef)
+              || secretUri == null
+              || !secretsCreator.isEncrypted(secretUri.toString())) {
+            continue;
+          }
+
+          secretsInUse.add(secretUri);
+        } catch (IllegalAccessException e) {
+          throw Throwables.propagate(e);
+        }
+      }
+    }
+
+    return deleteSecretsExcept(secretsCreator, secretsInUse);
+  }
+
+  /**
+   * Helper for deleting secrets, which deletes all secrets except the ones in the given set.
+   *
+   * @return the number of secrets that have been deleted.
+   */
+  private int deleteSecretsExcept(SecretsCreator secretsCreator, Set<URI> secretsInUse) {
+    // Delete all secrets in this config, if they aren't present in the new config.
+    int countDeletions = 0;
+    for (Field field : FieldUtils.getAllFields(getClass())) {
+      if (field.getType().equals(SecretRef.class)) {
+        try {
+          final SecretRef secretRef = (SecretRef) field.get(this);
+          final URI secretUri = SecretRef.getURI(secretRef);
+          if (SecretRef.isNullOrEmpty(secretRef)
+              || secretUri == null
+              || !secretsCreator.isEncrypted(secretUri.toString())) {
+            continue;
+          }
+
+          if (!secretsInUse.contains(secretUri)) {
+            countDeletions += secretsCreator.cleanup(secretUri) ? 1 : 0;
+          }
+        } catch (IllegalAccessException e) {
+          throw Throwables.propagate(e);
+        }
+      }
+    }
+
+    return countDeletions;
   }
 
   /**

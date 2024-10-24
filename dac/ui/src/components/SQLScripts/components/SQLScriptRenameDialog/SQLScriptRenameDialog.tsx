@@ -31,10 +31,10 @@ import {
 } from "dremio-ui-common/sonar/scripts/endpoints/replaceScript.js";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
 import { useForm } from "react-hook-form";
-import Message from "@app/components/Message";
-import { fetchAllAndMineScripts } from "@app/components/SQLScripts/sqlScriptsUtils";
-import { fetchScripts, setActiveScript } from "@app/actions/resources/scripts";
-import { store } from "@app/store/store";
+import Message from "#oss/components/Message";
+import { fetchAllAndMineScripts } from "#oss/components/SQLScripts/sqlScriptsUtils";
+import { fetchScripts, setActiveScript } from "#oss/actions/resources/scripts";
+import { store } from "#oss/store/store";
 
 import * as classes from "./SQLScriptRenameDialog.module.less";
 import {

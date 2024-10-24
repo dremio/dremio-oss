@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 import { selectUnit } from "@formatjs/intl-utils";
 import { intl } from "./intl";
 
@@ -34,7 +34,7 @@ export function formatDate(date: string, format = DEFAULT_FORMAT) {
 export function formatDateSince(
   date: string,
   format = DEFAULT_FORMAT,
-  daysAgo = 6
+  daysAgo = 6,
 ) {
   const limit = moment().subtract(daysAgo, "days").startOf("day");
   const wrappedDate = moment(date);

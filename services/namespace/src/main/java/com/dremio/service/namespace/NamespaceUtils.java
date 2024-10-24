@@ -120,6 +120,10 @@ public final class NamespaceUtils {
     }
   }
 
+  public static NamespaceKey getKey(NameSpaceContainer container) {
+    return new NamespaceKey(container.getFullPathList());
+  }
+
   static <T> List<T> skipLast(List<T> entitiesOnPath) {
     Preconditions.checkArgument(entitiesOnPath.size() >= 1);
     return entitiesOnPath.subList(0, entitiesOnPath.size() - 1);
@@ -241,6 +245,7 @@ public final class NamespaceUtils {
 
   public static boolean isSchemaOutdated(DatasetConfig datasetConfig) {
     return datasetConfig.getType() == DatasetType.VIRTUAL_DATASET
+        && datasetConfig.getVirtualDataset() != null
         && datasetConfig.getVirtualDataset().getSchemaOutdated() == Boolean.TRUE;
   }
 }

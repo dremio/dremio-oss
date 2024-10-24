@@ -57,6 +57,7 @@ import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
+import com.dremio.exec.planner.sql.handlers.direct.DirectHandlerValidator;
 import com.dremio.exec.planner.sql.parser.DataAdditionCmdCall;
 import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
@@ -64,6 +65,7 @@ import com.dremio.exec.planner.sql.parser.SqlCreateTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.dfs.copyinto.SystemIcebergTablePluginAwareCreateTableEntry;
@@ -110,7 +112,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortOrder;
 
-public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
+public abstract class DataAdditionCmdHandler implements SqlToPlanHandler, DirectHandlerValidator {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(DataAdditionCmdHandler.class);
 
@@ -214,6 +216,11 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
                   ((SqlCreateTable) sqlCmd).getTablePropertyValueList(),
                   false)
               : Collections.emptyMap();
+
+      if (hasClusteringKey(sqlCmd)) {
+        // set CLUSTERING_TABLE_PROPERTY to true
+        tableProperties.put(SystemSchemas.CLUSTERING_TABLE_PROPERTY, "true");
+      }
       WriterOptions options =
           new WriterOptions(
               (int) ringCount,
@@ -329,6 +336,14 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
         updateStatus.name());
   }
 
+  private boolean hasClusteringKey(DataAdditionCmdCall sqlCmd) {
+    return isCreate()
+        && (sqlCmd.getClusterKeys() != null && !sqlCmd.getClusterKeys().isEmpty())
+        && !(sqlCmd.getSortColumns() != null && !sqlCmd.getSortColumns().isEmpty())
+        && !(sqlCmd.getPartitionTransforms(null) != null
+            && !sqlCmd.getPartitionTransforms(null).isEmpty());
+  }
+
   private Rel convertToDrel(
       SqlHandlerConfig config,
       ConvertedRelNode queryRelNode,
@@ -395,13 +410,36 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
                 tableSchema, sqlCmd.getPartitionTransforms(null), null);
         partitionSpec =
             ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpecBytes));
-        sortOrder =
-            IcebergSerDe.serializeSortOrderAsJson(
-                IcebergUtils.getIcebergSortOrder(
-                    tableSchema,
-                    sqlCmd.getSortColumns(),
-                    partitionSpecBytes.schema(),
-                    config.getContext().getOptions()));
+        if (sqlCmd.getClusterKeys() != null && !sqlCmd.getClusterKeys().isEmpty()) {
+          // Cannot add clustering key together with partition keys or sort orders
+          if (sqlCmd.getSortColumns() != null && !sqlCmd.getSortColumns().isEmpty()) {
+            throw UserException.unsupportedError()
+                .message("Dremio doesn't support creating a table with both CLUSTER and LOCALSORT")
+                .buildSilently();
+          } else if (sqlCmd.getPartitionTransforms(null) != null
+              && !sqlCmd.getPartitionTransforms(null).isEmpty()) {
+            throw UserException.unsupportedError()
+                .message("Dremio doesn't support creating a table with both CLUSTER and PARTITION")
+                .buildSilently();
+          } else {
+            // convert clustering keys to SortOrder
+            sortOrder =
+                IcebergSerDe.serializeSortOrderAsJson(
+                    IcebergUtils.getIcebergSortOrder(
+                        tableSchema,
+                        sqlCmd.getClusterKeys(),
+                        partitionSpecBytes.schema(),
+                        config.getContext().getOptions()));
+          }
+        } else {
+          sortOrder =
+              IcebergSerDe.serializeSortOrderAsJson(
+                  IcebergUtils.getIcebergSortOrder(
+                      tableSchema,
+                      sqlCmd.getSortColumns(),
+                      partitionSpecBytes.schema(),
+                      config.getContext().getOptions()));
+        }
         icebergSchema = IcebergSerDe.serializedSchemaAsJson(partitionSpecBytes.schema());
       }
       Schema schema = SchemaConverter.getBuilder().build().toIcebergSchema(tableSchema);
@@ -426,7 +464,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
               null,
               sortOrder,
               options.getTableProperties(),
-              FileType.PARQUET); // TODO: DX-43311 Should we allow null version?
+              FileType.PARQUET);
       icebergTableProps.setPersistedFullSchema(tableSchema);
       IcebergWriterOptions icebergOptions =
           new ImmutableIcebergWriterOptions.Builder()

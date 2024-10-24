@@ -36,10 +36,10 @@ describe("InternalSupportEmail", () => {
     expect(wrapper).to.have.length(1);
     expect(commonProps.renderSettings).to.be.calledTwice;
     expect("support.email.addr").to.eql(
-      commonProps.renderSettings.getCall(0).args[0]
+      commonProps.renderSettings.getCall(0).args[0],
     );
     expect("support.email.jobs.subject").to.eql(
-      commonProps.renderSettings.getCall(1).args[0]
+      commonProps.renderSettings.getCall(1).args[0],
     );
   });
 });

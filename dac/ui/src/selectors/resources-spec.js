@@ -72,7 +72,7 @@ describe("datasets selectors", () => {
         resources: {
           sources: state.resources.sources.setIn(
             ["sources", "LocalFS2", "isActivePin"],
-            true
+            true,
           ),
         },
       };
@@ -86,7 +86,7 @@ describe("datasets selectors", () => {
         resources: {
           sources: state.resources.sources.setIn(
             [CREATED_SOURCE_NAME],
-            Immutable.Map({ name: 1 })
+            Immutable.Map({ name: 1 }),
           ),
         },
       };
@@ -96,12 +96,12 @@ describe("datasets selectors", () => {
   describe("searchEntity", () => {
     it("should search and return entity", () => {
       expect(
-        searchEntity(state, "folder", "folderConfig", "LocalFS2.Library")
+        searchEntity(state, "folder", "folderConfig", "LocalFS2.Library"),
       ).to.eql(
         state.resources.entities.getIn([
           "folder",
           "/source/LocalFS2/folder/LocalFS2.Library",
-        ])
+        ]),
       );
     });
   });
@@ -128,7 +128,7 @@ describe("entity selectors", () => {
   describe("getEntity", () => {
     it("should return entity", () => {
       expect(getEntity(state, homeId, "home")).to.eql(
-        state.resources.entities.getIn(["home", homeId])
+        state.resources.entities.getIn(["home", homeId]),
       );
     });
   });
@@ -137,7 +137,7 @@ describe("entity selectors", () => {
     it("should return view state if available", () => {
       const ret = getViewState(
         { resources: { view: new Immutable.Map({ id: "foo" }) } },
-        "id"
+        "id",
       );
       expect(ret).to.equal("foo");
     });

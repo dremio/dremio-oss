@@ -71,7 +71,7 @@ export const useMonacoTokenProvider = (
           })),
         ],
         colors: {
-          "editor.background": isLightTheme ? "#FFFFFF" : "#333333",
+          "editor.background": isLightTheme ? "#FFFFFF" : "#202124",
           "editor.selectionBackground": isLightTheme ? "#B5D5FB" : "#304D6D",
           "editor.inactiveSelectionBackground": isLightTheme
             ? "#C6E9EF"
@@ -229,25 +229,25 @@ const DremioSQLLanguageConfig: monaco.languages.LanguageConfiguration = {
 
 const DremioSQLColors = {
   vs: {
-    "": "313131",
-    delimiter: "313131",
-    string: "077D82",
-    datatypes: "C700B5",
-    functions: "BE4C20",
-    comment: "906200",
-    keywords: "124DB4",
-    number: "5117F5",
-    nullValue: "CE0065",
+    "": "505862",
+    delimiter: "505862",
+    string: "077d82",
+    datatypes: "850d8f",
+    functions: "be4c20",
+    comment: "8c6b1e",
+    keywords: "0059ba",
+    number: "4e50af",
+    nullValue: "cf2d75",
   },
   "vs-dark": {
-    "": "EBEBEB",
-    delimiter: "EBEBEB",
-    string: "7FDBDF",
-    datatypes: "FF96FF",
-    functions: "FF9068",
-    comment: "E3D27D",
-    keywords: "A4D4FF",
-    number: "A3A8D7",
-    nullValue: "FFAEDC",
+    "": "dfe2e7",
+    delimiter: "dfe2e7",
+    string: "7fdbdf",
+    datatypes: "d38fcd",
+    functions: "feb499",
+    comment: "8c6b1e",
+    keywords: "8ac3f6",
+    number: "a3a8d7",
+    nullValue: "cf2d75",
   },
 };

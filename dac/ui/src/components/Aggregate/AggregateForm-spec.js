@@ -93,10 +93,10 @@ describe("AggregateForm", () => {
       const dropData = { id: "col1", index: 0, type: "dimensions" };
       instance.handleDrop("measures", dropData);
       expect(
-        commonProps.fields.columnsDimensions.removeField
+        commonProps.fields.columnsDimensions.removeField,
       ).to.have.been.calledWith(dropData.index);
       expect(
-        commonProps.fields.columnsMeasures.addField
+        commonProps.fields.columnsMeasures.addField,
       ).to.have.been.calledWith({
         column: "col1",
         measure: "Count",
@@ -107,10 +107,10 @@ describe("AggregateForm", () => {
       const dropData = { id: "col1", index: 0, type: "measures" };
       instance.handleDrop("dimensions", dropData);
       expect(
-        commonProps.fields.columnsMeasures.removeField
+        commonProps.fields.columnsMeasures.removeField,
       ).to.have.been.calledWith(dropData.index);
       expect(
-        commonProps.fields.columnsDimensions.addField
+        commonProps.fields.columnsDimensions.addField,
       ).to.have.been.calledWith({
         column: "col1",
       });
@@ -119,7 +119,7 @@ describe("AggregateForm", () => {
     it("should add column to measures when dragColumnType is measures", () => {
       instance.handleDrop("measures", { id: "col1" });
       expect(
-        commonProps.fields.columnsMeasures.addField
+        commonProps.fields.columnsMeasures.addField,
       ).to.have.been.calledWith({
         column: "col1",
         measure: "Count",
@@ -129,7 +129,7 @@ describe("AggregateForm", () => {
     it("should add column to dimensions when dragOrigin is dimensions", () => {
       instance.handleDrop("dimensions", { id: "col1" });
       expect(
-        commonProps.fields.columnsDimensions.addField
+        commonProps.fields.columnsDimensions.addField,
       ).to.have.been.calledWith({
         column: "col1",
       });
@@ -157,14 +157,14 @@ describe("AggregateForm", () => {
     it("should add another column used list of columns if type is measures", () => {
       instance.addAnother("measures");
       expect(
-        commonProps.fields.columnsMeasures.addField
+        commonProps.fields.columnsMeasures.addField,
       ).to.have.been.calledWith({ measure: "Sum" });
     });
 
     it("should add another column used list of columns if type is not measures", () => {
       instance.addAnother("");
       expect(
-        commonProps.fields.columnsDimensions.addField
+        commonProps.fields.columnsDimensions.addField,
       ).to.have.been.calledWith({});
     });
   });
@@ -174,7 +174,7 @@ describe("AggregateForm", () => {
       const calledTimes = commonProps.fields.columnsDimensions.length;
       instance.handleClearAllDimensions();
       expect(
-        commonProps.fields.columnsDimensions.removeField
+        commonProps.fields.columnsDimensions.removeField,
       ).to.have.callCount(calledTimes);
     });
   });
@@ -197,7 +197,7 @@ describe("AggregateForm", () => {
 
       setTimeout(() => {
         expect(fields.columnsMeasures.removeField).to.have.callCount(
-          calledTimes
+          calledTimes,
         );
         done();
       }, 100);

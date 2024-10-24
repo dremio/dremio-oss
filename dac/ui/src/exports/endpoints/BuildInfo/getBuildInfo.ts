@@ -15,7 +15,7 @@
  */
 
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-import { APIV3Call } from "@app/core/APICall";
+import { APIV3Call } from "#oss/core/APICall";
 
 const getBuildInfoUrl = () => new APIV3Call().path("info").toString();
 

@@ -43,7 +43,7 @@ class NodeActivity extends PureComponent {
     this.updateNode = setTimeout(
       () =>
         this.props.loadNodeCredentials(NODE_ACTIVITY_VIEW_ID, skipStartAction),
-      MINUTE
+      MINUTE,
     );
   }
 

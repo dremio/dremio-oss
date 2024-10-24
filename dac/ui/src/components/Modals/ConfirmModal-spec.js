@@ -139,7 +139,7 @@ describe("ConfirmModal", () => {
         instance.onConfirm();
         expect(commonProps.onConfirm).to.have.been.called;
         expect(localStorageUtils.setCustomValue).to.have.not.been.called;
-      }
+      },
     );
     it("should store value for doNotAskAgainKey if it is defined and state.doNotAskAgain is true", () => {
       wrapper.setProps({

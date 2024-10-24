@@ -59,16 +59,15 @@ public class TestMaestroResiliency extends BaseTestQuery {
   @BeforeClass
   public static void setUp() throws Exception {
     updateTestCluster(NUM_NODES, null);
-    setSessionOption(
-        BasicResourceConstants.SMALL_QUEUE_SIZE.getOptionName(), Integer.toString(QUEUE_LIMIT));
-    setSessionOption("planner.slice_target", "10");
+    setSessionOption(BasicResourceConstants.SMALL_QUEUE_SIZE, QUEUE_LIMIT);
+    setSessionOption(ExecConstants.SLICE_TARGET_OPTION, 10);
     query = getFile("queries/tpch/01.sql");
   }
 
   @AfterClass
   public static void tearDown() throws Exception {
-    resetSessionOption("planner.slice_target");
-    resetSessionOption(BasicResourceConstants.SMALL_QUEUE_SIZE.getOptionName());
+    resetSessionOption(ExecConstants.SLICE_TARGET_OPTION);
+    resetSessionOption(BasicResourceConstants.SMALL_QUEUE_SIZE);
   }
 
   // Test with 1 more than the queue limit. If the semaphore isn't released correctly,
@@ -271,7 +270,7 @@ public class TestMaestroResiliency extends BaseTestQuery {
 
   @Test
   public void testFragmentStarterTimeout() throws Exception {
-    setSystemOption(ExecConstants.FRAGMENT_STARTER_TIMEOUT, "50000");
+    setSystemOption(ExecConstants.FRAGMENT_STARTER_TIMEOUT, 50000);
     pauseAndResume(FragmentStarter.class, FragmentStarter.INJECTOR_AFTER_ON_COMPLETED_PAUSE, 40000);
   }
 

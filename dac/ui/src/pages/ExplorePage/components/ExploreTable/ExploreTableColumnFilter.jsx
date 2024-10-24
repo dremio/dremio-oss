@@ -24,7 +24,7 @@ import { SearchField } from "components/Fields";
 import { getColumnFilter, getTableColumns } from "selectors/explore";
 import { updateColumnFilter } from "actions/explore/view";
 
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 import { compose } from "redux";
 import {
   columnFilterWrapper,
@@ -43,7 +43,7 @@ export class ExploreTableColumnFilter extends PureComponent {
   updateColumnFilter = (columnFilter) => {
     this.props.updateColumnFilter(
       columnFilter,
-      this.props.dataset.get("datasetVersion")
+      this.props.dataset.get("datasetVersion"),
     );
   };
 
@@ -80,7 +80,7 @@ function mapStateToProps(state, props) {
     columnCount: columns.size,
     filteredColumnCount: exploreUtils.getFilteredColumnCount(
       columns,
-      columnFilter
+      columnFilter,
     ),
   };
 }
@@ -88,5 +88,5 @@ function mapStateToProps(state, props) {
 export default compose(
   connect(mapStateToProps, { updateColumnFilter }),
   injectIntl,
-  withRouter
+  withRouter,
 )(ExploreTableColumnFilter);

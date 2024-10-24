@@ -19,12 +19,12 @@ class StateUtils {
   _checkType(state, propertyPath) {
     if (!Immutable.Map.isMap(state)) {
       throw new Error(
-        "value supplied to request must be instance of Immutable.Map"
+        "value supplied to request must be instance of Immutable.Map",
       );
     }
     if (!Array.isArray(propertyPath)) {
       throw new Error(
-        "propertyPath must be Array check setIn method in Immutable Docs"
+        "propertyPath must be Array check setIn method in Immutable Docs",
       );
     }
   }

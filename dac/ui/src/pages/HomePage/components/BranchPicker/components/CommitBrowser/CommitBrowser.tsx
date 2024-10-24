@@ -15,18 +15,18 @@
  */
 import debounce from "lodash/debounce";
 import classNames from "clsx";
-import { SearchField } from "@app/components/Fields";
+import { SearchField } from "#oss/components/Fields";
 import {
   V2BetaApi,
   FetchOption,
   LogEntryV2 as LogEntry,
   LogResponseV2 as LogResponse,
-} from "@app/services/nessie/client";
+} from "#oss/services/nessie/client";
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 import InfiniteScroller from "../InfiniteScroller/InfiniteScroller";
 import CommitEntry from "./components/CommitEntry/CommitEntry";
 import { CommitBrowserReducer, formatQuery, initialState } from "./utils";
-import { Reference } from "@app/types/nessie";
+import { Reference } from "#oss/types/nessie";
 
 import "./CommitBrowser.less";
 
@@ -58,7 +58,7 @@ function CommitBrowser({
 }) {
   const [{ search, data, numRows }, dispatch] = useReducer(
     CommitBrowserReducer,
-    initialState
+    initialState,
   );
 
   useEffect(() => {
@@ -70,12 +70,12 @@ function CommitBrowser({
       debounce(function (value) {
         dispatch({ type: "SET_SEARCH", value });
       }, 250),
-    []
+    [],
   );
 
   const { logEntries, token } = useMemo(
     () => (!data ? { logEntries: [], token: undefined } : data),
-    [data]
+    [data],
   );
 
   const loadMoreRows = useCallback(
@@ -90,7 +90,7 @@ function CommitBrowser({
       });
       dispatch({ type: "SET_DATA", value });
     },
-    [branch.name, token, search, path, pageSize, apiV2, tableName]
+    [branch.name, token, search, path, pageSize, apiV2, tableName],
   );
 
   return (

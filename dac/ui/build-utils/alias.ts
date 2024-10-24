@@ -18,9 +18,8 @@ import { resolve } from "path";
 import { dynLoadPath } from "./dyn-load";
 
 export const alias = {
-  "@app": resolve(__dirname, "../src"),
+  "#oss": resolve(__dirname, "../src"),
   "dyn-load": dynLoadPath,
-  "@ee": dynLoadPath,
   "@mui": resolve(__dirname, "../node_modules/@mui"),
   "@root": resolve(__dirname, "../"),
   react: resolve(__dirname, "../node_modules/react"),

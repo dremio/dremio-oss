@@ -32,9 +32,9 @@ import {
 } from "@inject/utils/mainInfoUtils/mainInfoNameUtil";
 import { newGetHref } from "@inject/utils/mainInfoUtils/newMainInfoNameUtil";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
-import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
+import { shouldUseNewDatasetNavigation } from "#oss/utils/datasetNavigationUtils";
 import { Popover } from "dremio-ui-lib/components";
-import EntitySummaryOverlay from "@app/components/EntitySummaryOverlay/EntitySummaryOverlay";
+import EntitySummaryOverlay from "#oss/components/EntitySummaryOverlay/EntitySummaryOverlay";
 
 export class MainInfoItemName extends Component {
   static propTypes = {
@@ -194,7 +194,7 @@ const styles = {
     maxWidth: "100%",
   },
   leafLink: {
-    color: "#333",
+    color: "var(--text--primary)",
   },
   bold: {
     fontWeight: 500,

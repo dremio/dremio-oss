@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from "enzyme";
-import Keys from "@app/constants/Keys.json";
+import Keys from "#oss/constants/Keys.json";
 
 import ModalForm from "./ModalForm";
 
@@ -32,7 +32,7 @@ describe("ModalForm", () => {
     const wrapper = shallow(<ModalForm {...commonProps} />);
     expect(wrapper.type()).to.eql("form");
     expect(wrapper.prop("onSubmit")).to.equal(
-      wrapper.instance().handleSubmissionEvent
+      wrapper.instance().handleSubmissionEvent,
     );
   });
 
@@ -40,7 +40,7 @@ describe("ModalForm", () => {
     const wrapper = shallow(<ModalForm {...commonProps} isNestedForm />);
     expect(wrapper.type()).to.eql("div");
     expect(wrapper.prop("onKeyDown")).to.equal(
-      wrapper.instance().handleSubmissionEvent
+      wrapper.instance().handleSubmissionEvent,
     );
   });
 
@@ -58,14 +58,14 @@ describe("ModalForm", () => {
     expect(wrapper.find("Message")).to.have.length(0);
 
     wrapper = shallow(
-      <ModalForm {...commonProps} error={{ message: "foo error" }} />
+      <ModalForm {...commonProps} error={{ message: "foo error" }} />,
     );
     expect(wrapper.find("Message").first().prop("message")).to.eql("foo error");
   });
 
   it("should dismiss both message and dummy message", () => {
     const wrapper = shallow(
-      <ModalForm {...commonProps} error={{ message: "foo error" }} />
+      <ModalForm {...commonProps} error={{ message: "foo error" }} />,
     );
     expect(wrapper.find("Message").first().prop("dismissed")).to.be.false;
 

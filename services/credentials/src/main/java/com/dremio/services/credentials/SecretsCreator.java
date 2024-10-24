@@ -33,5 +33,15 @@ public interface SecretsCreator {
    * @throws CredentialsException if error occurs during encryption.
    * @return URI representation of encrypted secret, empty if encryption was refused.
    */
-  public Optional<URI> encrypt(String secret) throws CredentialsException;
+  Optional<URI> encrypt(String secret) throws CredentialsException;
+
+  /**
+   * Clean up the secret and any associated side effects or metadata associated with its creation.
+   *
+   * @param secret URI of the created secret.
+   * @return True, if anything was cleaned up.
+   */
+  default boolean cleanup(URI secret) {
+    return false;
+  }
 }

@@ -20,7 +20,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.parquet.ParquetColumnDeltaLakeResolver;
 import java.util.Collections;
@@ -28,17 +27,15 @@ import org.junit.Test;
 
 public class TestDeltaLakeColumnResolver extends BaseTestQuery {
   private BatchSchema loadSchemaFromCommitJson(String tableName) throws Exception {
-    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, true)) {
-      DeltaLogSnapshot snapshot =
-          TestDeltaLogCommitJsonReader.parseCommitJson(
-              "/deltalake/" + tableName + "/_delta_log/00000000000000000000.json");
-      String schemaString = snapshot.getSchema();
-      return DeltaLakeSchemaConverter.newBuilder()
-          .withMapEnabled(true)
-          .withColumnMapping(true, snapshot.getColumnMappingMode())
-          .build()
-          .fromSchemaString(schemaString);
-    }
+    DeltaLogSnapshot snapshot =
+        TestDeltaLogCommitJsonReader.parseCommitJson(
+            "/deltalake/" + tableName + "/_delta_log/00000000000000000000.json");
+    String schemaString = snapshot.getSchema();
+    return DeltaLakeSchemaConverter.newBuilder()
+        .withMapEnabled(true)
+        .withColumnMapping(snapshot.getColumnMappingMode())
+        .build()
+        .fromSchemaString(schemaString);
   }
 
   @Test

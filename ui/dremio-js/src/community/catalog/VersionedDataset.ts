@@ -19,6 +19,9 @@ import type { CommunityDatasetProperties } from "../../interfaces/Dataset.js";
 import { mappedType, pathString } from "./utils.js";
 
 export class VersionedDataset implements CatalogObjectMethods {
+  /**
+   * @deprecated
+   */
   readonly id: string;
   readonly path: string[];
   readonly type: CommunityDatasetProperties["type"];
@@ -33,6 +36,10 @@ export class VersionedDataset implements CatalogObjectMethods {
   }
 
   pathString = pathString(() => this.path);
+
+  get referenceType() {
+    return this.type;
+  }
 
   static fromResource(properties: any) {
     return new VersionedDataset({

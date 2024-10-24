@@ -105,7 +105,7 @@ class TransformRules {
       keeponly: this.mapReplaceRule,
       exclude: this.mapReplaceRule,
       map: this.mapExtractMapRule,
-    }[ruleType]);
+    })[ruleType];
 }
 
 const transformRules = new TransformRules();

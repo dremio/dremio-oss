@@ -65,14 +65,14 @@ export const Popover = (props: PopoverProps) => {
     className,
     content,
     delay = 125,
+    dismissable,
+    mode,
     placement,
     portal = false,
+    role,
     showArrow = false,
     onClose,
     onOpen,
-    mode,
-    role,
-    dismissable,
   } = props;
 
   const handleOpenChange = (isOpen: boolean) => {

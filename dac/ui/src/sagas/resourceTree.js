@@ -16,8 +16,8 @@
 
 import { takeLatest } from "redux-saga/effects";
 
-import { SAVE_SPACE_SUCCESS } from "@app/actions/resources/spaces";
-import { loadResourceTree } from "@app/actions/resources/tree";
+import { SAVE_SPACE_SUCCESS } from "#oss/actions/resources/spaces";
+import { loadResourceTree } from "#oss/actions/resources/tree";
 
 export default function* resourceTreeSideEffects() {
   yield takeLatest(SAVE_SPACE_SUCCESS, loadResourceTree);

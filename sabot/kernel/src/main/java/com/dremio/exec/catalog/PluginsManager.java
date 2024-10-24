@@ -52,11 +52,15 @@ import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.dremio.services.credentials.MigrationSecretsCreator;
 import com.dremio.services.credentials.NoopSecretsCreator;
 import com.dremio.services.credentials.SecretsCreator;
+import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.SimpleCounter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Tags;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteString;
 import java.util.Collections;
@@ -82,7 +86,6 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   private static final Logger logger = LoggerFactory.getLogger(PluginsManager.class);
   private static final String SOURCE_SECRET_MIGRATION_CONFIG_KEY =
       "SourceSecretMigrationLastCompleteTimeInMs";
-
   protected final SabotContext sabotContext;
   protected final OptionManager optionManager;
   private final DremioConfig config;
@@ -601,6 +604,15 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     return optionManager.getOption(CatalogOptions.STORAGE_PLUGIN_CREATE_MAX);
   }
 
+  private void updateDeletedSourcesCount(SourceConfig config) {
+    SimpleCounter deletedSourcesCounter =
+        SimpleCounter.of(
+            Metrics.join("sources", "deleted"),
+            "Total sources deleted",
+            Tags.of(Tag.of("source_type", config.getType())));
+    deletedSourcesCounter.increment();
+  }
+
   /**
    * Remove a source by grabbing the write lock and then removing from the map
    *
@@ -620,6 +632,7 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     try {
       final boolean removed = plugin.close(config, s -> plugins.remove(c(name)));
       plugin.deleteServiceSet();
+      updateDeletedSourcesCount(config);
       return removed;
     } catch (Exception ex) {
       logger.error("Exception while shutting down source {}.", name, ex);

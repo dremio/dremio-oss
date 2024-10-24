@@ -22,31 +22,31 @@ import { injectIntl } from "react-intl";
 
 import ExploreTableColumnFilter from "pages/ExplorePage/components/ExploreTable/ExploreTableColumnFilter";
 import { Button, Tooltip } from "dremio-ui-lib/components";
-import ExploreCopyTableButton from "@app/pages/ExplorePage/components/ExploreTable/ExploreCopyTableButton";
-import modelUtils from "@app/utils/modelUtils";
-import { isSqlChanged } from "@app/sagas/utils";
-import CombinedActionMenu from "@app/components/Menus/ExplorePage/CombinedActionMenu";
+import ExploreCopyTableButton from "#oss/pages/ExplorePage/components/ExploreTable/ExploreCopyTableButton";
+import modelUtils from "#oss/utils/modelUtils";
+import { isSqlChanged } from "#oss/sagas/utils";
+import CombinedActionMenu from "#oss/components/Menus/ExplorePage/CombinedActionMenu";
 import DownloadButton from "dyn-load/pages/ExplorePage/components/DownloadButton";
-import { navigateToExploreDefaultIfNecessary } from "@app/utils/pathUtils";
-import DropdownMenu from "@app/components/Menus/DropdownMenu";
-import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { navigateToExploreDefaultIfNecessary } from "#oss/utils/pathUtils";
+import DropdownMenu from "#oss/components/Menus/DropdownMenu";
+import { PHYSICAL_DATASET_TYPES } from "#oss/constants/datasetTypes";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
 
-import { memoOne } from "@app/utils/memoUtils";
+import { memoOne } from "#oss/utils/memoUtils";
 import {
   columnFilterWrapper,
   searchField,
-} from "@app/pages/ExplorePage/components/ExploreTable/ExploreTableColumnFilter.less";
+} from "#oss/pages/ExplorePage/components/ExploreTable/ExploreTableColumnFilter.less";
 import { SearchField } from "components/Fields";
-import { formatMessage } from "@app/utils/locale";
+import { formatMessage } from "#oss/utils/locale";
 import ExploreTableJobStatus from "../components/ExploreTable/ExploreTableJobStatus";
 import {
   ALLOW_ASYNC_DOWNLOAD,
   ALLOW_DOWNLOAD,
-} from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { getExploreState } from "@app/selectors/explore";
-import { getJobSummaries } from "@app/selectors/exploreJobs";
-import Message from "@app/components/Message";
+} from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getExploreState } from "#oss/selectors/explore";
+import { getJobSummaries } from "#oss/selectors/exploreJobs";
+import Message from "#oss/components/Message";
 import "./TableControls.less";
 
 const HIDE_MESSAGE_KEY = "output-limited";

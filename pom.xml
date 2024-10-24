@@ -21,7 +21,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>25.1.1-202409260159070462-716c0676</version>
+  <version>${revision}</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -30,6 +30,7 @@
   <inceptionYear>2017-2019</inceptionYear>
 
   <modules>
+    <module>build-tools</module>
     <module>client</module>
     <module>common</module>
     <module>connector</module>
@@ -66,7 +67,7 @@
     -->
     <arrow.version>16.1.0-20240904212746-09241242ea-dremio</arrow.version>
     <avatica.version>1.23.0</avatica.version>
-    <calcite.version>1.21.0-202407031545000155-8abd078f</calcite.version>
+    <calcite.version>1.21.0-202408272207160933-20207fef</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.82</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -75,12 +76,12 @@
     <hibernate-validator.version>6.2.5.Final</hibernate-validator.version>
 
     <hadoop.version>3.3.6-dremio-202405222026020750-207d8db4</hadoop.version>
-    <avro.version>1.11.3</avro.version>
+    <avro.version>1.11.4</avro.version>
     <iceberg.version>1.6.0-229d8f6-20240725064828-ee9f85d</iceberg.version>
 
     <plugin.hive2.azure-storage.version>8.3.0</plugin.hive2.azure-storage.version>
     <plugin.hive2.azure-datalake.version>2.3.10-202208021035330109-f5bda9e</plugin.hive2.azure-datalake.version>
-    <plugin.hive2.hadoop-azure.version>2.8.5-dremio-r2-202307051740280715-b762c27</plugin.hive2.hadoop-azure.version>
+    <plugin.hive2.hadoop-azure.version>2.8.5-dremio-r2-202409241416480548-c6df598</plugin.hive2.hadoop-azure.version>
     <plugin.hive2.hadoop-azure-datalake.version>2.8.5</plugin.hive2.hadoop-azure-datalake.version>
     <plugin.hive2.hadoop.version>2.8.5</plugin.hive2.hadoop.version>
     <plugin.hive2.hive.version>2.3.9-dremio-202401090931040395-86ef152</plugin.hive2.hive.version>
@@ -115,11 +116,11 @@
     <plugin.hive3.datanucleus-jdo.version>3.2.0-m3</plugin.hive3.datanucleus-jdo.version>
     <plugin.hive3.jdo-api.version>3.0.1</plugin.hive3.jdo-api.version>
     <plugin.hive3.hikaricp.version>2.6.1</plugin.hive3.hikaricp.version>
-    <plugin.hive3.aws.glue.version>3.4.0-202401091447110627-0bc3574</plugin.hive3.aws.glue.version>
+    <plugin.hive3.aws.glue.version>3.4.0-202408131804140436-f99a1e0</plugin.hive3.aws.glue.version>
     <gcs-connector-version>2.2.2-dremio-202308081957350593-ab2a596</gcs-connector-version>
     <hadoop.native.libraries.version>1.2.0</hadoop.native.libraries.version>
 
-    <errorprone.version>2.29.2</errorprone.version>
+    <errorprone.version>2.31.0</errorprone.version>
     <errorprone.type>jar</errorprone.type>
     <errorprone-slf4j.version>0.1.25</errorprone-slf4j.version>
     <!-- modules can override this to upgrade/downgrade the severity of certain checks -->
@@ -168,6 +169,8 @@ ${errorprone.module.args}
       --add-opens java.base/sun.nio.ch=ALL-UNNAMED</surefire.add-opens-args.main>
     <!-- Extra add-opens directive required by test code/dependencies -->
     <surefire.add-opens-args.test/>
+    <!-- JVM arguments for surefire and failsafe to be set by CI logic -->
+    <surefire.extra-args/>
     <!--
          Note about -Djdk.attach.allowAttachSelf=true:
          See jdk.internal.misc.VM.saveAndRemoveProperties. jdk.attach.allowAttachSelf is
@@ -177,13 +180,13 @@ ${errorprone.module.args}
       -Xmx3G
       -Xss2048k
       -XX:MaxDirectMemorySize=5120M
-      -XX:+CMSClassUnloadingEnabled
       -XX:-OmitStackTraceInFastThrow
       -Dfile.encoding=UTF-8
       -Djdk.attach.allowAttachSelf=true
       -XX:+HeapDumpOnOutOfMemoryError
       ${surefire.add-opens-args.main}
       ${surefire.add-opens-args.test}
+      ${surefire.extra-args}
       --illegal-access=deny
       @{argLine}</surefire.argLine>
     <failsafe.argLine>${surefire.argLine}</failsafe.argLine>
@@ -191,7 +194,7 @@ ${errorprone.module.args}
     <hsqldb.version>2.3.1</hsqldb.version>
     <spotless.version>2.43.0</spotless.version>
     <google-java-format.version>1.21.0</google-java-format.version>
-    <immutables.version>2.10.0</immutables.version>
+    <immutables.version>2.10.1</immutables.version>
     <snakeyaml.version>2.2</snakeyaml.version>
     <!-- make sure the snakeyaml version is equal or newer than the one in jackson -->
     <jackson.version>2.15.3</jackson.version>
@@ -199,7 +202,7 @@ ${errorprone.module.args}
     <javax.ws.rs-api.version>2.1.1</javax.ws.rs-api.version>
     <junit4.version>4.13.2</junit4.version>
     <junit5.version>5.10.3</junit5.version>
-    <mockito.version>4.11.0</mockito.version>
+    <mockito.version>5.13.0</mockito.version>
     <logback.version>1.2.13</logback.version>
     <metrics.version>4.1.19</metrics.version>
     <mariadb.connector.version>3.0.8</mariadb.connector.version>
@@ -220,6 +223,8 @@ ${errorprone.module.args}
     <protostuff.version>1.4.4</protostuff.version>
     <scott-data-hsqldb.version>0.1</scott-data-hsqldb.version>
     <slf4j.version>1.7.36</slf4j.version>
+    <snowflake-jdbc.version>3.15.0</snowflake-jdbc.version>
+    <vertica-jdbc.version>24.2.0-0</vertica-jdbc.version>
     <twill.version>0.14.0-202111020547020344-41637331</twill.version>
     <zkclient.version>0.11</zkclient.version>
     <zookeeper.version>3.8.3</zookeeper.version>
@@ -230,7 +235,10 @@ ${errorprone.module.args}
     <fbs.version>1.12.0</fbs.version>
     <rocksdb.version>7.10.2</rocksdb.version>
     <opencensus.version>0.31.1</opencensus.version>
-    <grpc.version>1.65.0</grpc.version>
+    <grpc.version>1.66.0</grpc.version>
+    <httpclient5.version>5.3.1</httpclient5.version>
+    <httpcomponents.core5.version>5.2.5</httpcomponents.core5.version>
+    <opensearch.version>2.13.0</opensearch.version>
     <!-- see https://github.com/open-telemetry/opentelemetry-java/releases -->
     <opentelemetry.version>1.38.0</opentelemetry.version>
     <!-- see https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases -->
@@ -241,10 +249,15 @@ ${errorprone.module.args}
     <openapitools.plugin.version>6.3.0</openapitools.plugin.version>
     <swagger-annotations-version>1.6.4</swagger-annotations-version>
     <swagger-parser.version>2.1.20</swagger-parser.version>
-    <bouncycastle.version>1.64</bouncycastle.version>
+    <bouncycastle.version>1.78.1</bouncycastle.version>
     <azure.sdk.version>1.2.20</azure.sdk.version>
     <google-cloud-nio.version>0.126.3</google-cloud-nio.version>
     <google-cloud-kms.version>2.15.0</google-cloud-kms.version>
+    <!-- maprfs versions. Defined here to workaround flatten-maven-plugin issue -->
+    <maprfs.version>6.2.0.20-mapr</maprfs.version>
+    <!-- The version of protobuf to shade with MapR FS -->
+    <maprfs.protobuf.version>3.11.1</maprfs.protobuf.version>
+    <jnats.version>2.19.1</jnats.version>
 
     <!--
     keep okio in sync with version used in
@@ -292,6 +305,12 @@ ${errorprone.module.args}
       during tests to avoid race condition with hive3 plugin jar build/writing.
     -->
     <hive2.plugin.copy.phase>generate-resources</hive2.plugin.copy.phase>
+    <!-- Dremio enforcer checks -->
+    <enforcer.skip>false</enforcer.skip>
+    <dremio.enforcer.dependency-exclusions.skip>${enforcer.skip}</dremio.enforcer.dependency-exclusions.skip>
+    <dremio.enforcer.java-maven-versions.skip>${enforcer.skip}</dremio.enforcer.java-maven-versions.skip>
+    <!-- JDK version to use for tests. Use ${java.specification.version} to match current version or `[,]` for any version -->
+    <dremio.test-jdk.version>11</dremio.test-jdk.version>
   </properties>
 
   <dependencyManagement>
@@ -332,6 +351,7 @@ ${errorprone.module.args}
       <dependency>
         <groupId>com.dremio.provision</groupId>
         <artifactId>dremio-twill-shaded</artifactId>
+        <version>${project.version}</version>
         <exclusions>
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
@@ -564,7 +584,6 @@ ${errorprone.module.args}
 
       <!-- 3rd party dependencies -->
       <dependency>
-        <!-- Address CVE-2019-10086 -->
         <groupId>commons-beanutils</groupId>
         <artifactId>commons-beanutils</artifactId>
         <version>1.9.4</version>
@@ -572,12 +591,12 @@ ${errorprone.module.args}
       <dependency>
         <groupId>de.flapdoodle</groupId>
         <artifactId>de.flapdoodle.os</artifactId>
-        <version>1.5.6</version>
+        <version>1.7.2</version>
       </dependency>
       <dependency>
         <groupId>de.flapdoodle.embed</groupId>
         <artifactId>de.flapdoodle.embed.mongo</artifactId>
-        <version>4.14.0</version>
+        <version>4.16.2</version>
       </dependency>
       <dependency>
         <groupId>javax.annotation</groupId>
@@ -600,9 +619,14 @@ ${errorprone.module.args}
         <version>${mariadb.connector.version}</version>
       </dependency>
       <dependency>
+        <groupId>commons-cli</groupId>
+        <artifactId>commons-cli</artifactId>
+        <version>1.9.0</version>
+      </dependency>
+      <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-compress</artifactId>
-        <version>1.26.2</version>
+        <version>1.27.1</version>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
@@ -737,7 +761,7 @@ ${errorprone.module.args}
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>33.2.1-jre</version>
+        <version>33.3.0-jre</version>
       </dependency>
       <dependency>
         <groupId>com.github.ben-manes.caffeine</groupId>
@@ -800,7 +824,7 @@ ${errorprone.module.args}
       <dependency>
         <groupId>commons-codec</groupId>
         <artifactId>commons-codec</artifactId>
-        <version>1.16.1</version>
+        <version>1.17.1</version>
       </dependency>
       <dependency>
         <groupId>org.objenesis</groupId>
@@ -954,6 +978,31 @@ ${errorprone.module.args}
         <version>2.3.32</version>
       </dependency>
       <dependency>
+        <groupId>io.nats</groupId>
+        <artifactId>jnats</artifactId>
+        <version>${jnats.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents.client5</groupId>
+        <artifactId>httpclient5</artifactId>
+        <version>${httpclient5.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents.core5</groupId>
+        <artifactId>httpcore5</artifactId>
+        <version>${httpcomponents.core5.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents.core5</groupId>
+        <artifactId>httpcore5-h2</artifactId>
+        <version>${httpcomponents.core5.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.opensearch.client</groupId>
+        <artifactId>opensearch-java</artifactId>
+        <version>${opensearch.version}</version>
+      </dependency>
+      <dependency>
         <groupId>javax.validation</groupId>
         <artifactId>validation-api</artifactId>
         <version>2.0.1.Final</version>
@@ -1008,6 +1057,16 @@ ${errorprone.module.args}
         <groupId>redis.clients</groupId>
         <artifactId>jedis</artifactId>
         <version>5.0.2</version>
+      </dependency>
+      <dependency>
+        <groupId>net.snowflake</groupId>
+        <artifactId>snowflake-jdbc</artifactId>
+        <version>${snowflake-jdbc.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.vertica.jdbc</groupId>
+        <artifactId>vertica-jdbc</artifactId>
+        <version>${vertica-jdbc.version}</version>
       </dependency>
       <dependency>
         <groupId>org.antlr</groupId>
@@ -1187,7 +1246,7 @@ ${errorprone.module.args}
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
-        <version>3.14.0</version>
+        <version>3.17.0</version>
       </dependency>
       <dependency>
         <groupId>commons-io</groupId>
@@ -2202,22 +2261,22 @@ ${errorprone.module.args}
       <!-- No BOM for bouncycastle -->
       <dependency>
         <groupId>org.bouncycastle</groupId>
-        <artifactId>bcpkix-jdk15on</artifactId>
+        <artifactId>bcpkix-jdk18on</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
       <dependency>
         <groupId>org.bouncycastle</groupId>
-        <artifactId>bcutil-jdk15on</artifactId>
+        <artifactId>bcutil-jdk18on</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
       <dependency>
         <groupId>org.bouncycastle</groupId>
-        <artifactId>bcprov-jdk15on</artifactId>
+        <artifactId>bcprov-jdk18on</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
       <dependency>
         <groupId>org.bouncycastle</groupId>
-        <artifactId>bctls-jdk15on</artifactId>
+        <artifactId>bctls-jdk18on</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
       <dependency>
@@ -2243,12 +2302,12 @@ ${errorprone.module.args}
       <dependency>
         <groupId>com.github.tomakehurst</groupId>
         <artifactId>wiremock-jre8</artifactId>
-        <version>2.33.2</version>
+        <version>2.35.2</version>
       </dependency>
       <dependency>
         <groupId>org.javassist</groupId>
         <artifactId>javassist</artifactId>
-        <version>3.28.0-GA</version>
+        <version>3.30.2-GA</version>
       </dependency>
       <dependency>
         <groupId>org.msgpack</groupId>
@@ -2373,7 +2432,7 @@ ${errorprone.module.args}
       <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-azure</artifactId>
-        <version>2.8.5-dremio-r2-202307051740280715-b762c27</version>
+        <version>2.8.5-dremio-r2-202409241416480548-c6df598</version>
         <exclusions>
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
@@ -2467,18 +2526,13 @@ ${errorprone.module.args}
       <dependency>
         <groupId>org.glassfish.jersey</groupId>
         <artifactId>jersey-bom</artifactId>
-        <version>2.43</version>
+        <version>2.45</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>org.hibernate.validator</groupId>
         <artifactId>hibernate-validator</artifactId>
-        <version>${hibernate-validator.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.hibernate.validator</groupId>
-        <artifactId>hibernate-validator-annotation-processor</artifactId>
         <version>${hibernate-validator.version}</version>
       </dependency>
       <dependency>
@@ -2503,8 +2557,10 @@ ${errorprone.module.args}
       </dependency>
       <dependency>
         <groupId>org.immutables</groupId>
-        <artifactId>value-annotations</artifactId>
+        <artifactId>bom</artifactId>
         <version>${immutables.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>com.google.inject</groupId>
@@ -2528,12 +2584,12 @@ ${errorprone.module.args}
       <dependency>
         <groupId>com.nimbusds</groupId>
         <artifactId>nimbus-jose-jwt</artifactId>
-        <version>8.8</version>
+        <version>9.41</version>
       </dependency>
       <dependency>
         <groupId>com.nimbusds</groupId>
         <artifactId>oauth2-oidc-sdk</artifactId>
-        <version>9.3</version>
+        <version>11.20</version>
       </dependency>
       <dependency>
         <groupId>org.codehaus.groovy</groupId>
@@ -2552,14 +2608,6 @@ ${errorprone.module.args}
         <version>${nessie.version}</version>
         <type>pom</type>
         <scope>import</scope>
-      </dependency>
-      <dependency>
-        <!-- iceberg-nessie is required by Nessie's iceberg-views (part of nessie-bom).
-        However, Nessie can be ahead of Dremio in its Iceberg dependency versions.
-        Therefore, iceberg-nessie is pinned to the Iceberg version used by Dremio. -->
-        <groupId>org.apache.iceberg</groupId>
-        <artifactId>iceberg-nessie</artifactId>
-        <version>${iceberg.version}</version>
       </dependency>
       <dependency>
         <groupId>jakarta.annotation</groupId>
@@ -2604,21 +2652,12 @@ ${errorprone.module.args}
         <artifactId>threeten-extra</artifactId>
         <version>1.7.2</version>
       </dependency>
-      <!-- Note: iceberg-bundled-guava should be in sync with core Iceberg jars. -->
       <dependency>
         <groupId>org.apache.iceberg</groupId>
-        <artifactId>iceberg-bundled-guava</artifactId>
+        <artifactId>iceberg-bom</artifactId>
         <version>${iceberg.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.iceberg</groupId>
-        <artifactId>iceberg-api</artifactId>
-        <version>${iceberg.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.iceberg</groupId>
-        <artifactId>iceberg-core</artifactId>
-        <version>${iceberg.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>com.azure</groupId>
@@ -2695,8 +2734,6 @@ ${errorprone.module.args}
       <scope>test</scope>
     </dependency>
     <dependency>
-      <!-- Mockito needs to be on the class path after JUnit (or Hamcrest)
-        as long as Mockito _contains_ older Hamcrest classes. -->
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <scope>test</scope>
@@ -2769,7 +2806,7 @@ ${errorprone.module.args}
         </plugin>
         <plugin>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>3.7.1</version>
+          <version>3.8.0</version>
           <configuration>
             <ignoredUnusedDeclaredDependencies>
               <!-- these annotation libs are added by default but usage is not required -->
@@ -2815,15 +2852,21 @@ ${errorprone.module.args}
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.3.1</version>
+          <version>3.5.0</version>
           <configuration>
             <argLine>${surefire.argLine}</argLine>
             <forkCount>${forkCount}</forkCount>
+            <jdkToolchain>
+              <version>${dremio.test-jdk.version}</version>
+            </jdkToolchain>
             <reuseForks>true</reuseForks>
             <trimStackTrace>false</trimStackTrace>
             <useModulePath>false</useModulePath>
             <skipTests>${skip.surefire.tests}</skipTests>
             <systemPropertyVariables>
+              <!-- Any system properties defined in .mvn/maven.config are available to tests when run from mvn. -->
+              <!-- Intellij does not automatically pass them on so we explicitly set the revision -->
+              <revision>${revision}</revision>
               <dremio.exec.compile.cache_max_size>50</dremio.exec.compile.cache_max_size>
               <dremio.exec.http.enabled>false</dremio.exec.http.enabled>
               <dremio.test.query.printing.silent>true</dremio.test.query.printing.silent>
@@ -2857,9 +2900,12 @@ ${errorprone.module.args}
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
-          <version>3.3.1</version>
+          <version>3.5.0</version>
           <configuration>
             <argLine>${failsafe.argLine}</argLine>
+            <jdkToolchain>
+              <version>${dremio.test-jdk.version}</version>
+            </jdkToolchain>
             <trimStackTrace>false</trimStackTrace>
             <useModulePath>false</useModulePath>
             <skipITs>${skip.failsafe.tests}</skipITs>
@@ -2867,6 +2913,9 @@ ${errorprone.module.args}
               <additionalClasspathElement>${maven.multiModuleProjectDirectory}/src/test/log-config</additionalClasspathElement>
             </additionalClasspathElements>
             <systemPropertyVariables>
+              <!-- Any system properties defined in .mvn/maven.config are available to tests when run from mvn. -->
+              <!-- Intellij does not automatically pass them on so we explicitly set the revision -->
+              <revision>${revision}</revision>
               <dremio.plugins.path>${dremio.plugins.path}</dremio.plugins.path>
               <io.netty.tryReflectionSetAccessible>true</io.netty.tryReflectionSetAccessible>
               <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
@@ -2913,12 +2962,12 @@ ${errorprone.module.args}
           <artifactId>maven-antrun-plugin</artifactId>
           <version>1.7</version>
         </plugin>
-        <!-- Please keep in sync with tools/build-tools/pom.xml -->
+        <!-- Please keep in sync with build-tools/pom.xml -->
         <plugin>
           <artifactId>maven-install-plugin</artifactId>
           <version>3.1.1</version>
         </plugin>
-        <!-- Please keep in sync with tools/build-tools/pom.xml -->
+        <!-- Please keep in sync with build-tools/pom.xml -->
         <plugin>
           <artifactId>maven-deploy-plugin</artifactId>
           <version>3.0.0-M1</version>
@@ -2930,32 +2979,32 @@ ${errorprone.module.args}
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>3.1.0</version>
+          <version>3.4.1</version>
+          <configuration>
+            <systemProperties>
+              <systemProperty>
+                <key>logback.configurationFile</key>
+                <value>dremio-logback/logback-exec-maven-plugin.xml</value>
+              </systemProperty>
+            </systemProperties>
+          </configuration>
           <dependencies>
-            <!-- Updating slf4j version to avoid classpath issues -->
-            <!--
-            we do not use "slf4j.version" here because 1.7.31 is the last version where in
-            sabot/kernel logback-test.xml gets preferred over logback.xml
-
-            the latter causes log configuration errors resulting in a "log.path_IS_UNDEFINED" file
-            being created, causing build issues on subsequent maven runs
-            -->
             <dependency>
-              <groupId>org.slf4j</groupId>
-              <artifactId>slf4j-api</artifactId>
-              <version>1.7.31</version>
+              <groupId>com.dremio.build-tools</groupId>
+              <artifactId>dremio-build-tools-configs</artifactId>
+              <version>${project.version}</version>
             </dependency>
             <dependency>
-              <groupId>org.slf4j</groupId>
-              <artifactId>slf4j-jdk14</artifactId>
-              <version>1.7.31</version>
+              <groupId>ch.qos.logback</groupId>
+              <artifactId>logback-classic</artifactId>
+              <version>${logback.version}</version>
             </dependency>
           </dependencies>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>flatten-maven-plugin</artifactId>
-          <version>1.1.0</version>
+          <version>1.6.0</version>
         </plugin>
         <plugin>
           <groupId>org.owasp</groupId>
@@ -2974,8 +3023,8 @@ ${errorprone.module.args}
           </configuration>
           <dependencies>
             <dependency>
-              <groupId>com.dremio.tools</groupId>
-              <artifactId>dremio-build-tools</artifactId>
+              <groupId>com.dremio.build-tools</groupId>
+              <artifactId>dremio-build-tools-configs</artifactId>
               <version>${project.version}</version>
             </dependency>
           </dependencies>
@@ -2988,11 +3037,11 @@ ${errorprone.module.args}
         <plugin>
           <groupId>com.github.eirslett</groupId>
           <artifactId>frontend-maven-plugin</artifactId>
-          <version>1.14.0</version>
+          <version>1.15.0</version>
           <configuration>
-            <nodeVersion>v22.0.0</nodeVersion>
+            <nodeVersion>v22.7.0</nodeVersion>
             <npmVersion>7.7.5</npmVersion>
-            <pnpmVersion>9.3.0</pnpmVersion>
+            <pnpmVersion>9.9.0</pnpmVersion>
             <installDirectory>${project.build.directory}/frontend</installDirectory>
             <workingDirectory>${project.build.directory}</workingDirectory>
             <environmentVariables>
@@ -3012,7 +3061,7 @@ ${errorprone.module.args}
           <version>0.8.11</version>
         </plugin>
         <plugin>
-          <groupId>com.dremio.tools</groupId>
+          <groupId>com.dremio.build-tools</groupId>
           <artifactId>dremio-protostuff-maven-plugin</artifactId>
           <version>${project.version}</version>
         </plugin>
@@ -3027,7 +3076,7 @@ ${errorprone.module.args}
           <version>3.5.0</version>
         </plugin>
         <plugin>
-          <groupId>com.dremio.tools</groupId>
+          <groupId>com.dremio.build-tools</groupId>
           <artifactId>dremio-fmpp-maven-plugin</artifactId>
           <version>${project.version}</version>
         </plugin>
@@ -3039,6 +3088,10 @@ ${errorprone.module.args}
             <version>${tests.elasticsearch.api.version}</version>
             <clusterName>test</clusterName>
             <clusterStartupTimeout>100</clusterStartupTimeout>
+            <jdkToolchain>
+              <!-- Elasticsearch 6.x requires Java 11 -->
+              <version>11</version>
+            </jdkToolchain>
             <skip>${skipTests}</skip>
           </configuration>
         </plugin>
@@ -3156,8 +3209,8 @@ ${errorprone.module.args}
           </bundledSignatures>
           <signaturesArtifacts>
             <signaturesArtifact>
-              <groupId>com.dremio.tools</groupId>
-              <artifactId>dremio-build-tools</artifactId>
+              <groupId>com.dremio.build-tools</groupId>
+              <artifactId>dremio-build-tools-configs</artifactId>
               <version>${project.version}</version>
               <type>jar</type>
               <path>dremio-forbiddenapis/signatures.txt</path>
@@ -3238,8 +3291,8 @@ ${errorprone.module.args}
             <version>10.17.0</version>
           </dependency>
           <dependency>
-            <groupId>com.dremio.tools</groupId>
-            <artifactId>dremio-build-tools</artifactId>
+            <groupId>com.dremio.build-tools</groupId>
+            <artifactId>dremio-build-tools-configs</artifactId>
             <version>${project.version}</version>
           </dependency>
         </dependencies>
@@ -3266,8 +3319,6 @@ ${errorprone.module.args}
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <!-- we seem to need this for protostuff -->
-          <forceLegacyJavacApi>true</forceLegacyJavacApi>
           <!-- See MCOMPILER-209 for why it is set to false! -->
           <useIncrementalCompilation>false</useIncrementalCompilation>
           <compilerArgs>
@@ -3298,7 +3349,7 @@ ${errorprone.module.args}
         <artifactId>maven-enforcer-plugin</artifactId>
         <executions>
           <execution>
-            <id>validate_java_and_maven_version</id>
+            <id>enforce-java-and-maven-versions</id>
             <goals>
               <goal>enforce</goal>
             </goals>
@@ -3307,16 +3358,17 @@ ${errorprone.module.args}
             <configuration>
               <rules>
                 <requireMavenVersion>
-                  <version>[3.3.9,4)</version>
+                  <version>[3.9.0,4)</version>
                 </requireMavenVersion>
                 <requireJavaVersion>
-                  <version>[11,)</version>
+                  <version>[21,22)</version>
                 </requireJavaVersion>
               </rules>
+              <skip>${dremio.enforcer.java-maven-versions.skip}</skip>
             </configuration>
           </execution>
           <execution>
-            <id>avoid_bad_dependencies</id>
+            <id>enforce-dependencies-exclusions</id>
             <goals>
               <goal>enforce</goal>
             </goals>
@@ -3361,9 +3413,10 @@ ${errorprone.module.args}
                   </plugins>
                 </requireSameVersions>
                 <requirePluginVersions>
-                  <unCheckedPluginList>com.dremio.tools:dremio-protostuff-maven-plugin,com.dremio.tools:dremio-fmpp-maven-plugin,org.projectnessie.nessie-runner:nessie-runner-maven-plugin,com.dremio.daas:dc-comics-maven-plugin</unCheckedPluginList>
+                  <unCheckedPluginList>com.dremio.build-tools:dremio-protostuff-maven-plugin,com.dremio.build-tools:dremio-fmpp-maven-plugin,org.projectnessie.nessie-runner:nessie-runner-maven-plugin,com.dremio.daas:dc-comics-maven-plugin</unCheckedPluginList>
                 </requirePluginVersions>
               </rules>
+              <skip>${dremio.enforcer.dependency-exclusions.skip}</skip>
             </configuration>
           </execution>
         </executions>
@@ -3615,6 +3668,7 @@ limitations under the License.</inlineHeader>
                 <exclude>**/*.tpl</exclude>
                 <exclude>**/*.spec.js.snap</exclude>
                 <exclude>**/*.yarnrc</exclude>
+                <exclude>**/*.db</exclude>
 
                 <!-- by file name -->
                 <exclude>**/Jenkinsfile</exclude>
@@ -3636,6 +3690,7 @@ limitations under the License.</inlineHeader>
                 <exclude>mvnw</exclude>
                 <exclude>mvnw.cmd</exclude>
                 <exclude>**/*.no_license</exclude>
+                <exclude>**/dremio-env</exclude>
                 <exclude>**/rpm/conf/dremio-env</exclude>
                 <exclude>**/rpm/conf/dremio.conf</exclude>
                 <exclude>**/pnpm-lock.yaml</exclude>
@@ -3681,6 +3736,8 @@ limitations under the License.</inlineHeader>
             <ts>SLASHSTAR_STYLE</ts>
             <tsx>SLASHSTAR_STYLE</tsx>
             <jsx>SLASHSTAR_STYLE</jsx>
+            <mjs>SLASHSTAR_STYLE</mjs>
+            <cjs>SLASHSTAR_STYLE</cjs>
             <helmignore>SCRIPT_STYLE</helmignore>
             <repo>SCRIPT_STYLE</repo>
           </mapping>
@@ -3737,6 +3794,34 @@ limitations under the License.</inlineHeader>
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <!--
+          Generate pom.xml files with ${revision} resolved
+          See https://maven.apache.org/maven-ci-friendly.html
+        -->
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
+        <configuration>
+          <flattenMode>resolveCiFriendliesOnly</flattenMode>
+          <updatePomFile>true</updatePomFile>
+        </configuration>
+        <executions>
+          <execution>
+            <id>clean</id>
+            <goals>
+              <goal>clean</goal>
+            </goals>
+            <phase>clean</phase>
+          </execution>
+          <execution>
+            <id>flatten</id>
+            <goals>
+              <goal>flatten</goal>
+            </goals>
+            <phase>process-resources</phase>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
@@ -3777,34 +3862,73 @@ limitations under the License.</inlineHeader>
         <checkstyle.skip>true</checkstyle.skip>
         <license.skip>true</license.skip>
         <forbiddenapis.skip>true</forbiddenapis.skip>
-        <spotbugs.skip>true</spotbugs.skip>
+        <!-- manual skip of errorprone -->
+        <errorprone.type>pom</errorprone.type>
+        <errorprone.args/>
       </properties>
     </profile>
     <profile>
-      <!-- Profile to avoid recompilation when CI runs tests in separate mvn invocations -->
-      <id>dremio.no-codegen</id>
-      <activation>
-        <property>
-          <name>dremio.no-codegen</name>
-        </property>
-      </activation>
+      <!-- Profile to avoid plugins that are not explicitly required to perform -->
+      <!-- a `verify` when `install` has already been executed before it in CI -->
+      <id>dremio.verify-skip-rebuild</id>
       <properties>
+        <!-- custom dremio build properties -->
+        <buildtimescan.phase>none</buildtimescan.phase>
+        <!-- The below are official plugin skip properties -->
         <protoc.skip>true</protoc.skip>
         <protostuff.compiler.skip>true</protostuff.compiler.skip>
         <jsonschema2pojo.skip>true</jsonschema2pojo.skip>
+        <maven.gitcommitid.skip>true</maven.gitcommitid.skip>
+        <maven.plugin.skip>true</maven.plugin.skip>
+        <jandex.skip>true</jandex.skip>
+        <assembly.skipAssembly>true</assembly.skipAssembly>
       </properties>
-    </profile>
-    <profile>
-      <!-- Profile to skip BuildTimeScan when CI runs tests in separate mvn invocations -->
-      <id>dremio.no-buildtimescan</id>
-      <activation>
-        <property>
-          <name>dremio.no-buildtimescan</name>
-        </property>
-      </activation>
-      <properties>
-        <buildtimescan.phase>none</buildtimescan.phase>
-      </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <artifactId>maven-resources-plugin</artifactId>
+              <configuration>
+                <skip>true</skip>
+              </configuration>
+            </plugin>
+            <plugin>
+              <artifactId>maven-compiler-plugin</artifactId>
+              <configuration>
+                <!-- skips the compile goal -->
+                <skipMain>true</skipMain>
+                <!-- skips the testCompile goal -->
+                <skip>true</skip>
+              </configuration>
+            </plugin>
+            <plugin>
+              <artifactId>maven-jar-plugin</artifactId>
+              <configuration>
+                <!-- skip only affects the test-jar goal. The jar goal does not support skip -->
+                <skip>true</skip>
+              </configuration>
+              <executions>
+                <execution>
+                  <id>default-jar</id>
+                  <phase>none</phase>
+                </execution>
+              </executions>
+            </plugin>
+            <plugin>
+              <artifactId>maven-shade-plugin</artifactId>
+              <configuration>
+                <skip>true</skip>
+              </configuration>
+            </plugin>
+            <plugin>
+              <artifactId>maven-dependency-plugin</artifactId>
+              <configuration>
+                <skip>true</skip>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
     </profile>
     <profile>
       <id>eclipse-m2e</id>
@@ -3883,7 +4007,7 @@ limitations under the License.</inlineHeader>
                     </pluginExecution>
                     <pluginExecution>
                       <pluginExecutionFilter>
-                        <groupId>com.dremio.tools</groupId>
+                        <groupId>com.dremio.build-tools</groupId>
                         <artifactId>dremio-protostuff-maven-plugin</artifactId>
                         <versionRange>[${project.version},)</versionRange>
                         <goals>
@@ -3896,7 +4020,7 @@ limitations under the License.</inlineHeader>
                     </pluginExecution>
                     <pluginExecution>
                       <pluginExecutionFilter>
-                        <groupId>com.dremio.tools</groupId>
+                        <groupId>com.dremio.build-tools</groupId>
                         <artifactId>dremio-fmpp-maven-plugin</artifactId>
                         <versionRange>[1.0,)</versionRange>
                         <goals>
@@ -3989,8 +4113,8 @@ limitations under the License.</inlineHeader>
                   <type>${errorprone.type}</type>
                 </path>
                 <path>
-                  <groupId>com.dremio.tools</groupId>
-                  <artifactId>errorprone-dremio</artifactId>
+                  <groupId>com.dremio.build-tools</groupId>
+                  <artifactId>dremio-errorprone</artifactId>
                   <version>${project.version}</version>
                   <type>${errorprone.type}</type>
                 </path>
@@ -3998,8 +4122,8 @@ limitations under the License.</inlineHeader>
             </configuration>
             <dependencies>
               <dependency>
-                <groupId>com.dremio.tools</groupId>
-                <artifactId>errorprone-dremio</artifactId>
+                <groupId>com.dremio.build-tools</groupId>
+                <artifactId>dremio-errorprone</artifactId>
                 <version>${project.version}</version>
                 <type>${errorprone.type}</type>
               </dependency>
@@ -4037,14 +4161,11 @@ limitations under the License.</inlineHeader>
         <plugin.hive2.hive.version>2.3.9.0-eep-810-dremio-202305101622080327-3ed1ada</plugin.hive2.hive.version>
         <hadoop.version>2.7.6.200-eep-810</hadoop.version>
         <yarn.common.version>2.7.4.0-mapr-700</yarn.common.version>
-        <maprfs.version>6.2.0.20-mapr</maprfs.version>
         <hadoop.native.libraries.version>1.0.1</hadoop.native.libraries.version>
         <!-- This jar is a dependency of com.mapr.hadoop:maprfs jar.
              For some reason it is not packaged by the assembly plugin. Include it explicitly. -->
         <org.json.version>20080701</org.json.version>
         <zookeeper.version>3.5.6.0-mapr-2009</zookeeper.version>
-        <!-- The version of protobuf to shade with MapR FS -->
-        <maprfs.protobuf.version>3.11.1</maprfs.protobuf.version>
         <hbase.version>1.4.13.200-eep-810</hbase.version>
 
         <plugin.hive2.datanucleus-api-jdo.version>5.2.4</plugin.hive2.datanucleus-api-jdo.version>
@@ -4090,6 +4211,34 @@ limitations under the License.</inlineHeader>
           </dependency>
         </dependencies>
       </dependencyManagement>
+      <dependencies>
+        <!-- mapr profile uses fips dependencies (and non-mapr profiles use non fips dependencies), so mark
+         non fips dependencies as "provided" to exclude them from mapr build -->
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcpkix-jdk18on</artifactId>
+          <version>${bouncycastle.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcutil-jdk18on</artifactId>
+          <version>${bouncycastle.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcprov-jdk18on</artifactId>
+          <version>${bouncycastle.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bctls-jdk18on</artifactId>
+          <version>${bouncycastle.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
       <repositories>
         <repository>
           <id>mapr-releases</id>

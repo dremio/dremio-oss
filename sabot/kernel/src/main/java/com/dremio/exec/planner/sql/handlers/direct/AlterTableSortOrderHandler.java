@@ -17,6 +17,7 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
@@ -28,7 +29,6 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableSortOrder;
-import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
@@ -40,7 +40,7 @@ import java.util.stream.Collectors;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.sql.SqlNode;
 
-public class AlterTableSortOrderHandler extends SimpleDirectHandler {
+public class AlterTableSortOrderHandler extends SimpleDirectHandlerWithValidator {
   private final Catalog catalog;
   private final SqlHandlerConfig config;
 
@@ -61,7 +61,11 @@ public class AlterTableSortOrderHandler extends SimpleDirectHandler {
 
     IcebergUtils.validateIcebergLocalSortIfDeclared(sql, context.getOptions());
 
-    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
+    final String sourceName = path.getRoot();
+    final VersionContext sessionVersion =
+        config.getContext().getSession().getSessionVersionForSource(sourceName);
+
+    validate(path, sessionVersion);
 
     DremioTable table = catalog.getTableNoResolve(path);
     SimpleCommandResult result =
@@ -71,9 +75,6 @@ public class AlterTableSortOrderHandler extends SimpleDirectHandler {
       return Collections.singletonList(result);
     }
 
-    final String sourceName = path.getRoot();
-    final VersionContext sessionVersion =
-        config.getContext().getSession().getSessionVersionForSource(sourceName);
     ResolvedVersionContext resolvedVersionContext =
         CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
     CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
@@ -81,21 +82,46 @@ public class AlterTableSortOrderHandler extends SimpleDirectHandler {
         TableMutationOptions.newBuilder().setResolvedVersionContext(resolvedVersionContext).build();
 
     List<String> sortOrderColumns = sqlAlterTableSortOrder.getSortList();
-    Set<String> fieldSet =
-        table.getSchema().getFields().stream().map(Field::getName).collect(Collectors.toSet());
+    String message = "";
+    if (sortOrderColumns.isEmpty()) {
+      // Drop Sort Order
+      catalog.alterSortOrder(
+          path,
+          table.getDatasetConfig(),
+          table.getSchema(),
+          Collections.emptyList(),
+          tableMutationOptions);
+      message = String.format("Sort order has been removed from Table: [%S]", path.getRoot());
+    } else {
+      // Update Sort Order
 
-    for (String col : sortOrderColumns) {
-      if (!fieldSet.contains(col)) {
-        throw UserRemoteException.validationError()
-            .message(String.format("Column '%s' does not exist in the table.", col))
+      // check if the table has clustering keys
+      if (IcebergUtils.hasClusteringColumns(table)) {
+        throw UserException.unsupportedError()
+            .message(
+                "Table: [%s] has clustering key already defined, please unset clustering keys before adding sort order",
+                path.getName())
             .buildSilently();
       }
-    }
-    catalog.alterSortOrder(
-        path, table.getDatasetConfig(), table.getSchema(), sortOrderColumns, tableMutationOptions);
+      Set<String> fieldSet =
+          table.getSchema().getFields().stream().map(Field::getName).collect(Collectors.toSet());
 
+      for (String col : sortOrderColumns) {
+        if (!fieldSet.contains(col)) {
+          throw UserRemoteException.validationError()
+              .message(String.format("Column '%s' does not exist in the table.", col))
+              .buildSilently();
+        }
+      }
+      catalog.alterSortOrder(
+          path,
+          table.getDatasetConfig(),
+          table.getSchema(),
+          sortOrderColumns,
+          tableMutationOptions);
+      message = String.format("Sort order on table %s successfully updated", path);
+    }
     DataAdditionCmdHandler.refreshDataset(catalog, path, false);
-    String message = String.format("Sort order on table %s successfully updated", path);
     return Collections.singletonList(SimpleCommandResult.successful(message));
   }
 }

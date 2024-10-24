@@ -348,6 +348,9 @@ public class FragmentExecutorBuilder {
                 outstandingRPCsPerTunnel,
                 major);
 
+        queryTicket.setEndpointsAndTunnelProvider(
+            cachedReader.getPlanFragmentsIndex().getEndpointsIndex(), tunnelProvider);
+
         final OperatorContextCreator creator =
             getOperatorContextCreator(
                 stats,

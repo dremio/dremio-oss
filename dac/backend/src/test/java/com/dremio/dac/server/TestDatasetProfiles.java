@@ -114,7 +114,7 @@ public class TestDatasetProfiles extends BaseTestServer {
       getNamespaceService().getSpace(new NamespaceKey(spaceName));
     } catch (NamespaceNotFoundException e) {
       expectSuccess(
-          getBuilder(getPublicAPI(3).path("/catalog/"))
+          getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
               .buildPost(
                   Entity.json(new com.dremio.dac.api.Space(null, spaceName, null, null, null))),
           new GenericType<com.dremio.dac.api.Space>() {});
@@ -122,7 +122,9 @@ public class TestDatasetProfiles extends BaseTestServer {
 
     final DatasetPath vdsPath = new DatasetPath(spaceName + "." + vdsName);
     final String vdsSql = String.format("SELECT * FROM dfs.\"%s\"", complexPdsPath);
-    createDatasetFromSQLAndSave(vdsPath, vdsSql, Collections.emptyList());
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSave(vdsPath, vdsSql, Collections.emptyList());
 
     final QueryProfile profile =
         getQueryProfile(String.format("SELECT * FROM %s.%s", spaceName, vdsName));
@@ -139,7 +141,7 @@ public class TestDatasetProfiles extends BaseTestServer {
       getNamespaceService().getSpace(new NamespaceKey(spaceName));
     } catch (NamespaceNotFoundException e) {
       expectSuccess(
-          getBuilder(getPublicAPI(3).path("/catalog/"))
+          getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
               .buildPost(
                   Entity.json(new com.dremio.dac.api.Space(null, spaceName, null, null, null))),
           new GenericType<com.dremio.dac.api.Space>() {});
@@ -150,7 +152,9 @@ public class TestDatasetProfiles extends BaseTestServer {
         String.format(
             "SELECT * FROM dfs.\"%s\" t1 LEFT JOIN dfs.\"%s\" t2 ON t1.\"value\" = t2.custID",
             simplePdsPath, complexPdsPath);
-    createDatasetFromSQLAndSave(vdsPath, vdsSql, Collections.emptyList());
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSave(vdsPath, vdsSql, Collections.emptyList());
 
     final QueryProfile profile =
         getQueryProfile(String.format("SELECT * FROM %s.%s", spaceName, vdsName));

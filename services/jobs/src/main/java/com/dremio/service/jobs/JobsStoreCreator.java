@@ -30,6 +30,7 @@ import static com.dremio.service.jobs.JobIndexKeys.MATCHED_REFLECTION_IDS;
 import static com.dremio.service.jobs.JobIndexKeys.PARENT_DATASET;
 import static com.dremio.service.jobs.JobIndexKeys.QUERY_TYPE;
 import static com.dremio.service.jobs.JobIndexKeys.QUEUE_NAME;
+import static com.dremio.service.jobs.JobIndexKeys.RESULTS_CLEANED;
 import static com.dremio.service.jobs.JobIndexKeys.SPACE;
 import static com.dremio.service.jobs.JobIndexKeys.SQL;
 import static com.dremio.service.jobs.JobIndexKeys.START_TIME;
@@ -99,6 +100,7 @@ public class JobsStoreCreator implements LegacyIndexedStoreCreationFunction<JobI
       writer.write(DATASET_VERSION, jobInfo.getDatasetVersion());
       writer.write(START_TIME, jobInfo.getStartTime());
       writer.write(END_TIME, jobInfo.getFinishTime());
+      writer.write(RESULTS_CLEANED, job.getResultsCleaned().toString());
       if (jobInfo.getResourceSchedulingInfo() != null
           && jobInfo.getResourceSchedulingInfo().getQueueName() != null) {
         writer.write(QUEUE_NAME, jobInfo.getResourceSchedulingInfo().getQueueName());

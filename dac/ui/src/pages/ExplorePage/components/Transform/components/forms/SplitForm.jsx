@@ -63,7 +63,7 @@ export class SplitForm extends Component {
           ...fieldsMappers.getSplitPosition(values),
         },
       },
-      submitType
+      submitType,
     );
   };
 
@@ -118,5 +118,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(SplitForm);

@@ -118,6 +118,8 @@ class RocksDBStore implements ByteStore {
     FILTER_SIZE_IN_BYTES = filterSize;
   }
 
+  static final Map<String, Long> OVERRIDE_FILTER_SIZE_MAP = Map.of("intermediate_profiles", 0L);
+
   private static final String METRICS_PREFIX = "kvstore.stores";
   private static final String[] METRIC_PROPERTIES = {
     // number of immutable memtables that have not yet been flushed

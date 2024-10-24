@@ -370,7 +370,6 @@
   },
   "SHOW ^": {
     "keywords": [
-      "PIPES",
       "TBLPROPERTIES",
       "CREATE",
       "FUNCTIONS",
@@ -464,6 +463,7 @@
       "FETCH",
       "SESSION",
       "SYSTEM",
+      "ENGINE",
       "PIPE",
       "TAG",
       "BRANCH",
@@ -688,6 +688,10 @@
     "keywords": [
       "SET",
       "RESET",
+      [
+        "CLUSTER",
+        "BY"
+      ],
       [
         "LOCALSORT",
         "BY"

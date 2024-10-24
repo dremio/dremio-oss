@@ -17,8 +17,8 @@ import { createRef, PureComponent } from "react";
 import PropTypes from "prop-types";
 import Divider from "@mui/material/Divider";
 
-import { AUTO_TYPES } from "@app/constants/columnTypeGroups";
-import { JSONTYPE } from "@app/constants/DataTypes";
+import { AUTO_TYPES } from "#oss/constants/columnTypeGroups";
+import { JSONTYPE } from "#oss/constants/DataTypes";
 
 import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
 import MenuItem from "./../MenuItem";
@@ -45,7 +45,7 @@ class AutoGroup extends PureComponent {
     }
 
     const divs = Array.from(children).filter(
-      (child) => child.nodeName === "DIV"
+      (child) => child.nodeName === "DIV",
     );
     if (divs.length === 1) {
       this.setVisibility(false);

@@ -15,8 +15,8 @@
  */
 import Immutable from "immutable";
 import { RSAA } from "redux-api-middleware";
-import { explorePageLocationChanged } from "@app/actions/explore/dataset/data";
-import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
+import { explorePageLocationChanged } from "#oss/actions/explore/dataset/data";
+import { PageTypes } from "#oss/pages/ExplorePage/pageTypes";
 
 import {
   LOCATION_CHANGE,
@@ -59,13 +59,13 @@ describe("saga utils", () => {
         predicate({
           type: LOCATION_CHANGE,
           payload: { pathname: "foo", query: { bar: "different" } },
-        })
+        }),
       ).to.be.true;
       expect(
         predicate({
           type: LOCATION_CHANGE,
           payload: { pathname: "foo", state: {} },
-        })
+        }),
       ).to.be.true;
 
       const locationWithState = {
@@ -82,7 +82,7 @@ describe("saga utils", () => {
             query: { bar: "bar" },
             state: { a: "b" },
           },
-        })
+        }),
       ).to.be.false;
       expect(
         predicate2({
@@ -92,7 +92,7 @@ describe("saga utils", () => {
             query: { bar: "bar" },
             state: { a: "different" },
           },
-        })
+        }),
       ).to.be.true;
     });
   });
@@ -123,14 +123,14 @@ describe("saga utils", () => {
     const predicate = (action) => {
       const [result] = getExplorePageLocationChangePredicate(
         generateRouteState(originalParams),
-        action
+        action,
       );
       return result;
     };
 
     const testPredicate = (newParams, expected) => {
       expect(
-        predicate(explorePageLocationChanged(generateRouteState(newParams)))
+        predicate(explorePageLocationChanged(generateRouteState(newParams))),
       ).to.be.equal(expected);
     };
 
@@ -143,7 +143,7 @@ describe("saga utils", () => {
         predicate({
           ...explorePageLocationChanged(originalParams, differentParams),
           type: "foo",
-        })
+        }),
       ).to.be.false;
       expect(predicate({ type: "foo" })).to.be.false;
       testPredicate(differentParams, true);
@@ -155,7 +155,7 @@ describe("saga utils", () => {
           ...originalParams,
           path: differentParams.path,
         },
-        true
+        true,
       );
       // treat navigation to details page as location change
       testPredicate(
@@ -163,7 +163,7 @@ describe("saga utils", () => {
           ...originalParams,
           pageType: PageTypes.details,
         },
-        true
+        true,
       );
       // should return false if we are navigating to graph/wiki tab
       testPredicate(
@@ -171,14 +171,14 @@ describe("saga utils", () => {
           ...originalParams,
           pageType: PageTypes.graph,
         },
-        false
+        false,
       );
       testPredicate(
         {
           ...originalParams,
           pageType: PageTypes.wiki,
         },
-        false
+        false,
       );
     });
 
@@ -188,7 +188,7 @@ describe("saga utils", () => {
           ...originalParams,
           query: differentParams.query,
         },
-        true
+        true,
       );
 
       testPredicate(
@@ -196,7 +196,7 @@ describe("saga utils", () => {
           ...originalParams,
           query: null,
         },
-        true
+        true,
       );
 
       testPredicate(
@@ -204,7 +204,7 @@ describe("saga utils", () => {
           ...originalParams,
           query: {},
         },
-        true
+        true,
       );
     });
 
@@ -214,21 +214,21 @@ describe("saga utils", () => {
           ...originalParams,
           state: differentParams.state,
         },
-        false
+        false,
       );
       testPredicate(
         {
           ...originalParams,
           state: null,
         },
-        false
+        false,
       );
       testPredicate(
         {
           ...originalParams,
           state: {},
         },
-        false
+        false,
       );
     });
 
@@ -242,7 +242,7 @@ describe("saga utils", () => {
             afterDatasetSave: true,
           },
         },
-        false
+        false,
       );
     });
   });
@@ -265,14 +265,14 @@ describe("saga utils", () => {
         expect(
           getActionPredicate(
             "SUCCESS",
-            entity
-          )({ type: "SUCCESS", meta: { entity: "other" } })
+            entity,
+          )({ type: "SUCCESS", meta: { entity: "other" } }),
         ).to.be.false;
         expect(
           getActionPredicate(
             "SUCCESS",
-            entity
-          )({ type: "SUCCESS", meta: { entity } })
+            entity,
+          )({ type: "SUCCESS", meta: { entity } }),
         ).to.be.true;
       });
 
@@ -281,8 +281,8 @@ describe("saga utils", () => {
         expect(
           getActionPredicate(
             "SUCCESS",
-            entity
-          )({ type: "FOO", meta: { entity } })
+            entity,
+          )({ type: "FOO", meta: { entity } }),
         ).to.be.false;
       });
     });
@@ -291,17 +291,23 @@ describe("saga utils", () => {
   describe("getApiCallCompletePredicate", () => {
     it("should return true if action.error", () => {
       expect(
-        getApiCallCompletePredicate(apiAction)({ type: "START", error: true })
+        getApiCallCompletePredicate(apiAction)({ type: "START", error: true }),
       ).to.be.true;
       expect(getApiCallCompletePredicate(apiAction)({ type: "START" })).to.be
         .false;
       expect(
-        getApiCallCompletePredicate(apiAction)({ type: "SUCCESS", error: true })
+        getApiCallCompletePredicate(apiAction)({
+          type: "SUCCESS",
+          error: true,
+        }),
       ).to.be.true;
       expect(getApiCallCompletePredicate(apiAction)({ type: "SUCCESS" })).to.be
         .true;
       expect(
-        getApiCallCompletePredicate(apiAction)({ type: "FAILURE", error: true })
+        getApiCallCompletePredicate(apiAction)({
+          type: "FAILURE",
+          error: true,
+        }),
       ).to.be.true;
       expect(getApiCallCompletePredicate(apiAction)({ type: "FAILURE" })).to.be
         .true;
@@ -321,14 +327,14 @@ describe("saga utils", () => {
           type: "START",
           error: true,
           meta: { entity: "different" },
-        })
+        }),
       ).to.be.false;
       expect(
         entityPredicate({
           type: "START",
           error: true,
           meta: { entity: "entity" },
-        })
+        }),
       ).to.be.true;
     });
 
@@ -336,7 +342,7 @@ describe("saga utils", () => {
       expect(noEntityPredicate({ type: "SUCCESS" })).to.be.true;
 
       expect(
-        entityPredicate({ type: "SUCCESS", meta: { entity: "different" } })
+        entityPredicate({ type: "SUCCESS", meta: { entity: "different" } }),
       ).to.be.false;
       expect(entityPredicate({ type: "SUCCESS", meta: { entity: "entity" } }))
         .to.be.true;
@@ -357,7 +363,7 @@ describe("saga utils", () => {
 
     it("should extract action types from dispatch wrapped action", () => {
       expect(getApiActionTypes((dispatch) => dispatch(action))).to.eql(
-        actionTypes
+        actionTypes,
       );
     });
   });

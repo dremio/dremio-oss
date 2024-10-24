@@ -27,6 +27,12 @@ export type ModalContainerProps = {
   close: () => void;
   children: JSX.Element | JSX.Element[];
   className?: string;
+
+  /**
+   * Close on outside click should only be used when a dialog does not
+   * have a cancel/close button.
+   */
+  closeOnOutsideClick?: boolean;
 };
 
 export const ModalContainer = forwardRef<
@@ -34,8 +40,44 @@ export const ModalContainer = forwardRef<
   ModalContainerProps
 >((props, ref) => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { open, close, isOpen, className, ...rest } = props;
+  const { open, close, isOpen, className, closeOnOutsideClick, ...rest } =
+    props;
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const triggerEl = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const el = dialogRef.current;
+
+    if (!closeOnOutsideClick || !isOpen || !el) {
+      return;
+    }
+
+    let pendingClickTarget: EventTarget | null = null;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.target === el && e.button === 0) {
+        pendingClickTarget = e.target;
+      } else {
+        pendingClickTarget = null;
+      }
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (e.target === el && e.button === 0 && pendingClickTarget === el) {
+        close();
+      }
+      pendingClickTarget = null;
+    };
+
+    // https://www.w3.org/WAI/WCAG21/Understanding/pointer-cancellation.html
+    el.addEventListener("mousedown", handleMouseDown);
+    el.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      el.removeEventListener("mousedown", handleMouseDown);
+      el.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [close, closeOnOutsideClick, isOpen]);
 
   useEffect(() => {
     const dialogEl = dialogRef.current;
@@ -48,7 +90,10 @@ export const ModalContainer = forwardRef<
   useEffect(() => {
     if (!isOpen) {
       dialogRef.current?.close();
+      triggerEl.current?.focus?.();
+      triggerEl.current = null;
     } else {
+      triggerEl.current = document.activeElement as HTMLElement;
       dialogRef.current?.showModal();
     }
   }, [isOpen]);

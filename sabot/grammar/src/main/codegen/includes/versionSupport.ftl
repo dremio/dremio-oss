@@ -487,6 +487,54 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
 }
 
 /**
+ * UDF version specification - can occur after a function call.
+ *
+ * AT [BRANCH|TAG|COMMIT|REF[ERENCE]|TIMESTAMP] version-specifier
+ * [ AS OF timestamp ]
+ */
+SqlCall FunctionWithVersionContext(SqlCall call) :
+{
+    SqlParserPos pos;
+    SqlTableVersionSpec sqlTableVersionSpec = null;
+}
+{
+    sqlTableVersionSpec = ATVersionSpecWithoutTimeTravel()
+    {
+        pos = sqlTableVersionSpec.getPos();
+        if (call instanceof SqlBasicCall &&
+            sqlTableVersionSpec != null &&
+            sqlTableVersionSpec.getTableVersionSpec().getTableVersionType() != TableVersionType.NOT_SPECIFIED) {
+          return new SqlVersionedFunctionCall(call, sqlTableVersionSpec);
+        }
+        return call;
+    }
+}
+
+/**
+ * Table Function UDF version specification - can occur after a function call.
+ *
+ * AT [BRANCH|TAG|COMMIT|REF[ERENCE]|TIMESTAMP] version-specifier
+ * [ AS OF timestamp ]
+ */
+SqlNode TableFunctionWithVersionContext(SqlNode call) :
+{
+    SqlParserPos pos;
+    SqlTableVersionSpec sqlTableVersionSpec = null;
+}
+{
+    sqlTableVersionSpec = ATVersionSpecWithoutTimeTravel()
+    {
+        pos = sqlTableVersionSpec.getPos();
+        if (call instanceof SqlBasicCall &&
+            sqlTableVersionSpec != null &&
+            sqlTableVersionSpec.getTableVersionSpec().getTableVersionType() != TableVersionType.NOT_SPECIFIED) {
+          return new SqlVersionedFunctionCall((SqlCall)call, sqlTableVersionSpec);
+        }
+        return call;
+    }
+}
+
+/**
  [AT (BRANCH | REF | REFERENCE | TAG | COMMIT | SNAPSHOT | TIMESTAMP (versionSpec)]
  [ <AS> <OF> timestamp ]
  Note that the ATVersionSpec is meant to be used to specify a specific version of table. The specified version is not meant to be limited to be any specific type.
@@ -567,5 +615,52 @@ SqlTableVersionSpec WriteableAtVersionSpec() :
      )
      {
        return new SqlTableVersionSpec(pos, tableVersionType, specifier, null);
+     }
+}
+
+/**
+ [AT (BRANCH | REF | REFERENCE | TAG | COMMIT]
+ [ <AS> <OF> timestamp ]
+  Similar to AtVersionSpec() but not include At Snapshot and At Time stamp.
+  This is a workaround for Sql parsers such as ShowFunctions.
+*/
+SqlTableVersionSpec ATVersionSpecWithoutTimeTravel() :
+{
+    SqlParserPos pos;
+    SqlIdentifier simpleId;
+    TableVersionType tableVersionType = TableVersionType.NOT_SPECIFIED;
+    SqlNode specifier = SqlLiteral.createCharString("NOT_SPECIFIED",SqlParserPos.ZERO);
+    SqlNode timestamp = null;
+}
+{
+    <AT> { pos = getPos(); }
+     (
+     <BRANCH> simpleId = SimpleIdentifier()
+     {
+      tableVersionType = TableVersionType.BRANCH;
+      specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
+     }
+     |
+     <TAG> simpleId = SimpleIdentifier()
+     {
+      tableVersionType = TableVersionType.TAG;
+      specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
+      }
+     |
+     <COMMIT> simpleId = SimpleIdentifier()
+     {
+      tableVersionType = TableVersionType.COMMIT;
+      specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
+      }
+     |
+     (<REF> | <REFERENCE>) simpleId = SimpleIdentifier()
+     {
+      tableVersionType = TableVersionType.REFERENCE;
+      specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
+      }
+     )
+     [ <AS> <OF> timestamp = StringLiteral() ]
+     {
+       return new SqlTableVersionSpec(pos, tableVersionType, specifier, timestamp);
      }
 }

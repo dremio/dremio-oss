@@ -35,8 +35,6 @@ npm install
 
 const fs = require("fs");
 
-const checkNodeVersion = require("check-node-version");
-
 const checker = require("license-checker");
 require("isomorphic-fetch");
 
@@ -209,11 +207,11 @@ const KNOWN = {
       "https://raw.githubusercontent.com/formium/formik/master/LICENSE",
   },
   "dremio-ui-lib@1.0.0": {
-    licenses: "Unlicense",
+    licenses: "Apache-2.0",
     noFile: true,
   },
   "@dremio/dremio-js@0.0.1": {
-    licenses: "Unlicense",
+    licenses: "Apache-2.0",
     noFile: true,
   },
   "https://github.com/mantinedev/mantine": {
@@ -499,18 +497,4 @@ function exitWithError() {
   process.exit(-1);
 }
 
-checkNodeVersion({ npm: ">= 5.7" }, async (error, results) => {
-  if (error) {
-    exitWithError(error);
-    return;
-  }
-
-  if (!results.isSatisfied) {
-    exitWithError(
-      "NPM must be v5.7 or greater due to https://github.com/npm/npm/issues/19596",
-    );
-    return;
-  }
-
-  await main();
-});
+main();

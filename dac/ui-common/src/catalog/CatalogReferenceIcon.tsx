@@ -13,40 +13,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//@ts-nocheck
-import { FC } from "react";
+import type { FC } from "react";
 import type { CatalogReference } from "@dremio/dremio-js/interfaces";
+import { getIntlContext } from "../contexts/IntlContext";
 
 const iconMap = {
-  DATASET_DIRECT: "entities/dataset-table",
-  DATASET_PROMOTED: "entities/purple-folder",
-  DATASET_VIRTUAL: "entities/dataset-view",
+  DATASET_DIRECT: "catalog/dataset/table",
+  DATASET_PROMOTED: "catalog/dataset/promoted",
+  DATASET_VIRTUAL: "catalog/dataset/view",
   FILE: "entities/file",
-  FOLDER: "entities/blue-folder",
-  FUNCTION: "sql-editor/function",
+  FOLDER: "catalog/folder",
+  FUNCTION: "catalog/function",
   HOME: "entities/home",
   SOURCE: "sources/SAMPLEDB",
   SPACE: "entities/space",
 };
 
-const oldTypes = {
-  PHYSICAL_DATASET: iconMap["DATASET_DIRECT"],
-  PHYSICAL_DATASET_SOURCE_FOLDER: iconMap["DATASET_PROMOTED"],
-  VIRTUAL_DATASET: iconMap["DATASET_VIRTUAL"],
-  PHYSICAL_DATASET_SOURCE_FILE: iconMap["FILE"],
+const mapOldToNewType = (type: string): keyof typeof iconMap => {
+  switch (type) {
+    case "PHYSICAL_DATASET":
+      return "DATASET_DIRECT";
+    case "PHYSICAL_DATASET_SOURCE_FOLDER":
+      return "DATASET_PROMOTED";
+    case "VIRTUAL_DATASET":
+      return "DATASET_VIRTUAL";
+    case "PHYSICAL_DATASET_SOURCE_FILE":
+      return "FILE";
+    default:
+      //@ts-ignore
+      return type;
+  }
 };
 
 export const CatalogReferenceIcon: FC<{
   catalogReference: CatalogReference;
 }> = (props) => {
-  const iconName =
-    iconMap[props.catalogReference.type] ||
-    oldTypes[props.catalogReference.type] ||
-    "entities/empty-file";
+  const { t } = getIntlContext();
 
-  if (iconName === "entities/empty-file") {
-    console.log(props.catalogReference.type);
-  }
+  const type = mapOldToNewType(props.catalogReference.type);
 
-  return <dremio-icon name={iconName} alt=""></dremio-icon>;
+  const iconName = iconMap[type] || "entities/empty-file";
+
+  const tKey = `Catalog.Reference.Type.${type}.Label`;
+
+  const label = t(tKey);
+
+  return (
+    <dremio-icon
+      name={iconName}
+      alt={label !== tKey ? label : ""}
+      title={label !== tKey ? label : undefined}
+    ></dremio-icon>
+  );
 };

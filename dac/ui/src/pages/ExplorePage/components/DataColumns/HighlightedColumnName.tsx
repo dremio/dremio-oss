@@ -37,7 +37,7 @@ const HighlightedColumnName = ({
       const firstPart = columnName.substring(0, firstPartIndex);
       const highlightPart = columnName.substr(
         firstPartIndex,
-        searchTerm.length
+        searchTerm.length,
       );
       const lastPart = columnName.substr(firstPartIndex + searchTerm.length);
       highlightName = (

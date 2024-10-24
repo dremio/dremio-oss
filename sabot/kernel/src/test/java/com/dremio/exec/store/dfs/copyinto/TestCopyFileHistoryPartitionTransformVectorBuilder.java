@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.store.dfs.copyinto;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo;
 import com.dremio.exec.record.VectorContainer;
 import java.util.List;
+import java.util.stream.LongStream;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -28,21 +30,25 @@ public class TestCopyFileHistoryPartitionTransformVectorBuilder
 
   @Test
   public void testInitializeVectors() {
-    assertPartitionVectors(CopyFileHistoryTableSchemaProvider.getPartitionSpec(1L));
-    assertPartitionVectors(CopyFileHistoryTableSchemaProvider.getPartitionSpec(2L));
+    LongStream.range(0, ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal())
+        .forEach(
+            i ->
+                assertPartitionVectors(
+                    new CopyFileHistoryTableSchemaProvider(i + 1).getPartitionSpec()));
   }
 
   @Test
   public void testTransformVectors() {
-    assertTransformation(1L);
-    assertTransformation(2L);
+    LongStream.range(0, ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal())
+        .forEach(i -> assertTransformation(i + 1));
   }
 
   private void assertTransformation(long schemaVersion) {
     List<CopyIntoFileLoadInfo> infos = getFileLoadInfos(1000);
-    Schema schema = CopyFileHistoryTableSchemaProvider.getSchema(schemaVersion);
-    PartitionSpec partitionSpec =
-        CopyFileHistoryTableSchemaProvider.getPartitionSpec(schemaVersion);
+    CopyFileHistoryTableSchemaProvider schemaProvider =
+        new CopyFileHistoryTableSchemaProvider(schemaVersion);
+    Schema schema = schemaProvider.getSchema();
+    PartitionSpec partitionSpec = schemaProvider.getPartitionSpec();
     long currentTimeMillis = System.currentTimeMillis();
     try (VectorContainer container = buildVector(schema, infos, currentTimeMillis)) {
       List<ValueVector> valueVectors =

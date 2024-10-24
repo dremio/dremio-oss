@@ -15,6 +15,7 @@
  */
 package com.dremio.search;
 
+import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
@@ -36,6 +37,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 import java.util.function.Supplier;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,10 +61,10 @@ public class SearchDocumentIdStoreImpl implements SearchDocumentIdStore {
       storeSupplier;
 
   @Inject
-  public SearchDocumentIdStoreImpl(KVStoreProvider kvStoreProvider) {
+  public SearchDocumentIdStoreImpl(Provider<KVStoreProvider> provider) {
     storeSupplier =
         Suppliers.memoize(
-            () -> kvStoreProvider.getStore(SearchDocumentIdStoreCreationFunction.class));
+            () -> provider.get().getStore(SearchDocumentIdStoreCreationFunction.class));
   }
 
   @Override
@@ -132,7 +134,7 @@ public class SearchDocumentIdStoreImpl implements SearchDocumentIdStore {
     @Override
     public void convert(
         DocumentWriter writer, String key, SearchDocumentIdProto.SearchDocumentId document) {
-      writer.write(PATH_INDEX_KEY, document.getPath());
+      writer.write(PATH_INDEX_KEY, PathUtils.constructFullPath(document.getPathList()));
     }
 
     @Override

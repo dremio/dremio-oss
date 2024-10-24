@@ -78,13 +78,13 @@ describe("DatasetsSearch-spec", () => {
     expect(wrapper.find(".datasets-search")).have.length(1);
     expect(wrapper.find(".dataset-wrapper")).have.length(1);
     expect(
-      wrapper.find(".dataset-wrapper").find("Connect(ViewStateWrapper)")
+      wrapper.find(".dataset-wrapper").find("Connect(ViewStateWrapper)"),
     ).to.have.length(1);
   });
 
   it("renders bad data without exploding", () => {
     const wrapper = shallow(
-      <DatasetsSearch {...commonProps} searchData={Immutable.List()} />
+      <DatasetsSearch {...commonProps} searchData={Immutable.List()} />,
     );
     expect(wrapper.find(".datasets-search")).have.length(1);
   });
@@ -95,23 +95,23 @@ describe("DatasetsSearch-spec", () => {
     const mainSettingsBtn = dataset.at(1).find(".main-settings-btn");
 
     const firstFullPath = JSON.stringify(
-      commonProps.searchData.get(0).get("fullPath")?.toJS()
+      commonProps.searchData.get(0).get("fullPath")?.toJS(),
     );
 
     const secondFullPath = JSON.stringify(
-      commonProps.searchData.get(1).get("fullPath")?.toJS()
+      commonProps.searchData.get(1).get("fullPath")?.toJS(),
     );
     const firstTo = {
       pathname: sqlPaths.sqlEditor.link(),
       search: `?context="${encodeURIComponent(
-        "@test_user"
+        "@test_user",
       )}"&queryPath=${encodeURIComponent(firstFullPath)}`,
     };
 
     const secondTo = {
       pathname: sqlPaths.sqlEditor.link(),
       search: `?context="${encodeURIComponent(
-        "@test_user"
+        "@test_user",
       )}"&queryPath=${encodeURIComponent(secondFullPath)}`,
     };
 
@@ -120,10 +120,10 @@ describe("DatasetsSearch-spec", () => {
     expect(dataset.at(0).prop("to")).deep.equal(firstTo);
     expect(dataset.at(1).prop("to")).deep.equal(secondTo);
     expect(mainSettingsBtn.childAt(0).prop("dataset")).equal(
-      commonProps.searchData.get(1)
+      commonProps.searchData.get(1),
     );
     expect(mainSettingsBtn.childAt(1).prop("fullPath")).deep.equal(
-      commonProps.searchData.get(1).get("fullPath")
+      commonProps.searchData.get(1).get("fullPath"),
     );
   });
 });

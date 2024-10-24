@@ -81,7 +81,7 @@ describe("ExploreTable", () => {
     };
     wrapper = shallow(<ExploreTable {...props} />, { context });
     expect(wrapper.find("Connect(ViewStateWrapper)").props().viewState).to.eql(
-      props.exploreViewState
+      props.exploreViewState,
     );
   });
 
@@ -94,7 +94,7 @@ describe("ExploreTable", () => {
     };
     wrapper = shallow(<ExploreTable {...props} />, { context });
     expect(wrapper.find("Connect(ViewStateWrapper)").props().viewState).to.eql(
-      props.exploreViewState
+      props.exploreViewState,
     );
   });
 
@@ -149,12 +149,12 @@ describe("ExploreTable", () => {
     });
     it("should return offsetWidth if width is not defined", () => {
       expect(
-        ExploreTable.tableWidth(null, { offsetWidth: 200 }, 1, false)
+        ExploreTable.tableWidth(null, { offsetWidth: 200 }, 1, false),
       ).to.equal(200);
     });
     it("should calculate width if right tree is shown", () => {
       expect(
-        ExploreTable.tableWidth(null, { offsetWidth: 300 }, 1, true)
+        ExploreTable.tableWidth(null, { offsetWidth: 300 }, 1, true),
       ).to.equal(300 - RIGHT_TREE_OFFSET);
     });
   });
@@ -165,7 +165,7 @@ describe("ExploreTable", () => {
     });
     it("should calculate height", () => {
       expect(
-        ExploreTable.tableHeight(null, { offsetHeight: 200 }, 100)
+        ExploreTable.tableHeight(null, { offsetHeight: 200 }, 100),
       ).to.equal(100);
     });
   });
@@ -180,7 +180,7 @@ describe("ExploreTable", () => {
 
     it("should return MIN_COLUMN_WIDTH if calculated is less than MIN_COLUMN_WIDTH", () => {
       expect(
-        ExploreTable.getDefaultColumnWidth(widthThatWillBeSet, columns)
+        ExploreTable.getDefaultColumnWidth(widthThatWillBeSet, columns),
       ).to.equal(MIN_COLUMN_WIDTH);
     });
   });
@@ -206,7 +206,7 @@ describe("ExploreTable", () => {
         data,
         customWrappers,
         columns,
-        nodeOffsetTop
+        nodeOffsetTop,
       );
     });
 
@@ -218,7 +218,7 @@ describe("ExploreTable", () => {
 
     it("should run tableWidth with proper params", () => {
       expect(
-        ExploreTable.tableWidth.calledWith(100, customWrappers[0], 2, false)
+        ExploreTable.tableWidth.calledWith(100, customWrappers[0], 2, false),
       );
     });
     it("should run tableHeight with proper params", () => {
@@ -234,7 +234,7 @@ describe("ExploreTable", () => {
           height: 200,
           maxHeight: 300,
           defaultColumnWidth: 200,
-        })
+        }),
       );
     });
   });
@@ -246,7 +246,7 @@ describe("ExploreTable", () => {
 
     it("should set size properties to 0", () => {
       expect(wrapper.state("size")).to.eql(
-        Immutable.Map({ width: 0, height: 0, defaultColumnWidth: 0 })
+        Immutable.Map({ width: 0, height: 0, defaultColumnWidth: 0 }),
       );
     });
   });

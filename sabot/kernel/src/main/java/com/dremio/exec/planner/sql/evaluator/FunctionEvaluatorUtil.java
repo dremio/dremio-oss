@@ -17,7 +17,7 @@ package com.dremio.exec.planner.sql.evaluator;
 
 import static com.dremio.exec.planner.physical.PlannerSettings.USE_LEGACY_TYPEOF;
 
-import com.dremio.exec.planner.logical.RelDataTypeEqualityUtil;
+import com.dremio.exec.planner.logical.RelDataTypeEqualityComparer;
 import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.ContextInformation;
@@ -141,7 +141,14 @@ public final class FunctionEvaluatorUtil {
 
       RexNode evaluated = functionEval.evaluate(evaluationContext, visited);
 
-      if (!RelDataTypeEqualityUtil.areEquals(call.getType(), evaluated.getType())) {
+      if (!RelDataTypeEqualityComparer.areEquals(
+          call.getType(),
+          evaluated.getType(),
+          RelDataTypeEqualityComparer.Options.builder()
+              .withConsiderScale(false)
+              .withConsiderPrecision(false)
+              .withConsiderNullability(false)
+              .build())) {
         throw new RuntimeException(
             "RexNode conversion resulted in type mismatch.\n"
                 + "Original Type: "

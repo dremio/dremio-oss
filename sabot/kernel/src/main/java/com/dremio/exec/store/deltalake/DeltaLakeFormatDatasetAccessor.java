@@ -159,14 +159,9 @@ public class DeltaLakeFormatDatasetAccessor implements FileDatasetHandle {
                     .getContext()
                     .getOptionManager()
                     .getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
-            boolean columnMappingEnabled =
-                formatPlugin
-                    .getContext()
-                    .getOptionManager()
-                    .getOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING);
             return DeltaLakeSchemaConverter.newBuilder()
                 .withMapEnabled(mapDataTypeEnabled)
-                .withColumnMapping(columnMappingEnabled, snapshot.getColumnMappingMode())
+                .withColumnMapping(snapshot.getColumnMappingMode())
                 .build()
                 .fromSchemaString(snapshot.getSchema());
           } catch (IOException e) {

@@ -17,7 +17,7 @@ import { v4 as uuidv4 } from "uuid";
 import Immutable from "immutable";
 
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
-import APICall from "@app/core/APICall";
+import APICall from "#oss/core/APICall";
 import ApiCallMixin from "@inject/utils/apiUtils/ApiUtilsMixin";
 
 import { DEFAULT_ERR_MSG } from "@inject/constants/errors";

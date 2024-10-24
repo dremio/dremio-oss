@@ -21,7 +21,7 @@ import Popover from "@mui/material/Popover";
 import Popper from "@mui/material/Popper";
 import Paper from "@mui/material/Paper";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
-import { generateEnumFromList } from "@app/utils/enumUtils";
+import { generateEnumFromList } from "#oss/utils/enumUtils";
 import {
   popper as popperCls,
   popperPaper as popperPaperCls,

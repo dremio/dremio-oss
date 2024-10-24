@@ -49,29 +49,28 @@ public class JdbcWithServerTestBase extends JdbcTestBase {
     connection = DriverManager.getConnection(getJDBCURL(), properties);
   }
 
-  public static AutoCloseable withOption(final BooleanValidator validator, boolean value)
-      throws Exception {
+  public static AutoCloseable withOption(final BooleanValidator validator, boolean value) {
     return withOptionInternal(validator, value);
   }
 
-  private static AutoCloseable withOptionInternal(final OptionValidator validator, Object value)
-      throws Exception {
+  private static AutoCloseable withOptionInternal(final OptionValidator validator, Object value) {
     final String optionScope = "SESSION";
     try (Statement stmt = connection.createStatement()) {
       stmt.execute(
           String.format(
               "ALTER %s SET %s%s%s = %s",
               optionScope, SqlUtils.QUOTE, validator.getOptionName(), SqlUtils.QUOTE, value));
+    } catch (SQLException e) {
+      throw new RuntimeException(
+          "Failed to set " + optionScope + " option " + validator.getOptionName() + " to " + value,
+          e);
     }
-    return new AutoCloseable() {
-      @Override
-      public void close() throws Exception {
-        try (Statement stmt = connection.createStatement()) {
-          stmt.execute(
-              String.format(
-                  "ALTER %s RESET %s%s%s",
-                  optionScope, SqlUtils.QUOTE, validator.getOptionName(), SqlUtils.QUOTE));
-        }
+    return () -> {
+      try (Statement stmt = connection.createStatement()) {
+        stmt.execute(
+            String.format(
+                "ALTER %s RESET %s%s%s",
+                optionScope, SqlUtils.QUOTE, validator.getOptionName(), SqlUtils.QUOTE));
       }
     };
   }

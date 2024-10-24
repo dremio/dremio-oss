@@ -54,10 +54,10 @@ describe("jobs reducer", () => {
       expect(result.getIn(["jobs", 0, "state"])).to.eql("COMPLETED");
       expect(result.getIn(["jobs", 0, "isComplete"])).to.eql(false);
       expect(result.getIn(["jobs", 0, "datasetPathList"])).to.eql(
-        initialState.getIn(["jobs", 0, "datasetPathList"])
+        initialState.getIn(["jobs", 0, "datasetPathList"]),
       );
       expect(result.getIn(["jobs", 0, "datasetType"])).to.eql(
-        initialState.getIn(["jobs", 0, "datasetType"])
+        initialState.getIn(["jobs", 0, "datasetType"]),
       );
     });
   });

@@ -16,7 +16,7 @@
 import { RSAA } from "redux-api-middleware";
 
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
-import APICall from "@app/core/APICall";
+import APICall from "#oss/core/APICall";
 
 function headerMiddleware() {
   return () => (next) => (action) => {

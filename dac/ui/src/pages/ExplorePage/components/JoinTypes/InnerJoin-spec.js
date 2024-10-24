@@ -16,7 +16,7 @@
 import { shallow } from "enzyme";
 import Immutable from "immutable";
 
-import Select from "@app/components/Fields/Select";
+import Select from "#oss/components/Fields/Select";
 import JoinColumnMenu from "pages/ExplorePage/components/JoinTypes/components/JoinColumnMenu";
 import JoinDragArea from "pages/ExplorePage/components/JoinTypes/components/JoinDragArea";
 

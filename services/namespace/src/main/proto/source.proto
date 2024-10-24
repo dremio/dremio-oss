@@ -54,6 +54,7 @@ message SourceConfig {
   optional RefreshPolicyType accelerationActivePolicyType = 24 [default = PERIOD];
   optional string accelerationRefreshSchedule = 25;
   optional bool accelerationRefreshOnDataChanges = 26 [default = false];
+  optional SourceChangeState source_change_state = 27 [default = SOURCE_CHANGE_STATE_NONE];
 }
 
 // Version notes:
@@ -83,6 +84,15 @@ message MetadataPolicy {
   optional bool delete_unavailable_datasets = 7 [default = true];
 
   optional bool auto_promote_datasets = 8 [default = false];
+}
+
+enum SourceChangeState {
+  SOURCE_CHANGE_STATE_UNSPECIFIED = 0;
+  // None is the value intentionally being used for there is no change state.
+  SOURCE_CHANGE_STATE_NONE = 1;
+  SOURCE_CHANGE_STATE_CREATING = 2;
+  SOURCE_CHANGE_STATE_UPDATING = 3;
+  SOURCE_CHANGE_STATE_DELETING = 4;
 }
 
 enum UpdateMode {
@@ -119,6 +129,9 @@ enum LegacySourceType {
   GCS = 23;
   INTERNAL = 24;
   AWSGLUE = 25;
+  RESTCATALOG = 26;
+  UNITY = 27;
+  POLARIS = 28;
 }
 
 // Internally computed details about a source. Background tasks will routinely change this data

@@ -42,7 +42,7 @@ describe("EllipsedText", () => {
     const wrapper = shallow(
       <EllipsedText {...commonProps}>
         <span>bar</span>
-      </EllipsedText>
+      </EllipsedText>,
     );
     expect(wrapper).to.have.length(1);
     expect(getProps(wrapper).className).to.be.equal("EllipsedText another");

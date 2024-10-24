@@ -26,8 +26,8 @@ import { Tooltip } from "dremio-ui-lib";
 import {
   MenuOptions,
   PartitionTransformationFormat,
-} from "@app/exports/components/PartitionTransformation/PartitionTransformationUtils";
-import PartitionTransformationDialog from "@app/exports/components/PartitionTransformation/components/PartitionTransformationDialog/PartitionTransformationDialog";
+} from "#oss/exports/components/PartitionTransformation/PartitionTransformationUtils";
+import PartitionTransformationDialog from "#oss/exports/components/PartitionTransformation/components/PartitionTransformationDialog/PartitionTransformationDialog";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import "./PartitionTransformationMenu.less";

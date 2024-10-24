@@ -57,9 +57,14 @@ public class SqlAlterTableSortOrder extends SqlAlterTable {
   @Override
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     super.unparse(writer, leftPrec, rightPrec);
-    writer.keyword("LOCALSORT");
-    writer.keyword("BY");
-    SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, sortList);
+    if (sortList.size() == 0) {
+      writer.keyword("DROP");
+      writer.keyword("LOCALSORT");
+    } else {
+      writer.keyword("LOCALSORT");
+      writer.keyword("BY");
+      SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, sortList);
+    }
   }
 
   @Override

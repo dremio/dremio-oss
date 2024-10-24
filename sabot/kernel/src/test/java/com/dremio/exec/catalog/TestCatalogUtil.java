@@ -29,6 +29,7 @@ import com.dremio.service.namespace.DatasetMetadataSaver;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -57,7 +58,11 @@ public class TestCatalogUtil {
     storeProvider.start();
     kvStoreProvider = storeProvider.asLegacy();
     kvStoreProvider.start();
-    namespaceService = new NamespaceServiceImpl(storeProvider, new CatalogStatusEventsImpl());
+    namespaceService =
+        new NamespaceServiceImpl(
+            storeProvider,
+            new CatalogStatusEventsImpl(),
+            CatalogEventMessagePublisherProvider.NO_OP);
   }
 
   @After

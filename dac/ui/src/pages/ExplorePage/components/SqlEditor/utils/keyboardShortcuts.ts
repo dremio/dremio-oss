@@ -18,10 +18,10 @@ import { getSelectedSql } from "dremio-ui-common/sonar/components/Monaco/compone
 import {
   previewDatasetSql,
   runDatasetSql,
-} from "@app/actions/explore/dataset/run";
-import { setActionState } from "@app/actions/explore/view";
-import { ExploreHeaderActions } from "@app/pages/ExplorePage/components/ExploreHeaderUtils";
-import { store } from "@app/store/store";
+} from "#oss/actions/explore/dataset/run";
+import { setActionState } from "#oss/actions/explore/view";
+import { ExploreHeaderActions } from "#oss/pages/ExplorePage/components/ExploreHeaderUtils";
+import { store } from "#oss/store/store";
 
 export type MonacoShortcut = {
   id: string;

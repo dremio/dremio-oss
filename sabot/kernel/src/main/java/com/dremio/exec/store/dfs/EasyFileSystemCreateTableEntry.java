@@ -160,6 +160,11 @@ public class EasyFileSystemCreateTableEntry
   }
 
   @Override
+  public String getUserId() {
+    return null;
+  }
+
+  @Override
   public Writer getWriter(OpProps props, PhysicalOperator child) throws IOException {
     // In a iceberg flow, schema in a icebergTableProps should be set only once and by the first
     // writer i.e parquet writer.

@@ -19,7 +19,7 @@ import { connect } from "react-redux";
 import { injectIntl } from "react-intl";
 
 import { getViewState } from "selectors/resources";
-import { getSpaceVersion, getSpaceName, getSpace } from "@app/selectors/home";
+import { getSpaceVersion, getSpaceName, getSpace } from "#oss/selectors/home";
 import Modal from "components/Modals/Modal";
 import FormUnsavedWarningHOC from "components/Modals/FormUnsavedWarningHOC";
 
@@ -78,7 +78,7 @@ export class SpaceModal extends Component {
 
   submit = (values) => {
     return ApiUtils.attachFormSubmitHandlers(
-      getSpaceUpdated(values, this.props)
+      getSpaceUpdated(values, this.props),
     ).then(() => this.props.hide(null, true));
   };
 

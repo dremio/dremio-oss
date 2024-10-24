@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import jobsUtils from "@app/utils/jobsUtils";
+import jobsUtils from "#oss/utils/jobsUtils";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
 import Immutable from "immutable";
-import { getIconPath } from "@app/utils/getIconPath";
+import { getIconPath } from "#oss/utils/getIconPath";
 import { Tooltip } from "dremio-ui-lib";
 import { formatDurationBetweenTimes } from "dremio-ui-common/utilities/formatDurationBetweenTimes.js";
 
@@ -109,14 +109,16 @@ const Reflection = (props) => {
                           {item.get("reflectionDatasetPath")}
                         </div>
                       </span>
-                      <span className="reflection-content__dataHeaderContent">
-                        {`${formatMessage({
-                          id: "Reflections.LastRefreshFromTable",
-                        })}: ${formatDurationBetweenTimes(
-                          jobStartTime,
-                          Number(item.get("reflectionCreated")),
-                        )}`}
-                      </span>
+                      {item.get("reflectionCreated") && (
+                        <span className="reflection-content__dataHeaderContent">
+                          {`${formatMessage({
+                            id: "Reflections.LastRefreshFromTable",
+                          })}: ${formatDurationBetweenTimes(
+                            jobStartTime,
+                            Number(item.get("reflectionCreated")),
+                          )}`}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );

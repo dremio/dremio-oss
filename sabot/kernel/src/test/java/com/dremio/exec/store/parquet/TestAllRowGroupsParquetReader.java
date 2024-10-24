@@ -121,8 +121,10 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
             PROJECTED_COLUMNS,
             new ParquetFilters(
                 ParquetDeleteFileFilterCreator.DEFAULT.createFilePathFilter(
-                    "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet",
-                    "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet")),
+                    IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH
+                        + "/data/2021/2021-02.parquet",
+                    IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH
+                        + "/data/2021/2021-02.parquet")),
             DEFAULT_READER_OPTIONS);
     testCloseables.add(reader);
 
@@ -338,9 +340,12 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
   private static List<String> generateExpectedFilePaths() {
     List<String> expectedFilePaths =
         ImmutableList.of(
-            "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-00.parquet",
-            "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-01.parquet",
-            "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet");
+            IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH
+                + "/data/2021/2021-00.parquet",
+            IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH
+                + "/data/2021/2021-01.parquet",
+            IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH
+                + "/data/2021/2021-02.parquet");
 
     return Stream.iterate(0, i -> i + 1)
         .limit(900)

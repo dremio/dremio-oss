@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import jobsUtils from "@app/utils/jobsUtils";
+import jobsUtils from "#oss/utils/jobsUtils";
 import jobUtils from "utils/jobsUtils";
 
 // export this for calculate min width of table tr in JobTable.js
@@ -24,7 +24,6 @@ export const MIN_RIGHT_PANEL_WIDTH = 330;
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     getActiveJob() {
       const { jobId } = this.props;
       if (jobId) {

@@ -20,7 +20,7 @@ import accelerationSchema from "schemas/acceleration";
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import { constructFullPathAndEncode } from "utils/pathUtils";
 import { getDatasetAccelerationRequest } from "dyn-load/actions/resources/accelerationRequest";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const LOAD_ACCELERATION_START = "LOAD_ACCELERATION_START";
 export const LOAD_ACCELERATION_SUCCESS = "LOAD_ACCELERATION_SUCCESS";
@@ -42,7 +42,7 @@ const fetchEmptyAcceleration = (dataset, viewId) => {
         schemaUtils.getSuccessActionTypeWithSchema(
           CREATE_ACCELERATION_SUCCESS,
           accelerationSchema,
-          meta
+          meta,
         ),
         { type: CREATE_ACCELERATION_FAILURE, meta },
       ],
@@ -73,7 +73,7 @@ const fetchUpdateAcceleration = (form, accelerationId) => {
         UPDATE_ACCELERATION_START,
         schemaUtils.getSuccessActionTypeWithSchema(
           UPDATE_ACCELERATION_SUCCESS,
-          accelerationSchema
+          accelerationSchema,
         ),
         UPDATE_ACCELERATION_FAILURE,
       ],
@@ -100,12 +100,12 @@ export function updateAcceleration(form, accelerationId) {
             "pathList",
           ]);
           dispatch(
-            getDatasetAccelerationRequest(constructFullPathAndEncode(pathList))
+            getDatasetAccelerationRequest(constructFullPathAndEncode(pathList)),
           );
         }
 
         return response;
-      }
+      },
     );
   };
 }
@@ -131,7 +131,7 @@ const fetchAccelerations = (/*config,*/ viewId) => {
         schemaUtils.getSuccessActionTypeWithSchema(
           LOAD_ACCELERATIONS_SUCCESS,
           { accelerationList: arrayOf(accelerationSchema) },
-          meta
+          meta,
         ),
         { type: LOAD_ACCELERATIONS_FAILURE, meta },
       ],
@@ -165,7 +165,7 @@ function fetchLoadAccelerationById(accelerationId, viewId) {
         schemaUtils.getSuccessActionTypeWithSchema(
           LOAD_ACCELERATION_SUCCESS,
           accelerationSchema,
-          meta
+          meta,
         ),
         { type: LOAD_ACCELERATION_FAILURE, meta },
       ],
@@ -210,7 +210,7 @@ function fetchDeleteAcceleration(accelerationId, viewId) {
           meta: {
             notification: {
               message: laDeprecated(
-                "There was an error clearing the Reflections for this dataset."
+                "There was an error clearing the Reflections for this dataset.",
               ),
               level: "error",
             },

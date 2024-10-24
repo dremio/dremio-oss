@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 //@ts-ignore
-import NessieLink from "@app/pages/NessieHomePage/components/NessieLink/NessieLink";
-import { getShortHash } from "@app/utils/nessieUtils";
+import NessieLink from "#oss/pages/NessieHomePage/components/NessieLink/NessieLink";
+import { getShortHash } from "#oss/utils/nessieUtils";
 import { useDispatch } from "react-redux";
-import { setReference } from "@app/actions/nessie/nessie";
-import { Reference } from "@app/types/nessie";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import { setReference } from "#oss/actions/nessie/nessie";
+import { Reference } from "#oss/types/nessie";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
 import { CopyButton } from "dremio-ui-lib/components";
 
 import "./CommitHash.less";

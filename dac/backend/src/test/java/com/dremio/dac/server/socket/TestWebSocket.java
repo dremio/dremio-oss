@@ -22,13 +22,13 @@ import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static javax.ws.rs.client.Entity.entity;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.dremio.dac.explore.model.CreateFromSQL;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.InitialRunResponse;
 import com.dremio.dac.explore.model.InitialTransformAndRunResponse;
-import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.proto.model.dataset.TransformSort;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.socket.SocketMessage.JobProgressUpdate;
@@ -86,15 +86,22 @@ public class TestWebSocket extends BaseTestServer {
   public void setup() throws Exception {
     client.start();
     URI socketUri =
-        new URI(getAPIv2().path("socket").getUri().toString().replace("http://", "ws://"));
+        new URI(
+            getHttpClient()
+                .getAPIv2()
+                .path("socket")
+                .getUri()
+                .toString()
+                .replace("http://", "ws://"));
     ClientUpgradeRequest request = new ClientUpgradeRequest();
-    request.setSubProtocols(Lists.newArrayList(getAuthHeaderValue()));
+    request.setSubProtocols(Lists.newArrayList(getHttpClient().getAuthHeaderValue()));
     this.socket = new TestSocket();
     client.connect(socket, socketUri, request);
     socket.awaitConnection(2);
     getOptionManager().setOption(option);
     assertEquals(
-        getAuthHeaderValue(), socket.session.getUpgradeResponse().getAcceptedSubProtocol());
+        getHttpClient().getAuthHeaderValue(),
+        socket.session.getUpgradeResponse().getAcceptedSubProtocol());
   }
 
   @After
@@ -110,12 +117,14 @@ public class TestWebSocket extends BaseTestServer {
 
   @Test
   public void runAndTransform() throws Exception {
-    final InitialPreviewResponse resp = createDatasetFromSQL(LONG_TEST_QUERY, null);
+    final InitialPreviewResponse resp =
+        getHttpClient().getDatasetApi().createDatasetFromSQL(LONG_TEST_QUERY, null);
 
     final InitialTransformAndRunResponse runResp =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path(versionedResourcePath(resp.getDataset()))
                         .path("transformAndRun")
                         .queryParam("newVersion", newVersion()))
@@ -136,7 +145,8 @@ public class TestWebSocket extends BaseTestServer {
     final String query = "select * from sys.version";
     final Invocation invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("datasets/new_untitled_sql_and_run")
                     .queryParam("newVersion", newVersion()))
             .buildPost(
@@ -154,10 +164,14 @@ public class TestWebSocket extends BaseTestServer {
 
   @Test
   public void jobProgress() throws Exception {
-    final InitialPreviewResponse resp = createDatasetFromSQL(LONG_TEST_QUERY, null);
+    final InitialPreviewResponse resp =
+        getHttpClient().getDatasetApi().createDatasetFromSQL(LONG_TEST_QUERY, null);
     final InitialRunResponse runResp =
         expectSuccess(
-            getBuilder(getAPIv2().path(versionedResourcePath(resp.getDataset()) + "/run"))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path(versionedResourcePath(resp.getDataset()) + "/run"))
                 .buildGet(),
             InitialRunResponse.class);
     socket.send(new SocketMessage.ListenProgress(runResp.getJobId()));
@@ -166,9 +180,7 @@ public class TestWebSocket extends BaseTestServer {
         payloads.get(0), new SocketMessage.ConnectionEstablished(SocketServlet.SOCKET_TIMEOUT_MS));
     JobProgressUpdate progressUpdate = (JobProgressUpdate) payloads.get(payloads.size() - 1);
     assertTrue(progressUpdate.getUpdate().isComplete());
-    expectSuccess(
-        getBuilder(runResp.getPaginationUrl() + "?offset=0&limit=50").buildGet(),
-        JobDataFragment.class);
+    assertNotNull(getHttpClient().getDatasetApi().getJobData(runResp, 0, 50));
 
     // verify that we got PLANNING, STARTING, RUNNING, FINISHED and in sequential order
     final AtomicInteger planningIndex = new AtomicInteger(-1);
@@ -214,10 +226,14 @@ public class TestWebSocket extends BaseTestServer {
 
   @Test
   public void jobDetailsUpdate() throws Exception {
-    final InitialPreviewResponse resp = createDatasetFromSQL(LONG_TEST_QUERY, null);
+    final InitialPreviewResponse resp =
+        getHttpClient().getDatasetApi().createDatasetFromSQL(LONG_TEST_QUERY, null);
     final InitialRunResponse runResp =
         expectSuccess(
-            getBuilder(getAPIv2().path(versionedResourcePath(resp.getDataset()) + "/run"))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path(versionedResourcePath(resp.getDataset()) + "/run"))
                 .buildGet(),
             InitialRunResponse.class);
     socket.send(new SocketMessage.ListenDetails(runResp.getJobId()));
@@ -231,12 +247,14 @@ public class TestWebSocket extends BaseTestServer {
   public void testRecordCountProgress() throws Exception {
     final ForemenWorkManager foremenWorkManager = l(ForemenWorkManager.class);
 
-    final InitialPreviewResponse resp = createDatasetFromSQL(LONG_TEST_QUERY, null);
+    final InitialPreviewResponse resp =
+        getHttpClient().getDatasetApi().createDatasetFromSQL(LONG_TEST_QUERY, null);
 
     final InitialTransformAndRunResponse runResp =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path(versionedResourcePath(resp.getDataset()))
                         .path("transformAndRun")
                         .queryParam("newVersion", newVersion()))

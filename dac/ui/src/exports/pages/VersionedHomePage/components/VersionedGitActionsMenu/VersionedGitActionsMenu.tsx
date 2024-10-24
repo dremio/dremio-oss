@@ -15,8 +15,8 @@
  */
 
 import { FormattedMessage } from "react-intl";
-import { Reference } from "@app/types/nessie";
-import { CatalogPrivilegeSwitch } from "@app/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
+import { Reference } from "#oss/types/nessie";
+import { CatalogPrivilegeSwitch } from "#oss/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
 
 import * as classes from "./VersionedGitActionsMenu.module.less";
 

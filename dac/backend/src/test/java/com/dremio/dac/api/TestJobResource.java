@@ -64,7 +64,8 @@ public class TestJobResource extends BaseTestServer {
     while (true) {
       JobStatus status =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(JOB_PATH).path(id)).buildGet(), JobStatus.class);
+              getBuilder(getHttpClient().getAPIv3().path(JOB_PATH).path(id)).buildGet(),
+              JobStatus.class);
 
       JobState jobState = status.getJobState();
 
@@ -76,7 +77,8 @@ public class TestJobResource extends BaseTestServer {
         expectStatus(
             Response.Status.BAD_REQUEST,
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path(JOB_PATH)
                         .path(id)
                         .path("results")
@@ -104,7 +106,12 @@ public class TestJobResource extends BaseTestServer {
     final Response response =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3).path(JOB_PATH).path(id).path("results").queryParam("limit", 1))
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(JOB_PATH)
+                        .path(id)
+                        .path("results")
+                        .queryParam("limit", 1))
                 .buildGet());
     final String body = response.readEntity(String.class);
 
@@ -129,13 +136,15 @@ public class TestJobResource extends BaseTestServer {
             .getId();
 
     expectSuccess(
-        getBuilder(getPublicAPI(3).path(JOB_PATH).path(id).path("cancel")).buildPost(null));
+        getBuilder(getHttpClient().getAPIv3().path(JOB_PATH).path(id).path("cancel"))
+            .buildPost(null));
     String cancelReason = "Query cancelled by user 'dremio'";
 
     while (true) {
       JobStatus status =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(JOB_PATH).path(id)).buildGet(), JobStatus.class);
+              getBuilder(getHttpClient().getAPIv3().path(JOB_PATH).path(id)).buildGet(),
+              JobStatus.class);
       JobState jobState = status.getJobState();
 
       Assert.assertTrue(
@@ -157,7 +166,8 @@ public class TestJobResource extends BaseTestServer {
         expectStatus(
             Response.Status.BAD_REQUEST,
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path(JOB_PATH)
                         .path(id)
                         .path("results")
@@ -179,6 +189,6 @@ public class TestJobResource extends BaseTestServer {
   public void testBadJobId() throws Exception {
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(JOB_PATH).path("bad-id")).buildGet());
+        getBuilder(getHttpClient().getAPIv3().path(JOB_PATH).path("bad-id")).buildGet());
   }
 }

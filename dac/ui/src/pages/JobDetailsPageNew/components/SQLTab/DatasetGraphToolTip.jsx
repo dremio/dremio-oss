@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { useState, useRef, useEffect } from "react";
-import { Tooltip } from "@app/components/Tooltip";
+import { Tooltip } from "#oss/components/Tooltip";
 import "./DatasetGraph.less";
 
 const DatasetGraphToolTip = (props) => {

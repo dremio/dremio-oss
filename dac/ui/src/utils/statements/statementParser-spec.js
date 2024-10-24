@@ -61,10 +61,10 @@ describe("statement parser", () => {
 
   it("should parse two statements", () => {
     expect(extractQueries("SELECT * FROM FOO;SELECT * FROM BAR")).to.deep.equal(
-      ["SELECT * FROM FOO", "SELECT * FROM BAR"]
+      ["SELECT * FROM FOO", "SELECT * FROM BAR"],
     );
     expect(
-      extractSelections("SELECT * FROM FOO;SELECT * FROM BAR")
+      extractSelections("SELECT * FROM FOO;SELECT * FROM BAR"),
     ).to.deep.equal([
       {
         startLineNumber: 1,
@@ -83,10 +83,10 @@ describe("statement parser", () => {
 
   it("should parse two statements that have multiple semicolons", () => {
     expect(
-      extractQueries(";;;;SELECT * FROM FOO;;;;SELECT * FROM BAR;;;;")
+      extractQueries(";;;;SELECT * FROM FOO;;;;SELECT * FROM BAR;;;;"),
     ).to.deep.equal(["SELECT * FROM FOO", "SELECT * FROM BAR"]);
     expect(
-      extractSelections(";;;;SELECT * FROM FOO;;;;SELECT * FROM BAR;;;;")
+      extractSelections(";;;;SELECT * FROM FOO;;;;SELECT * FROM BAR;;;;"),
     ).to.deep.equal([
       {
         startLineNumber: 1,
@@ -116,7 +116,7 @@ describe("statement parser", () => {
 
   it("should parse two statements with a comment and a new line character", () => {
     expect(
-      extractQueries("SELECT * FROM FOO;--test\nSELECT * FROM FOO")
+      extractQueries("SELECT * FROM FOO;--test\nSELECT * FROM FOO"),
     ).to.deep.equal(["SELECT * FROM FOO", "--test\nSELECT * FROM FOO"]);
   });
 
@@ -128,19 +128,19 @@ describe("statement parser", () => {
 
   it("should parse treat a comment that starts with // as a single line comment", () => {
     expect(
-      extractQueries("SELECT * FROM FOO//blah select 1234\n;\n//test")
+      extractQueries("SELECT * FROM FOO//blah select 1234\n;\n//test"),
     ).to.deep.equal(["SELECT * FROM FOO//blah select 1234\n"]);
   });
 
   it("should parse statemens ending with a comment", () => {
     expect(
-      extractQueries("SELECT * FROM FOO;SELECT * FROM FOO\n--test")
+      extractQueries("SELECT * FROM FOO;SELECT * FROM FOO\n--test"),
     ).to.deep.equal(["SELECT * FROM FOO", "SELECT * FROM FOO\n--test"]);
   });
 
   it("should include all whitespaces into a statement", () => {
     expect(
-      extractQueries("SELECT * FROM FOO;    SELECT * FROM FOO   \n\t\t\t   ")
+      extractQueries("SELECT * FROM FOO;    SELECT * FROM FOO   \n\t\t\t   "),
     ).to.deep.equal([
       "SELECT * FROM FOO",
       "    SELECT * FROM FOO   \n\t\t\t   ",
@@ -149,34 +149,34 @@ describe("statement parser", () => {
 
   it("should parse a single statement followed by a comment and whitespace characters", () => {
     expect(
-      extractQueries("SELECT * FROM FOO\n-- test\n\n\n    \r\n   ")
+      extractQueries("SELECT * FROM FOO\n-- test\n\n\n    \r\n   "),
     ).to.deep.equal(["SELECT * FROM FOO\n-- test\n\n\n    \r\n   "]);
   });
 
   it("should parse a single statement followed by a multi-line comment and new line characters", () => {
     expect(
-      extractQueries("SELECT * FROM FOO\n/* \n\n\ntest\n\n\n */\n\n\n")
+      extractQueries("SELECT * FROM FOO\n/* \n\n\ntest\n\n\n */\n\n\n"),
     ).to.deep.equal(["SELECT * FROM FOO\n/* \n\n\ntest\n\n\n */\n\n\n"]);
   });
 
   it("should ignore statements that only contains single or multiline comments", () => {
     expect(
       extractQueries(
-        "/* \n\n\ntest\n\n\n */\n\n\n -- jlsdhfsdljkfhsdjklfhjklsdfh \r\n"
-      )
+        "/* \n\n\ntest\n\n\n */\n\n\n -- jlsdhfsdljkfhsdjklfhjklsdfh \r\n",
+      ),
     ).to.deep.equal([]);
     expect(
       extractQueries(
-        "select 123;   /* \n\n\ntest\n\n\n */\n\n\n -- jlsdhfsdljkfhsdjklfhjklsdfh \r\n"
-      )
+        "select 123;   /* \n\n\ntest\n\n\n */\n\n\n -- jlsdhfsdljkfhsdjklfhjklsdfh \r\n",
+      ),
     ).to.deep.equal(["select 123"]);
   });
 
   it("should parse two statements with double quotes", () => {
     expect(
       extractQueries(
-        'SELECT * FROM "FOO--test;BAR/*ljkhsdlfkhdsf*/"; SELECT * FROM BAR;   '
-      )
+        'SELECT * FROM "FOO--test;BAR/*ljkhsdlfkhdsf*/"; SELECT * FROM BAR;   ',
+      ),
     ).to.deep.equal([
       'SELECT * FROM "FOO--test;BAR/*ljkhsdlfkhdsf*/"',
       " SELECT * FROM BAR",
@@ -191,7 +191,7 @@ describe("statement parser", () => {
 
   it("should parse two statements with escaped double quotes", () => {
     expect(
-      extractQueries('SELECT * FROM "FOO"";BAR";SELECT * FROM BAR;')
+      extractQueries('SELECT * FROM "FOO"";BAR";SELECT * FROM BAR;'),
     ).to.deep.equal(['SELECT * FROM "FOO"";BAR"', "SELECT * FROM BAR"]);
   });
 
@@ -216,27 +216,27 @@ describe("statement parser", () => {
 
   it("should parse two statements with brackets", () => {
     expect(
-      extractQueries("SELECT * FROM [FOO]];BAR];SELECT * FROM BAR;")
+      extractQueries("SELECT * FROM [FOO]];BAR];SELECT * FROM BAR;"),
     ).to.deep.equal(["SELECT * FROM [FOO]];BAR]", "SELECT * FROM BAR"]);
   });
 
   it("should parse statements with a comment", () => {
     expect(
-      extractQueries("SELECT * FROM [FOO] -- COMMENT ; TEST")
+      extractQueries("SELECT * FROM [FOO] -- COMMENT ; TEST"),
     ).to.deep.equal(["SELECT * FROM [FOO] -- COMMENT ; TEST"]);
   });
 
   it("should parse statements with multi-line comments", () => {
     expect(
-      extractQueries("SELECT * FROM /** COMMENT ; TEST */ FOO")
+      extractQueries("SELECT * FROM /** COMMENT ; TEST */ FOO"),
     ).to.deep.equal(["SELECT * FROM /** COMMENT ; TEST */ FOO"]);
   });
 
   it("should parse two statements with comments", () => {
     expect(
       extractQueries(
-        "SELECT * FROM [FOO] -- COMMENT ; TEST\r\n WHERE A = 1;SELECT * FROM BAR"
-      )
+        "SELECT * FROM [FOO] -- COMMENT ; TEST\r\n WHERE A = 1;SELECT * FROM BAR",
+      ),
     ).to.deep.equal([
       "SELECT * FROM [FOO] -- COMMENT ; TEST\r\n WHERE A = 1",
       "SELECT * FROM BAR",
@@ -246,8 +246,8 @@ describe("statement parser", () => {
   it("should include any leading and trailing spaces into statements", () => {
     expect(
       extractQueries(
-        "    SELECT * FROM BAR    \n       ;   \n\n\n\n\t\t\t;  \t \n\n\t  SELECT 1234     "
-      )
+        "    SELECT * FROM BAR    \n       ;   \n\n\n\n\t\t\t;  \t \n\n\t  SELECT 1234     ",
+      ),
     ).to.deep.equal([
       "    SELECT * FROM BAR    \n       ",
       "  \t \n\n\t  SELECT 1234     ",
@@ -268,15 +268,15 @@ describe("statement parser", () => {
 
   it("should parse statements with comments mixed in", () => {
     expect(
-      extractQueries("--test\nselect 1;\n-- test2\nselect 2")
+      extractQueries("--test\nselect 1;\n-- test2\nselect 2"),
     ).to.deep.equal(["--test\nselect 1", "\n-- test2\nselect 2"]);
   });
 
   it("should parse a statement surrounded with multi-line comments", () => {
     expect(
       extractQueries(
-        "/* this is\na multi-line\ncomment\n*/\nselect 1 /*\nanother\nmulti-line\ncomment.       select 2*/"
-      )
+        "/* this is\na multi-line\ncomment\n*/\nselect 1 /*\nanother\nmulti-line\ncomment.       select 2*/",
+      ),
     ).to.deep.equal([
       "/* this is\na multi-line\ncomment\n*/\nselect 1 /*\nanother\nmulti-line\ncomment.       select 2*/",
     ]);

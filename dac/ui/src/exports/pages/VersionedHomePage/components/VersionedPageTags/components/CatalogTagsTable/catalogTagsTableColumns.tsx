@@ -21,15 +21,15 @@ import {
   IconButton,
   CopyButton,
 } from "dremio-ui-lib/components";
-import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+import { nameToInitials } from "#oss/exports/utilities/nameToInitials";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 import { SortableHeaderCell } from "dremio-ui-common/components/TableCells/SortableHeaderCell.js";
-import { convertISOStringWithTooltip } from "@app/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
-import VersionedGitActionsMenu from "@app/exports/pages/VersionedHomePage/components/VersionedGitActionsMenu/VersionedGitActionsMenu";
-import { getShortHash } from "@app/utils/nessieUtils";
-import { Tag } from "@app/services/nessie/client";
-import { intl } from "@app/utils/intl";
-import SettingsPopover from "@app/components/Buttons/SettingsPopover";
+import { convertISOStringWithTooltip } from "#oss/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
+import VersionedGitActionsMenu from "#oss/exports/pages/VersionedHomePage/components/VersionedGitActionsMenu/VersionedGitActionsMenu";
+import { getShortHash } from "#oss/utils/nessieUtils";
+import { Tag } from "#oss/services/nessie/client";
+import { intl } from "#oss/utils/intl";
+import SettingsPopover from "#oss/components/Buttons/SettingsPopover";
 
 export enum TAGS_COLUMNS {
   tagName = "tagName",

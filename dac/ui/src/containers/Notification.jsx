@@ -121,7 +121,7 @@ export class NotificationContainer extends Component {
     if (uid) {
       this.notificationSystem.removeNotification(uid);
       this.addedNotifications = this.addedNotifications.filter(
-        (notification) => notification.uid !== uid
+        (notification) => notification.uid !== uid,
       );
     } else if (messageType) {
       // remove messages of the given type from notification system and hence from the screen
@@ -132,7 +132,7 @@ export class NotificationContainer extends Component {
       });
       // remove messages of the given type from local array
       this.addedNotifications = this.addedNotifications.filter(
-        (entry) => entry.messageType !== messageType
+        (entry) => entry.messageType !== messageType,
       );
     }
   };
@@ -179,19 +179,19 @@ const style = {
       padding: 0,
     },
     success: {
-      backgroundColor: "#E9F5F9",
+      backgroundColor: "var(--fill--success)",
       borderTop: "none",
     },
     error: {
-      backgroundColor: "#E9F5F9",
+      backgroundColor: "var(--fill--danger)",
       borderTop: "none",
     },
     warning: {
-      backgroundColor: "#E9F5F9",
+      backgroundColor: "var(--fill--warning)",
       borderTop: "none",
     },
     info: {
-      backgroundColor: "#E9F5F9",
+      backgroundColor: "var(--fill--info)",
       borderTop: "none",
     },
   },

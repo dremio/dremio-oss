@@ -88,6 +88,7 @@ public abstract class TestCopyHistoryTableVectorBuilderBase {
               .setFileNotificationTimestamp(System.currentTimeMillis())
               .setIngestionSourceType("AWS")
               .setRequestId("208a689d-339f-46dd-9185-1f3a59e924d3")
+              .setTransformationProperties("transformation_properties")
               .build());
     }
     return result;
@@ -109,6 +110,7 @@ public abstract class TestCopyHistoryTableVectorBuilderBase {
         .setBranch("someBranch")
         .setPipeName("devPipe")
         .setPipeId("d2981263-fb78-4f83-a4e1-27ba02074bae")
+        .setTransformationProperties("transformation_properties")
         .build();
   }
 

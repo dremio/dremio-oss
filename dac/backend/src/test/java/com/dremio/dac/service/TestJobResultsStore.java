@@ -25,11 +25,13 @@ import static org.mockito.Mockito.when;
 import com.dremio.dac.daemon.DACDaemonModule;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.job.JobDataFragmentWrapper;
+import com.dremio.dac.model.job.JobDetailsUI;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.resource.GroupResourceInformation;
@@ -37,6 +39,7 @@ import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
+import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobFailureInfo;
 import com.dremio.service.job.proto.JobId;
@@ -146,8 +149,7 @@ public class TestJobResultsStore extends BaseTestServer {
 
     // There are 5 fragments for above query, so setting MAX_WIDTH_PER_NODE_KEY to 5.
     // This is reset at end of this method.
-    setSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, "5");
-    try {
+    try (AutoCloseable ignored = withSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE, 5)) {
       final JobId jobId =
           submitJobAndWaitUntilCompletion(
               JobRequest.newBuilder().setSqlQuery(sqlQuery).setQueryType(QueryType.REST).build());
@@ -159,8 +161,6 @@ public class TestJobResultsStore extends BaseTestServer {
       for (int i = 0; i < offsets.length; i++) {
         fetchValidateResultsAtOffset(jobId, offsets[i], limits[i], expectedRows[i]);
       }
-    } finally {
-      resetSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY);
     }
   }
 
@@ -176,10 +176,10 @@ public class TestJobResultsStore extends BaseTestServer {
     try {
       // Changing value of PlannerSettings.OUTPUT_LIMIT_SIZE to depict user changed the value.
       // This is reset at end of this method.
-      setSystemOption(PlannerSettings.OUTPUT_LIMIT_SIZE.getOptionName(), "" + 200_000L);
+      setSystemOption(PlannerSettings.OUTPUT_LIMIT_SIZE, 200_000L);
       testTruncateResults(QueryType.UI_RUN, "", 130_944);
     } finally {
-      resetSystemOption(PlannerSettings.OUTPUT_LIMIT_SIZE.getOptionName());
+      resetSystemOption(PlannerSettings.OUTPUT_LIMIT_SIZE);
     }
   }
 
@@ -225,8 +225,7 @@ public class TestJobResultsStore extends BaseTestServer {
 
     // There are 5 fragments for above query, so setting MAX_WIDTH_PER_NODE_KEY to 5.
     // This is reset at end of this method.
-    setSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, "5");
-    try {
+    try (AutoCloseable ignored = withSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE, 5)) {
       final JobId jobId =
           submitJobAndWaitUntilCompletion(
               JobRequest.newBuilder().setSqlQuery(sqlQuery).setQueryType(queryType).build());
@@ -247,8 +246,6 @@ public class TestJobResultsStore extends BaseTestServer {
       // Fetch last 500 records to verify that there is no truncation of results while fetching
       // stored results.
       fetchValidateResultsAtOffset(jobId, expectedNumRecords - 500, 500, 500);
-    } finally {
-      resetSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY);
     }
   }
 
@@ -358,6 +355,37 @@ public class TestJobResultsStore extends BaseTestServer {
         .hasMessageContaining(failureMessage);
   }
 
+  /**
+   * Test fetching of job data (JobResultsStore#loadJobData()) in case of query failure during
+   * execution, without DetailedFailureInfo.
+   */
+  @Test
+  public void testLoadJobDataOfFailedQueryWithoutDetailedFailureInfo() {
+    String failureMessage = "job failed";
+
+    final JobResultsStore jobResultsStore = mock(JobResultsStore.class);
+
+    JobInfo jobInfo = new JobInfo();
+    jobInfo.setFailureInfo(failureMessage);
+
+    JobAttempt jobAttempt = new JobAttempt();
+    jobAttempt.setState(JobState.FAILED);
+    jobAttempt.setInfo(jobInfo);
+
+    List<JobAttempt> attempts = new ArrayList<>();
+    attempts.add(jobAttempt);
+
+    JobResult jobResult = new JobResult();
+    jobResult.setAttemptsList(attempts);
+
+    when(jobResultsStore.loadJobData(new JobId("Failed JobID"), jobResult, 0, 0))
+        .thenCallRealMethod();
+    UserExceptionAssert.assertThatThrownBy(
+            () -> jobResultsStore.loadJobData(new JobId("Failed JobID"), jobResult, 0, 0))
+        .hasErrorType(DATA_READ)
+        .hasMessageContaining(failureMessage);
+  }
+
   @Test
   public void testPromotedDataset() throws Exception {
     final JobsService jobsService = l(JobsService.class);
@@ -393,6 +421,50 @@ public class TestJobResultsStore extends BaseTestServer {
   /** Tests results retrieval from Job Results Store for jobs with multiple attempts. */
   @Test
   public void getResultsFromJobWithMultipleAttempts() throws Exception {
+    JobDetails jobDetails = runJobWithMultipleAttempt();
+    assertTrue(jobDetails.getAttemptsCount() == 2);
+    // Try to get results from job results store
+    submitJobAndWaitUntilCompletion(
+        JobRequest.newBuilder()
+            .setSqlQuery(
+                new SqlQuery(
+                    String.format(
+                        "select * from sys.job_results.\"%s\"", jobDetails.getJobId().getId()),
+                    SystemUser.SYSTEM_USERNAME))
+            .setQueryType(QueryType.UI_RUN)
+            .build());
+  }
+
+  /** Tests results retrieval from Job Results Store for jobs with multiple attempts. */
+  @Test
+  public void testJobStartAndEndTimeForMultipleAttempts() throws Exception {
+    JobDetails jobDetails = runJobWithMultipleAttempt();
+    assertEquals(2, jobDetails.getAttemptsCount());
+    JobDetailsUI detailsUI =
+        JobDetailsUI.of(jobDetails, jobDetails.getAttempts(0).getInfo().getUser());
+    UserBitShared.QueryProfile profile0 = getQueryProfile(jobDetails.getJobId().getId(), 0);
+    UserBitShared.QueryProfile profile1 = getQueryProfile(jobDetails.getJobId().getId(), 1);
+    // 1st Attempt Start time should be same as 1st Profile start time
+    assertEquals(jobDetails.getAttempts(0).getInfo().getStartTime(), profile0.getStart());
+    // 1st Attempt finish time should be same as 1st Profile end time
+    assertEquals(jobDetails.getAttempts(0).getInfo().getFinishTime(), profile0.getEnd());
+    // 2nd Attempt Start time should be same as 2nd Profile start time
+    assertEquals(jobDetails.getAttempts(1).getInfo().getStartTime(), profile1.getStart());
+    // 2nd Attempt finish time should be same as 2nd Profile end time
+    assertEquals(jobDetails.getAttempts(1).getInfo().getFinishTime(), profile1.getEnd());
+    // Job Start Time should be same as First attempt start time
+    assertEquals(
+        jobDetails.getAttempts(0).getInfo().getStartTime(), detailsUI.getStartTime().longValue());
+    // Attempt Start time should be less than previous attempt Finish Time
+    assertTrue(
+        jobDetails.getAttempts(0).getInfo().getFinishTime()
+            <= jobDetails.getAttempts(1).getInfo().getStartTime());
+    // Job End Time should be same as Final Attempt finish time
+    assertEquals(
+        jobDetails.getAttempts(1).getInfo().getFinishTime(), detailsUI.getEndTime().longValue());
+  }
+
+  private JobDetails runJobWithMultipleAttempt() throws Exception {
     // Create Folder and Files with mixed schema to force Schema Learning and multiple attempts
     File sourceFolder = tmpDir.newFolder();
     File datasetFolder = new java.io.File(sourceFolder.getAbsoluteFile(), "test-folder");
@@ -434,17 +506,18 @@ public class TestJobResultsStore extends BaseTestServer {
                     .setJobId(JobsProtoUtil.toBuf(jobId))
                     .setUserName(SystemUser.SYSTEM_USERNAME)
                     .build());
-    assertTrue(jobDetails.getAttemptsCount() > 1);
+    return jobDetails;
+  }
 
-    // Try to get results from job results store
-    submitJobAndWaitUntilCompletion(
-        JobRequest.newBuilder()
-            .setSqlQuery(
-                new SqlQuery(
-                    String.format("select * from sys.job_results.\"%s\"", jobId.getId()),
-                    SystemUser.SYSTEM_USERNAME))
-            .setQueryType(QueryType.UI_RUN)
-            .build());
+  private UserBitShared.QueryProfile getQueryProfile(String JobId, int attempt)
+      throws JobNotFoundException {
+    QueryProfileRequest request =
+        QueryProfileRequest.newBuilder()
+            .setJobId(JobsProtoUtil.toBuf(new JobId(JobId)))
+            .setAttempt(attempt)
+            .setUserName(DEFAULT_USERNAME)
+            .build();
+    return l(JobsService.class).getProfile(request);
   }
 
   private java.io.File createFile(File parent, String fileName, String contents) throws Exception {

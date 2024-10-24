@@ -15,11 +15,13 @@
  */
 package com.dremio.exec.planner.cost;
 
+import com.dremio.exec.planner.logical.FlattenVisitors;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
+import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
@@ -50,5 +52,18 @@ public class RelMdMaxRowCount extends org.apache.calcite.rel.metadata.RelMdMaxRo
       }
     }
     return null;
+  }
+
+  @Override
+  public Double getMaxRowCount(Project rel, RelMetadataQuery mq) {
+    Double maxRowCount = mq.getMaxRowCount(rel.getInput());
+    if (maxRowCount == null) {
+      return null;
+    }
+    int flattenCount = FlattenVisitors.count(rel.getProjects());
+    if (flattenCount == 0) {
+      return maxRowCount;
+    }
+    return Integer.MAX_VALUE * flattenCount * maxRowCount;
   }
 }

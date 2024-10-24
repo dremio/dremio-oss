@@ -16,7 +16,7 @@
 
 import { useFormContext, Controller } from "react-hook-form";
 import { Radio, NumberInput, Select } from "@mantine/core";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import { Label } from "dremio-ui-lib/components";
 
 import * as classes from "./MonthInput.module.less";

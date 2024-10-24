@@ -15,17 +15,17 @@
  */
 
 import { RSAA } from "redux-api-middleware";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 // @ts-ignore
 import { updateBody } from "@inject/actions/explore/dataset/updateLocation";
 import {
   NEW_UNTITLED_SQL_FAILURE,
   NEW_UNTITLED_SQL_START,
   NEW_UNTITLED_SQL_SUCCESS,
-} from "@app/actions/explore/dataset/new";
+} from "#oss/actions/explore/dataset/new";
 import Immutable from "immutable";
-import exploreUtils from "@app/utils/explore/exploreUtils";
-import readResponseAsJSON from "@app/utils/apiUtils/responseUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
+import readResponseAsJSON from "#oss/utils/apiUtils/responseUtils";
 
 // common helper for running and previewing new queries
 const postNewUntitledSql = (
@@ -33,7 +33,7 @@ const postNewUntitledSql = (
   sql: string,
   queryContext: any[] | Immutable.List<any>,
   viewId: string,
-  references: any
+  references: any,
 ) => {
   const meta = { viewId };
 
@@ -69,13 +69,13 @@ export const newTmpUntitledSql = (
   viewId: string,
   references: any,
   sessionId: string,
-  newVersion: string
+  newVersion: string,
 ) => {
   return (dispatch: any) => {
     const href = exploreUtils.getTmpUntitledSqlHref({ newVersion, sessionId });
 
     return dispatch(
-      postNewUntitledSql(href, sql, queryContext, viewId, references)
+      postNewUntitledSql(href, sql, queryContext, viewId, references),
     );
   };
 };
@@ -87,7 +87,7 @@ export const newTmpUntitledSqlAndRun = (
   viewId: string,
   references: any,
   sessionId: string,
-  newVersion: string
+  newVersion: string,
 ) => {
   return (dispatch: any) => {
     const href = exploreUtils.getTmpUntitledSqlAndRunHref({
@@ -96,7 +96,7 @@ export const newTmpUntitledSqlAndRun = (
     });
 
     return dispatch(
-      postNewUntitledSql(href, sql, queryContext, viewId, references)
+      postNewUntitledSql(href, sql, queryContext, viewId, references),
     );
   };
 };

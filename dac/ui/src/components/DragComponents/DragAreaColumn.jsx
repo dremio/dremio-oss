@@ -21,13 +21,13 @@ import classNames from "clsx";
 import { injectIntl } from "react-intl";
 
 import { DragAreaColumnWithMixin } from "@inject/components/DragComponents/DragAreaColumnMixin";
-import { SelectView } from "@app/components/Fields/SelectView";
+import { SelectView } from "#oss/components/Fields/SelectView";
 import { SearchField } from "components/Fields";
 import ColumnDragItem from "utils/ColumnDragItem";
 import EllipsedText from "components/EllipsedText";
 
 import { formDefault } from "uiTheme/radium/typography";
-import { typeToIconType } from "@app/constants/DataTypes";
+import { typeToIconType } from "#oss/constants/DataTypes";
 import { FLEX_ROW_START_CENTER } from "uiTheme/radium/flexStyle";
 import {
   base,
@@ -36,7 +36,7 @@ import {
   disabledContent,
   preventDrag as disabledColumnCls,
   columnItem as columnItemCls,
-} from "@app/uiTheme/less/DragComponents/DragAreaColumn.less";
+} from "#oss/uiTheme/less/DragComponents/DragAreaColumn.less";
 
 import DragSource from "./DragSource";
 import DragTarget from "./DragTarget";
@@ -179,6 +179,7 @@ export class DragAreaColumn extends Component {
             })}
           >
             <dremio-icon
+              class="icon-primary"
               name={`data-types/${typeToIconType[columnType]}`}
             ></dremio-icon>
             <EllipsedText
@@ -253,6 +254,7 @@ export class DragAreaColumn extends Component {
         {selectedColumn && (
           <dremio-icon
             key="custom-type"
+            class="icon-primary"
             name={`data-types/${typeToIconType[selectedColumn.get("type")]}`}
           ></dremio-icon>
         )}
@@ -268,7 +270,9 @@ export class DragAreaColumn extends Component {
     const { field, disabled, className, preventDrag } = this.props;
     const columnName = field.value;
     const columnStyle = disabled ? { visibility: "hidden" } : null;
-    const color = this.state.isDragAreaActive ? "#EBF9F6" : "#fff";
+    const color = this.state.isDragAreaActive
+      ? "var(--fill--brand)"
+      : "var(--fill--primary)";
     const dragStyle = this.checkDropPosibility()
       ? { ...styles.dragStyle, backgroundColor: color }
       : {};
@@ -362,10 +366,10 @@ export const styles = {
     margin: "5px 0 0",
   },
   dragStyle: {
-    borderBottom: "10px dotted gray",
-    borderTop: "10px dotted gray",
-    borderLeft: "10px dotted gray",
-    borderRight: "1px dotted gray",
+    borderBottom: "10px dotted var(--border--neutral)",
+    borderTop: "10px dotted var(--border--neutral)",
+    borderLeft: "10px dotted var(--border--neutral)",
+    borderRight: "1px dotted var(--border--neutral)",
     backgroundColor: "var(--fill--primary)",
     height: 30,
   },

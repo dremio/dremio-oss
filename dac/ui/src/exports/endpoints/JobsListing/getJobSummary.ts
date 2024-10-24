@@ -15,7 +15,7 @@
  */
 
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-import { JobSummary } from "@app/exports/types/JobSummary.type";
+import { JobSummary } from "#oss/exports/types/JobSummary.type";
 
 const getJobSummaryUrl = (jobId: string, maxSqlLength?: number) =>
   getApiContext().createSonarUrl(

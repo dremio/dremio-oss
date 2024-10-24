@@ -32,24 +32,24 @@ import {
   fetchCommitBeforeTime as fetchCommitBeforeTimeAction,
   setReference as setReferenceAction,
   type SetReferenceAction,
-} from "@app/actions/nessie/nessie";
+} from "#oss/actions/nessie/nessie";
 import {
   LogEntryV2 as LogEntry,
   LogResponseV2 as LogResponse,
-} from "@app/services/nessie/client";
-import { type Reference } from "@app/types/nessie";
+} from "#oss/services/nessie/client";
+import { type Reference } from "#oss/types/nessie";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormControl from "@mui/material/FormControl";
-import { SearchField } from "@app/components/Fields";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import { SearchField } from "#oss/components/Fields";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
 import BranchList from "./components/BranchList/BranchList";
 import CommitBrowser from "./components/CommitBrowser/CommitBrowser";
 import BranchPickerTag from "./components/BranchPickerTag/BranchPickerTag";
 import RefIcon from "./components/RefIcon/RefIcon";
 import { useBranchPickerContext } from "./utils";
-import { getShortHash } from "@app/utils/nessieUtils";
+import { getShortHash } from "#oss/utils/nessieUtils";
 
 import "./BranchPicker.less";
 

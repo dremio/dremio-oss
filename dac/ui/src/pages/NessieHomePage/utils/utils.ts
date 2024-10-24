@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Type } from "@app/types/nessie";
+import { Type } from "#oss/types/nessie";
 
 export function getIconByType(type?: string | null, elements?: string[]) {
   switch (type) {

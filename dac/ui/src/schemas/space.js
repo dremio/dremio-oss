@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Schema, arrayOf } from "normalizr";
-import { ENTITY_TYPES } from "@app/constants/Constants";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
 
 import dataset from "./dataset";
 import file from "./file";

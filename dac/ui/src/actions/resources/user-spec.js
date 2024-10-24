@@ -17,7 +17,7 @@ import { expect } from "chai";
 
 import { RSAA } from "redux-api-middleware";
 
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import * as Actions from "./user";
 
 describe("user actions", () => {

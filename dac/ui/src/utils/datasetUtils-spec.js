@@ -41,7 +41,7 @@ describe("datasetUtils", () => {
 
     it("with a file in home", () => {
       expect(
-        abilities(entity.set("isHomeFile", true).set("entityType", "file"))
+        abilities(entity.set("isHomeFile", true).set("entityType", "file")),
       ).to.eql({
         canEditFormat: true,
         canRemoveFormat: false,

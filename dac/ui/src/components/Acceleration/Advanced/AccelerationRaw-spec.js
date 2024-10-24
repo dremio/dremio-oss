@@ -65,7 +65,7 @@ describe("AccelerationRaw", () => {
     };
     instance.addNewLayout();
     expect(
-      commonProps.fields.rawReflections.addField
+      commonProps.fields.rawReflections.addField,
     ).to.have.been.calledWithMatch(defaultLayout);
   });
 });

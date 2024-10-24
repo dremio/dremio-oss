@@ -13,34 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState } from "react";
 import PropTypes from "prop-types";
-import { Tooltip } from "dremio-ui-lib";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import CopyButton from "components/Buttons/CopyButton";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
-import { SQL_DARK_THEME, SQL_LIGHT_THEME } from "@app/utils/sql-editor";
-import { SqlViewer } from "@app/exports/components/MonacoWrappers/SqlViewer";
+import { SqlViewer } from "#oss/exports/components/MonacoWrappers/SqlViewer";
 
 import "./SQL.less";
 
-export const SQL = ({
-  title,
-  sqlString,
-  onClick,
-  showContrast,
-  sqlClass,
-  defaultContrast,
-}) => {
-  const [isContrast, setIsContrast] = useState(defaultContrast);
-
-  const handleClick = () => {
-    localStorageUtils.setSqlThemeContrast(!isContrast);
-    setIsContrast(!isContrast);
-    if (onClick && typeof onClick === "function") {
-      onClick(!isContrast);
-    }
-  };
+export const SQL = ({ title, sqlString, sqlClass }) => {
   return (
     <>
       <div className="sql">
@@ -54,37 +34,9 @@ export const SQL = ({
             />
           </span>
         </div>
-        {showContrast && (
-          <span
-            data-qa="toggle-icon"
-            id="toggle-icon"
-            className="sql__toggleIcon"
-            onClick={handleClick}
-            tabIndex={0}
-            onKeyDown={(e) => e.code === "Enter" && handleClick(e)}
-            aria-label={intl.formatMessage({
-              id: `Common.Theme.${isContrast ? "Light" : "Dark"}.Toggle`,
-            })}
-            role="button"
-          >
-            <Tooltip
-              title={isContrast ? "Common.Theme.Dark" : "Common.Theme.Light"}
-            >
-              <dremio-icon
-                name="sql-editor/sqlThemeSwitcher"
-                alt="Theme Switcher"
-                class="theme-switcher-icon"
-              />
-            </Tooltip>
-          </span>
-        )}
       </div>
       <div className={sqlClass}>
-        <SqlViewer
-          theme={isContrast ? SQL_DARK_THEME : SQL_LIGHT_THEME}
-          style={{ height: 190 }}
-          value={sqlString}
-        />
+        <SqlViewer style={{ height: 190 }} value={sqlString} />
       </div>
     </>
   );
@@ -92,15 +44,8 @@ export const SQL = ({
 
 SQL.propTypes = {
   title: PropTypes.string,
-  contrast: PropTypes.bool,
-  showContrast: PropTypes.bool,
   sqlClass: PropTypes.string,
   sqlString: PropTypes.string,
-  isContrast: PropTypes.bool,
-  defaultContrast: PropTypes.bool,
-  onClick: PropTypes.func,
 };
-SQL.defaultProps = {
-  defaultContrast: true,
-};
+
 export default SQL;

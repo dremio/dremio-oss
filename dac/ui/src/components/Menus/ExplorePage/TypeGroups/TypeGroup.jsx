@@ -25,7 +25,7 @@ import {
   DATE,
   TIME,
   DATETIME,
-} from "@app/constants/DataTypes";
+} from "#oss/constants/DataTypes";
 import {
   TO_BINARY_TYPES,
   TO_INTEGER_TYPES,
@@ -33,7 +33,7 @@ import {
   TO_FLOAT_TYPES,
   ALL_TYPES,
   TO_TIME_TYPES,
-} from "@app/constants/columnTypeGroups";
+} from "#oss/constants/columnTypeGroups";
 
 import MenuItem from "./../MenuItem";
 import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
@@ -67,7 +67,7 @@ class TypeGroup extends PureComponent {
       return null;
     }
     const divs = Array.from(children).filter(
-      (child) => child.nodeName === "DIV"
+      (child) => child.nodeName === "DIV",
     );
     if (divs.length === 1) {
       this.setVisibility(false);

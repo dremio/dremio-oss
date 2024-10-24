@@ -18,9 +18,9 @@ import { injectIntl } from "react-intl";
 import Immutable from "immutable";
 import timeUtils from "utils/timeUtils";
 import { getDuration } from "utils/jobListUtils";
-import { ScansForFilter } from "@app/constants/Constants";
-import jobsUtils from "@app/utils/jobsUtils";
-import FileUtils from "@app/utils/FileUtils";
+import { ScansForFilter } from "#oss/constants/Constants";
+import jobsUtils from "#oss/utils/jobsUtils";
+import FileUtils from "#oss/utils/FileUtils";
 import { getQueueInfo } from "@inject/pages/JobDetailsPageNew/utils";
 
 import JobDetailsErrorInfo from "../OverView/JobDetailsErrorInfo";
@@ -57,8 +57,6 @@ const OverView = (props) => {
     intl: { formatMessage },
     jobDetails,
     downloadJobFile,
-    isContrast,
-    onClick,
     location,
   } = props;
   const attemptDetails = jobDetails.get("attemptDetails") || Immutable.List();
@@ -211,9 +209,6 @@ const OverView = (props) => {
           {renderCancellationLog(cancellationInfo)}
         </div>
         <SQL
-          defaultContrast={isContrast}
-          onClick={onClick}
-          showContrast
           sqlString={jobDetails.get("queryText")}
           title={formatMessage({ id: "SubmittedSQL" })}
           sqlClass="overview__sqlBody"
@@ -266,8 +261,6 @@ OverView.propTypes = {
   jobDetails: PropTypes.object,
   downloadJobProfile: PropTypes.func,
   downloadJobFile: PropTypes.func,
-  isContrast: PropTypes.bool,
-  onClick: PropTypes.func,
   location: PropTypes.object,
 };
 export default injectIntl(OverView);

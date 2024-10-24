@@ -23,11 +23,11 @@ import {
 import {
   versionedPageTabs,
   VersionedPageTabsType,
-} from "@app/exports/pages/VersionedHomePage/VersionedHomePage";
+} from "#oss/exports/pages/VersionedHomePage/VersionedHomePage";
 // @ts-ignore
 import { TabsNavigationItem } from "dremio-ui-lib";
 import { withRouter, type WithRouterProps } from "react-router";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
 
 import classes from "./VersionedPageTabs.module.less";
 

@@ -61,8 +61,10 @@ public class TestDatasetDownload extends BaseTestServer {
   @Test
   public void testDownloadJsonRest() throws Exception {
     InitialPreviewResponse initialPreviewResponse =
-        createDatasetFromSQL(
-            String.format("select * from %s", dsg1DatasetPath), Collections.emptyList());
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromSQL(
+                String.format("select * from %s", dsg1DatasetPath), Collections.emptyList());
 
     Response response = download(initialPreviewResponse.getJobId(), DownloadFormat.JSON);
 
@@ -72,8 +74,10 @@ public class TestDatasetDownload extends BaseTestServer {
   @Test
   public void testDownloadCsvRest() throws Exception {
     InitialPreviewResponse initialPreviewResponse =
-        createDatasetFromSQL(
-            String.format("select * from %s", dsg1DatasetPath), Collections.emptyList());
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromSQL(
+                String.format("select * from %s", dsg1DatasetPath), Collections.emptyList());
 
     Response response = download(initialPreviewResponse.getJobId(), DownloadFormat.CSV);
 
@@ -84,7 +88,9 @@ public class TestDatasetDownload extends BaseTestServer {
   public void testDownloadWithLimitInDatasetSql() throws Exception {
     final DatasetPath dsPath = new DatasetPath("DG.testDS");
     InitialPreviewResponse initialPreviewResponse =
-        createDatasetFromSQL("select * from DG.dsg1 LIMIT 10 --- comment", asList("cp"));
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromSQL("select * from DG.dsg1 LIMIT 10 --- comment", asList("cp"));
 
     Response response = download(initialPreviewResponse.getJobId(), DownloadFormat.CSV);
 
@@ -146,9 +152,11 @@ public class TestDatasetDownload extends BaseTestServer {
     final DatasetPath dsPath = new DatasetPath("mySpace.folder.testVDS");
 
     DatasetUI ds =
-        createDatasetFromSQLAndSave(dsPath, "select * from DG.dsg1 LIMIT 10", asList("cp"));
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromSQLAndSave(dsPath, "select * from DG.dsg1 LIMIT 10", asList("cp"));
     InitialPreviewResponse initialPreviewResponse =
-        createDatasetFromSQL("select * from testVDS", path);
+        getHttpClient().getDatasetApi().createDatasetFromSQL("select * from testVDS", path);
 
     Response response = download(initialPreviewResponse.getJobId(), DownloadFormat.CSV);
 
@@ -167,7 +175,8 @@ public class TestDatasetDownload extends BaseTestServer {
 
   private Invocation getDownloadInvocation(JobId jobId, DownloadFormat downloadFormat) {
     return getBuilder(
-            getAPIv2()
+            getHttpClient()
+                .getAPIv2()
                 .path("job")
                 .path(jobId.getId())
                 .path("download")

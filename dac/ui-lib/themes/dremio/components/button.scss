@@ -41,6 +41,7 @@
   &[aria-disabled="true"] {
     &:not([aria-busy="true"]) {
       border-color: transparent !important;
+      color: var(--text--disabled) !important;
       @extend .bg-disabled;
     }
   }
@@ -155,14 +156,16 @@
   }
 }
 
-.dremio-light {
-  .bg-brand-600 .dremio-button {
+.dremio-light,
+.dremio-dark {
+  .bg-brand-500 .dremio-button {
     &--primary {
-      @extend .bg-brand-700;
+      @extend .bg-brand-600;
       &:hover {
-        @extend .bg-brand-800;
+        @extend .bg-brand-700;
       }
     }
+
     &--tertiary {
       @extend .bg-none;
       color: inherit;

@@ -15,12 +15,12 @@
  */
 
 import Immutable from "immutable";
-import { LIST, MAP, STRUCT } from "@app/constants/DataTypes";
+import { LIST, MAP, STRUCT } from "#oss/constants/DataTypes";
 import { isEmpty } from "lodash";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 
 export const transformTypeURLMapper = (
-  transform: Immutable.Map<string, any>
+  transform: Immutable.Map<string, any>,
 ) => {
   const transformType = transform.get("transformType");
   const columnType = transform.get("columnType");
@@ -49,9 +49,9 @@ export const loadTransformCardsWrapper = <
       data: Record<string, any>,
       transform: Immutable.Map<string, any>,
       dataset: Immutable.Map<string, any>,
-      actionType: string
+      actionType: string,
     ) => Promise<any>;
-  }
+  },
 >({
   dataset,
   transform,

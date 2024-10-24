@@ -118,7 +118,7 @@ describe("transformViewMapper", () => {
       };
       const mappedResult = transformViewMapper.transformReplaceMapper(
         keeponlyResponse,
-        "keeponly"
+        "keeponly",
       );
       expect(mappedResult.cards[0]).to.eql(keeponlyCard);
     });
@@ -129,7 +129,7 @@ describe("transformViewMapper", () => {
       };
       const mappedResult = transformViewMapper.transformReplaceMapper(
         excludeResponse,
-        "exclude"
+        "exclude",
       );
       expect(mappedResult.cards[0]).to.eql(excludeCard);
     });

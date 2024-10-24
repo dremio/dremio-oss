@@ -47,7 +47,7 @@ export default function prefixSection(prefix) {
       const result = target.validate ? target.validate(values) : {};
       return Object.keys(result).reduce(
         (errors, key) => ({ ...errors, [`${prefix}.${key}`]: result[key] }),
-        {}
+        {},
       );
     };
 

@@ -16,19 +16,22 @@
 import {
   createNessieContext,
   NessieContext,
-} from "@app/pages/NessieHomePage/utils/context";
-import { NessieRootState } from "@app/types/nessie";
+} from "#oss/pages/NessieHomePage/utils/context";
+import { NessieRootState } from "#oss/types/nessie";
 import {
   fetchDefaultReferenceIfNeeded as fetchDefaultReferenceIfNeededAction,
   SetReferenceAction,
-} from "@app/actions/nessie/nessie";
+} from "#oss/actions/nessie/nessie";
 import { connect } from "react-redux";
 import { useEffect, useMemo, useRef } from "react";
-import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
-import { getRootEntityLinkUrl } from "@app/selectors/home";
+import { isDefaultReferenceLoading } from "#oss/selectors/nessie/nessie";
+import { getRootEntityLinkUrl } from "#oss/selectors/home";
 import BranchPicker from "../BranchPicker/BranchPicker";
-import { getEndpointFromSource } from "@app/utils/nessieUtils";
-import { ARCTIC, NESSIE } from "@app/constants/sourceTypes";
+import { getEndpointFromSource } from "#oss/utils/nessieUtils";
+import {
+  ARCTIC,
+  isVersionedSoftwareSource,
+} from "@inject/constants/sourceTypes";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { Spinner } from "dremio-ui-lib/components";
@@ -64,12 +67,12 @@ function SourceBranchPicker({
     projectId: getSonarContext().getSelectedProjectId?.(),
   };
 
-  const baseUrl =
-    source.type === NESSIE
-      ? commonPaths.nessieSource.link(pathProps)
-      : source.type === ARCTIC
-        ? commonPaths.arcticSource.link(pathProps)
-        : undefined;
+  const baseUrl = isVersionedSoftwareSource(source.type)
+    ? commonPaths.nessieSource.link(pathProps)
+    : source.type === ARCTIC
+      ? commonPaths.arcticSource.link(pathProps)
+      : undefined;
+
   const context = useMemo(
     () =>
       createNessieContext(

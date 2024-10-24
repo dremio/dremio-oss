@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { COMMIT_TYPE, NESSIE_REF_PREFIX } from "@app/constants/nessie";
-import { NessieRootState, NessieState } from "@app/types/nessie";
-import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
-import { Branch } from "@app/services/nessie/client";
-import { store } from "@app/store/store";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
+import { COMMIT_TYPE, NESSIE_REF_PREFIX } from "#oss/constants/nessie";
+import { NessieRootState, NessieState } from "#oss/types/nessie";
+import { isDefaultReferenceLoading } from "#oss/selectors/nessie/nessie";
+import { Branch } from "#oss/services/nessie/client";
+import { store } from "#oss/store/store";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
 import moize from "moize";
-import { isVersionedSource } from "./sourceUtils";
-import { NESSIE } from "@app/constants/sourceTypes";
-import { NESSIE_PROXY_URL_V2 } from "@app/constants/Api";
+import { isVersionedSource } from "@inject/utils/sourceUtils";
+import { isVersionedSoftwareSource } from "@inject/constants/sourceTypes";
+import { NESSIE_PROXY_URL_V2 } from "#oss/constants/Api";
 import { getDatasetByPath } from "./datasetTreeUtils";
-import { PHYSICAL_DATASET, VIRTUAL_DATASET } from "@app/constants/datasetTypes";
+import { PHYSICAL_DATASET, VIRTUAL_DATASET } from "#oss/constants/datasetTypes";
 import Immutable from "immutable";
 import type { Script } from "dremio-ui-common/sonar/scripts/Script.type.js";
 
@@ -286,7 +286,7 @@ export function getEndpointFromSource(
   nessieVersion = "v2",
 ) {
   if (!source) return "";
-  if (source.type === NESSIE) {
+  if (isVersionedSoftwareSource(source.type)) {
     return getNessieSourceUrl(source.name);
   }
 

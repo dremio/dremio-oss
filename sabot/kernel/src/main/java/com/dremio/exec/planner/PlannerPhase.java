@@ -21,6 +21,7 @@ import com.dremio.exec.planner.logical.BridgeExchangePrule;
 import com.dremio.exec.planner.logical.BridgeReaderPrule;
 import com.dremio.exec.planner.logical.CopyIntoTableRule;
 import com.dremio.exec.planner.logical.CorrelateRule;
+import com.dremio.exec.planner.logical.CountOnScanToValuesRule;
 import com.dremio.exec.planner.logical.DremioAggregateReduceFunctionsRule;
 import com.dremio.exec.planner.logical.DremioExpandDistinctAggregatesRule;
 import com.dremio.exec.planner.logical.DremioRelFactories;
@@ -134,14 +135,14 @@ public enum PlannerPhase {
     }
   },
 
-  ENTITY_EXPANSION("ENTITY_EXPANSION") {
+  ENTITY_EXPANSION("Entity Expansion") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
       throw new RuntimeException();
     }
   },
 
-  AGGREGATE_REWRITE("AGGREGATE_REWRITE") {
+  DEFAULT_RAW_REFLECTION("Default Raw Reflection") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
       throw new RuntimeException();
@@ -150,6 +151,13 @@ public enum PlannerPhase {
     @Override
     public boolean forceVerbose() {
       return true;
+    }
+  },
+
+  AGGREGATE_REWRITE("Aggregate Rewrite") {
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      throw new RuntimeException();
     }
   },
 
@@ -191,14 +199,20 @@ public enum PlannerPhase {
   FLATTEN_PUSHDOWN("Flatten Function Pushdown") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
-      return RuleSets.ofList(
+      ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
+      if (context.getPlannerSettings().pushArrayColumnsIntoScan()) {
+        b.add(PushProjectForFlattenIntoScanRule.INSTANCE);
+      } else {
+        b.add(PushProjectForFlattenIntoScanRule.PUSH_ONLY_FIELD_ACCESS_INSTANCE);
+      }
+      b.add(
           PushProjectPastFlattenRule.INSTANCE,
-          PushProjectForFlattenIntoScanRule.INSTANCE,
           PushProjectForFlattenPastProjectRule.INSTANCE,
           MergeProjectForFlattenRule.INSTANCE,
           DremioCoreRules.PUSH_PROJECT_PAST_FILTER_INSTANCE,
           PushFilterPastProjectRule.INSTANCE,
           DremioCoreRules.PUSH_PROJECT_PAST_JOIN_RULE);
+      return RuleSets.ofList(b.build());
     }
   },
 
@@ -229,7 +243,10 @@ public enum PlannerPhase {
   PROJECT_PUSHDOWN("Project Pushdown") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
-      return RuleSets.ofList(PushProjectIntoScanRule.INSTANCE);
+      if (context.getPlannerSettings().pushArrayColumnsIntoScan()) {
+        return RuleSets.ofList(PushProjectIntoScanRule.INSTANCE);
+      }
+      return RuleSets.ofList(PushProjectIntoScanRule.PUSH_ONLY_FIELD_ACCESS_INSTANCE);
     }
   },
 
@@ -295,8 +312,15 @@ public enum PlannerPhase {
   FILESYSTEM_PROJECT_PUSHDOWN("FileSystem Project Pushdown") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
-      return RuleSets.ofList(
-          PushFilterPastProjectRule.LOGICAL_INSTANCE, PushProjectIntoFilesystemScanRule.INSTANCE);
+
+      ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
+      if (context.getPlannerSettings().pushArrayColumnsIntoScan()) {
+        b.add(PushProjectIntoFilesystemScanRule.INSTANCE);
+      } else {
+        b.add(PushProjectIntoFilesystemScanRule.PUSH_ONLY_FIELD_ACCESS_INSTANCE);
+      }
+      b.add(PushFilterPastProjectRule.LOGICAL_INSTANCE);
+      return RuleSets.ofList(b.build());
     }
   },
 
@@ -306,6 +330,13 @@ public enum PlannerPhase {
       ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
       ImmutableList<RelOptRule> commonRules = getPreLogicalCommonRules(context);
       b.addAll(commonRules);
+      if (context
+          .getPlannerSettings()
+          .options
+          .getOption(PlannerSettings.ENABLE_COUNT_STAR_OPTIMIZATION)) {
+        b.add(CountOnScanToValuesRule.AGG_ON_PROJ_ON_SCAN_INSTANCE);
+        b.add(CountOnScanToValuesRule.AGG_ON_SCAN_INSTANCE);
+      }
       b.add(DremioCoreRules.PUSH_PROJECT_PAST_JOIN_CALCITE_RULE);
       return RuleSets.ofList(b.build());
     }
@@ -445,6 +476,12 @@ public enum PlannerPhase {
       moreRules.add(ExternalQueryScanRule.INSTANCE);
       moreRules.add(MFunctionQueryScanRule.INSTANCE);
       moreRules.add(CopyErrorsRule.INSTANCE);
+
+      if (context.getPlannerSettings().pushArrayColumnsIntoScan()) {
+        moreRules.add(PushProjectIntoScanRule.INSTANCE);
+      } else {
+        moreRules.add(PushProjectIntoScanRule.PUSH_ONLY_FIELD_ACCESS_INSTANCE);
+      }
 
       return PlannerPhase.mergedRuleSets(LOGICAL_RULE_SET, RuleSets.ofList(moreRules));
     }
@@ -600,7 +637,6 @@ public enum PlannerPhase {
                   /*
                    * Project pushdown rules.
                    */
-                  PushProjectIntoScanRule.INSTANCE,
                   MergeProjectRule.LOGICAL_INSTANCE,
 
                   // Not used.

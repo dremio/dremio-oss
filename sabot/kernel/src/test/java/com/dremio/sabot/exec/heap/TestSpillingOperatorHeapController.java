@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.management.ObjectName;
 import org.junit.Test;
 
@@ -52,9 +54,9 @@ public class TestSpillingOperatorHeapController {
   }
 
   @Test
-  public void testSpillingOperatorMultiParticipant() {
+  public void testSpillingOperatorMultiParticipant() throws Exception {
     try (SpillingOperatorHeapController sut = new SpillingOperatorHeapController()) {
-      generateAndRemove(100, 100, sut, true);
+      generateAndRemove(100, 100, sut, true, 0);
       assertEquals(0, sut.maxParticipantsPerSlot());
       assertEquals(0, sut.numParticipants());
       assertEquals(0, sut.computeTotalOverhead());
@@ -68,9 +70,14 @@ public class TestSpillingOperatorHeapController {
       for (int i = 0; i < 32; i++) {
         allFutures.add(
             CompletableFuture.supplyAsync(
-                () ->
-                    generateAndRemove(
-                        100 + rand.nextInt(100), 1000 + rand.nextInt(1000), sut, false)));
+                () -> {
+                  try {
+                    return generateAndRemove(
+                        100 + rand.nextInt(100), 1000 + rand.nextInt(1000), sut, false, 0);
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
+                }));
       }
       allFutures.forEach(CompletableFuture::join);
       assertEquals(0, sut.maxParticipantsPerSlot());
@@ -79,14 +86,49 @@ public class TestSpillingOperatorHeapController {
     }
   }
 
+  // adjust this manually to a higher value (e.g 20000 to 100000) for verifying fix for DX-95051
+  private static final int TEST_LOOP = 1000;
+  // adjust this manually to a higher value (e.g 800 to 1000) for verifying fix for DX-95051
+  private static final int POOL_SIZE = 50;
+
   @Test
-  public void testNormalCondition() {
+  public void testSpillingOperatorMultiThreadedWithLowMemSignalling() throws Exception {
+    ExecutorService pool = Executors.newFixedThreadPool(POOL_SIZE);
+    TestMemoryPool myPool = new TestMemoryPool("My Old Gen Pool");
+    myPool.setUsage(new MemoryUsage(MB, MB, 8 * GB, 8 * GB));
+    try (SpillingOperatorHeapController sut = new SpillingOperatorHeapController()) {
+      sut.getLowMemListener().handleMemNotification(false, myPool);
+      // ensure victims will be chosen
+      sut.getLowMemListener().changeLowMemOptions(50, 8);
+      List<CompletableFuture<Void>> allFutures = new ArrayList<>();
+      for (int i = 0; i < 16; i++) {
+        allFutures.add(addParticipantThreads(pool, sut, TEST_LOOP));
+      }
+      for (int i = 0; i < TEST_LOOP; i++) {
+        Thread.sleep(1);
+        // ensure used does not cross committed memory
+        long used = (i < 4 * KB) ? (4 * GB + i * MB) : (8 * GB - KB);
+        myPool.setUsage(new MemoryUsage(MB, used, 8 * GB, 8 * GB));
+        sut.getLowMemListener().handleUsageCrossedNotification();
+        if (i % 10 == 0) {
+          Thread.sleep(1);
+          allFutures.add(addParticipantThreads(pool, sut, TEST_LOOP));
+        }
+      }
+      allFutures.forEach(CompletableFuture::join);
+    } finally {
+      pool.shutdown();
+    }
+  }
+
+  @Test
+  public void testNormalCondition() throws Exception {
     TestMemoryPool myPool = new TestMemoryPool("My Old Gen Pool");
     myPool.setUsage(new MemoryUsage(KB, MB, MB, GB));
 
     try (SpillingOperatorHeapController sut = new SpillingOperatorHeapController()) {
       sut.getLowMemListener().handleMemNotification(false, myPool);
-      List<GeneratedParticipant> participants = generateAndAddBatches(100, 100, sut, true);
+      List<GeneratedParticipant> participants = generateAndAddBatches(100, 100, sut, true, 0);
       sut.getLowMemListener().handleMemNotification(true, myPool);
       participants.forEach(GeneratedParticipant::remove);
       assertEquals(0, sut.maxParticipantsPerSlot());
@@ -306,26 +348,62 @@ public class TestSpillingOperatorHeapController {
     }
   }
 
+  private CompletableFuture<Void> addParticipantThreads(
+      ExecutorService pool, SpillingOperatorHeapController sut, int loopCount) {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          try {
+            return generateAndRemove(
+                5 + rand.nextInt(1000),
+                loopCount + rand.nextInt(loopCount),
+                sut,
+                false,
+                loopCount / 10);
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        },
+        pool);
+  }
+
   private Void generateAndRemove(
-      int participantCount, int loopCount, SpillingOperatorHeapController sut, boolean single) {
+      int participantCount,
+      int loopCount,
+      SpillingOperatorHeapController sut,
+      boolean single,
+      int yieldCount)
+      throws Exception {
     final List<GeneratedParticipant> participants =
-        generateAndAddBatches(participantCount, loopCount, sut, single);
+        generateAndAddBatches(participantCount, loopCount, sut, single, yieldCount);
     participants.forEach(GeneratedParticipant::remove);
     return null;
   }
 
   private List<GeneratedParticipant> generateAndAddBatches(
-      int participantCount, int loopCount, SpillingOperatorHeapController sut, boolean single) {
+      int participantCount,
+      int loopCount,
+      SpillingOperatorHeapController sut,
+      boolean single,
+      int yieldCount)
+      throws Exception {
     List<GeneratedParticipant> generatedParticipants = generateParticipants(participantCount, sut);
     if (single) {
       // if single threaded, check if participant count is spread
       assertTrue(sut.maxParticipantsPerSlot() < participantCount / 2);
     }
+    int yieldCountLeft = yieldCount;
     for (int i = 0; i < loopCount; i++) {
       int idx = rand.nextInt(participantCount);
       HeapLowMemParticipant p1 = generatedParticipants.get(idx).lowMemParticipant;
-      p1.addBatches(1 + rand.nextInt(2));
-      assertFalse(p1.isVictim());
+      p1.addBatches(32 + rand.nextInt(640));
+      if (yieldCount == 0) {
+        assertFalse(p1.isVictim());
+      } else {
+        if (yieldCountLeft > 0 && rand.nextInt(100) > 70) {
+          yieldCountLeft--;
+          Thread.sleep(1);
+        }
+      }
     }
     return generatedParticipants;
   }

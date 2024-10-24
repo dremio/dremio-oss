@@ -25,6 +25,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.project.ProjectErrorUtils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -72,10 +73,12 @@ public class ComplexTypeCopiers {
       OperatorContext context,
       List<ValueVector> input,
       List<ValueVector> output,
+      List<Integer> outFieldIds,
       ValueVector error,
       TypeCoercion typeCoercion,
       Stopwatch javaCodeGenWatch,
-      Stopwatch gandivaCodeGenWatch) {
+      Stopwatch gandivaCodeGenWatch,
+      int depth) {
     checkArgument(
         input.size() == output.size(),
         "Invalid column size (" + input.size() + ", " + output.size() + ")");
@@ -89,10 +92,12 @@ public class ComplexTypeCopiers {
               context,
               input.get(pos),
               output.get(pos),
+              outFieldIds.get(pos),
               error,
               typeCoercion,
               javaCodeGenWatch,
-              gandivaCodeGenWatch);
+              gandivaCodeGenWatch,
+              depth);
     }
 
     return copiers;
@@ -103,10 +108,12 @@ public class ComplexTypeCopiers {
       OperatorContext context,
       ValueVector inVector,
       ValueVector outVector,
+      int outFieldId,
       ValueVector errorVector,
       TypeCoercion typeCoercion,
       Stopwatch javaCodeGenWatch,
-      Stopwatch gandivaCodeGenWatch) {
+      Stopwatch gandivaCodeGenWatch,
+      int depth) {
     checkArgument(outVector != null, "invalid argument");
     if (inVector == null) {
       // it is possible that table has extra fields and parquet file may not have those fields
@@ -120,10 +127,12 @@ public class ComplexTypeCopiers {
           context,
           inVector,
           outVector,
+          outFieldId,
           errorVector,
           typeCoercion,
           javaCodeGenWatch,
-          gandivaCodeGenWatch);
+          gandivaCodeGenWatch,
+          depth);
     }
 
     // StructVector can be mapped to only StructVector
@@ -133,10 +142,12 @@ public class ComplexTypeCopiers {
           context,
           inVector,
           outVector,
+          outFieldId,
           errorVector,
           typeCoercion,
           javaCodeGenWatch,
-          gandivaCodeGenWatch);
+          gandivaCodeGenWatch,
+          depth);
     }
 
     // control should not reach this place because of schema validation
@@ -166,13 +177,15 @@ public class ComplexTypeCopiers {
         OperatorContext context,
         ValueVector in,
         ValueVector out,
+        int outFieldId,
         ValueVector errorReportVector,
         TypeCoercion typeCoercion,
         Stopwatch javaCodeGenWatch,
-        Stopwatch gandivaCodeGenWatch) {
+        Stopwatch gandivaCodeGenWatch,
+        int depth) {
       inVector = (ListVector) in;
       outVector = (ListVector) out;
-      setupErrorVectors(context, errorReportVector);
+      setupErrorVectors(context, errorReportVector, outFieldId, depth);
 
       // create a mutator for output child field vector
       outChildMutator =
@@ -192,7 +205,8 @@ public class ComplexTypeCopiers {
               typeCoercion.getChildTypeCoercion(out.getName(), targetSchema),
               javaCodeGenWatch,
               gandivaCodeGenWatch,
-              targetSchema);
+              targetSchema,
+              depth + 1);
     }
 
     private static SampleMutator createChildMutator(
@@ -259,15 +273,7 @@ public class ComplexTypeCopiers {
         for (int j = 0; j < nestedCount; ++j) {
           // true flattened vector index
           int nestedIndex = baseNestedIndex + j;
-          Text errorSeenInList = intermediateErrorVector.getObject(nestedIndex);
-          if (errorSeenInList != null) {
-            Text existingError = errorReportVector.getObject(i);
-            if (existingError == null) {
-              errorReportVector.setSafe(i, new Text(errorSeenInList.toString()));
-            } else if (!reportFirstErrorOnly) {
-              errorReportVector.setSafe(i, new Text(existingError + ", " + errorSeenInList));
-            }
-          }
+          writeOrConcatError(i, intermediateErrorVector.getObject(nestedIndex));
         }
         baseNestedIndex += nestedCount;
       }
@@ -301,10 +307,12 @@ public class ComplexTypeCopiers {
         OperatorContext context,
         ValueVector in,
         ValueVector out,
+        int outFieldId,
         ValueVector errorReportVector,
         TypeCoercion typeCoercion,
         Stopwatch javaCodeGenWatch,
-        Stopwatch gandivaCodeGenWatch) {
+        Stopwatch gandivaCodeGenWatch,
+        int depth) {
       this.inVector = (StructVector) in;
       this.outVector = (StructVector) out;
       Map<String, ValueVector> inFields = new HashMap<>();
@@ -312,7 +320,7 @@ public class ComplexTypeCopiers {
       outChildMutator = new SampleMutator(context.getAllocator());
       inChildMutator = new SampleMutator(context.getAllocator());
 
-      setupErrorVectors(context, errorReportVector);
+      setupErrorVectors(context, errorReportVector, outFieldId, depth);
 
       int fieldCount = inVector.getChildFieldNames().size();
       for (int idx = 0; idx < fieldCount; ++idx) {
@@ -352,7 +360,8 @@ public class ComplexTypeCopiers {
               typeCoercion.getChildTypeCoercion(out.getName(), targetSchema),
               javaCodeGenWatch,
               gandivaCodeGenWatch,
-              targetSchema);
+              targetSchema,
+              depth + 1);
     }
 
     @Override
@@ -395,15 +404,7 @@ public class ComplexTypeCopiers {
           intermediateErrorVector.getValueCount() == inVector.getValueCount(),
           "Struct copiers expects matching cardinality of error and input vectors");
       for (int i = 0; i < intermediateErrorVector.getValueCount(); ++i) {
-        Text errorInStruct = intermediateErrorVector.getObject(i);
-        if (errorInStruct != null) {
-          Text existingError = errorReportVector.getObject(i);
-          if (existingError == null) {
-            errorReportVector.setSafe(i, new Text(errorInStruct.toString()));
-          } else if (!reportFirstErrorOnly) {
-            errorReportVector.setSafe(i, new Text(existingError + ", " + errorInStruct));
-          }
-        }
+        writeOrConcatError(i, intermediateErrorVector.getObject(i));
       }
     }
 
@@ -415,12 +416,15 @@ public class ComplexTypeCopiers {
   }
 
   private abstract static class ErrorWritingCopier implements ComplexTypeCopier {
-    protected VarCharVector errorReportVector;
-    protected VectorContainer intermediateErrorContainer;
+    private VarCharVector errorReportVector;
+    private VectorContainer intermediateErrorContainer;
     protected VarCharVector intermediateErrorVector;
-    protected boolean reportFirstErrorOnly;
+    private boolean reportFirstErrorOnly;
+    private int outFieldId;
+    private int depth;
 
-    protected void setupErrorVectors(OperatorContext context, ValueVector errorReportVector) {
+    protected void setupErrorVectors(
+        OperatorContext context, ValueVector errorReportVector, int outFieldId, int depth) {
       this.reportFirstErrorOnly =
           context.getOptions().getOption(ExecConstants.COPY_ERRORS_FIRST_ERROR_OF_RECORD_ONLY);
       this.errorReportVector = (VarCharVector) errorReportVector;
@@ -432,6 +436,8 @@ public class ComplexTypeCopiers {
             (VarCharVector)
                 VectorUtil.getVectorFromSchemaPath(
                     intermediateErrorContainer, ColumnUtils.COPY_HISTORY_COLUMN_NAME);
+        this.outFieldId = outFieldId;
+        this.depth = depth;
       }
     }
 
@@ -446,6 +452,20 @@ public class ComplexTypeCopiers {
       if (intermediateErrorVector != null
           && intermediateErrorVector.getNullCount() != intermediateErrorVector.getValueCount()) {
         propagateError();
+      }
+    }
+
+    protected void writeOrConcatError(int idx, Text newError) {
+      if (newError == null) {
+        return;
+      }
+      Text existingError = errorReportVector.getObject(idx);
+
+      if (existingError == null || !reportFirstErrorOnly) {
+        if (depth == 0) {
+          newError = ProjectErrorUtils.overwriteFieldId(newError, outFieldId);
+        }
+        errorReportVector.setSafe(idx, ProjectErrorUtils.concatErrors(existingError, newError));
       }
     }
 

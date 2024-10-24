@@ -53,6 +53,7 @@ import com.dremio.service.listing.DatasetListingServiceImpl;
 import com.dremio.service.namespace.NamespaceIdentity;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
@@ -70,6 +71,7 @@ import com.dremio.test.DremioTest;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.Sets;
 import java.util.EnumSet;
+import java.util.concurrent.ExecutorService;
 import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
@@ -152,7 +154,11 @@ public class TestMasterLessCatalogServiceImpl {
     kvStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
     kvStoreProvider.start();
 
-    namespaceService = new NamespaceServiceImpl(kvStoreProvider, mock(CatalogStatusEvents.class));
+    namespaceService =
+        new NamespaceServiceImpl(
+            kvStoreProvider,
+            mock(CatalogStatusEvents.class),
+            CatalogEventMessagePublisherProvider.NO_OP);
     orphanage = new OrphanageImpl(kvStoreProvider);
 
     final Orphanage.Factory orphanageFactory =
@@ -278,7 +284,8 @@ public class TestMasterLessCatalogServiceImpl {
                     () -> null,
                     false),
             () -> new VersionedDatasetAdapterFactory(),
-            () -> new CatalogStatusEventsImpl());
+            () -> new CatalogStatusEventsImpl(),
+            () -> mock(ExecutorService.class));
     catalogService.start();
     mockUpPlugin = new TestCatalogServiceImpl.MockUpPlugin();
   }

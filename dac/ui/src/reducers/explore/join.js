@@ -16,7 +16,7 @@
 import Immutable from "immutable";
 import * as ActionTypes from "actions/explore/join";
 import { EDIT_RECOMMENDED_JOIN } from "actions/explore/join";
-import { CUSTOM_JOIN } from "@app/constants/explorePage/joinTabs";
+import { CUSTOM_JOIN } from "#oss/constants/explorePage/joinTabs";
 
 const initialState = Immutable.fromJS({
   joinTab: null,
@@ -107,21 +107,21 @@ export default function join(oldState, action) {
     case ActionTypes.LOAD_RECOMMENDED_JOIN_SUCCESS: {
       return state.setIn(
         ["recommended", "recommendedJoins"],
-        Immutable.fromJS(action.payload.recommendations || [])
+        Immutable.fromJS(action.payload.recommendations || []),
       );
     }
 
     case ActionTypes.SET_ACTIVE_RECOMMENDED_JOIN: {
       return state.setIn(
         ["recommended", "activeRecommendedJoin"],
-        action.recommendation
+        action.recommendation,
       );
     }
 
     case ActionTypes.RESET_ACTIVE_RECOMMENDED_JOIN: {
       return state.setIn(
         ["recommended", "activeRecommendedJoin"],
-        Immutable.Map()
+        Immutable.Map(),
       );
     }
 

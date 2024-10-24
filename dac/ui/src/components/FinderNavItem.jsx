@@ -23,26 +23,25 @@ import { withRouter } from "react-router";
 
 import PropTypes from "prop-types";
 
-import EntityLink from "@app/pages/HomePage/components/EntityLink";
-import {
-  EntityIcon,
+import EntityLink from "#oss/pages/HomePage/components/EntityLink";
+import EntityIcon, {
   PureEntityIcon,
-} from "@app/pages/HomePage/components/EntityIcon";
-import { EntityName } from "@app/pages/HomePage/components/EntityName";
-import { Popover, MouseEvents } from "@app/components/Popover";
+} from "#oss/pages/HomePage/components/EntityIcon";
+import { EntityName } from "#oss/pages/HomePage/components/EntityName";
+import { Popover, MouseEvents } from "#oss/components/Popover";
 
 import AllSpacesMenu from "components/Menus/HomePage/AllSpacesMenu";
 import AllSourcesMenu from "components/Menus/HomePage/AllSourcesMenu";
 import FolderMenu from "./Menus/HomePage/FolderMenu";
-import { ENTITY_TYPES } from "@app/constants/Constants";
-import { getRootEntityTypeByIdV3 } from "@app/selectors/home";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
+import { getRootEntityTypeByIdV3 } from "#oss/selectors/home";
 import ContainerDatasetCountV3, {
   ContainerDatasetCount,
-} from "@app/pages/HomePage/components/ContainerDatasetCount";
+} from "#oss/pages/HomePage/components/ContainerDatasetCount";
 
 import ResourcePin from "./ResourcePin";
 import EllipsedText from "./EllipsedText";
-import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
+import { shouldUseNewDatasetNavigation } from "#oss/utils/datasetNavigationUtils";
 import { getHref } from "@inject/utils/mainInfoUtils/mainInfoNameUtil";
 import { newGetHref } from "@inject/utils/mainInfoUtils/newMainInfoNameUtil";
 import { ARSFeatureSwitch } from "@inject/utils/arsUtils";

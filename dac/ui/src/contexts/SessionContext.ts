@@ -48,7 +48,7 @@ const handleLogout = () => {
   const loginUrl = new URL("/login", window.location.origin);
   loginUrl.searchParams.append(
     "redirect",
-    window.location.href.slice(window.location.origin.length)
+    window.location.href.slice(window.location.origin.length),
   );
   window.location.assign(loginUrl);
 };

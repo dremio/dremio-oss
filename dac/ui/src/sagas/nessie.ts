@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 import { select } from "redux-saga/effects";
-import { NessieRootState } from "@app/types/nessie";
-import { getNessieReferencePayload } from "@app/utils/nessieUtils";
+import { NessieRootState } from "#oss/types/nessie";
+import { getNessieReferencePayload } from "#oss/utils/nessieUtils";
 
 export function* getNessieReferences() {
   const nessie: NessieRootState = yield select(
-    (state: any) => (state.nessie || {}) as NessieRootState
+    (state: any) => (state.nessie || {}) as NessieRootState,
   );
   return getNessieReferencePayload(nessie);
 }

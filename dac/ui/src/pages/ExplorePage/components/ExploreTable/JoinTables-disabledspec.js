@@ -19,7 +19,7 @@ import Immutable from "immutable";
 import {
   CUSTOM_JOIN,
   RECOMMENDED_JOIN,
-} from "@app/constants/explorePage/joinTabs";
+} from "#oss/constants/explorePage/joinTabs";
 import ExploreTableController from "./ExploreTableController";
 
 import { JoinTables } from "./JoinTables";
@@ -65,7 +65,7 @@ describe("JoinTables", () => {
       wrapper.setProps({ joinVersion: "version2" });
       expect(commonProps.accessEntity).to.be.calledWith(
         "tableData",
-        commonProps.dataset.get("datasetVersion")
+        commonProps.dataset.get("datasetVersion"),
       );
     });
   });

@@ -27,17 +27,18 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 public class FieldInfo {
   private final Field field;
 
-  private final int numOfUniqueValues;
+  private final int numOfUniqueValuesInBatch;
   SortOrder sortOrder;
 
-  public FieldInfo(String name, ArrowType arrowType, int numOfUniqueValues, SortOrder sortOrder) {
+  public FieldInfo(
+      String name, ArrowType arrowType, int numOfUniqueValuesInBatch, SortOrder sortOrder) {
     this.field = new Field(name, new FieldType(true, arrowType, null), null);
-    this.numOfUniqueValues = numOfUniqueValues;
+    this.numOfUniqueValuesInBatch = numOfUniqueValuesInBatch;
     this.sortOrder = sortOrder;
   }
 
-  public int getNumOfUniqueValues() {
-    return numOfUniqueValues;
+  public int getNumOfUniqueValuesInBatch() {
+    return numOfUniqueValuesInBatch;
   }
 
   public Field getField() {

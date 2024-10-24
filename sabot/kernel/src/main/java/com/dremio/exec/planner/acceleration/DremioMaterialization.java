@@ -18,11 +18,9 @@ package com.dremio.exec.planner.acceleration;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.acceleration.descriptor.ReflectionInfo;
 import com.dremio.exec.planner.physical.visitor.CrelUniqifier;
-import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Preconditions;
-import java.time.Duration;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.logical.LogicalAggregate;
@@ -30,65 +28,35 @@ import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
 
 /**
- * This extension of RelOptMaterialization is used in Dremio acceleration. It stores and makes
- * accessible information about incremental updates.
- *
- * <p>A DremioMaterialization is immutable so as we transform and normalize target materializations,
- * we will clone the DremioMaterialization accordingly. The starting plan for each
- * DremioMaterialization is the expanded reflection plan and is stored in the original variable for
- * query profile purposes.
+ * DremioMaterialization collects together everything Dremio knows about a materialization
+ * including: - Definition of the reflection in ReflectionInfo - How it was refreshed in
+ * IncrementalUpdateSettings - For expansion matching, a pair of query trees - one for matching,
+ * another for replacement - For algebraic matching, a pair of query trees - one for matching,
+ * another for replacement - Refresh time join operator stats in JoinDependencyProperties For
+ * Snowflake reflections, the planner may update the matching plans after seeing the user query.
  */
 public class DremioMaterialization {
-  private final RelNode original;
-  private final RelNode tableRel;
-  private final RelNode queryRel;
-  private final IncrementalUpdateSettings incrementalUpdateSettings;
-  private final JoinDependencyProperties joinDependencyProperties;
-  private final ReflectionInfo layoutInfo;
   private final String materializationId;
   private final BatchSchema schema;
   private final long expirationTimestamp;
+  private final ReflectionInfo layoutInfo;
+  private final IncrementalUpdateSettings incrementalUpdateSettings;
+  private final JoinDependencyProperties joinDependencyProperties;
+  private final RelNode queryRel; // For view expansion matching
+  private final RelNode stripFragmentOnTableRel; // For view expansion replacement
+  private final RelNode strippedRel; // For algebraic matching
+  private final RelNode tableRel; // For algebraic matching replacement
   private final boolean snowflake;
-  private final RelTransformer postStripTransformer;
   private boolean hasJoin;
   private boolean hasAgg;
-  private String info;
-  private Duration normalizationDuration;
 
   private int stripVersion;
 
   public DremioMaterialization(
       RelNode tableRel,
       RelNode queryRel,
-      IncrementalUpdateSettings incrementalUpdateSettings,
-      JoinDependencyProperties joinDependencyProperties,
-      ReflectionInfo layoutInfo,
-      String materializationId,
-      BatchSchema schema,
-      long expirationTimestamp,
-      int stripVersion,
-      RelTransformer postStripTransformer) {
-    this(
-        null,
-        tableRel,
-        queryRel,
-        incrementalUpdateSettings,
-        joinDependencyProperties,
-        layoutInfo,
-        materializationId,
-        schema,
-        expirationTimestamp,
-        false,
-        stripVersion,
-        postStripTransformer,
-        "",
-        Duration.ZERO);
-  }
-
-  private DremioMaterialization(
-      RelNode original,
-      RelNode tableRel,
-      RelNode queryRel,
+      RelNode strippedRel,
+      RelNode stripFragmentOnTableRel,
       IncrementalUpdateSettings incrementalUpdateSettings,
       JoinDependencyProperties joinDependencyProperties,
       ReflectionInfo layoutInfo,
@@ -96,13 +64,11 @@ public class DremioMaterialization {
       BatchSchema schema,
       long expirationTimestamp,
       boolean snowflake,
-      int stripVersion,
-      RelTransformer postStripTransformer,
-      String info,
-      Duration duration) {
-    this.original = original == null ? queryRel : original;
+      int stripVersion) {
     this.tableRel = tableRel;
     this.queryRel = queryRel;
+    this.strippedRel = strippedRel;
+    this.stripFragmentOnTableRel = stripFragmentOnTableRel;
     this.incrementalUpdateSettings = Preconditions.checkNotNull(incrementalUpdateSettings);
     this.joinDependencyProperties = joinDependencyProperties;
     this.materializationId = Preconditions.checkNotNull(materializationId);
@@ -111,8 +77,6 @@ public class DremioMaterialization {
     this.expirationTimestamp = expirationTimestamp;
     this.snowflake = snowflake;
     this.stripVersion = stripVersion;
-    this.postStripTransformer =
-        postStripTransformer == null ? RelTransformer.NO_OP_TRANSFORMER : postStripTransformer;
 
     hasJoin = false;
     hasAgg = false;
@@ -134,8 +98,6 @@ public class DremioMaterialization {
             return super.visit(other);
           }
         });
-    this.info = info;
-    this.normalizationDuration = duration;
   }
 
   public ReflectionType getReflectionType() {
@@ -143,10 +105,6 @@ public class DremioMaterialization {
       return null;
     }
     return layoutInfo.getType();
-  }
-
-  public RelNode getOriginal() {
-    return original;
   }
 
   public RelNode getQueryRel() {
@@ -175,9 +133,10 @@ public class DremioMaterialization {
 
   public DremioMaterialization uniqify() {
     return new DremioMaterialization(
-        original,
         tableRel,
         CrelUniqifier.uniqifyGraph(queryRel),
+        CrelUniqifier.uniqifyGraph(strippedRel),
+        stripFragmentOnTableRel,
         incrementalUpdateSettings,
         joinDependencyProperties,
         layoutInfo,
@@ -185,10 +144,7 @@ public class DremioMaterialization {
         schema,
         expirationTimestamp,
         snowflake,
-        stripVersion,
-        postStripTransformer,
-        info,
-        normalizationDuration);
+        stripVersion);
   }
 
   public String getMaterializationId() {
@@ -207,76 +163,12 @@ public class DremioMaterialization {
     return hasAgg;
   }
 
-  public DremioMaterialization cloneWithNewQuery(RelNode query) {
-    return new DremioMaterialization(
-        original,
-        tableRel,
-        query,
-        incrementalUpdateSettings,
-        joinDependencyProperties,
-        layoutInfo,
-        materializationId,
-        schema,
-        expirationTimestamp,
-        snowflake,
-        stripVersion,
-        postStripTransformer,
-        info,
-        normalizationDuration);
+  public MaterializationTarget toAlgebraicMatchingTarget() {
+    return new MaterializationTarget(this, strippedRel, tableRel);
   }
 
-  public DremioMaterialization cloneWith(RelNode query, String info, Duration duration) {
-    return new DremioMaterialization(
-        original,
-        tableRel,
-        query,
-        incrementalUpdateSettings,
-        joinDependencyProperties,
-        layoutInfo,
-        materializationId,
-        schema,
-        expirationTimestamp,
-        snowflake,
-        stripVersion,
-        postStripTransformer,
-        info,
-        duration);
-  }
-
-  public DremioMaterialization cloneWith(RelNode tableRel, RelNode queryRel, Duration duration) {
-    return new DremioMaterialization(
-        original,
-        tableRel,
-        queryRel,
-        incrementalUpdateSettings,
-        joinDependencyProperties,
-        layoutInfo,
-        materializationId,
-        schema,
-        expirationTimestamp,
-        snowflake,
-        stripVersion,
-        postStripTransformer,
-        info,
-        duration);
-  }
-
-  public DremioMaterialization createSnowflakeMaterialization(RelNode query) {
-    return new DremioMaterialization(
-        query,
-        tableRel,
-        query,
-        incrementalUpdateSettings,
-        joinDependencyProperties,
-        layoutInfo,
-        materializationId,
-        schema,
-        expirationTimestamp,
-        true,
-        stripVersion,
-        postStripTransformer,
-        info,
-        normalizationDuration);
+  public MaterializationTarget toExpansionMatchingTarget() {
+    return new MaterializationTarget(this, queryRel, stripFragmentOnTableRel);
   }
 
   public BatchSchema getSchema() {
@@ -285,9 +177,10 @@ public class DremioMaterialization {
 
   public DremioMaterialization accept(RelShuttle shuttle) {
     return new DremioMaterialization(
-        original,
         tableRel.accept(shuttle),
         queryRel.accept(shuttle),
+        strippedRel.accept(shuttle),
+        stripFragmentOnTableRel.accept(shuttle),
         incrementalUpdateSettings,
         joinDependencyProperties,
         layoutInfo,
@@ -295,29 +188,10 @@ public class DremioMaterialization {
         schema,
         expirationTimestamp,
         snowflake,
-        stripVersion,
-        postStripTransformer,
-        info,
-        normalizationDuration);
+        stripVersion);
   }
 
   public int getStripVersion() {
     return stripVersion;
-  }
-
-  public RelTransformer getPostStripTransformer() {
-    return postStripTransformer;
-  }
-
-  public String getInfo() {
-    return info;
-  }
-
-  public Duration getNormalizationDuration() {
-    return normalizationDuration;
-  }
-
-  public RelWithInfo getQueryRelWithInfo() {
-    return RelWithInfo.create(queryRel, info, normalizationDuration);
   }
 }

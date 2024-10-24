@@ -15,8 +15,8 @@
  */
 
 import Immutable from "immutable";
-import { LOAD_STARRED_RESOURCE_LIST_SUCCESS } from "@app/actions/resources/stars";
-import { starredResourceTreeNodeDecorator } from "@app/components/Tree/resourceTreeUtils";
+import { LOAD_STARRED_RESOURCE_LIST_SUCCESS } from "#oss/actions/resources/stars";
+import { starredResourceTreeNodeDecorator } from "#oss/components/Tree/resourceTreeUtils";
 
 type StarsState = Immutable.Map<any, Immutable.List<any>>;
 
@@ -34,13 +34,13 @@ function getInitialState(): StarsState {
 
 export default function stars(
   state = getInitialState(),
-  action: StarsActions
+  action: StarsActions,
 ): StarsState {
   if (action.type === LOAD_STARRED_RESOURCE_LIST_SUCCESS) {
     const { nodeExpanded } = action.meta;
     const payloadKey = !nodeExpanded ? "entities" : "resources";
     return Immutable.Map(
-      starredResourceTreeNodeDecorator(state, action, payloadKey)
+      starredResourceTreeNodeDecorator(state, action, payloadKey),
     );
   }
   return state;

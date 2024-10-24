@@ -96,7 +96,7 @@ describe("exploreUtils", () => {
         .onSecondCall()
         .returns(centerCell);
       expect(exploreUtils.updateSelectionToSingleCell(selection)).to.equal(
-        selection
+        selection,
       );
     });
 
@@ -109,13 +109,13 @@ describe("exploreUtils", () => {
         .onSecondCall()
         .returns(rightCell);
       expect(exploreUtils.updateSelectionToSingleCell(selection)).to.equal(
-        selection
+        selection,
       );
       expect(exploreUtils.replaceSelectionRange).to.be.calledWith(
         selection,
         "textNode",
         0,
-        centerCell.textContent.length
+        centerCell.textContent.length,
       );
     });
 
@@ -218,7 +218,7 @@ describe("exploreUtils", () => {
       } = exploreUtils.calculateListSelectionOffsets(
         startOffset,
         endOffset,
-        text
+        text,
       );
       return [text.slice(newStartOffset, newEndOffset), startIndex, endIndex];
     }
@@ -263,13 +263,13 @@ describe("exploreUtils", () => {
     it("should handle nested objects and lists", () => {
       const complexListText = '["abc",["def","ghi"],5,{"a":2}]';
       expect(
-        selectionResult('["abc",["|d|ef","ghi"],5,{"a":2}]', complexListText)
+        selectionResult('["abc",["|d|ef","ghi"],5,{"a":2}]', complexListText),
       ).to.eql(['["def","ghi"]', 1, 2]);
       expect(
-        selectionResult('["abc",["def","ghi"],|5|,{"a":2}]', complexListText)
+        selectionResult('["abc",["def","ghi"],|5|,{"a":2}]', complexListText),
       ).to.eql(["5", 2, 3]);
       expect(
-        selectionResult('["abc",["def","ghi"],5,|{"a":|2}]', complexListText)
+        selectionResult('["abc",["def","ghi"],5,|{"a":|2}]', complexListText),
       ).to.eql(['{"a":2}', 3, 4]);
     });
   });
@@ -367,7 +367,7 @@ describe("exploreUtils", () => {
         `${dataset.getIn([
           "apiLinks",
           "self",
-        ])}/transformAndPreview?newVersion=345&limit=0`
+        ])}/transformAndPreview?newVersion=345&limit=0`,
       );
     });
   });
@@ -382,14 +382,14 @@ describe("exploreUtils", () => {
   describe("method getHrefForUntitledDatasetConfig", () => {
     it("should return link for untitled dataset", () => {
       expect(
-        exploreUtils.getHrefForUntitledDatasetConfig("path", "vvv")
+        exploreUtils.getHrefForUntitledDatasetConfig("path", "vvv"),
       ).to.eql(
-        "/datasets/new_untitled/?parentDataset=path&newVersion=vvv&limit=150"
+        "/datasets/new_untitled/?parentDataset=path&newVersion=vvv&limit=150",
       );
     });
     it("should return link for untitled dataset", () => {
       expect(exploreUtils.getHrefForUntitledDatasetConfig("path", "")).to.eql(
-        "/datasets/new_untitled/?parentDataset=path&newVersion=&limit=150"
+        "/datasets/new_untitled/?parentDataset=path&newVersion=&limit=150",
       );
     });
   });
@@ -397,12 +397,12 @@ describe("exploreUtils", () => {
   describe("method getHrefForDatasetConfig", () => {
     it("should return link for dataset config", () => {
       expect(exploreUtils.getHrefForDatasetConfig("path")).to.eql(
-        "path?view=explore&limit=50"
+        "path?view=explore&limit=50",
       );
     });
     it("should return link for dataset config", () => {
       expect(exploreUtils.getHrefForDatasetConfig("path1", "")).to.eql(
-        "path1?view=explore&limit=50"
+        "path1?view=explore&limit=50",
       );
     });
   });
@@ -410,7 +410,7 @@ describe("exploreUtils", () => {
   describe("method escapeFieldNameForSQL", () => {
     it("should escape quote with another quote and wrap with quotes", () => {
       expect(exploreUtils.escapeFieldNameForSQL('foo"bar')).to.eql(
-        '"foo""bar"'
+        '"foo""bar"',
       );
     });
   });
@@ -424,7 +424,7 @@ describe("exploreUtils", () => {
     it("should keep only columns with name including filter value", () => {
       const filteredColumns = exploreUtils.getFilteredColumns(
         columnsList,
-        "o_"
+        "o_",
       );
       expect(filteredColumns.size).to.equal(2);
       expect(filteredColumns.get(0).get("name").includes("o_")).to.equal(true);
@@ -438,25 +438,25 @@ describe("exploreUtils", () => {
     });
     it("should return full array size w/o filter", () => {
       expect(exploreUtils.getFilteredColumnCount(columnsList)).to.equal(
-        columnsList.size
+        columnsList.size,
       );
       expect(exploreUtils.getFilteredColumnCount(columnsList, "")).to.equal(
-        columnsList.size
+        columnsList.size,
       );
     });
     it("should return filtered array size", () => {
       expect(exploreUtils.getFilteredColumnCount(columnsList, "o_")).to.equal(
-        2
+        2,
       );
       expect(exploreUtils.getFilteredColumnCount(columnsList, "l_")).to.equal(
-        1
+        1,
       );
       // filter should be case insensitive
       expect(exploreUtils.getFilteredColumnCount(columnsList, "O_")).to.equal(
-        2
+        2,
       );
       expect(exploreUtils.getFilteredColumnCount(columnsList, "L_")).to.equal(
-        1
+        1,
       );
     });
   });

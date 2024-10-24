@@ -16,7 +16,7 @@
 import { shallow } from "enzyme";
 import Immutable from "immutable";
 
-import { Capabilities } from "@app/utils/authUtils";
+import { Capabilities } from "#oss/utils/authUtils";
 
 import { HeaderButtons as HeaderButtonsBase } from "./HeaderButtons";
 import HeaderButtonsMixin from "./HeaderButtonsMixin";

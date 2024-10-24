@@ -55,7 +55,7 @@ describe("MarkdownEditor", () => {
         <MarkdownEditorView
           readMode
           onReadModeHasScrollChanged={changeHandler}
-        />
+        />,
       );
 
       const testChange = (currentValue) => {

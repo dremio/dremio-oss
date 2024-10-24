@@ -22,13 +22,13 @@ describe("FileUtils", () => {
       expect(
         FileUtils.getFileNameFromResponse({
           headers: new Map(),
-        })
+        }),
       ).to.equal("download");
 
       expect(
         FileUtils.getFileNameFromResponse({
           headers: new Map([["Content-Disposition", "non-matching"]]),
-        })
+        }),
       ).to.equal("download");
     });
 
@@ -38,7 +38,7 @@ describe("FileUtils", () => {
           headers: new Map([
             ["Content-Disposition", 'attachment; filename="theFileName"'],
           ]),
-        })
+        }),
       ).to.equal("theFileName");
     });
   });
@@ -60,7 +60,7 @@ describe("FileUtils", () => {
             json: () => {
               return Promise.resolve({ errorMessage: "foo" });
             },
-          })
+          }),
         ).to.be.rejectedWith(Immutable.fromJS({ errorMessage: "foo" }));
       });
 
@@ -72,10 +72,10 @@ describe("FileUtils", () => {
             json: () => {
               return Promise.resolve({ foo: "bar" });
             },
-          })
+          }),
         ).to.be.rejectedWith(
           FileDownloadError,
-          "Download failed: theStatusText"
+          "Download failed: theStatusText",
         );
       });
 
@@ -87,20 +87,20 @@ describe("FileUtils", () => {
             json: () => {
               return Promise.reject(new Error("foo"));
             },
-          })
+          }),
         ).to.be.rejectedWith(
           FileDownloadError,
-          "Download failed: theStatusText"
+          "Download failed: theStatusText",
         );
       });
     });
 
     it("should throw if response.status is 204 or 205", () => {
       expect(() =>
-        FileUtils.getFileDownloadConfigFromResponse({ ok: true, status: 204 })
+        FileUtils.getFileDownloadConfigFromResponse({ ok: true, status: 204 }),
       ).to.throw;
       expect(() =>
-        FileUtils.getFileDownloadConfigFromResponse({ ok: true, status: 205 })
+        FileUtils.getFileDownloadConfigFromResponse({ ok: true, status: 205 }),
       ).to.throw;
     });
 
@@ -114,7 +114,7 @@ describe("FileUtils", () => {
             ["Content-Disposition", "non-matching"],
           ]),
           blob: () => Promise.resolve("theBlob"),
-        })
+        }),
       ).to.eventually.eql({
         blob: "theBlob",
         fileName: "theFileName",
@@ -157,7 +157,7 @@ describe("FileUtils", () => {
       expect(FileUtils.getFormattedBytes(2000000000000)).to.be.eql("1.82 TB");
       expect(FileUtils.getFormattedBytes(12000000000000)).to.be.eql("10.91 TB");
       expect(FileUtils.getFormattedBytes(99500000000000000)).to.be.eql(
-        "90494.72 TB"
+        "90494.72 TB",
       );
     });
 
@@ -176,16 +176,16 @@ describe("FileUtils", () => {
     it("should return displayFullPath joined by / if displayFullPath is provided", () => {
       expect(
         FileUtils.getDatasetPathForClientTools(
-          Immutable.fromJS({ displayFullPath: ["a", "b"] })
-        )
+          Immutable.fromJS({ displayFullPath: ["a", "b"] }),
+        ),
       ).to.equal("a/b");
     });
 
     it("should return fullPathList joined by / if fullPathList is provided", () => {
       expect(
         FileUtils.getDatasetPathForClientTools(
-          Immutable.fromJS({ fullPathList: ["a", "b"] })
-        )
+          Immutable.fromJS({ fullPathList: ["a", "b"] }),
+        ),
       ).to.equal("a/b");
     });
   });

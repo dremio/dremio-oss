@@ -21,7 +21,7 @@ import { connect } from "react-redux";
 
 import { hideAppError } from "actions/prodError";
 import ProdErrorModal from "components/Modals/ProdErrorModal";
-import { getAppError, getAppErrorId } from "@app/reducers";
+import { getAppError, getAppErrorId } from "#oss/reducers";
 
 export const SHOW_GO_HOME_AFTER_PERIOD = 5000;
 

@@ -93,13 +93,13 @@ describe("ExtractMapForm", () => {
     it("should return empty card if no selection or selection is empty", () => {
       expect(getExtractMapCards()).to.eql(Immutable.fromJS([{ type: "map" }]));
       expect(getExtractMapCards(Immutable.Map())).to.eql(
-        Immutable.fromJS([{ type: "map" }])
+        Immutable.fromJS([{ type: "map" }]),
       );
     });
 
     it("should return card with dotted path", () => {
       expect(
-        getExtractMapCards(Immutable.fromJS({ mapPathList: ["a", "b"] }))
+        getExtractMapCards(Immutable.fromJS({ mapPathList: ["a", "b"] })),
       ).to.eql(Immutable.fromJS([{ type: "map", path: "a.b" }]));
     });
   });

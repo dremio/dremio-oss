@@ -122,7 +122,7 @@ export default class Checkbox extends PureComponent {
               height: 10,
               width: 12,
               marginBottom: 3,
-              color: "white",
+              color: "var(--fill--primary)",
             }}
           />
         ) : (
@@ -202,11 +202,11 @@ const styles = {
     flexDirection: "row-reverse",
   },
   onDot: {
-    backgroundColor: "#fff",
+    backgroundColor: "var(--fill--primary)",
     right: "6px",
   },
   offDot: {
-    backgroundColor: "#fff",
+    backgroundColor: "var(--fill--primary)",
     left: "6px",
   },
   inputStyle: {

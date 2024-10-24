@@ -167,7 +167,7 @@ export const TabListTab = (props: TabListTabProps) => {
         width: "6px",
         height: "6px",
         borderRadius: "9999px",
-        background: "var(--fill--brand--bold)",
+        background: "var(--fill--brand--solid)",
         flexShrink: 0,
       }}
     />

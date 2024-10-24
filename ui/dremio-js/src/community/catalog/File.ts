@@ -15,24 +15,50 @@
  */
 
 import type { CatalogObjectMethods } from "../../interfaces/CatalogObject.js";
+import { FileCatalogReference } from "./CatalogReference.js";
 import { pathString } from "./utils.js";
 
 export class File implements CatalogObjectMethods {
+  readonly catalogReference: FileCatalogReference;
+  /**
+   * @deprecated
+   */
   readonly id: string;
+  /**
+   * @deprecated
+   */
   readonly path: string[];
   constructor(properties: any) {
+    this.catalogReference = properties.catalogReference;
     this.id = properties.id;
     this.path = properties.path;
   }
 
+  /**
+   * @deprecated
+   */
   get name() {
     return this.path[this.path.length - 1]!;
   }
 
+  /**
+   * @deprecated
+   */
   pathString = pathString(() => this.path);
+
+  /**
+   * @deprecated
+   */
+  get referenceType() {
+    return "FILE" as const;
+  }
 
   static fromResource(properties: any, retrieve: any) {
     return new File({
+      catalogReference: new FileCatalogReference({
+        id: properties.id,
+        path: properties.path,
+      }),
       id: properties.id,
       path: properties.path,
     });

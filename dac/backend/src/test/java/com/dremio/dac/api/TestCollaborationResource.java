@@ -63,7 +63,8 @@ public class TestCollaborationResource extends BaseTestServer {
     Tags noTags =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path("catalog")
                         .path(dataset.getId().getId())
                         .path("collaboration")
@@ -82,7 +83,8 @@ public class TestCollaborationResource extends BaseTestServer {
     Tags tags =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path("catalog")
                         .path(dataset.getId().getId())
                         .path("collaboration")
@@ -111,7 +113,8 @@ public class TestCollaborationResource extends BaseTestServer {
     Tags tags =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path("catalog")
                         .path(dataset.getId().getId())
                         .path("collaboration")
@@ -128,7 +131,8 @@ public class TestCollaborationResource extends BaseTestServer {
     tags =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path("catalog")
                         .path(dataset.getId().getId())
                         .path("collaboration")
@@ -147,7 +151,8 @@ public class TestCollaborationResource extends BaseTestServer {
     tags =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path("catalog")
                         .path(dataset.getId().getId())
                         .path("collaboration")
@@ -168,7 +173,7 @@ public class TestCollaborationResource extends BaseTestServer {
     // invalid id
     expectStatus(
         BAD_REQUEST,
-        getBuilder(getPublicAPI(3).path("catalog").path("bad-id").path("collaboration").path("tag"))
+        getBuilder(getHttpClient().getCatalogApi().path("bad-id").path("collaboration").path("tag"))
             .buildGet());
   }
 
@@ -180,7 +185,7 @@ public class TestCollaborationResource extends BaseTestServer {
     // set tags for an invalid id
     expectStatus(
         BAD_REQUEST,
-        getBuilder(getPublicAPI(3).path("catalog").path("bad-id").path("collaboration").path("tag"))
+        getBuilder(getHttpClient().getCatalogApi().path("bad-id").path("collaboration").path("tag"))
             .buildPost(Entity.json(newTags)));
 
     // create space
@@ -202,7 +207,8 @@ public class TestCollaborationResource extends BaseTestServer {
     expectStatus(
         BAD_REQUEST,
         getBuilder(
-                getPublicAPI(3)
+                getHttpClient()
+                    .getAPIv3()
                     .path("catalog")
                     .path(folderConfig.getId().getId())
                     .path("collaboration")
@@ -215,7 +221,8 @@ public class TestCollaborationResource extends BaseTestServer {
     expectStatus(
         BAD_REQUEST,
         getBuilder(
-                getPublicAPI(3)
+                getHttpClient()
+                    .getAPIv3()
                     .path("catalog")
                     .path(dataset.getId().getId())
                     .path("collaboration")
@@ -227,7 +234,8 @@ public class TestCollaborationResource extends BaseTestServer {
     newTags = new Tags(tagList, null);
     expectSuccess(
         getBuilder(
-                getPublicAPI(3)
+                getHttpClient()
+                    .getAPIv3()
                     .path("catalog")
                     .path(dataset.getId().getId())
                     .path("collaboration")
@@ -238,7 +246,8 @@ public class TestCollaborationResource extends BaseTestServer {
     expectStatus(
         CONFLICT,
         getBuilder(
-                getPublicAPI(3)
+                getHttpClient()
+                    .getAPIv3()
                     .path("catalog")
                     .path(dataset.getId().getId())
                     .path("collaboration")
@@ -251,7 +260,8 @@ public class TestCollaborationResource extends BaseTestServer {
     expectStatus(
         BAD_REQUEST,
         getBuilder(
-                getPublicAPI(3)
+                getHttpClient()
+                    .getAPIv3()
                     .path("catalog")
                     .path(dataset.getId().getId())
                     .path("collaboration")
@@ -274,7 +284,8 @@ public class TestCollaborationResource extends BaseTestServer {
     Wiki emptyWiki =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path("catalog")
                         .path(dataset.getId().getId())
                         .path("collaboration")
@@ -291,7 +302,8 @@ public class TestCollaborationResource extends BaseTestServer {
     Wiki wiki =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path("catalog")
                         .path(dataset.getId().getId())
                         .path("collaboration")
@@ -318,7 +330,8 @@ public class TestCollaborationResource extends BaseTestServer {
     Wiki wiki =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path("catalog")
                         .path(dataset.getId().getId())
                         .path("collaboration")
@@ -332,7 +345,8 @@ public class TestCollaborationResource extends BaseTestServer {
     newWiki = new Wiki("some text", wiki.getVersion());
     expectSuccess(
         getBuilder(
-                getPublicAPI(3)
+                getHttpClient()
+                    .getAPIv3()
                     .path("catalog")
                     .path(dataset.getId().getId())
                     .path("collaboration")
@@ -342,7 +356,8 @@ public class TestCollaborationResource extends BaseTestServer {
     wiki =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path("catalog")
                         .path(dataset.getId().getId())
                         .path("collaboration")
@@ -363,7 +378,7 @@ public class TestCollaborationResource extends BaseTestServer {
     expectStatus(
         BAD_REQUEST,
         getBuilder(
-                getPublicAPI(3).path("catalog").path("bad-id").path("collaboration").path("wiki"))
+                getHttpClient().getCatalogApi().path("bad-id").path("collaboration").path("wiki"))
             .buildGet());
   }
 
@@ -375,7 +390,7 @@ public class TestCollaborationResource extends BaseTestServer {
     expectStatus(
         BAD_REQUEST,
         getBuilder(
-                getPublicAPI(3).path("catalog").path("bad-id").path("collaboration").path("wiki"))
+                getHttpClient().getCatalogApi().path("bad-id").path("collaboration").path("wiki"))
             .buildPost(Entity.json(newWiki)));
 
     // create space
@@ -388,7 +403,8 @@ public class TestCollaborationResource extends BaseTestServer {
     newWiki = new Wiki("sample wiki text", null);
     expectSuccess(
         getBuilder(
-                getPublicAPI(3)
+                getHttpClient()
+                    .getAPIv3()
                     .path("catalog")
                     .path(dataset.getId().getId())
                     .path("collaboration")
@@ -399,7 +415,8 @@ public class TestCollaborationResource extends BaseTestServer {
     expectStatus(
         CONFLICT,
         getBuilder(
-                getPublicAPI(3)
+                getHttpClient()
+                    .getAPIv3()
                     .path("catalog")
                     .path(dataset.getId().getId())
                     .path("collaboration")
@@ -409,7 +426,7 @@ public class TestCollaborationResource extends BaseTestServer {
     // test wiki test size limit - 100k max
     // newWiki = new Wiki(Strings.repeat("f", 100_001), "0");
     // expectStatus(BAD_REQUEST,
-    // getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildPost(Entity.json(newWiki)));
+    // getBuilder(getHttpClient().getCatalogApi().path(dataset.getId().getId()).path("collaboration").path("wiki")).buildPost(Entity.json(newWiki)));
 
     // cleanup space
     getNamespaceService()

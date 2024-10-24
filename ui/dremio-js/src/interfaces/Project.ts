@@ -46,6 +46,7 @@ export type ProjectProperties = {
 
 export type ProjectMethods = {
   delete(): Promise<Result<undefined, unknown>>;
+  get settled(): boolean;
 };
 
 export type Project = ProjectProperties & ProjectMethods;

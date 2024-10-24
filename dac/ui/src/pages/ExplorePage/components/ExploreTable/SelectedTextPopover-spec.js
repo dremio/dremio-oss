@@ -79,8 +79,8 @@ describe("SelectedTextPopover", () => {
       expect(instance.getItemsForColumnType("INTEGER")).to.eql(
         instance.items.filter(
           (item) =>
-            item.get("name") !== "Extract…" && item.get("name") !== "Split…"
-        )
+            item.get("name") !== "Extract…" && item.get("name") !== "Split…",
+        ),
       );
     });
 
@@ -100,8 +100,8 @@ describe("SelectedTextPopover", () => {
     beforeEach(() => {
       menuItemLink = shallow(
         instance.renderItem(
-          Immutable.fromJS({ transform: "extract", name: "Extract" })
-        )
+          Immutable.fromJS({ transform: "extract", name: "Extract" }),
+        ),
       );
     });
     it("should add transformType=item.transform to href.state", () => {
@@ -127,7 +127,7 @@ describe("SelectedTextPopover", () => {
       expect(instance.items.get(0).get("name")).to.eql("Extract…");
       expect(instance.renderItem).to.be.calledWith(
         instance.items.get(0),
-        newState
+        newState,
       );
     });
   });

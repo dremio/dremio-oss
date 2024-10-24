@@ -22,9 +22,9 @@ import EllipsedText from "components/EllipsedText";
 import jobsUtils from "utils/jobsUtils";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
-import "@app/uiTheme/less/commonModifiers.less";
-import Footprint from "@app/components/Acceleration/Footprint";
+import "#oss/uiTheme/less/Acceleration/Acceleration.less";
+import "#oss/uiTheme/less/commonModifiers.less";
+import Footprint from "#oss/components/Acceleration/Footprint";
 import Status from "./Status";
 
 export default class LayoutInfo extends Component {

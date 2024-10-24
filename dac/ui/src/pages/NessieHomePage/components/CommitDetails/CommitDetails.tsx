@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 import { useIntl } from "react-intl";
-import CommitHash from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash";
-import UserIcon from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/UserIcon/UserIcon";
-import { formatDate } from "@app/utils/date";
-import { CommitMetaV2 as CommitMeta } from "@app/services/nessie/client";
-import { Reference } from "@app/types/nessie";
+import CommitHash from "#oss/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash";
+import UserIcon from "#oss/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/UserIcon/UserIcon";
+import { formatDate } from "#oss/utils/date";
+import { CommitMetaV2 as CommitMeta } from "#oss/services/nessie/client";
+import { Reference } from "#oss/types/nessie";
 
 import "./CommitDetails.less";
 

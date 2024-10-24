@@ -20,7 +20,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.ConnectionReaderImpl;
@@ -31,6 +30,8 @@ import com.dremio.plugins.s3.store.S3PluginConfig;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.NamespaceStore;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
@@ -71,8 +72,7 @@ public class TestUpdateS3CredentialType extends DremioTest {
         new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false)) {
       kvStoreProvider.start();
       final LegacyKVStoreProvider legacyKVStoreProvider = kvStoreProvider.asLegacy();
-      KVStore<String, NameSpaceContainer> namespace =
-          kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+      NamespaceStore namespace = new NamespaceStore(() -> kvStoreProvider);
       newS3Source(namespace, "s3 plugin config", s3OldPluginConfig);
       // Performing upgrade
       UpdateS3CredentialType task = new UpdateS3CredentialType();
@@ -86,7 +86,10 @@ public class TestUpdateS3CredentialType extends DremioTest {
       task.upgrade(context);
 
       final NamespaceService namespaceService =
-          new NamespaceServiceImpl(context.getKvStoreProvider(), new CatalogStatusEventsImpl());
+          new NamespaceServiceImpl(
+              context.getKvStoreProvider(),
+              new CatalogStatusEventsImpl(),
+              CatalogEventMessagePublisherProvider.NO_OP);
       List<SourceConfig> sources = namespaceService.getSources();
       assertEquals(1, sources.size());
 
@@ -99,8 +102,7 @@ public class TestUpdateS3CredentialType extends DremioTest {
     }
   }
 
-  private void newS3Source(
-      KVStore<String, NameSpaceContainer> namespace, String path, S3PluginConfig s3PluginConfig) {
+  private void newS3Source(NamespaceStore namespace, String path, S3PluginConfig s3PluginConfig) {
     final List<String> fullPathList = Arrays.asList(path);
 
     final SourceConfig config =

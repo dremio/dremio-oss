@@ -221,7 +221,8 @@ public class TestOptimizeManifestsTableFunction extends BaseTestQuery {
             any(IcebergTableProps.class),
             anyString(),
             any(OperatorContext.class),
-            any(FileIO.class)))
+            any(FileIO.class),
+            any()))
         .thenReturn(icebergModel);
     doNothing().when(icebergModel).refreshVersionContext();
     IcebergTableIdentifier icebergTableIdentifier = mock(IcebergTableIdentifier.class);

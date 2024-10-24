@@ -19,6 +19,7 @@ import static java.lang.String.format;
 
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -44,6 +45,7 @@ public class ResourceTreeEntity {
   private final String url; // only if its a listable entity
   private List<ResourceTreeEntity> resources = null; // filled in only on expansion.
   private final ResourceType rootType; // can only be top level types i.e. SOURCE, SPACE, or HOME
+  private Boolean metadataOutdated; // only for VIRTUAL_DATASET
 
   public ResourceTreeEntity(SourceConfig sourceConfig) throws UnsupportedEncodingException {
     this.type = ResourceType.SOURCE;
@@ -91,6 +93,7 @@ public class ResourceTreeEntity {
     this.url = null;
     this.id = datasetConfig.getId().getId();
     this.rootType = rootType;
+    this.metadataOutdated = NamespaceUtils.isSchemaOutdated(datasetConfig);
   }
 
   @JsonCreator
@@ -101,7 +104,8 @@ public class ResourceTreeEntity {
       @JsonProperty("url") String url,
       @JsonProperty("resources") List<ResourceTreeEntity> resources,
       @JsonProperty("id") String id,
-      @JsonProperty("rootType") ResourceType rootType) {
+      @JsonProperty("rootType") ResourceType rootType,
+      @JsonProperty("metadataOutdated") Boolean metadataOutdated) {
     this.type = type;
     this.name = name;
     this.fullPath = fullPath;
@@ -109,6 +113,7 @@ public class ResourceTreeEntity {
     this.resources = resources;
     this.id = id;
     this.rootType = rootType;
+    this.metadataOutdated = metadataOutdated;
   }
 
   public ResourceType getType() {
@@ -133,6 +138,10 @@ public class ResourceTreeEntity {
 
   public ResourceType getRootType() {
     return rootType;
+  }
+
+  public Boolean getMetadataOutdated() {
+    return metadataOutdated;
   }
 
   public static ResourceType getResourceType(DatasetType type) {
@@ -180,6 +189,7 @@ public class ResourceTreeEntity {
   }
 
   /** Merging top level namespace types with dataset type */
+  // check who is using this
   public enum ResourceType {
     SOURCE, // always at the top of tree
     SPACE, // always at the top of tree
@@ -190,7 +200,8 @@ public class ResourceTreeEntity {
     PHYSICAL_DATASET_SOURCE_FILE,
     PHYSICAL_DATASET_SOURCE_FOLDER,
     PHYSICAL_DATASET_HOME_FILE,
-    PHYSICAL_DATASET_HOME_FOLDER
+    PHYSICAL_DATASET_HOME_FOLDER,
+    FUNCTION
   }
 
   public List<ResourceTreeEntity> getResources() {

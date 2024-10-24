@@ -25,17 +25,13 @@ public class TestHashJoinWithExtraConditionSpill extends TestHashJoinWithExtraCo
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    setSystemOption(HashJoinOperator.ENABLE_SPILL, "true");
-    setSystemOption(PlannerSettings.USE_MAX_ROWCOUNT, "false");
+    setSystemOption(HashJoinOperator.ENABLE_SPILL, true);
+    setSystemOption(PlannerSettings.USE_MAX_ROWCOUNT, false);
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    setSystemOption(
-        HashJoinOperator.ENABLE_SPILL,
-        HashJoinOperator.ENABLE_SPILL.getDefault().getBoolVal().toString());
-    setSystemOption(
-        PlannerSettings.USE_MAX_ROWCOUNT,
-        PlannerSettings.USE_MAX_ROWCOUNT.getDefault().getBoolVal().toString());
+    resetSystemOption(HashJoinOperator.ENABLE_SPILL);
+    resetSystemOption(PlannerSettings.USE_MAX_ROWCOUNT);
   }
 }

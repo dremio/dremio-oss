@@ -27,7 +27,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-@Ignore("DX-91348")
 public class TestVectorizedPartitionSender extends BaseTestQuery {
 
   // As we are setting the max batch size to 128, we end up with lot of small batches from scan

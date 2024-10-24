@@ -98,7 +98,7 @@ const SideNavHoverMenu = (props) => {
         className={classNames(
           "sideNav-item__hoverMenu",
           isActive,
-          menuLinkMenuDisplayed
+          menuLinkMenuDisplayed,
         )}
         onMouseEnter={(e) => mouseEnter(e)}
         onMouseLeave={(e) => mouseLeave(e)}
@@ -127,7 +127,7 @@ const SideNavHoverMenu = (props) => {
           className={classNames(
             "sideNav-menu",
             popMenuExtraClass,
-            menuPosition
+            menuPosition,
           )}
           onMouseEnter={(e) => mouseEnter(e)}
           onMouseLeave={(e) => mouseLeave(e)}

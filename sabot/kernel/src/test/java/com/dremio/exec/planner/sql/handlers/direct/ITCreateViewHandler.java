@@ -18,6 +18,7 @@ package com.dremio.exec.planner.sql.handlers.direct;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.AutoCloseables;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.store.iceberg.IcebergTestTables;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
@@ -44,7 +45,7 @@ public class ITCreateViewHandler extends BaseTestQuery {
 
   @AfterClass
   public static void afterClass() throws Exception {
-    table.close();
+    AutoCloseables.close(table);
   }
 
   @Before

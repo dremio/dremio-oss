@@ -30,7 +30,7 @@ import {
 } from "dremio-ui-lib/components";
 import { Toggle } from "../Fields";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
-import NavPanel from "@app/components/Nav/NavPanel";
+import NavPanel from "#oss/components/Nav/NavPanel";
 import Immutable from "immutable";
 import {
   Controller,
@@ -52,6 +52,7 @@ import {
 } from "./ModalForm.types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import LeaveModalForm from "./LeaveModalForm/LeaveModalForm";
+import Message from "../Message";
 
 import * as classes from "./ModalForm.module.less";
 
@@ -66,6 +67,8 @@ type ModalFormProps = {
   isSubmitting?: boolean;
   isLoading?: boolean;
   isCustomTabDirty?: boolean; // used if a custom tab is dirty
+  error?: { id: string; message: string };
+  isSaveDisabled?: boolean;
 };
 
 const ModalForm = ({
@@ -79,6 +82,8 @@ const ModalForm = ({
   isLoading,
   isCustomTabDirty,
   isSubmitting,
+  error,
+  isSaveDisabled,
 }: ModalFormProps) => {
   const { t } = getIntlContext();
   const [tab, setTab] = useState(0);
@@ -146,7 +151,11 @@ const ModalForm = ({
                   <Button variant="secondary" onClick={handleCloseDialog}>
                     {t("Common.Actions.Cancel")}
                   </Button>
-                  <Button variant="primary" type="submit" disabled={isLoading}>
+                  <Button
+                    variant="primary"
+                    type="submit"
+                    disabled={isLoading || isSaveDisabled}
+                  >
                     {isSaving ? <Spinner /> : t("Common.Actions.Save")}
                   </Button>
                 </div>
@@ -164,29 +173,39 @@ const ModalForm = ({
                       activeTab={tab}
                       className={classes["modal-form__navPanel"]}
                     />
-                    {!!defaultValues && (
-                      <div
-                        className={clsx(
-                          "flex flex-1",
-                          classes["modal-form__scroll"],
-                        )}
-                      >
+                    <div className="flex flex-col flex-1">
+                      {error && (
+                        <Message
+                          messageId={error.id}
+                          message={error.message}
+                          messageType="error"
+                          style={{ marginBottom: 0 }}
+                        />
+                      )}
+                      {!!defaultValues && (
                         <div
                           className={clsx(
-                            "flex flex-col flex-1",
-                            classes["modal-form__content"],
+                            "flex flex-1",
+                            classes["modal-form__scroll"],
                           )}
                         >
-                          {currentTabContent.map((component) => (
-                            <FormInputController
-                              key={component.key}
-                              element={component}
-                              disabled={!!isSaving}
-                            />
-                          ))}
+                          <div
+                            className={clsx(
+                              "flex flex-col flex-1",
+                              classes["modal-form__content"],
+                            )}
+                          >
+                            {currentTabContent.map((component) => (
+                              <FormInputController
+                                key={component.key}
+                                element={component}
+                                disabled={!!isSaving}
+                              />
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </>
                 )}
               </div>

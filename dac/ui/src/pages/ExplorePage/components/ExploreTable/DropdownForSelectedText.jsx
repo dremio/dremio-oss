@@ -18,7 +18,7 @@ import ReactDOM from "react-dom";
 import Mousetrap from "mousetrap";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
-import { TEXT, LIST } from "@app/constants/DataTypes";
+import { TEXT, LIST } from "#oss/constants/DataTypes";
 import exploreUtils from "utils/explore/exploreUtils";
 import { withLocation } from "containers/dremioLocation";
 
@@ -65,7 +65,7 @@ export class DropdownForSelectedTextView extends PureComponent {
     const { dropPositions } = this.props;
     const text = dropPositions.getIn(["textWrap", "text"]);
     exploreUtils.copySelection(
-      text ?? ReactDOM.findDOMNode(this.selectedContentRef.current), // eslint-disable-line react/no-find-dom-node
+      text ?? ReactDOM.findDOMNode(this.selectedContentRef.current),
     );
     this.props.hideDrop();
   };

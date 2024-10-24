@@ -61,7 +61,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class TestWriterPlan extends BaseTestQuery {
-  private static IcebergTestTables.Table table;
   private static SqlConverter converter;
   private static SqlHandlerConfig config;
 
@@ -174,8 +173,6 @@ public class TestWriterPlan extends BaseTestQuery {
         .setOption(
             OptionValue.createBoolean(
                 OptionValue.OptionType.SYSTEM, ExecConstants.ADAPTIVE_HASH.getOptionName(), true));
-
-    table = IcebergTestTables.V2_ORDERS.get();
   }
 
   private void resetSmallFileCombinationFlags() {
@@ -214,8 +211,6 @@ public class TestWriterPlan extends BaseTestQuery {
 
   @After
   public void tearDownTest() throws Exception {
-    table.close();
-
     resetSmallFileCombinationFlags();
 
     config

@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import static com.dremio.exec.planner.VacuumCatalogUtil.isGCEnabledForIcebergTable;
 import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.getTimestampFromMillis;
 import static com.dremio.exec.store.iceberg.model.IcebergOpCommitter.CONCURRENT_OPERATION_ERROR;
+import static org.apache.iceberg.DremioTableProperties.NESSIE_GC_ENABLED;
 import static org.apache.iceberg.TableProperties.GC_ENABLED;
 import static org.apache.iceberg.Transactions.createTableTransaction;
 
@@ -353,12 +355,29 @@ public class IcebergBaseCommand implements IcebergCommand {
   @Override
   public List<SnapshotEntry> expireSnapshots(
       long olderThanInMillis, int retainLast, boolean throwIcebergException) {
+    return performExpire(olderThanInMillis, retainLast, throwIcebergException, false);
+  }
+
+  @Override
+  public List<SnapshotEntry> expireSnapshotsForVersionedTable(
+      long olderThanInMillis, int retainLast, boolean throwIcebergException) {
+    return performExpire(olderThanInMillis, retainLast, throwIcebergException, true);
+  }
+
+  private List<SnapshotEntry> performExpire(
+      long olderThanInMillis,
+      int retainLast,
+      boolean throwIcebergException,
+      boolean isVersionedTable) {
     Stopwatch stopwatch = Stopwatch.createStarted();
     // perform expiration
     String olderThanTimestamp = getTimestampFromMillis(olderThanInMillis);
     try {
       Table table = loadTable();
-      if (PropertyUtil.propertyAsBoolean(table.properties(), GC_ENABLED, true)) {
+      // These checks are combined as we expect all versioned tables to have gc.enabled set to false
+      // by default
+      if ((isVersionedTable && isGCEnabledForIcebergTable(table.properties()))
+          || PropertyUtil.propertyAsBoolean(table.properties(), GC_ENABLED, true)) {
         logger.info(
             "Trying to expire {}'s snapshots, which are older than {}, min {} snapshots will be retained.",
             table.name(),
@@ -374,7 +393,8 @@ public class IcebergBaseCommand implements IcebergCommand {
           performNonTransactionCommit(expireSnapshots);
         }
       } else {
-        logger.warn("Skipping expiry on {} because {} is set to 'false'", table.name(), GC_ENABLED);
+        logger.warn(
+            "Skipping expiry on {} because {} is set to 'false'", table.name(), NESSIE_GC_ENABLED);
       }
       table.refresh();
       return findSnapshots(tableOperations.refresh());
@@ -708,8 +728,10 @@ public class IcebergBaseCommand implements IcebergCommand {
   public void replaceSortOrder(List<String> sortOrder) {
     Table table = loadTable();
     ReplaceSortOrder newSortOrder = table.replaceSortOrder();
-    for (String sortColumn : sortOrder) {
-      newSortOrder = newSortOrder.asc(sortColumn);
+    if (sortOrder != null && !sortOrder.isEmpty()) {
+      for (String sortColumn : sortOrder) {
+        newSortOrder = newSortOrder.asc(sortColumn);
+      }
     }
 
     performNonTransactionCommit(newSortOrder);

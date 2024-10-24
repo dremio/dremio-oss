@@ -36,8 +36,7 @@ import { updateViewState } from "actions/resources";
 import { downloadFile } from "sagas/downloadFile";
 import { getViewState } from "selectors/resources";
 import ViewStateWrapper from "components/ViewStateWrapper";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
-import jobsUtils from "@app/utils/jobsUtils";
+import jobsUtils from "#oss/utils/jobsUtils";
 import { renderContent } from "dyn-load/utils/jobsUtils";
 import socket from "@inject/utils/socket";
 import {
@@ -47,7 +46,7 @@ import {
 import NavCrumbs from "@inject/components/NavCrumbs/NavCrumbs";
 
 import TopPanel from "./components/TopPanel/TopPanel";
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
+import { SonarSideNav } from "#oss/exports/components/SideNav/SonarSideNav";
 import { handleCluster } from "./utils";
 
 import { jobDetailsTabs, getIconName } from "dyn-load/utils/jobsUtils";
@@ -60,9 +59,10 @@ import {
 } from "dremio-ui-lib/components";
 // @ts-ignore
 import { getPrivilegeContext } from "dremio-ui-common/contexts/PrivilegeContext.js";
-import { store } from "@app/store/store";
+import { store } from "#oss/store/store";
 
 import "./JobDetailsPage.less";
+import { PageTop } from "dremio-ui-common/components/PageTop.js";
 
 const POLL_INTERVAL = 3000;
 
@@ -86,8 +86,6 @@ const JobDetailsPage = (
   props: ConnectedProps & RouteComponentProps<any, any>,
 ) => {
   const { formatMessage } = useIntl();
-  const isSqlContrast = localStorageUtils?.getSqlThemeContrast();
-  const [isContrast, setIsContrast] = useState(isSqlContrast);
   const [jobDetails, setJobDetails] = useState(Immutable.Map());
   const [pollId, setPollId] = useState<NodeJS.Timer | null>(null);
   const [isListeningForProgress, setIsListeningForProgress] = useState(false);
@@ -117,8 +115,6 @@ const JobDetailsPage = (
   const propsForRenderContent = {
     jobDetails,
     downloadJobFile,
-    isContrast,
-    setIsContrast,
     jobDetailsFromStore,
     showJobIdProfile,
     showReflectionJobIdProfile,
@@ -302,7 +298,9 @@ const JobDetailsPage = (
         <DocumentTitle title={formatMessage({ id: "Job.JobDetails" })} />
         <SonarSideNav />
         <div className={"jobPageContentDiv"}>
-          <NavCrumbs />
+          <PageTop>
+            <NavCrumbs />
+          </PageTop>
           <ViewStateWrapper
             hideChildrenWhenFailed={false}
             viewState={viewState}

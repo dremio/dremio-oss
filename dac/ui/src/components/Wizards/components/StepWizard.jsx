@@ -19,7 +19,7 @@ import PropTypes from "prop-types";
 
 import { Button } from "dremio-ui-lib/components";
 import WizardFooter from "./WizardFooter";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 class StepWizard extends PureComponent {
   static propTypes = {

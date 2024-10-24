@@ -36,7 +36,7 @@ public class DremioFileSystemTest {
     conf.set(FS_AZURE_ACCOUNT_OAUTH_CLIENT_SECRET, PASSWORD);
 
 
-    fileSystem.updateOAuthConfig(conf, "testAccount.1234", "testAccount");
+    FileSystemConfUtil.updateOAuthConfig(conf, "testAccount.1234", "testAccount");
     Assert.assertEquals(ENDPOINT, conf.get("dremio.azure.tokenEndpoint"));
     Assert.assertEquals(CLIEN_ID, conf.get("dremio.azure.clientId"));
     Assert.assertEquals(PASSWORD, conf.get("dremio.azure.clientSecret"));
@@ -52,7 +52,7 @@ public class DremioFileSystemTest {
     conf.set(FS_AZURE_ACCOUNT_OAUTH_CLIENT_SECRET + ".testAccount", PASSWORD);
 
 
-    fileSystem.updateOAuthConfig(conf, "testAccount.1234", "testAccount");
+    FileSystemConfUtil.updateOAuthConfig(conf, "testAccount.1234", "testAccount");
     Assert.assertEquals(ENDPOINT, conf.get("dremio.azure.tokenEndpoint"));
     Assert.assertEquals(CLIEN_ID, conf.get("dremio.azure.clientId"));
     Assert.assertEquals(PASSWORD, conf.get("dremio.azure.clientSecret"));

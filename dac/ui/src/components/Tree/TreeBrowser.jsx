@@ -19,28 +19,28 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { connect } from "react-redux";
 
-import { intl } from "@app/utils/intl";
-import SubHeaderTabs from "@app/components/SubHeaderTabs";
-import { getLocation } from "@app/selectors/routing";
+import { intl } from "#oss/utils/intl";
+import SubHeaderTabs from "#oss/components/SubHeaderTabs";
+import { getLocation } from "#oss/selectors/routing";
 import SearchDatasetsPopover from "../DatasetList/SearchDatasetsPopover";
 import {
   RESOURCE_LIST_SORT_MENU,
   DATA_SCRIPT_TABS,
   starTabNames,
-} from "@app/components/Tree/resourceTreeUtils";
-import SortDropDownMenu from "@app/components/SortDropDownMenu";
+} from "#oss/components/Tree/resourceTreeUtils";
+import SortDropDownMenu from "#oss/components/SortDropDownMenu";
 import SQLScripts from "../SQLScripts/SQLScripts";
 import TreeNode from "./TreeNode";
-//@ts-ignore
 import { TabsNavigationItem } from "dremio-ui-lib";
 import "./TreeBrowser.less";
 import * as classes from "./TreeBrowser.less";
-import { useFilterTreeArs } from "@app/utils/datasetTreeUtils";
-import { getHomeSource, getSortedSources } from "@app/selectors/home";
+import { useFilterTreeArs } from "#oss/utils/datasetTreeUtils";
+import { getHomeSource, getSortedSources } from "#oss/selectors/home";
 import { useIsArsEnabled } from "@inject/utils/arsUtils";
 import { useMultiTabIsEnabled } from "../SQLScripts/useMultiTabIsEnabled";
-import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
+import { isTabbableUrl } from "#oss/utils/explorePageTypeUtils";
 import { showNavCrumbs } from "@inject/components/NavCrumbs/NavCrumbs";
+import { NewTreeSwitcher } from "./NewTreeSwitcher";
 
 export const TreeBrowser = (props) => {
   const {
@@ -68,6 +68,7 @@ export const TreeBrowser = (props) => {
   ]);
 
   const [isArsLoading, isArsEnabled] = useIsArsEnabled();
+
   useEffect(() => {
     if (isArsLoading || isArsEnabled) return;
 
@@ -247,10 +248,10 @@ export const TreeBrowser = (props) => {
             starredItems={starredItems}
             unstarNode={unstarNode}
           />
-          <div className="TreeBrowser-items">
-            {renderHome()}
-            {renderItems()}
-          </div>
+          <NewTreeSwitcher
+            oldRenderHome={renderHome}
+            oldRenderItems={renderItems}
+          />
         </>
       );
     } else if (selectedTab === DATA_SCRIPT_TABS.Scripts) {

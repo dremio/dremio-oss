@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { APIV2Call } from "@app/core/APICall";
-import { API_V2, API_V3 } from "@app/constants/Api";
+import { APIV2Call } from "#oss/core/APICall";
+import { API_V2, API_V3 } from "#oss/constants/Api";
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 
 class TokenUtils {

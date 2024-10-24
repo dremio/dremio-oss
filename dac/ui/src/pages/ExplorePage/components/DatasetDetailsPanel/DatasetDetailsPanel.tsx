@@ -17,9 +17,9 @@
 import Immutable from "immutable";
 import { Skeleton } from "dremio-ui-lib/components";
 import { Wiki } from "../Wiki/Wiki";
-import { getIconType } from "@app/components/DatasetSummary/datasetSummaryUtils";
+import { getIconType } from "#oss/components/DatasetSummary/datasetSummaryUtils";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 import {
   isEntityWikiEditAllowed,
   getEntityTypeFromObject,
@@ -44,7 +44,7 @@ export const DatasetDetailsPanel = (props: DatasetDetailsPanelProps) => {
     datasetDetails.get("fullPath")?.last() ||
     datasetDetails.get("name");
   const versionContext = getVersionContextFromId(
-    datasetDetails.get("entityId")
+    datasetDetails.get("entityId"),
   );
   const iconEntity =
     getIconType(getEntityTypeFromObject(datasetDetails), !!versionContext) ||

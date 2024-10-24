@@ -22,11 +22,12 @@ import { injectIntl } from "react-intl";
 import {
   CONTAINER_ENTITY_TYPES,
   DATASET_ENTITY_TYPES,
-} from "@app/constants/Constants";
+} from "#oss/constants/Constants";
 
 import Tree from "./Tree";
 import TreeBrowser from "./TreeBrowser";
 import { withTreeConfigContext } from "./treeConfigContext";
+import { withEntityProps } from "dyn-load/utils/entity-utils";
 
 import "./ResourceTree.less";
 
@@ -68,6 +69,7 @@ export class ResourceTree extends Component {
     stopAtDatasets: PropTypes.bool,
     treeConfigContext: PropTypes.object,
     handleDatasetDetails: PropTypes.func,
+    isManageAccessEnabled: PropTypes.bool,
   };
 
   constructor(props) {
@@ -135,6 +137,7 @@ export class ResourceTree extends Component {
       hideSources,
       hideHomes,
       stopAtDatasets,
+      isManageAccessEnabled,
     } = this.props;
 
     return (
@@ -171,6 +174,7 @@ export class ResourceTree extends Component {
             hideSpaces={hideSpaces}
             hideSources={hideSources}
             hideHomes={hideHomes}
+            isManageAccessEnabled={isManageAccessEnabled}
           />
         ) : (
           <Tree
@@ -200,10 +204,15 @@ export class ResourceTree extends Component {
             hideSpaces={hideSpaces}
             hideSources={hideSources}
             hideHomes={hideHomes}
+            isManageAccessEnabled={isManageAccessEnabled}
           />
         )}
       </div>
     );
   }
 }
-export default compose(injectIntl, withTreeConfigContext)(ResourceTree);
+export default compose(
+  injectIntl,
+  withTreeConfigContext,
+  withEntityProps,
+)(ResourceTree);

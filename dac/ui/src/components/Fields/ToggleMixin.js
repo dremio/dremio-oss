@@ -15,7 +15,6 @@
  */
 function ToggleMixin(input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     checkToRenderToggle() {
       return true;
     },

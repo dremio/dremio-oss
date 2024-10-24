@@ -139,7 +139,7 @@ public class JobDatasetGraphUI {
     try {
       Optional<CatalogEntity> entity =
           catalogServiceHelper.getCatalogEntityByPath(
-              pathList, new ArrayList<>(), new ArrayList<>());
+              pathList, Collections.emptyList(), Collections.singletonList("children"));
       String datasetId = entity.get().getId();
       List<CatalogItem> parentsList;
       Optional<DatasetConfig> datasetConfig = catalogServiceHelper.getDatasetById(datasetId);

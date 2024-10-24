@@ -82,7 +82,7 @@
         border: none;
 
         > input::placeholder {
-          color: var(--color--neutral--300);
+          color: var(--text--disabled);
           font-style: italic;
         }
       }
@@ -125,7 +125,7 @@
             }
 
             &:disabled {
-              color: var(--color--neutral--150);
+              color: var(--icon--disabled);
             }
 
             &:hover {
@@ -244,6 +244,16 @@
         }
       }
     }
+
+    &.-reflections {
+      .dremioContent__content {
+        max-height: unset !important;
+        .dremioContent__table {
+          height: 100%;
+          grid-template-rows: auto;
+        }
+      }
+    }
   }
 
   .dremioContent-rightCol {
@@ -344,7 +354,7 @@
         }
 
         span {
-          background-color: var(--color--neutral--100);
+          background-color: var(--hover--chip);
           border-radius: 8px;
           display: inline-block;
           font-size: 14px;

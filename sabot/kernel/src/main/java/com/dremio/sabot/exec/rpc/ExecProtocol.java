@@ -19,6 +19,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.ExecRPC.DlrProtoMessage;
 import com.dremio.exec.proto.ExecRPC.FinishedReceiver;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
@@ -32,6 +33,7 @@ import com.dremio.exec.rpc.RpcBus;
 import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.sabot.exec.DynamicLoadRoutingMessage;
 import com.dremio.sabot.exec.FragmentExecutors;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.rpc.Protocols;
@@ -54,16 +56,15 @@ public class ExecProtocol implements FabricProtocol {
 
   public static final Response OK = new Response(RpcType.ACK, Acks.OK);
   public static final Response FAIL = new Response(RpcType.ACK, Acks.FAIL);
-
-  private final FragmentExecutors fragmentsManager;
+  private final FragmentExecutors fragmentExecutors;
   private final BufferAllocator allocator;
   private final RpcConfig config;
 
   public ExecProtocol(
-      SabotConfig config, BufferAllocator allocator, FragmentExecutors fragmentsManager) {
+      SabotConfig config, BufferAllocator allocator, FragmentExecutors fragmentExecutors) {
     this.allocator = allocator;
     this.config = getMapping(config);
-    this.fragmentsManager = fragmentsManager;
+    this.fragmentExecutors = fragmentExecutors;
   }
 
   @Override
@@ -107,27 +108,55 @@ public class ExecProtocol implements FabricProtocol {
           return;
         }
 
+      case RpcType.REQ_DLR_MESSAGE_VALUE:
+        {
+          final DlrProtoMessage message = RpcBus.get(pBody, DlrProtoMessage.PARSER);
+          handleDlrMessage(message, sender);
+          return;
+        }
+
       default:
         throw new UnsupportedOperationException();
+    }
+  }
+
+  private void handleDlrMessage(final DlrProtoMessage message, ResponseSender sender) {
+    final AckSenderImpl ack = new AckSenderImpl(sender);
+
+    // increment so we don't get false returns.
+    ack.increment();
+    try {
+      fragmentExecutors.handle(new DynamicLoadRoutingMessage(message));
+      // decrement the extra reference we grabbed at the top.
+      ack.sendOk();
+    } catch (Exception e) {
+      logger.error(
+          "Failure while handling DynamicLoadRouting message query id {} command {}",
+          QueryIdHelper.getQueryId(message.getQueryId()),
+          message.getCommand(),
+          e);
+      ack.clear();
+      sender.send(new Response(RpcType.ACK, Acks.FAIL));
     }
   }
 
   private void handleOobMessage(final OOBMessage message, final ByteBuf body) {
     final ArrowBuf buf =
         Optional.ofNullable(body).map(b -> ((NettyArrowBuf) b).arrowBuf()).orElse(null);
-    fragmentsManager.handle(
+    fragmentExecutors.handle(
         new OutOfBandMessage(message, buf == null ? null : new ArrowBuf[] {buf}));
   }
 
   private void handleReceiverFinished(final FinishedReceiver finishedReceiver) throws RpcException {
-    fragmentsManager.receiverFinished(finishedReceiver.getSender(), finishedReceiver.getReceiver());
+    fragmentExecutors.receiverFinished(
+        finishedReceiver.getSender(), finishedReceiver.getReceiver());
   }
 
   private void handleFragmentStreamCompletion(final FragmentStreamComplete completion)
       throws RpcException {
     final int targetCount = completion.getReceivingMinorFragmentIdCount();
     for (int minor = 0; minor < targetCount; minor++) {
-      fragmentsManager.handle(getHandle(completion, minor), completion);
+      fragmentExecutors.handle(getHandle(completion, minor), completion);
     }
   }
 
@@ -194,7 +223,7 @@ public class ExecProtocol implements FabricProtocol {
     for (int minor = minorStart; minor < minorStopExclusive; minor++) {
       // even though the below method may throw, we don't really care about aborting the loop as the
       // query will fail anyway
-      fragmentsManager.handle(getHandle(batch.getHeader(), minor), batch);
+      fragmentExecutors.handle(getHandle(batch.getHeader(), minor), batch);
     }
   }
 
@@ -236,6 +265,7 @@ public class ExecProtocol implements FabricProtocol {
         .add(RpcType.REQ_STREAM_COMPLETE, FragmentStreamComplete.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_RECEIVER_FINISHED, FinishedReceiver.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_OOB_MESSAGE, OOBMessage.class, RpcType.ACK, Ack.class)
+        .add(RpcType.REQ_DLR_MESSAGE, DlrProtoMessage.class, RpcType.ACK, Ack.class)
         .build();
   }
 }

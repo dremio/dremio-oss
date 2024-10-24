@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.mockito.Mockito.mock;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -37,6 +38,7 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.proto.EntityId;
+import com.dremio.services.pubsub.MessagePublisher;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
@@ -63,7 +65,9 @@ public class TestDatasetMetadataSaver {
     storeProvider.start();
     kvStoreProvider = storeProvider.asLegacy();
     kvStoreProvider.start();
-    namespaceService = new NamespaceServiceImpl(storeProvider, new CatalogStatusEventsImpl());
+    namespaceService =
+        new NamespaceServiceImpl(
+            storeProvider, new CatalogStatusEventsImpl(), () -> mock(MessagePublisher.class));
   }
 
   @After

@@ -102,7 +102,7 @@ describe("entities", () => {
           id: "fooId",
           newAttribute: true,
           queryable: true,
-        })
+        }),
       );
     });
 
@@ -124,7 +124,7 @@ describe("entities", () => {
       expect(result.getIn(["folder", "fooId"])).to.be.eql(
         Immutable.fromJS({
           newAttribute: true,
-        })
+        }),
       );
 
       delete action.meta.mergeEntities;
@@ -132,7 +132,7 @@ describe("entities", () => {
       expect(result2.getIn(["folder", "fooId"])).to.be.eql(
         Immutable.fromJS({
           newAttribute: true,
-        })
+        }),
       );
     });
   });

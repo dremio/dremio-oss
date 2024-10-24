@@ -30,6 +30,7 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.verifyCountSnapshotQ
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.verifyData;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.waitUntilAfter;
 import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.getTimestampFromMillis;
+import static org.apache.iceberg.DremioTableProperties.NESSIE_GC_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
@@ -611,10 +612,7 @@ public class ExpireSnapshotsTests extends TestVacuumBase {
       verifyCountSnapshotQuery(allocator, table.fqn, 7L);
 
       Table icebergTable = loadIcebergTable(table);
-      icebergTable
-          .updateProperties()
-          .set(TableProperties.GC_ENABLED, Boolean.FALSE.toString())
-          .commit();
+      icebergTable.updateProperties().set(NESSIE_GC_ENABLED, Boolean.FALSE.toString()).commit();
       runSQL(String.format("ALTER TABLE %s REFRESH METADATA FORCE UPDATE", table.fqn));
 
       final long timestampMillisToExpire = System.currentTimeMillis();

@@ -116,7 +116,7 @@ describe("ReplaceExactForm", () => {
           type: "ReplaceValue",
           ...fieldsMappers.getReplaceExact(
             values,
-            commonProps.transform.get("columnType")
+            commonProps.transform.get("columnType"),
           ),
         },
       });
@@ -129,7 +129,7 @@ describe("ReplaceExactForm", () => {
         columnType: "INTEGER",
       });
       const wrapper = shallow(
-        <ReplaceExactForm {...commonProps} transform={transform} />
+        <ReplaceExactForm {...commonProps} transform={transform} />,
       );
 
       expect(wrapper.instance().submit(values)).to.eql("submitResponse");
@@ -138,7 +138,7 @@ describe("ReplaceExactForm", () => {
         ...filterMappers.getCommonFilterValues(values, transform),
         filter: filterMappers.mapFilterExcludeValues(
           values,
-          commonProps.transform.get("columnType")
+          commonProps.transform.get("columnType"),
         ),
       });
     });
@@ -151,7 +151,7 @@ describe("ReplaceExactForm", () => {
       });
 
       const wrapper = shallow(
-        <ReplaceExactForm {...commonProps} transform={transform} />
+        <ReplaceExactForm {...commonProps} transform={transform} />,
       );
 
       expect(wrapper.instance().submit(values)).to.eql("submitResponse");
@@ -160,7 +160,7 @@ describe("ReplaceExactForm", () => {
         ...filterMappers.getCommonFilterValues(values, transform),
         filter: filterMappers.mapFilterExcludeValues(
           values,
-          commonProps.transform.get("columnType")
+          commonProps.transform.get("columnType"),
         ),
       });
     });
@@ -182,7 +182,7 @@ describe("ReplaceExactForm", () => {
       };
 
       const wrapper = shallow(
-        <ReplaceExactForm {...commonProps} transform={transform} />
+        <ReplaceExactForm {...commonProps} transform={transform} />,
       );
 
       expect(wrapper.instance().submit(nullValues)).to.eql("submitResponse");
@@ -191,7 +191,7 @@ describe("ReplaceExactForm", () => {
         ...filterMappers.getCommonFilterValues(expectedValues, transform),
         filter: filterMappers.mapFilterExcludeValues(
           expectedValues,
-          commonProps.transform.get("columnType")
+          commonProps.transform.get("columnType"),
         ),
       });
     });

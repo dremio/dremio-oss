@@ -17,7 +17,7 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import clsx from "clsx";
-import { tabLabel } from "@app/uiTheme/less/layout.less";
+import { tabLabel } from "#oss/uiTheme/less/layout.less";
 import { nav, navBtn, navBtnActive, icon } from "./NavPanel.less";
 
 export default class NavPanel extends PureComponent {

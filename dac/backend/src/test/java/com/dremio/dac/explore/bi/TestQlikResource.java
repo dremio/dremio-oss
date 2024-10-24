@@ -53,7 +53,8 @@ public class TestQlikResource extends BaseTestServer {
     final DatasetConfig ds =
         l(NamespaceService.class).getDataset(new NamespaceKey(Arrays.asList("Prod-Sample", "ds1")));
     expectSuccess(
-        getBuilder(getAPIv2().path("qlik/" + String.join("/", ds.getFullPathList())))
+        getBuilder(
+                getHttpClient().getAPIv2().path("qlik/" + String.join("/", ds.getFullPathList())))
             .accept("text/plain+qlik-app")
             .buildGet());
   }
@@ -65,7 +66,8 @@ public class TestQlikResource extends BaseTestServer {
         l(NamespaceService.class)
             .getDataset(new NamespaceKey(Arrays.asList("LocalFS1", "dac-sample1.json")));
     expectSuccess(
-        getBuilder(getAPIv2().path("qlik/" + String.join("/", ds.getFullPathList())))
+        getBuilder(
+                getHttpClient().getAPIv2().path("qlik/" + String.join("/", ds.getFullPathList())))
             .accept("text/plain+qlik-app")
             .buildGet());
   }
@@ -73,13 +75,17 @@ public class TestQlikResource extends BaseTestServer {
   @Test
   public void testQlikExportAllTypesPhysicalDataset() throws Exception {
     expectSuccess(
-        getBuilder(getAPIv2().path("dataset/LocalFS1.\"all_types_dremio.json\"/preview"))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv2()
+                    .path("dataset/LocalFS1.\"all_types_dremio.json\"/preview"))
             .buildGet());
     final DatasetConfig ds =
         l(NamespaceService.class)
             .getDataset(new NamespaceKey(Arrays.asList("LocalFS1", "all_types_dremio.json")));
     expectSuccess(
-        getBuilder(getAPIv2().path("qlik/" + String.join("/", ds.getFullPathList())))
+        getBuilder(
+                getHttpClient().getAPIv2().path("qlik/" + String.join("/", ds.getFullPathList())))
             .accept("text/plain+qlik-app")
             .buildGet());
   }

@@ -18,8 +18,8 @@ import { useEffect, useMemo } from "react";
 import { createTable } from "leantable/core";
 import { Table, columnSorting, useExternalStoreState } from "leantable/react";
 import clsx from "clsx";
-import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
-import { intl } from "@app/utils/intl";
+import EmptyStateContainer from "#oss/pages/HomePage/components/EmptyStateContainer";
+import { intl } from "#oss/utils/intl";
 
 import * as classes from "./CatalogTagsTable.module.less";
 

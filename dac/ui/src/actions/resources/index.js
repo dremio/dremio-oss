@@ -17,8 +17,8 @@ import { RSAA } from "redux-api-middleware";
 
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import * as schemas from "schemas";
-import { datasetTypeToEntityType } from "@app/constants/datasetTypes";
-import { APIV2Call } from "@app/core/APICall";
+import { datasetTypeToEntityType } from "#oss/constants/datasetTypes";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const LOAD_ENTITIES_STARTED = "LOAD_ENTITIES_STARTED";
 export const LOAD_ENTITIES_SUCCESS = "LOAD_ENTITIES_SUCCESS";
@@ -39,7 +39,7 @@ function fetchEntities(urlPath, schema, viewId) {
         schemaUtils.getSuccessActionTypeWithSchema(
           LOAD_ENTITIES_SUCCESS,
           schema,
-          meta
+          meta,
         ),
         { type: LOAD_ENTITIES_FAILURE, meta },
       ],
@@ -83,7 +83,7 @@ function postRenameHomeEntity(entity, entityType, newName, invalidateViewIds) {
         schemaUtils.getSuccessActionTypeWithSchema(
           RENAME_ENTITY_SUCCESS,
           schema,
-          meta
+          meta,
         ),
         { type: RENAME_ENTITY_FAILURE, meta },
       ],
@@ -97,11 +97,11 @@ export function renameHomeEntity(
   entity,
   entityType,
   newName,
-  invalidateViewIds
+  invalidateViewIds,
 ) {
   return (dispatch) => {
     return dispatch(
-      postRenameHomeEntity(entity, entityType, newName, invalidateViewIds)
+      postRenameHomeEntity(entity, entityType, newName, invalidateViewIds),
     );
   };
 }

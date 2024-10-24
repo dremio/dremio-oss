@@ -17,7 +17,11 @@ package com.dremio.exec.work.foreman;
 
 public interface CompletionListener {
 
-  void succeeded();
+  void succeeded(
+      long screenOperatorCompletionTime,
+      long screenCompletionRpcReceivedAt,
+      long lastNodeCompletionRpcReceivedAt,
+      long lastNodeCompletionRpcStartedAt);
 
   void failed(Exception ex);
 }

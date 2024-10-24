@@ -96,7 +96,7 @@ describe("FileFormatController", () => {
       expect(ApiUtils.attachFormSubmitHandlers).to.be.called;
       expect(props.saveFileFormat).to.be.calledWith(
         "/source/source1/file_format/file1",
-        { type: "JSON", version: 1 }
+        { type: "JSON", version: 1 },
       );
       expect(props.onDone).to.be.called;
     });
@@ -125,7 +125,7 @@ describe("FileFormatController", () => {
       expect(ApiUtils.attachFormSubmitHandlers).to.be.called;
       expect(props.saveFileFormat).to.be.calledWith(
         "/source/source1/file_format/file1",
-        values
+        values,
       );
       expect(context.router.replace).to.be.calledWith("/source/source1/file1");
       expect(props.onDone).to.be.not.called;

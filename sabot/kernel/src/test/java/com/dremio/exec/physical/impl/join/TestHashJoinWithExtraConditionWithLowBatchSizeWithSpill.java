@@ -25,25 +25,17 @@ public class TestHashJoinWithExtraConditionWithLowBatchSizeWithSpill
     extends TestHashJoinWithExtraCondition {
   @BeforeClass
   public static void beforeClass() throws Exception {
-    setSystemOption(HashJoinOperator.ENABLE_SPILL, "true");
-    setSystemOption(PlannerSettings.USE_MAX_ROWCOUNT, "false");
-    setSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MIN, "1");
-    setSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, "3");
+    setSystemOption(HashJoinOperator.ENABLE_SPILL, true);
+    setSystemOption(PlannerSettings.USE_MAX_ROWCOUNT, false);
+    setSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MIN, 1);
+    setSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, 3);
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    setSystemOption(
-        HashJoinOperator.ENABLE_SPILL,
-        HashJoinOperator.ENABLE_SPILL.getDefault().getBoolVal().toString());
-    setSystemOption(
-        PlannerSettings.USE_MAX_ROWCOUNT,
-        PlannerSettings.USE_MAX_ROWCOUNT.getDefault().getBoolVal().toString());
-    setSystemOption(
-        ExecConstants.TARGET_BATCH_RECORDS_MIN,
-        ExecConstants.TARGET_BATCH_RECORDS_MIN.getDefault().getValue().toString());
-    setSystemOption(
-        ExecConstants.TARGET_BATCH_RECORDS_MAX,
-        ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault().getValue().toString());
+    resetSystemOption(HashJoinOperator.ENABLE_SPILL);
+    resetSystemOption(PlannerSettings.USE_MAX_ROWCOUNT);
+    resetSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
+    resetSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
   }
 }

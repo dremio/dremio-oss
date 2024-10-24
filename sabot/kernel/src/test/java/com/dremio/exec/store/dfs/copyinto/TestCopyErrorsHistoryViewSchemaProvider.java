@@ -18,27 +18,31 @@ package com.dremio.exec.store.dfs.copyinto;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.dremio.exec.ExecConstants;
 import org.apache.iceberg.Schema;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.Test;
 
 public class TestCopyErrorsHistoryViewSchemaProvider {
 
-  @ParameterizedTest
-  @ValueSource(ints = {1, 2})
-  public void testGetSchema(int schemaVersion) {
-    Schema schema = CopyErrorsHistoryViewSchemaProvider.getSchema(schemaVersion);
-    if (schemaVersion <= 2) {
-      assertThat(schema.columns().size()).isEqualTo(10);
+  @Test
+  public void testGetSchema() {
+    long schemaVersion =
+        ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal();
+    for (long i = 1; i <= schemaVersion; i++) {
+      Schema schema = new CopyErrorsHistoryViewSchemaProvider(i).getSchema();
+      if (i <= 3) {
+        assertThat(schema.columns().size()).isEqualTo(10);
+      }
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(ints = {3})
-  public void testGetUnsupportedVersion(int unsupportedSchemaVersion) {
+  @Test
+  public void testGetUnsupportedVersion() {
+    long schemaVersion =
+        ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal();
     assertThrows(
         "Unsupported copy_errors_history view schema version",
         UnsupportedOperationException.class,
-        () -> CopyErrorsHistoryViewSchemaProvider.getSchema(unsupportedSchemaVersion));
+        () -> new CopyErrorsHistoryViewSchemaProvider(schemaVersion + 1));
   }
 }

@@ -21,7 +21,7 @@ import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.store.dfs.copyinto.CopyFileHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadata;
-import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
 import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin;
 import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
 import com.dremio.options.OptionManager;
@@ -61,6 +61,8 @@ public class SystemIcebergTablesMaintainerService implements Service, Runnable {
   private final Provider<OptionManager> optionManager;
   private final Provider<SabotContext> sabotContext;
   private final List<SystemIcebergTableMetadata> tableMetadataList = new ArrayList<>();
+  private final CopyJobHistoryTableSchemaProvider copyJobHistoryTableSchemaProvider;
+  private final CopyFileHistoryTableSchemaProvider copyFileHistoryTableSchemaProvider;
   private SimpleJobRunner jobRunner;
 
   public SystemIcebergTablesMaintainerService(
@@ -70,6 +72,10 @@ public class SystemIcebergTablesMaintainerService implements Service, Runnable {
     this.schedulerService = schedulerService;
     this.optionManager = optionManagerProvider;
     this.sabotContext = sabotContextProvider;
+    long schemaVersion =
+        optionManager.get().getOption(ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION);
+    this.copyJobHistoryTableSchemaProvider = new CopyJobHistoryTableSchemaProvider(schemaVersion);
+    this.copyFileHistoryTableSchemaProvider = new CopyFileHistoryTableSchemaProvider(schemaVersion);
   }
 
   protected void setJobRunner(SimpleJobRunner jobRunner) {
@@ -133,11 +139,11 @@ public class SystemIcebergTablesMaintainerService implements Service, Runnable {
       SystemIcebergTablesStoragePlugin plugin = getStoragePlugin();
       SystemIcebergTableMetadata jobHistoryMetadata =
           plugin.getTableMetadata(
-              ImmutableList.of(SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME));
+              ImmutableList.of(SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName()));
       tableMetadataList.add(jobHistoryMetadata);
       SystemIcebergTableMetadata fileHistoryMetadata =
           plugin.getTableMetadata(
-              ImmutableList.of(SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME));
+              ImmutableList.of(SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName()));
       tableMetadataList.add(fileHistoryMetadata);
       runQuery(
           simpleJobRunner,
@@ -145,7 +151,7 @@ public class SystemIcebergTablesMaintainerService implements Service, Runnable {
               DELETE_QUERY_TEMPLATE,
               jobHistoryMetadata.getNamespaceKey().getRoot(),
               jobHistoryMetadata.getTableName(),
-              CopyJobHistoryTableSchemaProvider.getExecutedAtColName(),
+              copyJobHistoryTableSchemaProvider.getExecutedAtColName(),
               deleteTimestamp),
           jobHistoryMetadata.getTableLocation());
       LOGGER.info(
@@ -159,7 +165,7 @@ public class SystemIcebergTablesMaintainerService implements Service, Runnable {
               DELETE_QUERY_TEMPLATE,
               fileHistoryMetadata.getNamespaceKey().getRoot(),
               fileHistoryMetadata.getTableName(),
-              CopyFileHistoryTableSchemaProvider.getEventTimestampColName(),
+              copyFileHistoryTableSchemaProvider.getEventTimestampColName(),
               deleteTimestamp),
           fileHistoryMetadata.getTableLocation());
       LOGGER.info(

@@ -58,7 +58,7 @@ describe("DatasetMenu", () => {
   it("#getGraphUrl()", () => {
     const instance = shallow(
       <DatasetMenu {...commonProps} />,
-      context
+      context,
     ).instance();
     expect(instance.getMenuItemUrl("graph")).to.equal("/vgf/graph?qwe");
   });
@@ -67,21 +67,21 @@ describe("DatasetMenu", () => {
     it("should return location to UpdateDataset modal with mode=rename, item=entity, and name=datasetName", () => {
       const instance = shallow(
         <DatasetMenu {...commonProps} />,
-        context
+        context,
       ).instance();
       const result = instance.getRenameLocation();
       expect(result.state.modal).to.equal("UpdateDataset");
       expect(result.state.item).to.equal(commonProps.entity);
       expect(result.state.query.mode).to.equal("rename");
       expect(result.state.query.name).to.equal(
-        commonProps.entity.get("datasetName")
+        commonProps.entity.get("datasetName"),
       );
     });
 
     it("should maintain existing location.state", () => {
       const instance = shallow(
         <DatasetMenu {...commonProps} />,
-        context
+        context,
       ).instance();
       const result = instance.getRenameLocation();
       expect(result.state.foo).to.equal(1);
@@ -92,21 +92,21 @@ describe("DatasetMenu", () => {
     it("should return location to UpdateDataset modal with mode=move, item=entity, and name=datasetName", () => {
       const instance = shallow(
         <DatasetMenu {...commonProps} />,
-        context
+        context,
       ).instance();
       const result = instance.getMoveLocation();
       expect(result.state.modal).to.equal("UpdateDataset");
       expect(result.state.item).to.equal(commonProps.entity);
       expect(result.state.query.mode).to.equal("move");
       expect(result.state.query.name).to.equal(
-        commonProps.entity.get("datasetName")
+        commonProps.entity.get("datasetName"),
       );
     });
 
     it("should maintain existing location.state", () => {
       const instance = shallow(
         <DatasetMenu {...commonProps} />,
-        context
+        context,
       ).instance();
       const result = instance.getRenameLocation();
       expect(result.state.foo).to.equal(1);
@@ -117,14 +117,14 @@ describe("DatasetMenu", () => {
     it("should return location to UpdateDataset modal with mode=remove, item=entity, and name=datasetName", () => {
       const instance = shallow(
         <DatasetMenu {...commonProps} />,
-        context
+        context,
       ).instance();
       const result = instance.getRemoveLocation();
       expect(result.state.modal).to.equal("UpdateDataset");
       expect(result.state.item).to.equal(commonProps.entity);
       expect(result.state.query.mode).to.equal("remove");
       expect(result.state.query.name).to.equal(
-        commonProps.entity.get("datasetName")
+        commonProps.entity.get("datasetName"),
       );
     });
   });
@@ -133,7 +133,7 @@ describe("DatasetMenu", () => {
     it("should return location to DatasetSettingsModal with props.entityType and fullPath", () => {
       const instance = shallow(
         <DatasetMenu {...commonProps} />,
-        context
+        context,
       ).instance();
       const result = instance.getSettingsLocation();
       expect(result.state.modal).to.equal("DatasetSettingsModal");
@@ -143,7 +143,7 @@ describe("DatasetMenu", () => {
     it("should get entityId for virtual dataset (versionedResource)", () => {
       const wrapper = shallow(<DatasetMenu {...commonProps} />, context);
       expect(wrapper.instance().getSettingsLocation().state.entityId).to.eql(
-        commonProps.entity.get("versionedResourcePath")
+        commonProps.entity.get("versionedResourcePath"),
       );
     });
 
@@ -153,10 +153,10 @@ describe("DatasetMenu", () => {
         .remove("versionedResourcePath");
       const wrapper = shallow(
         <DatasetMenu {...commonProps} entity={file} />,
-        context
+        context,
       );
       expect(wrapper.instance().getSettingsLocation().state.entityId).to.eql(
-        "someId"
+        "someId",
       );
     });
   });
@@ -165,7 +165,7 @@ describe("DatasetMenu", () => {
     it("should show confirmation dialog before remove", () => {
       const instance = shallow(
         <DatasetMenu {...commonProps} />,
-        context
+        context,
       ).instance();
       instance.handleRemoveFile();
       expect(commonProps.showConfirmationDialog).to.be.called;

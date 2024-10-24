@@ -30,6 +30,8 @@ import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetStats;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.exec.store.SchemaConfig;
@@ -213,10 +215,11 @@ public class TestDatasetMetadataState {
     when(datasetMetadata.getExtraInfo()).thenReturn(BytesOutput.NONE);
     when(datasetMetadata.getDatasetStats()).thenReturn(DatasetStats.of(0.1d));
 
-    when(storagePlugin.listPartitionChunks(any(), any()))
+    when(storagePlugin.listPartitionChunks(any(), any(ListPartitionChunkOption[].class)))
         .thenReturn(
             () -> Collections.singleton(PartitionChunk.of(DatasetSplit.of(0, 0))).iterator());
-    when(storagePlugin.getDatasetMetadata(any(), any(), any())).thenReturn(datasetMetadata);
+    when(storagePlugin.getDatasetMetadata(any(), any(), any(GetMetadataOption[].class)))
+        .thenReturn(datasetMetadata);
     when(storagePlugin.provideSignature(same(datasetHandle), isNull()))
         .thenReturn(BytesOutput.NONE);
 

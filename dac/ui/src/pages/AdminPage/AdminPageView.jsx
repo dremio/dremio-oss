@@ -18,12 +18,13 @@ import PropTypes from "prop-types";
 
 import withFilteredSections from "@inject/pages/AdminPage/withFilteredSections";
 
-import SettingPage from "@app/containers/SettingPage";
+import SettingPage from "#oss/containers/SettingPage";
 import UserNavigation from "components/UserNavigation";
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
+import { SonarSideNav } from "#oss/exports/components/SideNav/SonarSideNav";
 import { getTitle } from "@inject/pages/AdminPage/navSections";
 import NavCrumbs from "@inject/components/NavCrumbs/NavCrumbs";
-
+import { PageTop } from "dremio-ui-common/components/PageTop.js";
+import { SearchTriggerWrapper } from "#oss/exports/searchModal/SearchTriggerWrapper";
 import "./AdminPage.less";
 
 class AdminPageView extends PureComponent {
@@ -62,7 +63,10 @@ class AdminPageView extends PureComponent {
         <div className="page-content">
           <SonarSideNav />
           <div className="page-content-inner">
-            <NavCrumbs />
+            <PageTop>
+              <NavCrumbs />
+              <SearchTriggerWrapper className="ml-auto" />
+            </PageTop>
             <div className="user-nav-container">
               <UserNavigation
                 sections={sections}

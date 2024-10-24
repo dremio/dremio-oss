@@ -48,7 +48,7 @@ function PropertyItem({ item, onRemove, singleValue, prefix = "", secure }) {
 function validateValueList(values, elementConfig) {
   const enteredValues = FormUtils.getFieldByComplexPropName(
     values,
-    elementConfig.propName
+    elementConfig.propName,
   );
   const emptyMsg = `${elementConfig.label} can not be empty`;
   const repeatMsg = "Values can not repeat";
@@ -67,7 +67,7 @@ function validateValueList(values, elementConfig) {
           errors,
           elementConfig.propName,
           emptyMsg,
-          index
+          index,
         );
       }
     } else {
@@ -77,7 +77,7 @@ function validateValueList(values, elementConfig) {
           errors,
           elementConfig.propName,
           repeatMsg,
-          index
+          index,
         );
       }
     }
@@ -117,7 +117,7 @@ export default class SourceProperties extends Component {
     set(
       result,
       propertyName,
-      get(result, propertyName).map((property) => Property.validate(property))
+      get(result, propertyName).map((property) => Property.validate(property)),
     );
     return result;
   }
@@ -141,7 +141,7 @@ export default class SourceProperties extends Component {
     const properties = singleValue
       ? FormUtils.getFieldByComplexPropName(
           this.props.fields,
-          elementConfig.propName
+          elementConfig.propName,
         )
       : propertyListFields;
     e.preventDefault();
@@ -173,7 +173,7 @@ export default class SourceProperties extends Component {
     const properties = singleValue
       ? FormUtils.getFieldByComplexPropName(
           this.props.fields,
-          elementConfig.propName
+          elementConfig.propName,
         )
       : propertyListFields;
     return (

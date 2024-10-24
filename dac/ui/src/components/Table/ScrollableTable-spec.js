@@ -79,7 +79,7 @@ describe("ScrollableTable", () => {
 
   it("Basic table render with default/empty data but with columns", () => {
     const { container, getByTestId, queryByText } = render(
-      <ScrollableTable {...minimalProps} />
+      <ScrollableTable {...minimalProps} />,
     );
     // table exists
     expect(getByTestId("scrollable-table-test")).to.exist;
@@ -87,7 +87,7 @@ describe("ScrollableTable", () => {
     expect(queryByText("Job ID")).to.exist;
     // fixed column exists
     expect(
-      container.querySelector(".ReactVirtualized__Grid__innerScrollContainer")
+      container.querySelector(".ReactVirtualized__Grid__innerScrollContainer"),
     ).to.exist;
   });
   it("Resizing columns to not work if isFixedWidth is true", () => {

@@ -89,7 +89,11 @@ class ContainsText extends PureComponent {
         <dremio-icon
           name="interface/search"
           alt="search"
-          class={classNames("containsText__searchIcon", searchIconClass)}
+          class={classNames(
+            "containsText__searchIcon",
+            searchIconClass,
+            "icon-primary",
+          )}
         />
         <input
           className="form-placeholder"

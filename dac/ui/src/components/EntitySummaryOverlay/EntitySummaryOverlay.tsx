@@ -16,14 +16,14 @@
 import Immutable from "immutable";
 import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";
 import { useResourceSnapshot } from "smart-resource/react";
-import { EntityOverlayResource } from "@app/resources/EntityResource";
+import { EntityOverlayResource } from "#oss/resources/EntityResource";
 import { useEffect } from "react";
 import DatasetSummaryError from "../DatasetSummary/DatasetSummaryError/DatasetSummaryError";
-import { constructFullPath } from "@app/utils/pathUtils";
+import { constructFullPath } from "#oss/utils/pathUtils";
 import EntitySummary from "./EntitySummary";
-import { transformEntity } from "@app/utils/entity-utils";
+import { transformEntity } from "#oss/utils/entity-utils";
 import { useSelector } from "react-redux";
-import { getRefQueryParams } from "@app/utils/nessieUtils";
+import { getRefQueryParams } from "#oss/utils/nessieUtils";
 
 type EntitySummaryOverlayProps = {
   name: string;

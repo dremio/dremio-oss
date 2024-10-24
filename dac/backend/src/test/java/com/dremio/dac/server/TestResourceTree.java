@@ -80,6 +80,7 @@ public class TestResourceTree extends BaseTestServer {
     NamespaceTestUtils.addDS(ns, "space2.ds3");
     NamespaceTestUtils.addDS(ns, "space2.foo2.ds4");
     NamespaceTestUtils.addDS(ns, "space2.foo2.bar2.ds5");
+    NamespaceTestUtils.addDS(ns, "space2.foo2.bar2.ds6", "", true);
   }
 
   public static SourceConfig addSource(NamespaceService ns, String name) throws Exception {
@@ -105,7 +106,8 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree")
                         .queryParam("showSources", true)
                         .queryParam("showSpaces", true)
@@ -122,7 +124,9 @@ public class TestResourceTree extends BaseTestServer {
   @Test
   public void testResourceTreeEmptyRoot() throws Exception {
     ResourceList resourceList =
-        expectSuccess(getBuilder(getAPIv2().path("resourcetree")).buildGet(), ResourceList.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("resourcetree")).buildGet(),
+            ResourceList.class);
     assertEquals(0, resourceList.count(ResourceType.SOURCE));
     assertEquals(0, resourceList.count(ResourceType.SPACE));
     assertEquals(0, resourceList.count(ResourceType.VIRTUAL_DATASET));
@@ -134,7 +138,11 @@ public class TestResourceTree extends BaseTestServer {
   public void testResourcesSpace1() throws Exception {
     ResourceList resourceList =
         expectSuccess(
-            getBuilder(getAPIv2().path("resourcetree/space1").queryParam("showDatasets", true))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("resourcetree/space1")
+                        .queryParam("showDatasets", true))
                 .buildGet(),
             ResourceList.class);
     assertEquals(1, resourceList.count(ResourceType.VIRTUAL_DATASET));
@@ -145,7 +153,11 @@ public class TestResourceTree extends BaseTestServer {
   public void testResourcesSpace2() throws Exception {
     ResourceList resourceList =
         expectSuccess(
-            getBuilder(getAPIv2().path("resourcetree/space2").queryParam("showDatasets", true))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("resourcetree/space2")
+                        .queryParam("showDatasets", true))
                 .buildGet(),
             ResourceList.class);
     assertEquals(3, resourceList.count(ResourceType.VIRTUAL_DATASET));
@@ -156,7 +168,11 @@ public class TestResourceTree extends BaseTestServer {
   public void testResourcesFoo1() throws Exception {
     ResourceList resourceList =
         expectSuccess(
-            getBuilder(getAPIv2().path("resourcetree/space1.foo1").queryParam("showDatasets", true))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("resourcetree/space1.foo1")
+                        .queryParam("showDatasets", true))
                 .buildGet(),
             ResourceList.class);
     assertEquals(1, resourceList.count(ResourceType.VIRTUAL_DATASET));
@@ -168,7 +184,10 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2().path("resourcetree/space2.foo2").queryParam("showDatasets", false))
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("resourcetree/space2.foo2")
+                        .queryParam("showDatasets", false))
                 .buildGet(),
             ResourceList.class);
     assertEquals(0, resourceList.count(ResourceType.VIRTUAL_DATASET));
@@ -180,7 +199,8 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/space1.foo1.bar1")
                         .queryParam("showDatasets", true))
                 .buildGet(),
@@ -196,14 +216,18 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/space2.foo2.bar2")
                         .queryParam("showDatasets", true))
                 .buildGet(),
             ResourceList.class);
-    assertEquals(1, resourceList.count(ResourceType.VIRTUAL_DATASET));
+    assertEquals(2, resourceList.count(ResourceType.VIRTUAL_DATASET));
     assertEquals(0, resourceList.count(ResourceType.FOLDER));
     assertEquals("ds5", resourceList.getResources().get(0).getName());
+    assertEquals(false, resourceList.getResources().get(0).getMetadataOutdated());
+    assertEquals("ds6", resourceList.getResources().get(1).getName());
+    assertEquals(true, resourceList.getResources().get(1).getMetadataOutdated());
     assertEquals(ResourceType.SPACE, resourceList.getResources().get(0).getRootType());
   }
 
@@ -213,7 +237,8 @@ public class TestResourceTree extends BaseTestServer {
         expectError(
             FamilyExpectation.SERVER_ERROR,
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/space2.foo2.bar2.ds5")
                         .queryParam("showDatasets", true))
                 .buildGet(),
@@ -226,7 +251,8 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/space1/expand")
                         .queryParam("showSources", true)
                         .queryParam("showSpaces", true)
@@ -250,7 +276,8 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/space2/expand")
                         .queryParam("showSources", false)
                         .queryParam("showSpaces", true)
@@ -274,7 +301,8 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/space1.foo1/expand")
                         .queryParam("showSources", false)
                         .queryParam("showSpaces", false)
@@ -305,7 +333,8 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/space2.foo2/expand")
                         .queryParam("showSources", true)
                         .queryParam("showSpaces", true)
@@ -336,7 +365,8 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/space1.foo1.bar1/expand")
                         .queryParam("showSources", true)
                         .queryParam("showSpaces", true)
@@ -374,7 +404,8 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/space2.foo2.bar2/expand")
                         .queryParam("showSources", false)
                         .queryParam("showSpaces", false)
@@ -403,7 +434,7 @@ public class TestResourceTree extends BaseTestServer {
     ResourceTreeEntity bar2 =
         new ResourceList(foo2.getResources()).find("bar2", ResourceType.FOLDER);
     assertNotNull(bar2);
-    assertEquals(1, new ResourceList(bar2.getResources()).count(ResourceType.VIRTUAL_DATASET));
+    assertEquals(2, new ResourceList(bar2.getResources()).count(ResourceType.VIRTUAL_DATASET));
     assertEquals(0, new ResourceList(bar2.getResources()).count(ResourceType.FOLDER));
   }
 
@@ -412,7 +443,8 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/space3/expand")
                         .queryParam("showSources", false)
                         .queryParam("showSpaces", false)
@@ -431,7 +463,7 @@ public class TestResourceTree extends BaseTestServer {
     NotFoundErrorMessage err =
         expectError(
             FamilyExpectation.SERVER_ERROR,
-            getBuilder(getAPIv2().path("resourcetree/space4/expand")).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("resourcetree/space4/expand")).buildGet(),
             NotFoundErrorMessage.class);
     assertThat(err.toString()).contains("space4");
   }
@@ -441,7 +473,8 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/space1.foo1.bar1.ds3/expand")
                         .queryParam("showSources", false)
                         .queryParam("showSpaces", false)
@@ -485,7 +518,8 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/space2.foo2.bar2.ds5/expand")
                         .queryParam("showSources", false)
                         .queryParam("showSpaces", true)
@@ -514,7 +548,7 @@ public class TestResourceTree extends BaseTestServer {
     ResourceTreeEntity bar2 =
         new ResourceList(foo2.getResources()).find("bar2", ResourceType.FOLDER);
     assertNotNull(bar2);
-    assertEquals(1, new ResourceList(bar2.getResources()).count(ResourceType.VIRTUAL_DATASET));
+    assertEquals(2, new ResourceList(bar2.getResources()).count(ResourceType.VIRTUAL_DATASET));
     assertEquals(0, new ResourceList(bar2.getResources()).count(ResourceType.FOLDER));
 
     // ds5
@@ -529,7 +563,8 @@ public class TestResourceTree extends BaseTestServer {
     ResourceList resourceList =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("resourcetree/src1.folder1/expand")
                         .queryParam("showSources", false)
                         .queryParam("showSpaces", true)
@@ -545,7 +580,8 @@ public class TestResourceTree extends BaseTestServer {
   @Test
   public void testResourceTreeRootSourcesShouldHaveStatus() throws Exception {
     final Invocation invocation =
-        getBuilder(getAPIv2().path("resourcetree").queryParam("showSources", true)).buildGet();
+        getBuilder(getHttpClient().getAPIv2().path("resourcetree").queryParam("showSources", true))
+            .buildGet();
     final Response response = invocation.submit().get();
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatusInfo().getStatusCode());
 

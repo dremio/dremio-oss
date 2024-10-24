@@ -15,14 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -36,7 +30,7 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /** Implements SQL Grants for Catalogs. */
-public class SqlGrantCatalog extends SqlCall implements SimpleDirectHandler.Creator {
+public class SqlGrantCatalog extends SqlCall {
   private final SqlNodeList privilegeList;
   private final SqlLiteral grantType;
   private final SqlIdentifier entity;
@@ -92,26 +86,6 @@ public class SqlGrantCatalog extends SqlCall implements SimpleDirectHandler.Crea
     this.entity = entity;
     this.grantee = grantee;
     this.granteeType = granteeType;
-  }
-
-  @Override
-  public SimpleDirectHandler toDirectHandler(QueryContext context) {
-    try {
-      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.GrantCatalogHandler");
-      final Constructor<?> ctor = cl.getConstructor(QueryContext.class);
-      return (SimpleDirectHandler) ctor.newInstance(context);
-    } catch (ClassNotFoundException e) {
-      SqlGrantCatalog.GrantType grantTypeObject =
-          (SqlGrantCatalog.GrantType) (grantType.getValue());
-      throw UserException.unsupportedError(e)
-          .message("GRANT on %s is not supported in this edition.", grantTypeObject.name())
-          .buildSilently();
-    } catch (InstantiationException
-        | IllegalAccessException
-        | NoSuchMethodException
-        | InvocationTargetException e) {
-      throw Throwables.propagate(e);
-    }
   }
 
   @Override

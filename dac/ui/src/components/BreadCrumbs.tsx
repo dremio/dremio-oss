@@ -48,7 +48,7 @@ export function formatFullPath(fullPath: any) {
   invariant(fullPath && fullPath.map, "fullPath should be an Immutable.List");
   // if fullPath only contains one item, don't quote if it has a . in its name
   return fullPath.map((item: string | string[]) =>
-    fullPath.size > 1 && item.includes(".") ? `"${item}"` : item
+    fullPath.size > 1 && item.includes(".") ? `"${item}"` : item,
   );
 }
 
@@ -177,7 +177,7 @@ const BreadCrumbs = ({
               </BreadCrumbItem>
             );
           },
-          []
+          [],
         )}
       </>
     );
@@ -223,7 +223,7 @@ const BreadCrumbs = ({
 export function getPathElements(
   fullPath: any,
   pathname: string,
-  linkStyle: any | undefined
+  linkStyle: any | undefined,
 ) {
   const lastItem = fullPath.last();
   const fullPathWithoutLastItem = fullPath.slice(0, -1);
@@ -269,10 +269,10 @@ export function getPartialPath(index: number, fullPath: any, pathname: string) {
     }
   } else {
     const encodedFullPath = fullPath.map((part: string) =>
-      encodeURIComponent(part)
+      encodeURIComponent(part),
     );
     partialPath = `/${pathnameParts[1]}/${encodedFullPath.get(
-      0
+      0,
     )}/folder/${encodedFullPath.slice(1, index + 1).join("/")}`;
   }
 

@@ -142,6 +142,8 @@ public interface CatalogService
    */
   <T extends StoragePlugin> T getSource(String name);
 
+  <T extends StoragePlugin> T getSource(String name, boolean skipStateCheck);
+
   /**
    * Collect all rules for StoragePlugins.
    *

@@ -17,6 +17,7 @@ package com.dremio.exec.planner.physical;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.VacuumOptions;
+import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.VacuumCatalogRemoveOrphansPlanGenerator;
 import com.dremio.exec.planner.VacuumPlanGenerator;
 import com.dremio.exec.planner.cost.iceberg.IcebergCostEstimates;
@@ -27,8 +28,11 @@ import org.apache.calcite.plan.RelOptRuleCall;
 /** Generate physical plan for VACUUM CATALOG with file systems. */
 public class VacuumCatalogPrule extends Prule {
 
-  public VacuumCatalogPrule() {
+  private final OptimizerRulesContext context;
+
+  public VacuumCatalogPrule(OptimizerRulesContext optimizerContext) {
     super(RelOptHelper.any(VacuumCatalogDrel.class), "Prel.VacuumCatalogPrule");
+    this.context = optimizerContext;
   }
 
   @Override
@@ -53,7 +57,8 @@ public class VacuumCatalogPrule extends Prule {
             costEstimates,
             vacuumCatalogDRel.getUser(),
             vacuumCatalogDRel.getFsScheme(),
-            vacuumCatalogDRel.getSchemeVariate());
+            vacuumCatalogDRel.getSchemeVariate(),
+            context);
 
     return planGenerator.buildPlan();
   }

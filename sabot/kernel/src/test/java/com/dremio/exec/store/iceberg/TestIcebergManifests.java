@@ -159,7 +159,8 @@ public class TestIcebergManifests extends BaseTestQuery {
               null,
               null,
               null,
-              Collections.emptyMap());
+              Collections.emptyMap(),
+              tableFolder.toPath().toString());
       committer.commit();
 
       committer =

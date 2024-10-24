@@ -134,6 +134,16 @@ public class BaseTestReflection extends BaseTestServer {
 
   protected static final String TEST_SPACE = "refl_test";
   protected static final String TEMP_SCHEMA = "dfs_test";
+  protected static final List<ReflectionField> TPCH_CUSTOMER_REFLECTION_FIELDS =
+      reflectionFields(
+          "c_custkey",
+          "c_name",
+          "c_address",
+          "c_nationkey",
+          "c_phone",
+          "c_acctbal",
+          "c_mktsegment",
+          "c_comment");
 
   private static MaterializationStore materializationStore;
   private static DependenciesStore dependenciesStore;
@@ -158,9 +168,8 @@ public class BaseTestReflection extends BaseTestServer {
     materializationPlanStore = new MaterializationPlanStore(p(LegacyKVStoreProvider.class));
     dependenciesStore = new DependenciesStore(p(LegacyKVStoreProvider.class));
     entriesStore = new ReflectionEntriesStore(p(LegacyKVStoreProvider.class));
-    setSystemOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName(), "false");
-    setSystemOption(
-        ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS.getOptionName(), "100");
+    setSystemOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED, false);
+    setSystemOption(ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS, 100);
   }
 
   @AfterClass
@@ -367,7 +376,9 @@ public class BaseTestReflection extends BaseTestServer {
 
   protected DatasetUI createVdsFromQuery(String query, String space, String dataset) {
     final DatasetPath datasetPath = new DatasetPath(ImmutableList.of(space, dataset));
-    return createDatasetFromSQLAndSave(datasetPath, query, Collections.emptyList());
+    return getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSave(datasetPath, query, Collections.emptyList());
   }
 
   protected DatasetUI createVdsFromQuery(String query, String testSpace) {
@@ -415,6 +426,19 @@ public class BaseTestReflection extends BaseTestServer {
             OptionValue.createLong(
                 SYSTEM,
                 ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS.getOptionName(),
+                100));
+    // The default value of DELETED_DATASET_HANDLING_DELAY_MILLIS is set the same to
+    // MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS, so we want to update them together
+    setDeletedDatasetHandlingSettings();
+  }
+
+  protected static void setDeletedDatasetHandlingSettings() {
+
+    getOptionManager()
+        .setOption(
+            OptionValue.createLong(
+                SYSTEM,
+                ReflectionOptions.DELETED_DATASET_HANDLING_DELAY_MILLIS.getOptionName(),
                 100));
   }
 
@@ -580,7 +604,7 @@ public class BaseTestReflection extends BaseTestServer {
   protected void createSpace(String name) {
     Space newSpace = new Space(null, name, null, null, null);
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(newSpace)),
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/")).buildPost(Entity.json(newSpace)),
         new GenericType<Space>() {});
   }
 
@@ -841,15 +865,18 @@ public class BaseTestReflection extends BaseTestServer {
             .setPhysicalDataset(
                 new PhysicalDataset().setFormatSettings(new FileConfig().setType(FileType.JSON)));
     getNamespaceService().addOrUpdateDataset(path2.toNamespaceKey(), dataset2);
-    getPreview(path2); // Promote PDS so that PDS can be found through reflection service's catalog.
+    // Promote PDS so that PDS can be found through reflection service's catalog.
+    getHttpClient().getDatasetApi().getPreview(path2);
 
     DatasetPath vdsPath = new DatasetPath(ImmutableList.of(spaceName, "vds"));
-    createDatasetFromSQLAndSave(
-        vdsPath,
-        "SELECT colour, sum(price) as sum_price, count(price) as count_price FROM "
-            + sourceName
-            + ".\"file1.json\" group by colour",
-        Collections.<String>emptyList());
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSave(
+            vdsPath,
+            "SELECT colour, sum(price) as sum_price, count(price) as count_price FROM "
+                + sourceName
+                + ".\"file1.json\" group by colour",
+            Collections.<String>emptyList());
 
     return getReflectionService()
         .createExternalReflection(

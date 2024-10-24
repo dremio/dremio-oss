@@ -124,6 +124,7 @@ public class SqlGrantOnCatalog extends SqlCall implements SimpleDirectHandler.Cr
     }
 
     writer.keyword("TO");
+    granteeType.unparse(writer, 0, 0);
     grantee.unparse(writer, leftPrec, rightPrec);
   }
 

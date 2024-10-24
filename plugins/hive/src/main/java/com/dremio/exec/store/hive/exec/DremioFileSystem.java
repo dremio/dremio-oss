@@ -18,40 +18,30 @@ package com.dremio.exec.store.hive.exec;
 import static com.dremio.io.file.UriSchemes.AZURE_SCHEME;
 import static com.dremio.io.file.UriSchemes.DREMIO_AZURE_SCHEME;
 import static com.dremio.io.file.UriSchemes.DREMIO_GCS_SCHEME;
-import static com.dremio.io.file.UriSchemes.DREMIO_HDFS_SCHEME;
 import static com.dremio.io.file.UriSchemes.DREMIO_S3_SCHEME;
 import static com.dremio.io.file.UriSchemes.GCS_SCHEME;
 import static com.dremio.io.file.UriSchemes.S3_SCHEME;
-import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME;
-import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_KEY_PROPERTY_NAME;
-import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_ENDPOINT;
-import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_ID;
-import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_SECRET;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.StreamSupport;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes;
-import org.apache.hadoop.fs.azurebfs.services.AuthType;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 
-import com.dremio.common.FSConstants;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
 import com.dremio.exec.hadoop.HadoopFileSystem;
@@ -61,7 +51,6 @@ import com.dremio.io.FSInputStream;
 import com.dremio.io.FSOutputStream;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.sabot.exec.context.OperatorStats;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
@@ -78,8 +67,6 @@ import com.google.common.collect.ImmutableSet;
  */
 public class DremioFileSystem extends FileSystem implements ContextClassLoaderAware {
 
-  private static final String FS_S3A_BUCKET = "fs.s3a.bucket.";
-  private static final String FS_S3A_AWS_CREDENTIALS_PROVIDER = "fs.s3a.aws.credentials.provider";
   private com.dremio.io.file.FileSystem underLyingFs;
   private Path workingDir;
   private String scheme;
@@ -92,187 +79,12 @@ public class DremioFileSystem extends FileSystem implements ContextClassLoaderAw
   @Override
   public void initialize(URI name, Configuration conf) throws IOException {
     originalURI = name;
-    switch (name.getScheme()) {
-      case DREMIO_S3_SCHEME:
-        conf.set(AsyncReaderUtils.FS_DREMIO_S3_IMPL, "com.dremio.plugins.s3.store.S3FileSystem");
-        updateS3Properties(conf);
-        break;
-      case DREMIO_HDFS_SCHEME:
-        conf.set(AsyncReaderUtils.FS_DREMIO_HDFS_IMPL, "org.apache.hadoop.hdfs.DistributedFileSystem");
-        break;
-      case DREMIO_AZURE_SCHEME:
-        conf.set(AsyncReaderUtils.FS_DREMIO_AZURE_IMPL, "com.dremio.plugins.azure.AzureStorageFileSystem");
-        updateAzureConfiguration(conf, name);
-        break;
-      case DREMIO_GCS_SCHEME:
-        conf.set(AsyncReaderUtils.FS_DREMIO_GCS_IMPL, "com.dremio.plugins.gcs.GoogleBucketFileSystem");
-        break;
-      default:
-        throw new UnsupportedOperationException("Unsupported async read path for hive parquet: " + name.getScheme());
-    }
+    FileSystemConfUtil.initializeConfiguration(name, conf);
     try (Closeable swapper = swapClassLoader()) {
       underLyingFs = HadoopFileSystem.get(name, conf.iterator(), true);
     }
     workingDir = new Path(name).getParent();
     scheme = name.getScheme();
-  }
-
-  private void updateAzureConfiguration(Configuration conf, URI uri) {
-    // default is key based, same as azure sources
-    String accountName = getAccountNameFromURI(conf.get("authority"), uri);
-    // strip any url information if any
-    String accountNameWithoutSuffix = accountName.split("[.]")[0];
-    conf.set("dremio.azure.account", accountNameWithoutSuffix);
-    String authType = getAuthTypeForAccount(conf, accountName, accountNameWithoutSuffix);
-    String key = null;
-
-    String old_scheme = conf.get("old_scheme");
-    if (old_scheme.equals(FileSystemUriSchemes.WASB_SCHEME) || old_scheme.equals(FileSystemUriSchemes.WASB_SECURE_SCHEME)) {
-      conf.setIfUnset("dremio.azure.mode","STORAGE_V1");
-    } else if (old_scheme.equals(FileSystemUriSchemes.ABFS_SCHEME) || old_scheme.equals(FileSystemUriSchemes.ABFS_SECURE_SCHEME)) {
-      conf.setIfUnset("dremio.azure.mode","STORAGE_V2");
-    }
-
-    if (authType.equals(AuthType.SharedKey.name())) {
-      key = getValueForProperty(conf, FS_AZURE_ACCOUNT_KEY_PROPERTY_NAME, accountName,
-        accountNameWithoutSuffix, "Account Key not present in the configuration.");
-      conf.set("dremio.azure.key", key);
-      conf.set("dremio.azure.credentialsType", "ACCESS_KEY");
-    } else if (authType.equals(AuthType.OAuth.name())) {
-      updateOAuthConfig(conf, accountName, accountNameWithoutSuffix);
-      conf.set("dremio.azure.credentialsType", "AZURE_ACTIVE_DIRECTORY");
-    } else {
-      throw new UnsupportedOperationException("This credentials type is not supported " + authType);
-    }
-
-  }
-
-  private String getAuthTypeForAccount(Configuration conf, String accountName, String accountNameWithoutSuffix) {
-    // try with entire authority (includes destination), fall back to account name without suffix
-    String authType = conf.get(getAccountConfigurationName(FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME,
-      accountName), conf.get(getAccountConfigurationName(FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME,
-      accountNameWithoutSuffix)));
-    if (authType != null) {
-      return authType;
-    }
-    // fall back to property name without account info and a default value
-    return conf.get(FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, AuthType.SharedKey.name());
-  }
-
-  private String getAccountConfigurationName(String fsAzurePropertyName, String accountName) {
-    return fsAzurePropertyName + "." + accountName;
-  }
-
-  void updateOAuthConfig(Configuration conf, String accountName, String accountNameWithoutSuffix) {
-    String refreshToken = getValueForProperty(conf, FS_AZURE_ACCOUNT_OAUTH_CLIENT_ENDPOINT,
-      accountName, accountNameWithoutSuffix, "OAuth Client Endpoint not found.");
-    String clientId = getValueForProperty(conf, FS_AZURE_ACCOUNT_OAUTH_CLIENT_ID, accountName,
-      accountNameWithoutSuffix, "OAuth Client Id not found.");
-    String password = getValueForProperty(conf, FS_AZURE_ACCOUNT_OAUTH_CLIENT_SECRET, accountName,
-      accountNameWithoutSuffix ,"OAuth Client Password not found.");
-    conf.set(FSConstants.AZURE_CLIENT_ID, clientId);
-    conf.set(FSConstants.AZURE_TOKEN_ENDPOINT, refreshToken);
-    conf.set(FSConstants.AZURE_CLIENT_SECRET, password);
-  }
-
-  private String getValueForProperty(Configuration conf, String propertyName,
-                                     String accountName, String accountNameWithoutSuffix,
-                                     String errMsg) {
-    String property =  conf.get(getAccountConfigurationName(propertyName, accountName),
-      conf.get(getAccountConfigurationName(propertyName, accountNameWithoutSuffix)));
-    if (property != null) {
-      return property;
-    }
-    property = conf.get(propertyName);
-    Preconditions.checkState(StringUtils.isNotEmpty(property), errMsg);
-    return property;
-  }
-
-  private String getAccountNameFromURI(String authority, URI uri) {
-    if (null == authority) {
-      throw new IllegalArgumentException("Malformed URI : " + uri.toString());
-    } else if (!authority.contains("@")) {
-      throw new IllegalArgumentException("Malformed URI : " + uri.toString());
-    } else {
-      String[] authorityParts = authority.split("@", 2);
-      if (authorityParts.length >= 2 && (authorityParts[0] == null || !authorityParts[0].isEmpty())) {
-        return authorityParts[1];
-      } else {
-        String errMsg = String.format("'%s' has a malformed authority, expected container name. Authority takes the form abfs://[<container name>@]<account name>", uri.toString());
-        throw new IllegalArgumentException(errMsg);
-      }
-    }
-  }
-
-  private void updateS3Properties(Configuration conf) {
-    // Hadoop s3 supports a default list of 1. Basic Credentials
-    // 2. Environment variables 3. Instance role
-    // If provider is not set in configuration try to derive one of the three.
-    if (StringUtils.isEmpty(getCredentialsProvider(conf)) ) {
-       if (!StringUtils.isEmpty(getAccessKey(conf))) {
-         conf.set(FS_S3A_AWS_CREDENTIALS_PROVIDER, "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
-       } else if (System.getenv("AWS_ACCESS_KEY_ID") != null || System.getenv("AWS_ACCESS_KEY") != null) {
-         String accessKey = System.getenv("AWS_ACCESS_KEY_ID");
-         if (accessKey == null) {
-           accessKey = System.getenv("AWS_ACCESS_KEY");
-         }
-
-         String secretKey = System.getenv("AWS_SECRET_KEY");
-         if (secretKey == null) {
-           secretKey = System.getenv("AWS_SECRET_ACCESS_KEY");
-         }
-         conf.set(FS_S3A_AWS_CREDENTIALS_PROVIDER, "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
-         conf.set(FSConstants.FS_S3A_ACCESS_KEY, accessKey);
-         conf.set(FSConstants.FS_S3A_SECRET_KEY, secretKey);
-       } else {
-         conf.set(FS_S3A_AWS_CREDENTIALS_PROVIDER, "com.amazonaws.auth.InstanceProfileCredentialsProvider");
-       }
-    }
-    // copy over bucket properties to source configuration
-    updateSourcePropsFromBucketProps(conf);
-  }
-
-  private void updateSourcePropsFromBucketProps(Configuration conf) {
-    String bucketConfName = FS_S3A_BUCKET + originalURI.getAuthority() + ".access.key";
-    String bucketAccessKey = conf.get(bucketConfName);
-    if (StringUtils.isNotEmpty(bucketAccessKey)) {
-      // dremio s3 file system does not support bucket overrides
-      conf.set(FSConstants.FS_S3A_ACCESS_KEY, bucketAccessKey);
-    }
-    String bucketSecretConfName = FS_S3A_BUCKET + originalURI.getAuthority() + ".secret.key";
-    String bucketSecretKey = conf.get(bucketSecretConfName);
-    if (StringUtils.isNotEmpty(bucketSecretKey)) {
-      // dremio s3 file system does not support bucket overrides
-      conf.set(FSConstants.FS_S3A_SECRET_KEY, bucketSecretKey);
-    }
-
-    String endpointForBucket = conf.get(FS_S3A_BUCKET + originalURI.getAuthority() + ".endpoint");
-    if (StringUtils.isNotEmpty(endpointForBucket)) {
-      conf.set("fs.s3a.endpoint", endpointForBucket);
-    }
-
-    String credentialsProviderForBucket = conf.get(FS_S3A_BUCKET + originalURI.getAuthority() +
-      ".aws.credentials.provider");
-    if (StringUtils.isNotEmpty(credentialsProviderForBucket)) {
-      conf.set("fs.s3a.aws.credentials.provider", credentialsProviderForBucket);
-    }
-
-    String httpSchemeForBucket = conf.get(FS_S3A_BUCKET + originalURI.getAuthority() +
-      ".connection.ssl.enabled");
-    if (StringUtils.isNotEmpty(httpSchemeForBucket)) {
-      conf.set("fs.s3a.connection.ssl.enabled", httpSchemeForBucket);
-    }
-   }
-
-  private String getAccessKey(Configuration conf) {
-    String bucketConfName = FS_S3A_BUCKET + originalURI.getAuthority() + ".access.key";
-    return conf.get(bucketConfName, conf.get(FSConstants.FS_S3A_ACCESS_KEY));
-  }
-
-  private String getCredentialsProvider(Configuration conf) {
-    String bucketConfName = FS_S3A_BUCKET + originalURI.getAuthority() + ".aws.credentials" +
-      ".provider";
-    return conf.get(bucketConfName, conf.get(FS_S3A_AWS_CREDENTIALS_PROVIDER));
   }
 
   @Override
@@ -323,16 +135,16 @@ public class DremioFileSystem extends FileSystem implements ContextClassLoaderAw
   }
 
   @Override
-  public FileStatus[] listStatus(Path path) throws FileNotFoundException, IOException {
-    final List<FileStatus> fileStatusList = new ArrayList<>();
+  public FileStatus[] listStatus(Path path) throws IOException {
     com.dremio.io.file.Path dremioPath = com.dremio.io.file.Path.of(path.toUri());
-    DirectoryStream<FileAttributes> attributes = null;
-    long defaultBlockSize;
-    try (Closeable swapper = swapClassLoader()) {
-      attributes = underLyingFs.list(dremioPath);
-      defaultBlockSize = underLyingFs.getDefaultBlockSize(dremioPath);
-      attributes.forEach(attribute -> fileStatusList.add(getFileStatusFromAttributes(attribute, defaultBlockSize)));
-      return fileStatusList.toArray(new FileStatus[0]);
+    try (DirectoryStream<FileAttributes> attributes = underLyingFs.list(dremioPath)) {
+      long defaultBlockSize = underLyingFs.getDefaultBlockSize(dremioPath);
+      return StreamSupport.stream(attributes.spliterator(), false)
+          .map(attribute -> getFileStatusFromAttributes(attribute, defaultBlockSize))
+          .toArray(FileStatus[]::new);
+    } catch (DirectoryIteratorException ex) {
+      // I/O error encountered during the iteration, the cause is an IOException
+      throw ex.getCause();
     }
   }
 
@@ -365,7 +177,7 @@ public class DremioFileSystem extends FileSystem implements ContextClassLoaderAw
       attributes = underLyingFs.getFileAttributes(dremioPath);
       defaultBlockSize = underLyingFs.getDefaultBlockSize(dremioPath);
     }
-    return getFileStatusFromAttributes(path, attributes, defaultBlockSize);
+    return getFileStatusFromAttributes(attributes, defaultBlockSize);
   }
 
   @Override
@@ -396,7 +208,7 @@ public class DremioFileSystem extends FileSystem implements ContextClassLoaderAw
         // canonicalize uri before comparing with this fs
         uri = canonicalizeUri(uri);
         thatAuthority = uri.getAuthority();
-        if (thisAuthority == thatAuthority ||       // authorities match
+        if (Objects.equals(thisAuthority, thatAuthority) ||       // authorities match
           (thisAuthority != null &&
             thisAuthority.equalsIgnoreCase(thatAuthority))) {
           return;
@@ -405,13 +217,6 @@ public class DremioFileSystem extends FileSystem implements ContextClassLoaderAw
     }
     throw new IllegalArgumentException("Wrong FS: " + path +
       ", expected: " + this.getUri());
-  }
-
-  @Deprecated
-  private FileStatus getFileStatusFromAttributes(Path path, FileAttributes attributes,
-                                                 long defaultBlockSize) {
-    return new FileStatus(attributes.size(), attributes.isDirectory(), 1,
-      defaultBlockSize, attributes.lastModifiedTime().toMillis(), path);
   }
 
   private FileStatus getFileStatusFromAttributes(FileAttributes attributes,

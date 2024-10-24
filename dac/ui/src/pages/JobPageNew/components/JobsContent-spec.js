@@ -17,7 +17,7 @@ import { shallow } from "enzyme";
 import Immutable from "immutable";
 import socket from "utils/socket";
 
-import { JobState } from "@app/utils/jobsUtils";
+import { JobState } from "#oss/utils/jobsUtils";
 import JobsContent from "./JobsContent";
 
 describe("JobsContent", () => {
@@ -145,7 +145,7 @@ describe("JobsContent", () => {
       expect(instance.runActionForJobs).to.be.calledOnce;
       expect(instance.runActionForJobs).to.be.calledWith(jobs, false);
       expect(socket.startListenToQVJobProgress).to.be.calledWith(
-        jobs.getIn([0, "id"])
+        jobs.getIn([0, "id"]),
       );
       socket.startListenToQVJobProgress.restore();
     });
@@ -226,7 +226,7 @@ describe("JobsContent", () => {
       expect(instance.runActionForJobs).to.be.calledOnce;
       expect(instance.runActionForJobs).to.be.calledWith(props.jobs, true);
       expect(socket.stoptListenToQVJobProgress).to.be.calledWith(
-        props.jobs.getIn([0, "id"])
+        props.jobs.getIn([0, "id"]),
       );
       socket.stoptListenToQVJobProgress.restore();
     });

@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
+import type { SonarV3Config } from "../../_internal/types/Config.js";
 import type { CatalogObjectMethods } from "../../interfaces/CatalogObject.js";
-import { CatalogReference } from "./CatalogReference.js";
+import { catalogReferenceFromProperties } from "./catalogReferenceFromProperties.js";
 import { catalogReferenceEntityToProperties, pathString } from "./utils.js";
 
 export class Home implements CatalogObjectMethods {
-  #children: CatalogReference[];
+  #children: ReturnType<typeof catalogReferenceFromProperties>[];
+  /**
+   * @deprecated
+   */
   readonly id: string;
   readonly name: string;
   constructor(properties: any) {
@@ -43,14 +47,17 @@ export class Home implements CatalogObjectMethods {
 
   pathString = pathString(() => this.path);
 
-  static fromResource(properties: any, retrieve: any) {
+  get referenceType() {
+    return "HOME" as const;
+  }
+
+  static fromResource(properties: any, config: SonarV3Config) {
     return new Home({
-      children: properties.children.map(
-        (child: any) =>
-          new CatalogReference(
-            catalogReferenceEntityToProperties(child),
-            retrieve,
-          ),
+      children: properties.children.map((child: unknown) =>
+        catalogReferenceFromProperties(
+          catalogReferenceEntityToProperties(child),
+          config,
+        ),
       ),
       id: properties.id,
       name: properties.name,

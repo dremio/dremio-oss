@@ -420,7 +420,7 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
                 split.getDatasetSplitInfo().getExtendedProperty());
         final FileSplit fullFileSplit =
             (FileSplit) HiveUtilities.deserializeInputSplit(splitAttr.getInputSplit());
-        if (!AsyncReaderUtils.S3_FILE_SYSTEM.contains(
+        if (!FileSystemConfUtil.S3_FILE_SYSTEM.contains(
             fullFileSplit.getPath().toUri().getScheme().toLowerCase())) {
           logger.error("Data file {} is not on S3.", fullFileSplit.getPath());
           return false;

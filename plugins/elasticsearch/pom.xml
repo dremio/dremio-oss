@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>25.1.1-202409260159070462-716c0676</version>
+    <version>${revision}</version>
   </parent>
 
   <artifactId>dremio-elasticsearch-plugin</artifactId>
@@ -258,7 +258,8 @@
       <dependencies>
         <dependency>
           <groupId>org.bouncycastle</groupId>
-          <artifactId>bcpkix-jdk15on</artifactId>
+          <artifactId>bcpkix-jdk18on</artifactId>
+          <version>${bouncycastle.version}</version>
           <scope>test</scope>
         </dependency>
       </dependencies>

@@ -92,26 +92,26 @@ describe("ExtractListForm", () => {
   describe("getListTransformCards", () => {
     it("should return empty single card if no selection or selection is empty", () => {
       expect(getListTransformCards()).to.eql(
-        Immutable.fromJS([{ type: "single" }])
+        Immutable.fromJS([{ type: "single" }]),
       );
       expect(getListTransformCards(Immutable.Map())).to.eql(
-        Immutable.fromJS([{ type: "single" }])
+        Immutable.fromJS([{ type: "single" }]),
       );
     });
 
     it("should return single index card if only one index selected", () => {
       expect(
-        getListTransformCards(Immutable.fromJS({ startIndex: 0, endIndex: 1 }))
+        getListTransformCards(Immutable.fromJS({ startIndex: 0, endIndex: 1 })),
       ).to.eql(
         Immutable.fromJS([
           { type: "single", single: { startIndex: { value: 0 } } },
-        ])
+        ]),
       );
     });
 
     it("should return multiple index cards if multiple selected", () => {
       const cards = getListTransformCards(
-        Immutable.fromJS({ startIndex: 0, endIndex: 2 })
+        Immutable.fromJS({ startIndex: 0, endIndex: 2 }),
       );
       expect(cards.size).to.equal(4);
       expect(cards.get(0)).to.eql(
@@ -127,7 +127,7 @@ describe("ExtractListForm", () => {
               direction: "Start",
             },
           },
-        })
+        }),
       );
     });
   });

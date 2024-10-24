@@ -16,7 +16,6 @@
 package com.dremio.exec.catalog;
 
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
-import static com.dremio.options.TypeValidators.PositiveLongValidator;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,12 +44,14 @@ import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
+import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionManager;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.service.namespace.DatasetMetadataSaver;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -75,7 +76,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentMatchers;
 import org.mockito.stubbing.Answer;
 
 public class TestSourceMetadataManager {
@@ -343,8 +343,7 @@ public class TestSourceMetadataManager {
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
     DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("one"));
-    when(sp.getDatasetHandle(any(), ArgumentMatchers.<GetDatasetOption[]>any()))
-        .thenReturn(Optional.of(handle));
+    when(sp.getDatasetHandle(any(), any(GetDatasetOption[].class))).thenReturn(Optional.of(handle));
     when(sp.provideSignature(any(), any())).thenReturn(BytesOutput.NONE);
 
     final boolean[] forced = new boolean[] {false};
@@ -359,10 +358,10 @@ public class TestSourceMetadataManager {
         .getDatasetMetadata(
             any(DatasetHandle.class),
             any(PartitionChunkListing.class),
-            ArgumentMatchers.<GetMetadataOption[]>any());
-    when(sp.listPartitionChunks(any(), ArgumentMatchers.<ListPartitionChunkOption>any()))
+            any(GetMetadataOption[].class));
+    when(sp.listPartitionChunks(any(), any(ListPartitionChunkOption[].class)))
         .thenReturn(Collections::emptyIterator);
-    when(sp.validateMetadata(any(), any(), any()))
+    when(sp.validateMetadata(any(), any(), any(), any(ValidateMetadataOption[].class)))
         .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
@@ -404,16 +403,14 @@ public class TestSourceMetadataManager {
     final NamespaceKey dataSetKey = new NamespaceKey(ImmutableList.of(qualifier, capital));
 
     ExtendedStoragePlugin mockStoragePlugin = mock(ExtendedStoragePlugin.class);
-    when(mockStoragePlugin.listDatasetHandles()).thenReturn(Collections::emptyIterator);
-    when(mockStoragePlugin.getDatasetHandle(
-            eq(capitalPath), ArgumentMatchers.<GetDatasetOption[]>any()))
+    when(mockStoragePlugin.listDatasetHandles(any(GetDatasetOption[].class)))
+        .thenReturn(Collections::emptyIterator);
+    when(mockStoragePlugin.getDatasetHandle(eq(capitalPath), any(GetDatasetOption[].class)))
         .thenReturn(Optional.empty());
-    when(mockStoragePlugin.getDatasetHandle(
-            eq(originalPath), ArgumentMatchers.<GetDatasetOption[]>any()))
+    when(mockStoragePlugin.getDatasetHandle(eq(originalPath), any(GetDatasetOption[].class)))
         .thenReturn(Optional.of(datasetHandle));
     when(mockStoragePlugin.getState()).thenReturn(SourceState.GOOD);
-    when(mockStoragePlugin.listPartitionChunks(
-            any(), ArgumentMatchers.<ListPartitionChunkOption>any()))
+    when(mockStoragePlugin.listPartitionChunks(any(), any(ListPartitionChunkOption[].class)))
         .thenReturn(Collections::emptyIterator);
     when(mockStoragePlugin.validateMetadata(any(), any(), any()))
         .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
@@ -466,16 +463,15 @@ public class TestSourceMetadataManager {
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
 
     DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("one"));
-    when(sp.getDatasetHandle(any(), ArgumentMatchers.<GetDatasetOption[]>any()))
-        .thenReturn(Optional.of(handle));
-    when(sp.listPartitionChunks(any(), ArgumentMatchers.<ListPartitionChunkOption>any()))
+    when(sp.getDatasetHandle(any(), any(GetDatasetOption[].class))).thenReturn(Optional.of(handle));
+    when(sp.listPartitionChunks(any(), any(ListPartitionChunkOption[].class)))
         .thenReturn(Collections::emptyIterator);
 
-    when(sp.validateMetadata(any(), eq(handle), any()))
+    when(sp.validateMetadata(any(), eq(handle), any(), any(ValidateMetadataOption[].class)))
         .thenReturn(SupportsReadSignature.MetadataValidity.INVALID);
     doThrow(new ColumnCountTooLargeException(1))
         .when(sp)
-        .getDatasetMetadata(eq(handle), any(), ArgumentMatchers.<GetMetadataOption[]>any());
+        .getDatasetMetadata(eq(handle), any(), any(GetMetadataOption[].class));
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
     when(msp.getMetadata()).thenReturn(sp);

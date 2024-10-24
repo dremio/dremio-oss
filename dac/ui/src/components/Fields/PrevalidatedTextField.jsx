@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import Keys from "@app/constants/Keys.json";
+import Keys from "#oss/constants/Keys.json";
 import TextField from "./TextField";
 
 export default class PrevalidatedTextField extends Component {

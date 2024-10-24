@@ -45,6 +45,10 @@ public interface DataAdditionCmdCall {
    */
   List<String> getSortColumns();
 
+  default List<String> getClusterKeys() {
+    return Lists.newArrayList();
+  }
+
   /**
    * @return
    */

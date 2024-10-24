@@ -29,6 +29,7 @@ import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
@@ -43,9 +44,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +64,12 @@ public final class DatasetVersionTrimmer {
   // Versions not attached to any dataset can be deleted if they are older than this duration.
   private static final Duration ORPHAN_VERSION_TO_DELETE_AGE = Duration.ofDays(7);
 
+  /**
+   * Types from {@link com.dremio.exec.catalog.conf.SourceType} annotation on versioned connection
+   * configs, for them dataset versions may appear orphaned so they should be ignored in trimming.
+   */
+  private final ImmutableSet<String> versionedSourceTypes;
+
   private final Clock clock;
   private final KVStore<DatasetVersionMutator.VersionDatasetKey, VirtualDatasetVersion>
       datasetVersionsStore;
@@ -71,19 +80,22 @@ public final class DatasetVersionTrimmer {
       Clock clock,
       KVStore<DatasetVersionMutator.VersionDatasetKey, VirtualDatasetVersion> datasetVersionsStore,
       NamespaceService namespaceService,
+      ImmutableSet<String> versionedSourceTypes,
       int maxVersionsToKeep,
       int minAgeDays) {
-    new DatasetVersionTrimmer(clock, datasetVersionsStore, namespaceService)
+    new DatasetVersionTrimmer(clock, datasetVersionsStore, namespaceService, versionedSourceTypes)
         .trimHistory(maxVersionsToKeep, minAgeDays);
   }
 
   private DatasetVersionTrimmer(
       Clock clock,
       KVStore<DatasetVersionMutator.VersionDatasetKey, VirtualDatasetVersion> datasetVersionsStore,
-      NamespaceService namespaceService) {
+      NamespaceService namespaceService,
+      ImmutableSet<String> versionedSourceTypes) {
     this.clock = clock;
     this.datasetVersionsStore = datasetVersionsStore;
     this.namespaceService = namespaceService;
+    this.versionedSourceTypes = versionedSourceTypes;
   }
 
   /**
@@ -104,8 +116,12 @@ public final class DatasetVersionTrimmer {
     //   - Head version is missing in the dataset.
     //   - Dataset was deleted, versions are left dangling.
     //   - Linked list of versions is broken (e.g. there is a loop or multiple heads).
-    Map<DatasetPath, DatasetState> datasetStates = findAllDatasets();
-    logger.info("Collected {} datasets", datasetStates.size());
+    Set<String> versionedSourceNames = new HashSet<>();
+    Map<DatasetPath, DatasetState> datasetStates = findAllDatasets(versionedSourceNames);
+    logger.info(
+        "Collected {} datasets and {} versioned sources",
+        datasetStates.size(),
+        versionedSourceNames.size());
 
     // Assume number of datasets is somewhat small compared to number of versions.
     // First pass: count versions per dataset.
@@ -117,8 +133,11 @@ public final class DatasetVersionTrimmer {
 
       DatasetState state = datasetStates.get(versionKey.getPath());
       if (state == null) {
-        // tmp.UNTITLED must stay as these versions are referenced by jobs w/o having a dataset.
-        if (!isTemporaryPath(versionKey.getPath().toPathList())) {
+        // 1.tmp.UNTITLED must stay as these versions are referenced by jobs w/o having a dataset.
+        // 2. Dataset versions for versioned sources are excluded because datasets are not stored in
+        // namespace.
+        if (!isTemporaryPath(versionKey.getPath().toPathList())
+            && !versionedSourceNames.contains(versionKey.getPath().getRoot().getName())) {
           // Dangling version or the version was created but dataset was not yet.
           datasetStates.put(
               versionKey.getPath(),
@@ -254,13 +273,15 @@ public final class DatasetVersionTrimmer {
 
   /**
    * Gets version information for all datasets. Much of the contents of {@link DatasetConfig} is not
-   * used and is discarded to reduce memory usage.
+   * used and is discarded to reduce memory usage. In the same scan, collect names of versioned
+   * sources to exclude them later.
    */
   @WithSpan
-  private Map<DatasetPath, DatasetState> findAllDatasets() {
+  private Map<DatasetPath, DatasetState> findAllDatasets(Set<String> versionedSourceNames) {
     Map<DatasetPath, DatasetState> headVersions = new HashMap<>();
     for (Document<NamespaceKey, NameSpaceContainer> entry : namespaceService.find(null)) {
-      if (entry.getValue().getType() == NameSpaceContainer.Type.DATASET) {
+      NameSpaceContainer.Type type = entry.getValue().getType();
+      if (type == NameSpaceContainer.Type.DATASET) {
         DatasetConfig datasetConfig = entry.getValue().getDataset();
         if (datasetConfig != null && datasetConfig.getVirtualDataset() != null) {
           // Dataset versions use "original" (aka canonical) path stored inside DatasetConfig.
@@ -272,6 +293,12 @@ public final class DatasetVersionTrimmer {
                       new DatasetVersionMutator.VersionDatasetKey(
                           path, datasetConfig.getVirtualDataset().getVersion()))
                   .setDatasetExists(true));
+        }
+      } else if (type == NameSpaceContainer.Type.SOURCE) {
+        SourceConfig sourceConfig = entry.getValue().getSource();
+        String sourceType = sourceConfig.getType();
+        if (sourceType != null && versionedSourceTypes.contains(sourceType)) {
+          versionedSourceNames.add(sourceConfig.getName());
         }
       }
     }

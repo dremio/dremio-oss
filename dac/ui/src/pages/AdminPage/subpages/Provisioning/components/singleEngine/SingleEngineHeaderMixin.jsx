@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 import { Button } from "dremio-ui-lib/components";
-import EngineStatus from "@app/pages/AdminPage/subpages/Provisioning/components/EngineStatus";
-import { intl } from "@app/utils/intl";
+import EngineStatus from "#oss/pages/AdminPage/subpages/Provisioning/components/EngineStatus";
+import { intl } from "#oss/utils/intl";
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     loadData() {},
     getEngineStatus(engine, styles) {
       return <EngineStatus engine={engine} style={styles.statusIcon} />;

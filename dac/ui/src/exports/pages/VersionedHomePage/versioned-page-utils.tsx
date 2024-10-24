@@ -16,7 +16,7 @@
 
 import { createContext, useContext } from "react";
 import { versionedPageTabs, VersionedPageTabsType } from "./VersionedHomePage";
-import { Type } from "@app/types/nessie";
+import { Type } from "#oss/types/nessie";
 import * as PATHS from "../../paths";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";

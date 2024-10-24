@@ -21,7 +21,7 @@ import ViewStateWrapper from "components/ViewStateWrapper";
 import TableViewer from "components/TableViewer";
 import EmptyTableMessage from "components/EmptyTableMessage";
 import VirtualizedTableViewer from "components/VirtualizedTableViewer";
-import ScrollableTable from "@app/components/Table/ScrollableTable";
+import ScrollableTable from "#oss/components/Table/ScrollableTable";
 
 export default class StatefulTableViewer extends Component {
   static propTypes = {

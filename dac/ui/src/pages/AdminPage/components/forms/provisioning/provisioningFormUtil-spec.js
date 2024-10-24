@@ -38,8 +38,8 @@ describe("#isRestartRequired", () => {
     expect(
       isRestartRequired(
         Immutable.fromJS({ ...provision, currentState: "STOPPED" }),
-        true
-      )
+        true,
+      ),
     ).to.be.false;
   });
   it("return false if there is nothing dirty", () => {
@@ -65,10 +65,10 @@ describe("#getInstanceTypeValue", () => {
   });
   it("returns value for valid label", () => {
     expect(getInstanceTypeValue("Standard m5d.8xlarge (32c/128gb)")).to.equal(
-      "m5d.8xlarge"
+      "m5d.8xlarge",
     );
     expect(
-      getInstanceTypeValue("High Memory r5d.4xlarge (16c/128gb)")
+      getInstanceTypeValue("High Memory r5d.4xlarge (16c/128gb)"),
     ).to.equal("r5d.4xlarge");
   });
 });

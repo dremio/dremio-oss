@@ -19,6 +19,7 @@ import static com.dremio.sabot.Fixtures.NULL_DECIMAL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.util.DecimalUtils;
@@ -915,7 +916,11 @@ public abstract class BaseDecimalFunctionTests extends BaseTestFunction {
         .extracting(Throwable::getCause)
         .extracting(Throwable::getCause)
         .satisfiesAnyOf(
-            t -> assertThat(t).isInstanceOf(NumberFormatException.class),
+            t ->
+                assertThat(t)
+                    .isInstanceOf(UserException.class)
+                    .extracting(Throwable::getCause)
+                    .isInstanceOf(NumberFormatException.class),
             t ->
                 assertThat(t)
                     .isInstanceOf(GandivaException.class)

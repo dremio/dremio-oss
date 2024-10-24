@@ -16,8 +16,8 @@
 
 const getFormatter =
   (options: Intl.DateTimeFormatOptions) =>
-    (date: Date): string =>
-      new window.Intl.DateTimeFormat("default", options).format(date);
+  (date: Date): string =>
+    new window.Intl.DateTimeFormat("default", options).format(date);
 
 export const fixedDateShort: Intl.DateTimeFormatOptions = {
   year: "numeric",

@@ -80,7 +80,7 @@ export class Users extends PureComponent {
       title: formatMessage({ id: "Admin.User.Dialog.RemoveUser" }),
       element: formatMessage(
         { id: "Admin.User.Dialog.ConfirmRemoveUserMesage" },
-        { username }
+        { username },
       ),
       primaryButtonText: formatMessage({
         id: "Admin.User.Dialog.RemoveUserConfirmText",

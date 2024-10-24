@@ -24,14 +24,14 @@ import { loadParents } from "actions/resources/spaceDetails";
 import { getParentList, getViewState } from "selectors/resources";
 import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
 import DatasetList from "components/DatasetList/DatasetList";
-import SearchDatasetsPopover from "@app/components/DatasetList/SearchDatasetsPopover";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import SearchDatasetsPopover from "#oss/components/DatasetList/SearchDatasetsPopover";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 import { compose } from "redux";
 import { withCatalogARSFlag } from "@inject/utils/arsUtils";
-import { getHomeSource, getSortedSources } from "@app/selectors/home";
-import { clearResourceTree } from "@app/actions/resources/tree";
-import { TreeConfigContext } from "@app/components/Tree/treeConfigContext";
-import { defaultConfigContext } from "@app/components/Tree/treeConfigContext";
+import { getHomeSource, getSortedSources } from "#oss/selectors/home";
+import { clearResourceTree } from "#oss/actions/resources/tree";
+import { TreeConfigContext } from "#oss/components/Tree/treeConfigContext";
+import { defaultConfigContext } from "#oss/components/Tree/treeConfigContext";
 
 export const PARENTS_TAB = "PARENTS_TAB";
 export const BROWSE_TAB = "BROWSE_TAB";
@@ -219,6 +219,9 @@ export class DatasetsPanel extends Component {
             value={{
               ...defaultConfigContext,
               handleDatasetDetails: handleDatasetDetails,
+              addToEditor: (path) => {
+                insertFullPathAtCursor(path);
+              },
             }}
           >
             <ResourceTreeContainer

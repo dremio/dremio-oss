@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import apiUtils from "@app/utils/apiUtils/apiUtils";
-import { handleUnauthorized } from "@app/store/authMiddleware";
-import { store } from "@app/store/store";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
+import { handleUnauthorized } from "#oss/store/authMiddleware";
+import { store } from "#oss/store/store";
 
 const NESSIE_V1_PREFIX = "/nessieV1/api/v1/";
 const NESSIE_V2_PREFIX = "/nessie/api/v2/";
@@ -38,7 +38,7 @@ const getMiddleWare = (externalUrl = "") => {
         const url = getUrl(
           externalUrl ||
             apiUtils.getAPIVersion("NESSIE", { nessieVersion: "v1" }),
-          urlPath
+          urlPath,
         );
 
         return Promise.resolve({

@@ -20,9 +20,9 @@ import { SmartResource } from "smart-resource";
 
 export const PollingSonarProjectsResource = new PollingResource(
   (params) => listSonarProjects({ filterTypes: ["QUERY_ENGINE"], ...params }),
-  { pollingInterval: 5000 }
+  { pollingInterval: 5000 },
 );
 
 export const SonarProjectsResource = new SmartResource((params) =>
-  listSonarProjects({ filterTypes: ["QUERY_ENGINE"], ...params })
+  listSonarProjects({ filterTypes: ["QUERY_ENGINE"], ...params }),
 );

@@ -15,7 +15,7 @@
  */
 import { shallow, mount } from "enzyme";
 import PropTypes from "prop-types";
-import { KeyChangeTrigger } from "@app/components/KeyChangeTrigger";
+import { KeyChangeTrigger } from "#oss/components/KeyChangeTrigger";
 import {
   HookProviderView,
   HookConsumer,
@@ -50,10 +50,10 @@ describe("RouteLeave.js", () => {
       expect(trigger).to.have.length(1);
       expect(trigger.prop("keyValue")).to.be.equal(
         routeProps.route,
-        "route must be monitored"
+        "route must be monitored",
       );
       expect(trigger.prop("onChange")).to.be.equal(
-        wrapper.instance().onRouteChange
+        wrapper.instance().onRouteChange,
       );
     });
 
@@ -70,7 +70,7 @@ describe("RouteLeave.js", () => {
       instance.onRouteChange();
       expect(props.router.setRouteLeaveHook).to.be.calledWith(
         props.route,
-        instance.routeWillLeave
+        instance.routeWillLeave,
       );
     });
 
@@ -100,11 +100,11 @@ describe("RouteLeave.js", () => {
 
     it("routeWillLeave returns true, if redirect reason is unauthorized", () => {
       const instance = shallow(
-        <RouteLeaveEventView {...eventCompProps} />
+        <RouteLeaveEventView {...eventCompProps} />,
       ).instance();
 
       expect(instance.routeWillLeave({ search: "abc&reason=401" })).to.eql(
-        true
+        true,
       );
     });
   });
@@ -126,7 +126,7 @@ describe("RouteLeave.js", () => {
           <HookProviderView
             {...commonProps}
             showConfirmationDialog={confirmFn}
-          />
+          />,
         ).instance();
       });
 
@@ -165,7 +165,7 @@ describe("RouteLeave.js", () => {
 
         const removeHandler = instance.addCallback(
           "test id",
-          hasChangesCallback
+          hasChangesCallback,
         );
         instance.doChangesCheck(); // simulate route change
 
@@ -188,7 +188,7 @@ describe("RouteLeave.js", () => {
         hasChangesCalbackList.forEach((hasChanges, index) => {
           removeHandlers[index] = instance.addCallback(
             `test id ${index}`,
-            () => hasChanges
+            () => hasChanges,
           );
         });
         instance.doChangesCheck(); // simulate route change
@@ -231,7 +231,7 @@ describe("RouteLeave.js", () => {
       mount(
         <HookProviderView {...providerCommonProps}>
           <HookConsumer>{renderFn}</HookConsumer>
-        </HookProviderView>
+        </HookProviderView>,
       );
 
       expect(addCallbackOriginal).to.be.called;
@@ -247,7 +247,7 @@ describe("RouteLeave.js", () => {
             <HookConsumer>{getRenderFn()}</HookConsumer>
             <HookConsumer>{getRenderFn()}</HookConsumer>
           </div>
-        </HookProviderView>
+        </HookProviderView>,
       );
 
       expect(addCallbackOriginal).to.be.calledTwice; // should be called 2 times, as there are 2 consumers
@@ -313,7 +313,7 @@ describe("RouteLeave.js", () => {
       expect(
         selector({
           fn,
-        })
+        }),
       ).to.be.eql(result1); // the same function should be returned, when the same id and fn are passed
     });
 
@@ -327,7 +327,7 @@ describe("RouteLeave.js", () => {
       expect(
         selector({
           fn: () => {},
-        })
+        }),
       ).to.be.not.eql(result1);
     });
   });

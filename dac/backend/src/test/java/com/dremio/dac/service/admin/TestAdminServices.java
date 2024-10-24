@@ -83,7 +83,7 @@ public class TestAdminServices extends BaseTestServer {
   public void profiles() {
     ExportProfilesStats stats =
         expectSuccess(
-            getBuilder(getAPIv2().path("export-profiles"))
+            getBuilder(getHttpClient().getAPIv2().path("export-profiles"))
                 .buildPost(
                     Entity.entity(
                         new ExportProfilesParams(
@@ -125,7 +125,7 @@ public class TestAdminServices extends BaseTestServer {
   private SettingsWrapperObject getSettings(
       Set<String> requiredSettings, boolean includeSetSettings) {
     return expectSuccess(
-        getBuilder(getAPIv2().path("settings"))
+        getBuilder(getHttpClient().getAPIv2().path("settings"))
             .buildPost(
                 Entity.entity(
                     new SettingsResource.SettingsRequest(requiredSettings, includeSetSettings),
@@ -136,13 +136,14 @@ public class TestAdminServices extends BaseTestServer {
   private TextSetting getSetting(String settingId) {
     return (TextSetting)
         expectSuccess(
-            getBuilder(getAPIv2().path("settings").path(settingId)).buildGet(), Setting.class);
+            getBuilder(getHttpClient().getAPIv2().path("settings").path(settingId)).buildGet(),
+            Setting.class);
   }
 
   private void addOrUpdateSetting(TextSetting update) {
     TextSetting updatedSetting =
         expectSuccess(
-            getBuilder(getAPIv2().path("settings").path(update.getId()))
+            getBuilder(getHttpClient().getAPIv2().path("settings").path(update.getId()))
                 .buildPut(Entity.entity(update, JSON)),
             Setting.TextSetting.class);
     assertEquals(update.getValue(), updatedSetting.getValue());
@@ -153,6 +154,8 @@ public class TestAdminServices extends BaseTestServer {
   }
 
   private void deleteSetting(String settingKey, Response.StatusType status) {
-    expectStatus(status, getBuilder(getAPIv2().path("settings").path(settingKey)).buildDelete());
+    expectStatus(
+        status,
+        getBuilder(getHttpClient().getAPIv2().path("settings").path(settingKey)).buildDelete());
   }
 }

@@ -50,7 +50,7 @@ describe("Wiki component", () => {
       const entity1 = "not empty id";
       const entity2 = "other id";
       const wrapper = shallow(
-        <WikiView {...minimalProps} entityId={entity1} />
+        <WikiView {...minimalProps} entityId={entity1} />,
       );
       mockInitEntity(wrapper, (spyFn) => {
         wrapper.setProps({
@@ -64,7 +64,7 @@ describe("Wiki component", () => {
     it("should not be called if entity is not changed", () => {
       const entity1 = "not empty id";
       const wrapper = shallow(
-        <WikiView {...minimalProps} entityId={entity1} />
+        <WikiView {...minimalProps} entityId={entity1} />,
       );
       mockInitEntity(wrapper, (spyFn) => {
         wrapper.setProps({
@@ -77,7 +77,7 @@ describe("Wiki component", () => {
 
     it("should not be called if empty entity is provided", () => {
       const wrapper = shallow(
-        <WikiView {...minimalProps} entityId="entity id" />
+        <WikiView {...minimalProps} entityId="entity id" />,
       );
       mockInitEntity(wrapper, (spyFn) => {
         wrapper.setProps({

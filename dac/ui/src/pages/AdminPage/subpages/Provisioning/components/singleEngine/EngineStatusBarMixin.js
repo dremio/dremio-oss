@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { CLUSTER_STATE } from "@app/constants/provisioningPage/provisioningConstants";
+import { CLUSTER_STATE } from "#oss/constants/provisioningPage/provisioningConstants";
 
 export const getItems = (statusCounts) => {
   const items = [

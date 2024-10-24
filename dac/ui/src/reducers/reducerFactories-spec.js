@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { extractValue } from "@app/reducers/reducerFactories";
+import { extractValue } from "#oss/reducers/reducerFactories";
 
 describe("extractValue", () => {
   it("returns null as default value", () => {
@@ -23,11 +23,11 @@ describe("extractValue", () => {
 
   const test = (actionType, action, pathToValue, expectedValue) => {
     it(`actionType to listen = '${actionType}'; action = ${JSON.stringify(
-      action
+      action,
     )};
         path to extract = '${pathToValue}'; expected state value = ${JSON.stringify(
-      expectedValue
-    )}`, () => {
+          expectedValue,
+        )}`, () => {
       const reducer = extractValue(actionType, pathToValue);
       expect(reducer(undefined, action)).to.be.equal(expectedValue);
     });

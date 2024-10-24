@@ -68,18 +68,18 @@ export class ReplacePatternForm extends Component {
               replacementValue: fieldsMappers.getReplacementValue(values),
               rule: fieldsMappers.getRuleFromCards(
                 values.cards,
-                values.activeCard
+                values.activeCard,
               ),
             },
           }
         : {
             ...filterMappers.getCommonFilterValues(
               values,
-              this.props.transform
+              this.props.transform,
             ),
             filter: filterMappers.mapFilterExcludePattern(
               values,
-              this.props.transform
+              this.props.transform,
             ),
           };
     return this.props.submit(data, submitType);
@@ -150,5 +150,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(ReplacePatternForm);

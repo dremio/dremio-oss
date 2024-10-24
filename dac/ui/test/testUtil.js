@@ -91,7 +91,7 @@ export function formFields(formValue) {
 
 export const stubArrayFieldMethods = (field) =>
   Object.assign(field, {
-    // eslint-disable-line no-restricted-properties
+
     removeField: sinon.spy(),
     addField: sinon.spy(),
   });

@@ -100,8 +100,11 @@ import org.projectnessie.model.Namespace;
 import org.projectnessie.model.Operation;
 import org.projectnessie.model.Reference;
 import org.projectnessie.model.Reference.ReferenceType;
+import org.projectnessie.model.RepositoryConfig;
+import org.projectnessie.model.RepositoryConfigResponse;
 import org.projectnessie.model.Tag;
 import org.projectnessie.model.UDF;
+import org.projectnessie.model.UpdateRepositoryConfigResponse;
 import org.projectnessie.model.Validation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1151,6 +1154,8 @@ public class NessieClientImpl implements NessieClient {
         return "TABLE";
       case ICEBERG_VIEW:
         return "VIEW";
+      case UDF:
+        return "UDF";
       case UNKNOWN:
       default:
         return "UNKNOWN_CATALOG_ENTRY";
@@ -1238,6 +1243,20 @@ public class NessieClientImpl implements NessieClient {
   public NessieApiV2 getNessieApi() {
     Preconditions.checkState(!apiClosed);
     return nessieApi;
+  }
+
+  @Override
+  public RepositoryConfigResponse getRepositoryConfig(RepositoryConfig.Type type) {
+    return nessieApi.getRepositoryConfig().type(type).get();
+  }
+
+  @Override
+  public UpdateRepositoryConfigResponse updateRepositoryConfig(RepositoryConfig update) {
+    try {
+      return nessieApi.updateRepositoryConfig().repositoryConfig(update).update();
+    } catch (NessieConflictException exception) {
+      throw new IllegalStateException(exception);
+    }
   }
 
   @Override

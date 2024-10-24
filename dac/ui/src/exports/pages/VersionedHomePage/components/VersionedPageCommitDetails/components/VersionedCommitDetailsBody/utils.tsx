@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Tag } from "@app/services/nessie/client/index";
-import { Reference } from "@app/types/nessie";
+import { Tag } from "#oss/services/nessie/client/index";
+import { Reference } from "#oss/types/nessie";
 // @ts-ignore
 import { IconButton } from "dremio-ui-lib";
 

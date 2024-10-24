@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.dfs.system;
 
-import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME;
-import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME;
 import static com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertFalse;
@@ -25,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.store.dfs.copyinto.CopyFileHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import org.apache.hadoop.conf.Configuration;
@@ -56,16 +55,16 @@ public class TestSystemIcebergTableStoragePlugin extends BaseTestQuery {
     // Simulate tables created by previous version of plugin, older schema, that used hadoop catalog
     Table fileHistoryRawTable =
         hadoopCatalog.createTable(
-            TableIdentifier.of(COPY_FILE_HISTORY_TABLE_NAME),
-            CopyFileHistoryTableSchemaProvider.getSchema(1));
+            TableIdentifier.of(SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName()),
+            new CopyFileHistoryTableSchemaProvider(1L).getSchema());
     fileHistoryRawTable.updateProperties().set("test_property", "value").commit();
     fileHistoryRawTable.newFastAppend().commit(); // at-least one snapshot
     assertThat(storagePlugin.isTableExists(fileHistoryRawTable.location())).isFalse();
 
     Table jobHistoryRawTable =
         hadoopCatalog.createTable(
-            TableIdentifier.of(COPY_JOB_HISTORY_TABLE_NAME),
-            CopyJobHistoryTableSchemaProvider.getSchema(1));
+            TableIdentifier.of(SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName()),
+            new CopyJobHistoryTableSchemaProvider(1L).getSchema());
     jobHistoryRawTable.updateProperties().set("test_property", "value").commit();
     jobHistoryRawTable.newFastAppend().commit();
     assertThat(storagePlugin.isTableExists(jobHistoryRawTable.location())).isFalse();
@@ -83,26 +82,30 @@ public class TestSystemIcebergTableStoragePlugin extends BaseTestQuery {
     Table jobHistoryTableFromPlugin = storagePlugin.getTable(jobHistoryRawTable.location());
     assertThat(jobHistoryTableFromPlugin.properties().get("test_property")).isEqualTo("value");
 
-    // Validate schema upgraded to V2
+    // Validate schema upgraded to V3
+    CopyJobHistoryTableSchemaProvider copyJobHistoryTableSchemaProvider =
+        new CopyJobHistoryTableSchemaProvider(3L);
+    CopyFileHistoryTableSchemaProvider copyFileHistoryTableSchemaProvider =
+        new CopyFileHistoryTableSchemaProvider(3L);
     assertThat(fileHistoryTableFromPlugin.schema().toString())
-        .isEqualTo(CopyFileHistoryTableSchemaProvider.getSchema(2).toString());
+        .isEqualTo(copyFileHistoryTableSchemaProvider.getSchema().toString());
     assertThat(jobHistoryTableFromPlugin.schema().toString())
-        .isEqualTo(CopyJobHistoryTableSchemaProvider.getSchema(2).toString());
+        .isEqualTo(copyJobHistoryTableSchemaProvider.getSchema().toString());
 
     // Validate partition spec upgraded to V2
     assertThat(fileHistoryTableFromPlugin.spec().isPartitioned()).isTrue();
     assertThat(fileHistoryTableFromPlugin.spec().toString())
-        .isEqualTo(CopyFileHistoryTableSchemaProvider.getPartitionSpec(2).toString());
+        .isEqualTo(copyFileHistoryTableSchemaProvider.getPartitionSpec().toString());
     assertThat(jobHistoryTableFromPlugin.spec().isPartitioned()).isTrue();
     assertThat(jobHistoryTableFromPlugin.spec().toString())
-        .isEqualTo(CopyJobHistoryTableSchemaProvider.getPartitionSpec(2).toString());
+        .isEqualTo(copyJobHistoryTableSchemaProvider.getPartitionSpec().toString());
 
-    // Validate schema property is upgraded to V2
+    // Validate schema property is upgraded to V3
     assertThat(
             fileHistoryTableFromPlugin
                 .properties()
                 .get(SystemIcebergTableMetadata.SCHEMA_VERSION_PROPERTY))
-        .isEqualTo("2");
+        .isEqualTo("3");
 
     // Updates in the plugin tables will not reflect in the hadoop variant since commits to the new
     // catalog aren't visible at hadoop layer

@@ -19,7 +19,6 @@ import type { SonarV3Config } from "../../_internal/types/Config.js";
 import { Folder } from "./Folder.js";
 import { Dataset } from "./Dataset.js";
 import { Source } from "./Source.js";
-import { CatalogReference } from "./CatalogReference.js";
 import { Home } from "./Home.js";
 import { Space } from "./Space.js";
 import { File } from "./File.js";
@@ -30,6 +29,8 @@ import { batch } from "@e3m-io/batch-fn-calls";
 import type { CatalogObject } from "../../interfaces/CatalogObject.js";
 import { CatalogFunction } from "./CatalogFunction.js";
 import { HttpError } from "../../common/HttpError.js";
+import { catalogReferenceFromProperties } from "./catalogReferenceFromProperties.js";
+import { FunctionCatalogReference } from "./CatalogReference.js";
 
 export const CatalogResource = (config: SonarV3Config) => {
   const retrieve = batch(async (ids: Set<string>) => {
@@ -166,7 +167,7 @@ export const CatalogResource = (config: SonarV3Config) => {
     switch (resource.entityType) {
       case "EnterpriseFolder":
       case "folder":
-        return Folder.fromResource(resource, retrieve);
+        return Folder.fromResource(resource, config);
       case "EnterpriseDataset":
       case "dataset": {
         try {
@@ -175,22 +176,27 @@ export const CatalogResource = (config: SonarV3Config) => {
         } catch (e) {
           // continue
         }
-        return Dataset.fromResource(resource);
+        return Dataset.fromResource(resource, config);
       }
       case "EnterpriseSource":
       case "source": {
-        return Source.fromResource(resource, retrieve);
+        return Source.fromResource(resource, config);
       }
 
       case "home":
-        return Home.fromResource(resource, retrieve);
+        return Home.fromResource(resource, config);
       case "EnterpriseSpace":
       case "space":
-        return Space.fromResource(resource, retrieve);
+        return Space.fromResource(resource, config);
       case "file":
         return File.fromResource(resource, retrieve);
+      case "EnterpriseFunction":
       case "function":
         return new CatalogFunction({
+          catalogReference: new FunctionCatalogReference({
+            id: resource.id,
+            path: resource.path,
+          }),
           createdAt: new Date(resource.createdAt),
           id: resource.id,
           isScalar: resource.isScalar,
@@ -203,23 +209,23 @@ export const CatalogResource = (config: SonarV3Config) => {
         throw new Error("Unexpected " + resource.entityType);
     }
   };
-
   return {
+    _catalogReferenceFromEntity: (entity: unknown) =>
+      catalogReferenceEntityToProperties(entity),
     list: () => {
       return {
         async *data() {
           yield* await config
             .sonarV3Request("catalog")
             .then((res) => res.json())
-            .then((response) => {
-              return response.data.map(
-                (entity: unknown) =>
-                  new CatalogReference(
-                    catalogReferenceEntityToProperties(entity),
-                    retrieve,
-                  ),
-              ) as CatalogReference[];
-            });
+            .then((response: { data: unknown[] }) =>
+              response.data.map((entity: unknown) =>
+                catalogReferenceFromProperties(
+                  catalogReferenceEntityToProperties(entity),
+                  config,
+                ),
+              ),
+            );
         },
       };
     },

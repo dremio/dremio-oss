@@ -151,4 +151,7 @@ public final class DeltaConstants {
   // Suffix for partition column names as we want to avoid any clashes with non-partition column
   // names.
   public static final String PARTITION_NAME_SUFFIX = "_val";
+
+  public static final String FORMAT_NOT_SUPPORTED_VERSION =
+      "Deltalake format version %s is not supported. Please use version %s.";
 }

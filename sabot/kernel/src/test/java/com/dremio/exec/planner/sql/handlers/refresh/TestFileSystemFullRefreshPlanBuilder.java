@@ -18,7 +18,9 @@ package com.dremio.exec.planner.sql.handlers.refresh;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDelete;
 
 import com.dremio.BaseTestQuery;
-import java.nio.file.Paths;
+import com.dremio.common.AutoCloseables;
+import com.dremio.exec.store.iceberg.IcebergTestTables;
+import com.dremio.exec.store.iceberg.IcebergTestTables.Table;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
@@ -28,31 +30,28 @@ import org.junit.Test;
 
 public class TestFileSystemFullRefreshPlanBuilder extends BaseTestQuery {
   private static FileSystem fs;
-  static String testRootPath = "/tmp/metadatarefreshfailures/";
   private static String finalIcebergMetadataLocation;
+  private Table testTable;
 
   @Before
   public void initFs() throws Exception {
     finalIcebergMetadataLocation = getDfsTestTmpSchemaLocation();
     fs = setupLocalFS();
-    Path p = new Path(testRootPath);
 
-    if (fs.exists(p)) {
-      fs.delete(p, true);
-    }
-    fs.mkdirs(p);
+    testTable =
+        IcebergTestTables.getTable(
+            "metadatarefresh/incrementRefreshAddingPartition",
+            "dfs",
+            "/tmp/metadatarefreshfailures",
+            "/incrementRefreshAddingPartition");
 
-    copyFromJar(
-        "metadatarefresh/incrementRefreshAddingPartition",
-        Paths.get(testRootPath + "/incrementRefreshAddingPartition"));
     BaseTestQuery.setEnableReAttempts(true);
     BaseTestQuery.disablePlanCache();
   }
 
   @After
   public void cleanup() throws Exception {
-    Path p = new Path(testRootPath);
-    fs.delete(p, true);
+    AutoCloseables.close(testTable);
     // TODO: also cleanup the KV store so that if 2 tests are working on the same dataset we don't
     // get issues.
   }

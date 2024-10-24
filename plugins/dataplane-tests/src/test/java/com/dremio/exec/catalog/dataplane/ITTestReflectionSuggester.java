@@ -65,8 +65,8 @@ public class ITTestReflectionSuggester extends ITBaseTestReflection {
 
   @AfterEach
   public void cleanUp() throws Exception {
-    resetSystemOption(LAYOUT_REFRESH_MAX_ATTEMPTS.getOptionName());
-    resetSystemOption(PARQUET_MAXIMUM_PARTITIONS_VALIDATOR.getOptionName());
+    resetSystemOption(LAYOUT_REFRESH_MAX_ATTEMPTS);
+    resetSystemOption(PARQUET_MAXIMUM_PARTITIONS_VALIDATOR);
     allocator.close();
   }
 

@@ -15,8 +15,8 @@
  */
 
 import { useIntl } from "react-intl";
-import { SearchField } from "@app/components/Fields";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import { SearchField } from "#oss/components/Fields";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
 import { debounce } from "lodash";
 
 import * as classes from "./VersionedPageTableHeader.module.less";

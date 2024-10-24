@@ -22,23 +22,24 @@
   margin-top: 6px;
 
   :global(.checked) {
-    border: 1px solid var(--color--brand--300);
-    background-color: var(--color--brand--300);
-    color: #fff;
+    border: 1px solid var(--fill--toggle--checked);
+    background-color: var(--fill--toggle--checked);
+    color: var(--fill--primary);
     &:hover {
-      border: 1px solid var(--color--brand--300);
+      background-color: var(--fill--toggle--checked--hover);
+      border: 1px solid var(--fill--toggle--checked--hover);
     }
   }
 }
 
 .disabled {
-  composes: unavailable disabled from "~@app/uiTheme/less/typography.less";
+  composes: unavailable disabled from "~#oss/uiTheme/less/typography.less";
   cursor: default;
 
   :global(.checked) {
     border: none;
-    background-color: #e5e5e5;
-    color: #7f8b95;
+    background-color: var(--fill--disabled);
+    color: var(--text--disabled);
     &:hover {
       border-color: var(--border--neutral--solid);
     }
@@ -64,9 +65,10 @@
   margin: 0 8px 0 0;
   vertical-align: text-bottom;
   border-radius: 2px;
-  border: 1.5px solid var(--border--neutral--solid);
+  background-color: var(--fill--primary);
+  border: 1px solid var(--border--neutral--solid);
   &:hover {
-    border: 1.5px solid var(--border--hover);
+    border: 1px solid var(--border--hover);
   }
 }
 

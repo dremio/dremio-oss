@@ -32,7 +32,7 @@ const responsePayload = Immutable.fromJS({
         datasetVersion,
         links: {
           self: `${nextDatasetLink}?version=${encodeURIComponent(
-            datasetVersion
+            datasetVersion,
           )}`,
         },
         apiLinks: {
@@ -81,7 +81,7 @@ describe("common", () => {
             tipVersion: "123",
           },
           state: {},
-        })
+        }),
       );
     };
 
@@ -109,7 +109,7 @@ describe("common", () => {
             tipVersion: "123",
           },
           state: {},
-        })
+        }),
       );
     });
 
@@ -130,11 +130,11 @@ describe("common", () => {
       sinon.stub(Actions, "_getNextJobId").returns(jobId);
       const payload = responsePayload.setIn(
         ["entities", "fullDataset", datasetVersion, "jobId"],
-        Immutable.Map({ id: jobId })
+        Immutable.Map({ id: jobId }),
       );
       const result = Actions.navigateToNextDataset({ payload })(
         (obj) => obj,
-        getStore
+        getStore,
       );
       expect(result).to.eql(
         replace({
@@ -145,7 +145,7 @@ describe("common", () => {
             tipVersion: "123",
           },
           state: {},
-        })
+        }),
       );
       Actions._getNextJobId.restore();
     });
@@ -154,15 +154,15 @@ describe("common", () => {
       expect(() =>
         Actions.navigateToNextDataset({ payload: undefined })(
           (obj) => obj,
-          getStore
-        )
+          getStore,
+        ),
       ).to.throw(Error);
 
       expect(() =>
         Actions.navigateToNextDataset(
           { payload: responsePayload.set("result", undefined) },
-          false
-        )((obj) => obj, getStore)
+          false,
+        )((obj) => obj, getStore),
       ).to.throw(Error);
     });
 
@@ -174,7 +174,7 @@ describe("common", () => {
         expect(Actions._getNextJobId(fullDataset.set("approximate", true))).to
           .be.undefined;
         expect(
-          Actions._getNextJobId(fullDataset.set("approximate", false))
+          Actions._getNextJobId(fullDataset.set("approximate", false)),
         ).to.equal(fullDataset.getIn(["jobId", "id"]));
       });
     });
@@ -185,7 +185,7 @@ describe("common", () => {
           {
             payload: responsePayload,
           },
-          { isSaveAs: true }
+          { isSaveAs: true },
         )((obj) => obj, getStore);
         expect(result).to.eql(
           replace({
@@ -198,7 +198,7 @@ describe("common", () => {
             state: {
               afterDatasetSave: true,
             },
-          })
+          }),
         );
       });
     });
@@ -208,7 +208,7 @@ describe("common", () => {
         {
           payload: responsePayload,
         },
-        { changePathname: true }
+        { changePathname: true },
       )((obj) => obj, getStore);
       expect(result).to.eql(
         replace({
@@ -218,7 +218,7 @@ describe("common", () => {
             tipVersion: "123",
           },
           state: {},
-        })
+        }),
       );
     });
 
@@ -229,7 +229,7 @@ describe("common", () => {
           {
             payload: responsePayload,
           },
-          { preserveTip: true }
+          { preserveTip: true },
         )((obj) => obj, getStore);
         expect(result).to.eql(
           replace({
@@ -239,7 +239,7 @@ describe("common", () => {
               tipVersion: "abcde",
             },
             state: {},
-          })
+          }),
         );
       });
     });

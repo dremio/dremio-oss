@@ -20,30 +20,31 @@ import Immutable, { List } from "immutable";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
 import socket from "@inject/utils/socket";
-import { flexColumnContainer } from "@app/uiTheme/less/layout.less";
-import StatefulTableViewer from "@app/components/StatefulTableViewer";
+import { flexColumnContainer } from "#oss/uiTheme/less/layout.less";
+import StatefulTableViewer from "#oss/components/StatefulTableViewer";
 import JobsContentMixin, {
   MIN_LEFT_PANEL_WIDTH,
   SEPARATOR_WIDTH,
-} from "@app/pages/JobPage/components/JobsContentMixin";
+} from "#oss/pages/JobPage/components/JobsContentMixin";
 import { additionalColumnName } from "@inject/pages/JobPageNew/AdditionalJobPageColumns";
-import JobsFilters from "@app/pages/JobPage/components/JobsFilters/JobsFilters";
+import JobsFilters from "#oss/pages/JobPage/components/JobsFilters/JobsFilters";
 import timeUtils from "utils/timeUtils";
-import jobsUtils, { renderJobStatus } from "@app/utils/jobsUtils";
+import jobsUtils, { renderJobStatus } from "#oss/utils/jobsUtils";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
-import { TableColumns } from "@app/constants/Constants";
-import { getFormatMessageIdForQueryType } from "@app/pages/JobDetailsPageNew/utils";
+import { TableColumns } from "#oss/constants/Constants";
+import { getFormatMessageIdForQueryType } from "#oss/pages/JobDetailsPageNew/utils";
 import DatasetCell from "./DatasetCell";
 import SQLCell from "./SQLCell";
 import DurationCell from "./DurationCell";
 import ColumnCell from "./ColumnCell";
 import ReflectionIcon, { getReflectionIcon } from "./ReflectionIcon";
-import { SortDirection } from "@app/components/Table/TableUtils";
+import { SortDirection } from "#oss/components/Table/TableUtils";
 import NavCrumbs from "@inject/components/NavCrumbs/NavCrumbs";
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
-import { Popover } from "@app/components/Popover";
+import { SonarSideNav } from "#oss/exports/components/SideNav/SonarSideNav";
+import { Popover } from "#oss/components/Popover";
 import JobContextMenu from "./JobContextMenu/JobContextMenu";
 import { getExplorePageTableData } from "./exploreJobsContentUtils";
+import { PageTop } from "dremio-ui-common/components/PageTop.js";
 
 import "react-virtualized/styles.css";
 
@@ -457,7 +458,11 @@ export class JobsContent extends PureComponent {
         <div className={"jobsPageBody"}>
           {showSideNav && <SonarSideNav />}
           <div className={"jobPageContentDiv"}>
-            {!isFromExplorePage && <NavCrumbs />}
+            {!isFromExplorePage && (
+              <PageTop>
+                <NavCrumbs />
+              </PageTop>
+            )}
             <div
               className={classNames(
                 "jobs-content",

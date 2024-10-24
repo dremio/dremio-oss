@@ -16,7 +16,6 @@
 package com.dremio.common.scanner;
 
 import static com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT;
-import static java.lang.String.format;
 import static java.util.Arrays.asList;
 
 import com.dremio.common.config.SabotConfig;
@@ -89,14 +88,11 @@ public class BuildTimeScan {
       if (logger.isInfoEnabled()) {
         StringBuilder sb = new StringBuilder();
         for (URL u : preScanned) {
-          sb.append('\t');
+          sb.append("\n\t- ");
           sb.append(u.toExternalForm());
-          sb.append('\n');
         }
         logger.info(
-            format(
-                "Loaded prescanned packages %s from locations:\n%s",
-                result.getScannedPackages(), sb));
+            "Loaded prescanned packages {} from locations:{}", result.getScannedPackages(), sb);
       }
       return result;
     } else {

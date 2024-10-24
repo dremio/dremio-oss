@@ -44,7 +44,7 @@ describe("HistoryLineController", () => {
     const props = wrapper.find("HistoryLine").first().props();
     expect(props.tipVersion).to.equal(commonProps.dataset.get("tipVersion"));
     expect(props.activeVersion).to.equal(
-      commonProps.dataset.get("datasetVersion")
+      commonProps.dataset.get("datasetVersion"),
     );
   });
 });

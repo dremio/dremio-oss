@@ -15,7 +15,7 @@
  */
 import { RSAA } from "redux-api-middleware";
 
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import transformModelMapper from "utils/mappers/ExplorePage/Transform/transformModelMapper";
 
 export const RESET_RECOMMENDED_TRANSFORMS = "RESET_RECOMMENDED_TRANSFORMS";
@@ -42,7 +42,7 @@ function fetchTransformCards(data, transform, dataset, actionType) {
   };
 
   const apiCall = new APIV2Call().paths(
-    `${dataset.getIn(["apiLinks", "self"])}/${actionType}`
+    `${dataset.getIn(["apiLinks", "self"])}/${actionType}`,
   );
 
   return {
@@ -55,7 +55,7 @@ function fetchTransformCards(data, transform, dataset, actionType) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
-        transformModelMapper.transformExportPostMapper(data)
+        transformModelMapper.transformExportPostMapper(data),
       ),
       endpoint: apiCall,
     },
@@ -77,7 +77,7 @@ function fetchTransformCardPreview(
   transform,
   dataset,
   actionType,
-  index
+  index,
 ) {
   const meta = {
     transformType: transform.get("transformType"),
@@ -87,7 +87,7 @@ function fetchTransformCardPreview(
   };
 
   const apiCall = new APIV2Call().paths(
-    `${dataset.getIn(["apiLinks", "self"])}/${actionType}_preview`
+    `${dataset.getIn(["apiLinks", "self"])}/${actionType}_preview`,
   );
 
   return {
@@ -100,7 +100,7 @@ function fetchTransformCardPreview(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
-        transformModelMapper.transformDynamicPreviewMapper(data, actionType)
+        transformModelMapper.transformDynamicPreviewMapper(data, actionType),
       ),
       endpoint: apiCall,
     },
@@ -117,11 +117,11 @@ export function loadTransformCardPreview(
   transform,
   dataset,
   actionType,
-  index
+  index,
 ) {
   return (dispatch) => {
     return dispatch(
-      fetchTransformCardPreview(data, transform, dataset, actionType, index)
+      fetchTransformCardPreview(data, transform, dataset, actionType, index),
     );
   };
 }
@@ -140,7 +140,7 @@ function fetchTransformValuesPreview(data, transform, dataset, actionType) {
   };
 
   const apiCall = new APIV2Call().paths(
-    `${dataset.getIn(["apiLinks", "self"])}/${actionType}_values_preview`
+    `${dataset.getIn(["apiLinks", "self"])}/${actionType}_values_preview`,
   );
 
   return {
@@ -153,7 +153,7 @@ function fetchTransformValuesPreview(data, transform, dataset, actionType) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
-        transformModelMapper.mapTransformValuesPreview(data, actionType)
+        transformModelMapper.mapTransformValuesPreview(data, actionType),
       ),
       endpoint: apiCall,
     },
@@ -164,11 +164,11 @@ export function loadTransformValuesPreview(
   data,
   transform,
   dataset,
-  actionType
+  actionType,
 ) {
   return (dispatch) => {
     return dispatch(
-      fetchTransformValuesPreview(data, transform, dataset, actionType)
+      fetchTransformValuesPreview(data, transform, dataset, actionType),
     );
   };
 }

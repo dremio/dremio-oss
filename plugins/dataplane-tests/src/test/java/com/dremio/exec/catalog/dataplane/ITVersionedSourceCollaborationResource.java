@@ -98,7 +98,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     // Act
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     // Assert
@@ -125,7 +128,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     runQuery(createViewQuery(viewPath, tablePath));
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(viewFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(viewFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     // Assert
@@ -147,7 +153,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     disableWikiLabel();
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsString = summary.getEntityId();
@@ -159,8 +168,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("wiki"))
@@ -183,7 +192,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     // Act
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsString = summary.getEntityId();
@@ -194,8 +206,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("wiki"))
@@ -259,7 +271,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
 
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsStringBeforeDrop = summary.getEntityId();
@@ -271,8 +286,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsStringBeforeDrop))
                         .path("collaboration")
                         .path("wiki"))
@@ -318,7 +333,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     runQuery(createTableAsQuery(tablePath, 1000));
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsString = summary.getEntityId();
@@ -336,7 +354,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     // Act 2
     summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsStringAfterUpdate = summary.getEntityId();
@@ -360,7 +381,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     // Act
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsString = summary.getEntityId();
@@ -376,7 +400,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
 
     summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsStringAfterAlter = summary.getEntityId();
@@ -496,7 +523,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     DatasetSummary summary =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("/datasets/summary" + PathUtils.toFSPath(testTableFullPathInBranch))
                         .queryParam("refType", "BRANCH")
                         .queryParam("refValue", devBranchName))
@@ -511,8 +539,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("wiki"))
@@ -534,7 +562,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     runQuery(createTableAsQuery(tablePath, 1000));
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsString = summary.getEntityId();
@@ -542,8 +573,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     Tags noLabels =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("tag"))
@@ -566,7 +597,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     disableWikiLabel();
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsString = summary.getEntityId();
@@ -579,8 +613,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("tag"))
@@ -603,7 +637,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     // Act
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsString = summary.getEntityId();
@@ -614,8 +651,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("tag"))
@@ -682,7 +719,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
 
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(tableFullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsStringBeforeDrop = summary.getEntityId();
@@ -694,8 +734,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsStringBeforeDrop))
                         .path("collaboration")
                         .path("tag"))
@@ -798,7 +838,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     DatasetSummary summary =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("/datasets/summary" + PathUtils.toFSPath(testTableFullPathInBranch))
                         .queryParam("refType", "BRANCH")
                         .queryParam("refValue", devBranchName))
@@ -813,8 +854,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("wiki"))
@@ -932,6 +973,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             new SourceName(DATAPLANE_PLUGIN_NAME),
             new SourceFolderPath(folderPathWithSource(DATAPLANE_PLUGIN_NAME, folderPath)),
             false,
+            false,
             "dremio",
             "BRANCH",
             "main");
@@ -1017,6 +1059,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             new SourceName(DATAPLANE_PLUGIN_NAME),
             new SourceFolderPath(folderPathWithSource(DATAPLANE_PLUGIN_NAME, folderPath)),
             false,
+            false,
             "dremio",
             "BRANCH",
             "main");
@@ -1049,6 +1092,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             new SourceName(DATAPLANE_PLUGIN_NAME),
             new SourceFolderPath(folderPathWithSource),
             false,
+            false,
             "dremio",
             "BRANCH",
             "main");
@@ -1062,8 +1106,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("wiki"))
@@ -1087,6 +1131,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             new SourceName(DATAPLANE_PLUGIN_NAME),
             new SourceFolderPath(folderPathWithSource(DATAPLANE_PLUGIN_NAME, folderPath)),
             false,
+            false,
             "dremio",
             "BRANCH",
             "main");
@@ -1098,8 +1143,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("tag"))
@@ -1123,6 +1168,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             new SourceName(DATAPLANE_PLUGIN_NAME),
             new SourceFolderPath(folderPathWithSource(DATAPLANE_PLUGIN_NAME, folderPath)),
             false,
+            false,
             "dremio",
             "BRANCH",
             "main");
@@ -1137,8 +1183,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("tag"))
@@ -1162,6 +1208,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             new SourceName(DATAPLANE_PLUGIN_NAME),
             new SourceFolderPath(folderPathWithSource(DATAPLANE_PLUGIN_NAME, folderPath)),
             false,
+            false,
             "dremio",
             "BRANCH",
             "main");
@@ -1173,8 +1220,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("tag"))
@@ -1265,6 +1312,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             new SourceName(DATAPLANE_PLUGIN_NAME),
             new SourceFolderPath(folderPathWithSource(DATAPLANE_PLUGIN_NAME, folderPathInBranch)),
             false,
+            false,
             "dremio",
             "BRANCH",
             devBranchName);
@@ -1277,8 +1325,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         expectError(
             FamilyExpectation.CLIENT_ERROR,
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("wiki"))
@@ -1288,45 +1336,31 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
         error.getErrorMessage().contains("Wiki and Label can only be set on the default branch"));
   }
 
-  /** Helpers * */
   protected static AutoCloseable enableWikiLabel() {
-    setSystemOption(
-        CatalogOptions.WIKILABEL_ENABLED_FOR_VERSIONED_SOURCE_DEFAULT_BRANCH.getOptionName(),
-        "true");
-    return () ->
-        setSystemOption(
-            CatalogOptions.WIKILABEL_ENABLED_FOR_VERSIONED_SOURCE_DEFAULT_BRANCH.getOptionName(),
-            CatalogOptions.WIKILABEL_ENABLED_FOR_VERSIONED_SOURCE_DEFAULT_BRANCH
-                .getDefault()
-                .getBoolVal()
-                .toString());
+    return withSystemOption(
+        CatalogOptions.WIKILABEL_ENABLED_FOR_VERSIONED_SOURCE_DEFAULT_BRANCH, true);
   }
 
   protected static AutoCloseable disableWikiLabel() {
-    setSystemOption(
-        CatalogOptions.WIKILABEL_ENABLED_FOR_VERSIONED_SOURCE_DEFAULT_BRANCH.getOptionName(),
-        "false");
-    return () ->
-        setSystemOption(
-            CatalogOptions.WIKILABEL_ENABLED_FOR_VERSIONED_SOURCE_DEFAULT_BRANCH.getOptionName(),
-            CatalogOptions.WIKILABEL_ENABLED_FOR_VERSIONED_SOURCE_DEFAULT_BRANCH
-                .getDefault()
-                .getBoolVal()
-                .toString());
+    return withSystemOption(
+        CatalogOptions.WIKILABEL_ENABLED_FOR_VERSIONED_SOURCE_DEFAULT_BRANCH, false);
   }
 
   private Wiki getWikiForVersionedEntity(List<String> fullPath) {
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(fullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(fullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsString = summary.getEntityId();
     Wiki returnedWiki =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("wiki"))
@@ -1338,15 +1372,18 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   private Wiki setWikiForVersionedEntity(List<String> fullPath, Wiki wiki) {
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(fullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(fullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsString = summary.getEntityId();
     Wiki createdWiki =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("wiki"))
@@ -1358,7 +1395,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   private Tags setLabelsForVersionedEntity(List<String> fullPath, Tags labelList) {
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(fullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(fullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsString = summary.getEntityId();
@@ -1367,8 +1407,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     Tags createdlabels =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("tag"))
@@ -1380,7 +1420,10 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   private Tags getLabelsForVersionedEntity(List<String> fullPath) {
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary" + PathUtils.toFSPath(fullPath)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/datasets/summary" + PathUtils.toFSPath(fullPath)))
                 .buildGet(),
             DatasetSummary.class);
     String versionedDatasetIdAsString = summary.getEntityId();
@@ -1389,8 +1432,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     Tags readlabels =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("tag"))
@@ -1407,6 +1450,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             new SourceName(sourceName),
             new SourceFolderPath(joinedTableKey(sourceFolderPath)),
             false,
+            false,
             "dremio",
             "BRANCH",
             "main");
@@ -1414,8 +1458,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     Wiki returnedWiki =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("wiki"))
@@ -1433,6 +1477,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             new SourceName(sourceName),
             new SourceFolderPath(joinedTableKey(sourceFolderPath)),
             false,
+            false,
             "dremio",
             "BRANCH",
             "main");
@@ -1440,8 +1485,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     Wiki createdWiki =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("wiki"))
@@ -1459,6 +1504,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             new SourceName(sourceName),
             new SourceFolderPath(joinedTableKey(sourceFolderPath)),
             false,
+            false,
             "dremio",
             "BRANCH",
             "main");
@@ -1468,8 +1514,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     Tags createdlabels =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("tag"))
@@ -1486,6 +1532,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             new SourceName(sourceName),
             new SourceFolderPath(joinedTableKey(sourceFolderPath)),
             false,
+            false,
             "dremio",
             "BRANCH",
             "main");
@@ -1494,8 +1541,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     Tags readlabels =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path("catalog")
+                    getHttpClient()
+                        .getCatalogApi()
                         .path(PathUtils.encodeURIComponent(versionedDatasetIdAsString))
                         .path("collaboration")
                         .path("tag"))

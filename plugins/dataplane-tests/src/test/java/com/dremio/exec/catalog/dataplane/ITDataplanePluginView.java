@@ -75,7 +75,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
-import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup;
 import com.dremio.exec.proto.UserBitShared;
@@ -104,8 +103,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
   @AfterEach
   void afterEach() {
     // Reset support keys
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "false");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "true");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, false);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, true);
   }
 
   @Test
@@ -375,8 +374,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
   public void updateView() throws Exception {
     // Arrange
     // Enable V0 + disable V1 support key for creating views
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, true);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, false);
     FileIO fileIO = getFileIO(getDataplanePlugin());
     String tableName1 = generateUniqueTableName();
     final List<String> tablePath1 = tablePathWithFolders(tableName1);
@@ -2103,8 +2102,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
   public void testViewVersionUtilV0ViewForCreate() throws Exception {
     // Arrange
     // Enable V0 + disable V1 support key for creating views
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, true);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, false);
     final String viewName = generateUniqueViewName();
     final String tableName = generateUniqueTableName();
     final List<String> viewPath = tablePathWithFolders(viewName);
@@ -2126,8 +2125,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
   public void testViewVersionUtilV0ViewForReplaceOrUpdate() throws Exception {
     // Arrange
     // Enable V0 + disable V1 support key for creating views
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, true);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, false);
     FileIO fileIO = getFileIO(getDataplanePlugin());
     String tableName1 = generateUniqueTableName();
     final List<String> tablePath1 = tablePathWithFolders(tableName1);
@@ -2255,8 +2254,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
   @Test
   public void testTranslateV0ToV1AndUpdateOrReplaceV1View() throws Exception {
     // Arrange
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "false");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, false);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, false);
     FileIO fileIO = getFileIO(getDataplanePlugin());
     String tableName1 = generateUniqueTableName();
     final List<String> tablePath1 = tablePathWithFolders(tableName1);
@@ -2280,8 +2279,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
     runSQL(createTableAsQuery(tablePath2, 20));
 
     // Switch over to v1 format when updating
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "false");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "true");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, false);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, true);
 
     // Act
     runSQL(createReplaceViewQuery(viewKey, tablePath2));
@@ -2320,8 +2319,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
     runSQL(createTableAsQuery(tablePath2, 20));
 
     // Switch over to v0 format when updating
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, true);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, false);
 
     // Act
     runSQL(createReplaceViewQuery(viewKey, tablePath2));
@@ -2337,8 +2336,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
   @Test
   public void testTranslateV0ToV1AndAlterV1View() throws Exception {
     // Enable V0 + disable V1 support key for creating views
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, true);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, false);
     FileIO fileIO = getFileIO(getDataplanePlugin());
     final String tableName1 = generateUniqueTableName();
     final List<String> tablePath1 = tablePathWithFolders(tableName1);
@@ -2357,8 +2356,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
     assertThat(origViewMetadata.properties()).isNullOrEmpty();
 
     // Switch over to v1 format when updating
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "false");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "true");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, false);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, true);
 
     final String attribute = "enable_default_reflection";
     final String value = "true";
@@ -2393,8 +2392,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
     assertThat(origViewMetadata.properties()).isNullOrEmpty();
 
     // Switch over to v0 format when updating previous view
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, true);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, false);
 
     final String attribute = "enable_default_reflection";
     final String value = "true";
@@ -2408,8 +2407,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
   @Test
   public void testCreateAndSelectV0ViewAndThenSelectWithV1SupportKeyOn() throws Exception {
     // Switch on v1 support key
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, true);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, false);
     FileIO fileIO = getFileIO(getDataplanePlugin());
     final String tableName1 = generateUniqueTableName();
     final List<String> tablePath1 = tablePathWithFolders(tableName1);
@@ -2433,8 +2432,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
         .hasSize(10);
 
     // Switch on v1 support key
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "false");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "true");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, false);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, true);
     // Select from view key with v1 support key enabled
     assertThat(
             runSqlWithResults(
@@ -2445,8 +2444,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
   @Test
   public void testCreateV0ViewAndThenSelectWithV1SupportKeyOn() throws Exception {
     // Switch on v0 support key
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, true);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, false);
     FileIO fileIO = getFileIO(getDataplanePlugin());
     final String tableName1 = generateUniqueTableName();
     final List<String> tablePath1 = tablePathWithFolders(tableName1);
@@ -2465,8 +2464,8 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
     assertThat(origViewMetadata.properties()).isNullOrEmpty();
 
     // Switch on v1 support key
-    setSystemOption(V0_ICEBERG_VIEW_WRITES, "false");
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "true");
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, false);
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, true);
     // Select from view key with v1 support key enabled
     assertThat(
             runSqlWithResults(
@@ -2491,13 +2490,5 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
         createViewQuery(path, tablePath),
         String.format(
             "An Entity of type FOLDER with given name [%s] already exists", joinedTableKey(path)));
-  }
-
-  private static AutoCloseable enableVersionedSourceUdf() {
-    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getOptionName(), "true");
-    return () ->
-        setSystemOption(
-            CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getOptionName(),
-            CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getDefault().getBoolVal().toString());
   }
 }

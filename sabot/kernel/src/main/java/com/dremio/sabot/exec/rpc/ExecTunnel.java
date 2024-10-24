@@ -20,6 +20,7 @@ import com.dremio.exec.proto.ExecRPC;
 import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.record.FragmentWritableBatch;
 import com.dremio.exec.rpc.RpcOutcomeListener;
+import com.dremio.sabot.exec.DynamicLoadRoutingMessage;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.google.common.base.Preconditions;
 
@@ -38,6 +39,9 @@ public interface ExecTunnel {
   void informReceiverFinished(
       RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener,
       ExecRPC.FinishedReceiver finishedReceiver);
+
+  void sendDLRMessage(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, DynamicLoadRoutingMessage message);
 
   static void checkFragmentHandle(ExecProtos.FragmentHandle handle) {
     Preconditions.checkState(handle.hasQueryId(), "must set query id");

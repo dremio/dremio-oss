@@ -18,7 +18,7 @@ import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
 import FormUnsavedWarningHOC from "components/Modals/FormUnsavedWarningHOC";
 import EnginePreRequisiteHOC from "@inject/pages/HomePage/components/modals/PreviewEngineCheckHOC.tsx";
-
+import { getEditSourceModalTitle } from "@inject/utils/sourceUtils";
 import Modal from "components/Modals/Modal";
 import EditSourceView from "./EditSourceView";
 
@@ -41,7 +41,7 @@ export class EditSourceModal extends PureComponent {
   };
 
   render() {
-    const { isOpen, query, hide, updateFormDirtyState, intl } = this.props;
+    const { isOpen, query, hide, updateFormDirtyState } = this.props;
 
     //HOC Props
     const {
@@ -69,10 +69,12 @@ export class EditSourceModal extends PureComponent {
       onDismissError,
     };
 
+    const modalTitle = getEditSourceModalTitle(query.type, query.name);
+
     return (
       <Modal
         size="large"
-        title={intl.formatMessage({ id: "Source.EditSource" })}
+        title={modalTitle}
         isOpen={isOpen}
         hide={!iconDisabled && hide}
         iconDisabled={iconDisabled}

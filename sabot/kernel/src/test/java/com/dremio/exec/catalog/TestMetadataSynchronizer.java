@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.datastore.LocalKVStoreProvider;
@@ -37,6 +38,7 @@ import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.NamespaceTestUtils;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
@@ -74,7 +76,11 @@ public class TestMetadataSynchronizer {
     storeProvider.start();
     kvStoreProvider = storeProvider.asLegacy();
     kvStoreProvider.start();
-    namespaceService = new NamespaceServiceImpl(storeProvider, new CatalogStatusEventsImpl());
+    namespaceService =
+        new NamespaceServiceImpl(
+            storeProvider,
+            new CatalogStatusEventsImpl(),
+            CatalogEventMessagePublisherProvider.NO_OP);
     sourceKey = new NamespaceKey(SOURCE);
     sourceConfig = NamespaceTestUtils.addSource(namespaceService, SOURCE);
     metadataPolicy =
@@ -133,7 +139,8 @@ public class TestMetadataSynchronizer {
   public void validateMissingDatasetsAreDeleted() throws Exception {
     ManagedStoragePlugin.MetadataBridge bridge = mock(ManagedStoragePlugin.MetadataBridge.class);
     SupportsListingDatasets sourceMetadata = mock(TestSourceMetadata.class);
-    when(sourceMetadata.listDatasetHandles(any())).thenReturn(Collections::emptyIterator);
+    when(sourceMetadata.listDatasetHandles(any(GetDatasetOption[].class)))
+        .thenReturn(Collections::emptyIterator);
     when(bridge.getMetadata()).thenReturn((SourceMetadata) sourceMetadata);
     final MetadataSynchronizer synchronizeRun =
         new MetadataSynchronizer(

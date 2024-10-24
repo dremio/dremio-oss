@@ -22,7 +22,6 @@ import static com.dremio.service.reflection.proto.MaterializationState.FAILED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import com.dremio.common.exceptions.UserException;
@@ -33,8 +32,10 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionManager;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
+import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.store.MaterializationStore;
+import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.test.DremioTest;
 import java.time.Duration;
 import java.util.Arrays;
@@ -43,11 +44,9 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
-import org.mockito.stubbing.Answer;
 
 public class TestMaterializationCache extends DremioTest {
   @Rule public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
@@ -58,6 +57,7 @@ public class TestMaterializationCache extends DremioTest {
   @Mock private OptionManager optionManager;
   @Mock private Catalog catalog;
   @Mock private MaterializationStore materializationStore;
+  @Mock private ReflectionEntriesStore reflectionEntriesStore;
   @Mock private ExpandedMaterializationDescriptor descriptor;
   private Materialization m1;
 
@@ -67,68 +67,19 @@ public class TestMaterializationCache extends DremioTest {
     m1 = new Materialization();
     m1.setReflectionId(new ReflectionId("r1"));
     m1.setState(DONE);
-    m1.setReflectionId(new ReflectionId("r1"));
     m1.setId(new MaterializationId("abc"));
-  }
-
-  /**
-   * Test in case materialization expansion (deserialization) takes too long time {@code
-   * MaterializationCache.update(Materialization m)} does not race with {@code
-   * MaterializationCache.refresh()} and fall into infinite loop. (test will timeout in such case)
-   */
-  @Test
-  public void testMaterializationCacheUpdate() throws Exception {
-    MaterializationCache materializationCache =
-        spy(
-            new MaterializationCache(
-                provider,
-                reflectionStatusService,
-                catalogService,
-                optionManager,
-                materializationStore));
-    Materialization m2 = new Materialization();
-    m2.setReflectionId(new ReflectionId("r2"));
-    MaterializationId mId2 = new MaterializationId("def");
-    m2.setId(mId2);
-
-    // For materializationCache.refresh()
-    when(provider.expand(m1, catalog)).thenReturn(descriptor);
-    when(provider.getValidMaterializations()).thenReturn(Arrays.asList(m1));
-    when(provider.getExternalReflections()).thenReturn(Collections.emptyList());
-    materializationCache.refreshMaterializationCache();
-
-    // For materializationCache.update(m2);
-    when(provider.expand(m2, catalog))
-        .thenAnswer(
-            new Answer<ExpandedMaterializationDescriptor>() {
-              @Override
-              public ExpandedMaterializationDescriptor answer(InvocationOnMock invocation)
-                  throws InterruptedException {
-                // Simulate MaterializationCache.update(Materialization m) takes long time during
-                // expansion
-                // and during this time the cache entry has been refreshed. Before DX-54194's fix
-                // this will
-                // cause MaterializationCache.update(Materialization m) runs into infinite loop.
-                materializationCache.resetCache();
-                materializationCache.refreshMaterializationCache();
-                // The sleep here is to avoid exhausting CPU time in case infinite loop happens.
-                try {
-                  Thread.sleep(100);
-                } catch (InterruptedException e) {
-                }
-                return descriptor;
-              }
-            });
-
-    materializationCache.update(m2);
-    assertThat(materializationCache.get(mId2)).isEqualTo(descriptor);
   }
 
   @Test
   public void testRetrySuccessful() throws Exception {
     MaterializationCache materializationCache =
         new MaterializationCache(
-            provider, reflectionStatusService, catalogService, optionManager, materializationStore);
+            provider,
+            reflectionStatusService,
+            catalogService,
+            optionManager,
+            materializationStore,
+            reflectionEntriesStore);
     when(provider.getValidMaterializations()).thenReturn(Arrays.asList(m1));
     when(provider.getExternalReflections()).thenReturn(Collections.emptyList());
     when(optionManager.getOption(MATERIALIZATION_CACHE_RETRY_MINUTES)).thenReturn(60L);
@@ -155,10 +106,17 @@ public class TestMaterializationCache extends DremioTest {
   public void testRetryFailed() throws Exception {
     MaterializationCache materializationCache =
         new MaterializationCache(
-            provider, reflectionStatusService, catalogService, optionManager, materializationStore);
+            provider,
+            reflectionStatusService,
+            catalogService,
+            optionManager,
+            materializationStore,
+            reflectionEntriesStore);
     when(provider.getValidMaterializations()).thenReturn(Arrays.asList(m1));
     when(provider.getExternalReflections()).thenReturn(Collections.emptyList());
     when(materializationStore.get(m1.getId())).thenReturn(m1);
+    ReflectionEntry entry = new ReflectionEntry();
+    when(reflectionEntriesStore.get(m1.getReflectionId())).thenReturn(entry);
 
     // Setup the map such that the m1 has been retrying for 60 minutes
     materializationCache
@@ -177,13 +135,21 @@ public class TestMaterializationCache extends DremioTest {
         .isEqualTo(
             "Materialization Cache Failure: Error expanding materialization r1/abc. All retries exhausted. Updated to FAILED. Planner bomb!");
     assertThat(materializationCache.getRetryMap().getIfPresent(m1.getId())).isNull();
+    assertThat(entry.getLastFailure().getMessage())
+        .isEqualTo(
+            "Materialization Cache Failure: Error expanding materialization r1/abc. All retries exhausted. Updated to FAILED. Planner bomb!");
   }
 
   @Test
   public void testRetryUnlimitedForSourceDown() throws Exception {
     MaterializationCache materializationCache =
         new MaterializationCache(
-            provider, reflectionStatusService, catalogService, optionManager, materializationStore);
+            provider,
+            reflectionStatusService,
+            catalogService,
+            optionManager,
+            materializationStore,
+            reflectionEntriesStore);
     when(provider.getValidMaterializations()).thenReturn(Arrays.asList(m1));
     when(provider.getExternalReflections()).thenReturn(Collections.emptyList());
     when(optionManager.getOption(MATERIALIZATION_CACHE_RETRY_MINUTES)).thenReturn(60L);

@@ -54,7 +54,7 @@ class ColumnActionMenu extends PureComponent {
   isAvailable(menuItems, columnType) {
     return menuItems.some(
       (menuItem) =>
-        menuItem && menuItem.props.availableTypes.includes(columnType)
+        menuItem && menuItem.props.availableTypes.includes(columnType),
     );
   }
   shouldShowDivider(menuGroup) {
@@ -64,7 +64,7 @@ class ColumnActionMenu extends PureComponent {
   }
   renderDivider(menuGroups) {
     const shouldShowDivider = menuGroups.every((menuGroup) =>
-      this.shouldShowDivider(menuGroup)
+      this.shouldShowDivider(menuGroup),
     );
     return shouldShowDivider && <Divider style={styles.dividerStyle} />;
   }

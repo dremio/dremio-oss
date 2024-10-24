@@ -22,9 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
-import com.dremio.BaseTestQuery;
 import com.dremio.common.util.TestTools;
-import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -364,7 +362,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         };
     verifyJsonInPlan(
         sqlQuery, elastic.getMinVersionInCluster().getMajor() == 7 ? uidJsonES7 : expectedJson);
-    assertEquals(0, BaseTestQuery.getRecordCount(testRunAndReturn(QueryType.SQL, sqlQuery)));
+    assertEquals(0, testSql(sqlQuery));
   }
 
   @Test
@@ -433,7 +431,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         };
     verifyJsonInPlan(
         sqlQuery, elastic.getMinVersionInCluster().getMajor() == 7 ? uidJsonES7 : expectedJson);
-    assertEquals(5, BaseTestQuery.getRecordCount(testRunAndReturn(QueryType.SQL, sqlQuery)));
+    assertEquals(5, testSql(sqlQuery));
   }
 
   @Test
@@ -1688,7 +1686,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
               + "  }\n"
               + "}]"
         });
-    assertEquals(5, BaseTestQuery.getRecordCount(testRunAndReturn(QueryType.SQL, sqlQuery)));
+    assertEquals(5, testSql(sqlQuery));
   }
 
   @Test

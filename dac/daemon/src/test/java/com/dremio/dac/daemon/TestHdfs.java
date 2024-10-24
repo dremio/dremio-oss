@@ -44,6 +44,7 @@ import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -119,7 +120,10 @@ public class TestHdfs extends BaseTestMiniDFS {
 
     SampleDataPopulator.addDefaultFirstUser(
         l(UserService.class),
-        new NamespaceServiceImpl(l(KVStoreProvider.class), new CatalogStatusEventsImpl()));
+        new NamespaceServiceImpl(
+            l(KVStoreProvider.class),
+            new CatalogStatusEventsImpl(),
+            CatalogEventMessagePublisherProvider.NO_OP));
     final HDFSConf hdfsConfig = new HDFSConf();
     hdfsConfig.hostname = host;
     hdfsConfig.port = port;

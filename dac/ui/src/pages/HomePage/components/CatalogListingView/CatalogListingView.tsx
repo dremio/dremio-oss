@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { intl } from "@app/utils/intl";
-import { SearchField } from "@app/components/Fields";
+import { intl } from "#oss/utils/intl";
+import { SearchField } from "#oss/components/Fields";
 import { CatalogListingTable } from "dremio-ui-common/sonar/components/CatalogListingTable/CatalogListingTable.js";
 import { useEffect, useRef } from "react";
 import Mousetrap from "mousetrap";
@@ -137,7 +137,7 @@ const CatalogListingView = ({
                     },
                     {
                       search: searchFieldRef.current?.state.value,
-                    }
+                    },
                   )
                 : null}
             </EmptyStateContainer>

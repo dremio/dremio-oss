@@ -46,6 +46,7 @@ import javax.annotation.Nullable;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -82,12 +83,14 @@ public class ResourceTreeResource {
     this.connectionReader = connectionReader;
   }
 
+  // TODO: DX-94503 showing UDFs in SQL Runner left side panel
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   public ResourceList getResourceTree(
       @QueryParam("showSpaces") boolean showSpaces,
       @QueryParam("showSources") boolean showSources,
-      @QueryParam("showHomes") boolean showHomes)
+      @QueryParam("showHomes") boolean showHomes,
+      @QueryParam("showFunctions") @DefaultValue("false") boolean showFunctions)
       throws NamespaceException, UnsupportedEncodingException {
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
     if (showSpaces) {
@@ -102,12 +105,14 @@ public class ResourceTreeResource {
     return new ResourceList(resources);
   }
 
+  // TODO: DX-94503 showing UDFs in SQL Runner left side panel
   @GET
   @Path("{rootPath}")
   @Produces(MediaType.APPLICATION_JSON)
   public ResourceList getResources(
       @PathParam("rootPath") String rootPath,
       @QueryParam("showDatasets") boolean showDatasets,
+      @QueryParam("showFunctions") @DefaultValue("false") boolean showFunctions,
       @QueryParam("refType") String refType,
       @QueryParam("refValue") String refValue)
       throws NamespaceException, UnsupportedEncodingException {
@@ -117,6 +122,7 @@ public class ResourceTreeResource {
         listPath(
                 folderPath.toNamespaceKey(),
                 showDatasets,
+                showFunctions,
                 refType,
                 refValue,
                 null,
@@ -124,6 +130,7 @@ public class ResourceTreeResource {
             .entities());
   }
 
+  // TODO: DX-94503 showing UDFs in SQL Runner left side panel
   @GET
   @Path("/{rootPath}/expand")
   @Produces(MediaType.APPLICATION_JSON)
@@ -132,7 +139,8 @@ public class ResourceTreeResource {
       @QueryParam("showSpaces") boolean showSpaces,
       @QueryParam("showSources") boolean showSources,
       @QueryParam("showDatasets") boolean showDatasets,
-      @QueryParam("showHomes") boolean showHomes)
+      @QueryParam("showHomes") boolean showHomes,
+      @QueryParam("showFunctions") @DefaultValue("false") boolean showFunctions)
       throws NamespaceException, UnsupportedEncodingException {
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
     final FolderPath folderPath = new FolderPath(rootPath);
@@ -207,7 +215,8 @@ public class ResourceTreeResource {
     for (int i = 0; i < expandPathList.size() - 1; ++i) {
       NamespaceKey parentPath = new NamespaceKey(expandPathList.subList(0, i + 1));
       List<ResourceTreeEntity> intermediateResources =
-          listPath(parentPath, showDatasets, null, null, null, Integer.MAX_VALUE).entities();
+          listPath(parentPath, showDatasets, showFunctions, null, null, null, Integer.MAX_VALUE)
+              .entities();
       if (!intermediateResources.isEmpty()) {
         root.expand(intermediateResources);
         // reset root
@@ -232,6 +241,7 @@ public class ResourceTreeResource {
           listPath(
                   new NamespaceKey(expandPathList),
                   showDatasets,
+                  showFunctions,
                   null,
                   null,
                   null,
@@ -244,6 +254,7 @@ public class ResourceTreeResource {
   public ResourceTreeListResponse listPath(
       NamespaceKey path,
       boolean showDatasets,
+      boolean showFunctions,
       String refType,
       String refValue,
       @Nullable String pageToken,
@@ -257,7 +268,8 @@ public class ResourceTreeResource {
     NamespaceKey root = new NamespaceKey(path.getRoot());
     if (namespaceService.get().exists(root, SOURCE)) {
       // For SOURCE type, use source service directly
-      return sourceService.listPath(path, showDatasets, refType, refValue, pageToken, maxResults);
+      return sourceService.listPath(
+          path, showDatasets, showFunctions, refType, refValue, pageToken, maxResults);
     }
 
     List<ResourceTreeEntity> resources = Lists.newArrayList();
@@ -283,6 +295,8 @@ public class ResourceTreeResource {
         return ResourceTreeEntity.ResourceType.SPACE;
       case HOME:
         return ResourceTreeEntity.ResourceType.HOME;
+      case FUNCTION:
+        return ResourceTreeEntity.ResourceType.FUNCTION;
       default:
         throw UserException.validationError()
             .message(String.format("Invalid root container type %s", rootContainerType))

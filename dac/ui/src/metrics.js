@@ -15,7 +15,7 @@
  */
 
 import ApiUtils from "utils/apiUtils/apiUtils";
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 
 export default {
   fetchClusterStats() {
@@ -24,7 +24,7 @@ export default {
       (json) => {
         return json;
       },
-      () => {}
+      () => {},
     ); //ignore errors
   },
 
@@ -42,7 +42,7 @@ export default {
       (json) => {
         return json;
       },
-      () => {}
+      () => {},
     ); //ignore errors
   },
 
@@ -59,7 +59,7 @@ export default {
       (json) => {
         return json;
       },
-      () => {}
+      () => {},
     ); //ignore errors
   },
 
@@ -77,7 +77,7 @@ export default {
       },
       () => {},
       {},
-      2
+      2,
     ); //ignore errors
   },
 };

@@ -20,7 +20,7 @@ import Menu from "./Menus/Menu";
 import MenuItem from "./Menus/MenuItem";
 import DropdownMenu from "./Menus/DropdownMenu";
 
-import "@app/components/SortDropDownMenu.less";
+import "#oss/components/SortDropDownMenu.less";
 
 export type SortDropDownMenuProps = {
   menuList: ({ category: string; dir: string; compare: any } | null)[];

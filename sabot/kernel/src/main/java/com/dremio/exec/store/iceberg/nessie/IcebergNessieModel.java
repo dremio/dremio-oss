@@ -67,6 +67,23 @@ public class IcebergNessieModel extends IcebergBaseModel {
   }
 
   @Override
+  protected IcebergCommand getIcebergCommand(
+      IcebergTableIdentifier tableIdentifier,
+      String tableLocation,
+      @Nullable IcebergCommitOrigin commitOrigin) {
+    IcebergNessieTableOperations tableOperations =
+        new IcebergNessieTableOperations(
+            (operatorContext == null ? null : operatorContext.getStats()),
+            nessieApi,
+            fileIO,
+            ((IcebergNessieTableIdentifier) tableIdentifier),
+            commitOrigin,
+            optionManager);
+    return new IcebergNessieCommand(
+        tableLocation, configuration, tableOperations, currentQueryId());
+  }
+
+  @Override
   public IcebergTableIdentifier getTableIdentifier(String rootFolder) {
     return new IcebergNessieTableIdentifier(namespace, rootFolder);
   }

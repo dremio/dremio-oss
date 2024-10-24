@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import static com.dremio.exec.ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_FALLBACK_NAME_BASED_READ;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_SCHEMA_NAME_MAPPING_DEFAULT;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_USE_BATCH_SCHEMA_FOR_RESOLVING_COLUMN;
@@ -39,12 +38,11 @@ import org.apache.parquet.schema.MessageType;
 public final class ParquetScanProjectedColumns {
   private final List<SchemaPath> projectedColumns;
   private final List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs;
-  protected List<DefaultNameMapping> icebergDefaultNameMapping;
+  private final List<DefaultNameMapping> icebergDefaultNameMapping;
   private final boolean isConvertedIcebergDataset;
   private final boolean fallBackOnNameBasedRead;
   private final BatchSchema batchSchema;
   private final boolean shouldUseBatchSchemaForResolvingProjectedColumn;
-  private final boolean deltaColumnMappingEnabled;
 
   private ParquetScanProjectedColumns(
       List<SchemaPath> projectedColumns,
@@ -53,7 +51,6 @@ public final class ParquetScanProjectedColumns {
       boolean isConvertedIcebergDataset,
       boolean fallBackOnNameBasedRead,
       boolean shouldUseBatchSchemaForResolvingProjectedColumn,
-      boolean deltaColumnMappingEnabled,
       BatchSchema batchSchema) {
     this.projectedColumns = projectedColumns;
     this.icebergColumnIDs = icebergColumnIDs;
@@ -63,7 +60,6 @@ public final class ParquetScanProjectedColumns {
     this.batchSchema = batchSchema;
     this.shouldUseBatchSchemaForResolvingProjectedColumn =
         shouldUseBatchSchemaForResolvingProjectedColumn;
-    this.deltaColumnMappingEnabled = deltaColumnMappingEnabled;
   }
 
   public int size() {
@@ -76,7 +72,7 @@ public final class ParquetScanProjectedColumns {
       return new ParquetColumnDefaultResolver(projectedColumns);
     }
 
-    if (deltaColumnMappingEnabled && ParquetColumnDeltaLakeResolver.hasColumnMapping(batchSchema)) {
+    if (ParquetColumnDeltaLakeResolver.hasColumnMapping(batchSchema)) {
       return new ParquetColumnDeltaLakeResolver(projectedColumns, batchSchema, parquetSchema);
     }
 
@@ -103,7 +99,7 @@ public final class ParquetScanProjectedColumns {
   }
 
   private ParquetScanProjectedColumns(List<SchemaPath> projectedColumns) {
-    this(projectedColumns, null, null, true, true, false, false, null);
+    this(projectedColumns, null, null, true, true, false, null);
   }
 
   public List<SchemaPath> getBatchSchemaProjectedColumns() {
@@ -128,8 +124,6 @@ public final class ParquetScanProjectedColumns {
         context.getOptions().getOption(ENABLE_ICEBERG_SCHEMA_NAME_MAPPING_DEFAULT);
     boolean shouldUseBatchSchemaForResolvingProjectedColumn =
         context.getOptions().getOption(ENABLE_ICEBERG_USE_BATCH_SCHEMA_FOR_RESOLVING_COLUMN);
-    boolean deltaColumnMappingEnabled =
-        context.getOptions().getOption(ENABLE_DELTALAKE_COLUMN_MAPPING);
     return new ParquetScanProjectedColumns(
         projectedColumns,
         icebergColumnIDs,
@@ -137,7 +131,6 @@ public final class ParquetScanProjectedColumns {
         isConvertedIcebergDataset,
         fallBackOnNameBasedRead,
         shouldUseBatchSchemaForResolvingProjectedColumn,
-        deltaColumnMappingEnabled,
         batchSchema);
   }
 
@@ -150,7 +143,6 @@ public final class ParquetScanProjectedColumns {
         isConvertedIcebergDataset,
         this.fallBackOnNameBasedRead,
         false,
-        this.deltaColumnMappingEnabled,
         this.batchSchema);
   }
 }

@@ -23,10 +23,12 @@ import com.dremio.common.expression.parser.ExprLexer;
 import com.dremio.common.expression.parser.ExprParser;
 import com.dremio.common.expression.parser.ExprParser.parse_return;
 import com.dremio.common.expression.visitors.ExprVisitor;
+import com.dremio.common.util.SchemaPathDeserializer;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -34,6 +36,7 @@ import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.RecognitionException;
 
+@JsonDeserialize(using = SchemaPathDeserializer.class)
 public class SchemaPath extends BasePath implements LogicalExpression, Comparable<SchemaPath> {
   // Unused but required for Kryo deserialization as it used to exist pre 4.2.
   @Deprecated private EvaluationType evaluationType;

@@ -18,8 +18,15 @@ const daysInWeek = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const numbersInWeek = ["1", "2", "3", "4", "5", "6", "7"];
 
 // Parse the cron for the time and day of week
-export const cronParser = (cron: string) => {
+export const cronParser = (
+  cron: string,
+  options?: {
+    numbersInWeekProp?: string[];
+    isUTC?: boolean;
+  },
+) => {
   let scheduleType;
+  const weekNumbers = options?.numbersInWeekProp || numbersInWeek;
   const cronValues = cron.split(" ");
 
   if (cronValues.length === 5) cronValues.unshift("0"); // convert Unix cron to Spring cron
@@ -41,7 +48,7 @@ export const cronParser = (cron: string) => {
   let weekInput = ["2"];
   if (cronDayOfWeek.length === 1) {
     if (cronDayOfWeek === "*" || cronDayOfWeek === "?") {
-      weekInput = numbersInWeek;
+      weekInput = weekNumbers;
     } else {
       weekInput = [cronDayOfWeek];
     }
@@ -51,11 +58,11 @@ export const cronParser = (cron: string) => {
     } else if (cronDayOfWeek.includes("-")) {
       const [startDay, endDay] = cronDayOfWeek.split("-");
       if (startDay < endDay) {
-        weekInput = numbersInWeek.filter(
+        weekInput = weekNumbers.filter(
           (day) => day <= endDay && day >= startDay,
         );
       } else {
-        weekInput = numbersInWeek.filter(
+        weekInput = weekNumbers.filter(
           (day) => day <= endDay || day >= startDay,
         );
       }
@@ -64,13 +71,17 @@ export const cronParser = (cron: string) => {
 
   const timeInput = new Date();
   if (cronHour.length > 2) {
-    timeInput.setHours(0);
+    options?.isUTC ? timeInput.setUTCHours(0) : timeInput.setHours(0);
   } else {
-    timeInput.setHours(Number(cronHour));
+    options?.isUTC
+      ? timeInput.setUTCHours(Number(cronHour))
+      : timeInput.setHours(Number(cronHour));
   }
 
   if (cronMinute !== "*") {
-    timeInput.setMinutes(Number(cronMinute));
+    options?.isUTC
+      ? timeInput.setUTCMinutes(Number(cronMinute))
+      : timeInput.setMinutes(Number(cronMinute));
   } else {
     timeInput.setMinutes(0);
   }

@@ -146,7 +146,8 @@ public class TestJobMetadataCollection extends BaseTestServer {
     // verify SQL is truncated in Jobs search API
     Object searchRsp =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs-listing").path("v1.0")).buildGet(), Object.class);
+            getBuilder(getHttpClient().getAPIv2().path("jobs-listing").path("v1.0")).buildGet(),
+            Object.class);
     assertTrue(searchRsp.toString().contains("queryText=SELEC, "));
     assertTrue(searchRsp.toString().contains("description=SELEC, "));
 
@@ -154,7 +155,8 @@ public class TestJobMetadataCollection extends BaseTestServer {
     Object detailRsp =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("jobs-listing")
                         .path("v1.0")
                         .path(toId(queryId).getId())

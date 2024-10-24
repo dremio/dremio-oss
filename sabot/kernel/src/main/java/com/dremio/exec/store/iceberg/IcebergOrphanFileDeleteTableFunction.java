@@ -15,9 +15,15 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.iceberg.logging.VacuumLogProto.ErrorType.IO_EXCEPTION;
+import static com.dremio.exec.store.iceberg.logging.VacuumLogProto.ErrorType.UNKNOWN;
+import static com.dremio.exec.store.iceberg.logging.VacuumLoggingUtil.createDeleteOrphanFileLog;
+import static com.dremio.exec.store.iceberg.logging.VacuumLoggingUtil.getVacuumLogger;
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
 import com.dremio.common.expression.BasePath;
+import com.dremio.common.logging.StructuredLogger;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.OrphanFileDeleteTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
@@ -49,6 +55,7 @@ import org.apache.iceberg.util.Tasks;
 public class IcebergOrphanFileDeleteTableFunction extends AbstractTableFunction {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(IcebergOrphanFileDeleteTableFunction.class);
+  private static final StructuredLogger vacuumLogger = getVacuumLogger();
   private static final int DELETE_NUM_RETRIES = 3;
 
   private final FragmentExecutionContext fragmentExecutionContext;
@@ -63,6 +70,7 @@ public class IcebergOrphanFileDeleteTableFunction extends AbstractTableFunction 
   private int inputIndex;
   private boolean doneWithRow;
   private List<TransferPair> transfers;
+  private final String queryId;
 
   public IcebergOrphanFileDeleteTableFunction(
       FragmentExecutionContext fragmentExecutionContext,
@@ -73,6 +81,7 @@ public class IcebergOrphanFileDeleteTableFunction extends AbstractTableFunction 
     this.fragmentExecutionContext = fragmentExecutionContext;
     this.props = props;
     this.operatorStats = context.getStats();
+    this.queryId = QueryIdHelper.getQueryId(context.getFragmentHandle().getQueryId());
   }
 
   @Override
@@ -154,6 +163,8 @@ public class IcebergOrphanFileDeleteTableFunction extends AbstractTableFunction 
         .onFailure(
             (filePath, exc) -> {
               logger.warn("Delete failed for {}", filePath, exc);
+              vacuumLogger.warn(
+                  createDeleteOrphanFileLog(queryId, orphanFilePath, UNKNOWN, exc.toString()), "");
               failedToDelete.set(true);
             })
         .run(
@@ -170,14 +181,21 @@ public class IcebergOrphanFileDeleteTableFunction extends AbstractTableFunction 
                         icebergMutablePlugin.createFSWithAsyncOptions(
                             usedFilePath, props.getUserName(), context);
                   } catch (Exception e) {
-                    logger.error("Can't create file system from path {}", usedFilePath, e);
+                    vacuumLogger.error(
+                        createDeleteOrphanFileLog(
+                            queryId,
+                            orphanFilePath,
+                            UNKNOWN,
+                            "Can't create file system from path." + e),
+                        "");
                   }
                 }
                 final boolean deleted =
                     fs == null ? false : fs.delete(Path.of(containerRelativePath), false);
                 deleteStatus.set(deleted);
               } catch (IOException e) {
-                logger.warn("Delete failed for {}", filePath, e);
+                vacuumLogger.warn(
+                    createDeleteOrphanFileLog(queryId, filePath, IO_EXCEPTION, e.toString()), "");
                 failedToDelete.set(true);
                 deleteStatus.set(false);
               }
@@ -187,10 +205,13 @@ public class IcebergOrphanFileDeleteTableFunction extends AbstractTableFunction 
 
     // Track whether a file is deleted successfully.
     if (deleteStatus.get()) {
-      logger.debug("Deleted {}", orphanFilePath);
+      vacuumLogger.info(createDeleteOrphanFileLog(queryId, orphanFilePath), "");
       operatorStats.addLongStat(TableFunctionOperator.Metric.NUM_ORPHAN_FILES_DELETED, 1);
       return 1;
     } else if (failedToDelete.get()) {
+      vacuumLogger.info(
+          createDeleteOrphanFileLog(queryId, orphanFilePath, UNKNOWN, "Failed to delete file."),
+          "");
       operatorStats.addLongStat(TableFunctionOperator.Metric.NUM_ORPHAN_FILES_FAIL_TO_DELETE, 1);
     }
     return 0;

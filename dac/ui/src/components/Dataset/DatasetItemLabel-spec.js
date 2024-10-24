@@ -84,7 +84,7 @@ describe("DatasetItemLabel", () => {
   it("should render custom node", () => {
     const customNode = <div className="customNode">DG10</div>;
     const wrapper = shallow(
-      <DatasetItemLabel {...commonProps} customNode={customNode} />
+      <DatasetItemLabel {...commonProps} customNode={customNode} />,
     );
     expect(wrapper.find(".customNode")).to.have.length(1);
     expect(wrapper.find("EllipsedText")).to.have.length(0);

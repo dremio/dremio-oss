@@ -23,6 +23,7 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetResourcePath;
 import com.dremio.dac.explore.model.DatasetVersionResourcePath;
 import com.dremio.dac.model.common.DACRuntimeException;
+import com.dremio.dac.model.common.Function;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.FolderPath;
@@ -72,6 +73,7 @@ public class NamespaceTree {
   private final List<Dataset> datasets;
   private final List<File> files;
   private final List<PhysicalDataset> physicalDatasets;
+  private final List<Function> functions;
 
   private boolean canTagsBeSkipped;
   private Boolean isFileSystemSource;
@@ -83,6 +85,7 @@ public class NamespaceTree {
     datasets = new ArrayList<>();
     files = new ArrayList<>();
     physicalDatasets = new ArrayList<>();
+    functions = new ArrayList<>();
     canTagsBeSkipped = false;
   }
 
@@ -246,6 +249,8 @@ public class NamespaceTree {
           }
           break;
         case FUNCTION:
+          // TODO: DX-94503 Adding UDFs to the namespace tree. One of the use cases of this method
+          // is to populate the children in Home/Space/Folder(in Space) in the UI.
           break;
         default:
           throw new DACRuntimeException(
@@ -346,6 +351,10 @@ public class NamespaceTree {
     addDataset(dataset);
   }
 
+  public void addFunction(final Function function) {
+    functions.add(function);
+  }
+
   protected List<String> getTags(CollaborationTag collaborationTag) {
     return null == collaborationTag ? null : collaborationTag.getTagsList();
   }
@@ -383,6 +392,10 @@ public class NamespaceTree {
 
   public final List<File> getFiles() {
     return files;
+  }
+
+  public final List<Function> getFunctions() {
+    return functions;
   }
 
   public boolean getCanTagsBeSkipped() {

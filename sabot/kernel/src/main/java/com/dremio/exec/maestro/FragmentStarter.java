@@ -16,8 +16,9 @@
 package com.dremio.exec.maestro;
 
 import com.dremio.common.concurrent.ExtendedLatch;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.maestro.FragmentSubmitListener.FragmentSubmitFailures;
+import com.dremio.exec.maestro.FragmentSubmitListener.FragmentSubmitSuccess;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.PlanFragmentStats;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
@@ -28,7 +29,6 @@ import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentSet;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.testing.ExecutionControls;
@@ -41,22 +41,17 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
-import com.google.protobuf.MessageLite;
-import io.grpc.stub.StreamObserver;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Class used to start remote fragment execution. */
 class FragmentStarter {
@@ -233,56 +228,15 @@ class FragmentStarter {
             Long.max(
                 RPC_MIN_WAIT_IN_MSECS,
                 optionManager.getOption(ExecConstants.FRAGMENT_STARTER_TIMEOUT)));
-    if (numFragments > 0 && !endpointLatch.awaitUninterruptibly(timeout)) {
-      long numberRemaining = endpointLatch.getCount();
-      StringBuilder sb = new StringBuilder();
-      boolean first = true;
-      for (final NodeEndpoint ep : endpointsIndex) {
-        if (!fragmentSubmitSuccess.submissionSuccesses.contains(ep)
-            && !fragmentSubmitFailures.listContains(ep)) {
-          // The fragment sent to this endPoint timed out.
-          if (first) {
-            first = false;
-          } else {
-            sb.append(", ");
-          }
-          sb.append(ep.getAddress());
-        }
-      }
-      throw UserException.connectionError()
-          .message(
-              "Exceeded timeout (%d) while waiting after sending work fragments to remote nodes. "
-                  + "Sent %d and only heard response back from %d nodes",
-              timeout, numFragments, numFragments - numberRemaining)
-          .addContext("Node(s) that did not respond", sb.toString())
-          .build(logger);
-    }
+    FragmentSubmitListener.awaitUninterruptibly(
+        endpointsIndex,
+        endpointLatch,
+        fragmentSubmitFailures,
+        fragmentSubmitSuccess,
+        numFragments,
+        timeout);
 
-    // if any of the fragment submissions failed, fail the query
-    final List<FragmentSubmitFailures.SubmissionException> submissionExceptions =
-        fragmentSubmitFailures.submissionExceptions;
-    if (submissionExceptions.size() > 0) {
-      Set<NodeEndpoint> endpoints = Sets.newHashSet();
-      StringBuilder sb = new StringBuilder();
-      boolean first = true;
-
-      for (FragmentSubmitFailures.SubmissionException e :
-          fragmentSubmitFailures.submissionExceptions) {
-        NodeEndpoint endpoint = e.nodeEndpoint;
-        if (endpoints.add(endpoint)) {
-          if (first) {
-            first = false;
-          } else {
-            sb.append(", ");
-          }
-          sb.append(endpoint.getAddress());
-        }
-      }
-      throw UserException.connectionError(submissionExceptions.get(0).rpcException)
-          .message("Error setting up remote fragment execution")
-          .addContext("Nodes with failures", sb.toString())
-          .build(logger);
-    }
+    FragmentSubmitListener.checkForExceptions(fragmentSubmitFailures);
   }
 
   @WithSpan("send-activate-fragments")
@@ -294,6 +248,13 @@ class FragmentStarter {
      */
     final ActivateFragments activateFragments =
         ActivateFragments.newBuilder().setQueryId(plan.getQueryId()).build();
+    if (optionManager.getOption(ExecConstants.ENABLE_DYNAMIC_LOAD_ROUTING)) {
+      Optional<NodeEndpoint> ep =
+          fragmentMap.keySet().stream()
+              .max(Comparator.comparing(object -> object.getAddress().toString()));
+      sendActivateFragments(ep.get(), activateFragments);
+      return;
+    }
     for (final NodeEndpoint ep : fragmentMap.keySet()) {
       sendActivateFragments(ep, activateFragments);
     }
@@ -359,7 +320,14 @@ class FragmentStarter {
     logger.debug("Sending remote fragments to \nNode:\n{} \n\nData:\n{}", assignment, initFrags);
     final FragmentSubmitListener listener =
         new FragmentSubmitListener(
-            assignment, initFrags, latch, fragmentSubmitFailures, fragmentSubmitSuccess);
+            observer,
+            assignment,
+            initFrags,
+            latch,
+            fragmentSubmitFailures,
+            fragmentSubmitSuccess,
+            executionControls,
+            injector);
 
     executorServiceClientFactory
         .getClientForEndpoint(assignment)
@@ -374,7 +342,8 @@ class FragmentStarter {
         assignment,
         activateFragments);
     final FragmentSubmitListener listener =
-        new FragmentSubmitListener(assignment, activateFragments, null, null, null);
+        new FragmentSubmitListener(
+            observer, assignment, activateFragments, null, null, null, executionControls, injector);
 
     try {
       injector.injectChecked(
@@ -386,106 +355,5 @@ class FragmentStarter {
     executorServiceClientFactory
         .getClientForEndpoint(assignment)
         .activateFragments(activateFragments, listener);
-  }
-
-  /** Used by {@link FragmentSubmitListener} to track the number of submission failures. */
-  private static class FragmentSubmitFailures {
-    static class SubmissionException {
-      final NodeEndpoint nodeEndpoint;
-      final RpcException rpcException;
-
-      SubmissionException(final NodeEndpoint nodeEndpoint, final RpcException rpcException) {
-        this.nodeEndpoint = nodeEndpoint;
-        this.rpcException = rpcException;
-      }
-    }
-
-    final List<SubmissionException> submissionExceptions =
-        Collections.synchronizedList(new LinkedList<>());
-
-    void addFailure(final NodeEndpoint nodeEndpoint, final RpcException rpcException) {
-      submissionExceptions.add(new SubmissionException(nodeEndpoint, rpcException));
-    }
-
-    boolean listContains(final NodeEndpoint nodeEndpoint) {
-      for (SubmissionException se : submissionExceptions) {
-        if (se.nodeEndpoint.equals(nodeEndpoint)) {
-          return true;
-        }
-      }
-      return false;
-    }
-  }
-
-  private static class FragmentSubmitSuccess {
-    final List<NodeEndpoint> submissionSuccesses = Collections.synchronizedList(new LinkedList<>());
-
-    void addSuccess(final NodeEndpoint nodeEndpoint) {
-      submissionSuccesses.add(nodeEndpoint);
-    }
-  }
-
-  private class FragmentSubmitListener implements StreamObserver<Empty> {
-    private final CountDownLatch latch;
-    private final FragmentSubmitFailures fragmentSubmitFailures;
-    private final FragmentSubmitSuccess fragmentSubmitSuccesses;
-    private final NodeEndpoint endpoint;
-    private final AtomicBoolean done;
-
-    /**
-     * Constructor.
-     *
-     * @param endpoint the endpoint for the submission
-     * @param value the initialize fragments message
-     * @param latch the latch to count down when the status is known; may be null
-     * @param fragmentSubmitFailures the counter to use for failures; must be non-null iff latch is
-     *     non-null
-     */
-    public FragmentSubmitListener(
-        final NodeEndpoint endpoint,
-        final MessageLite value,
-        final CountDownLatch latch,
-        final FragmentSubmitFailures fragmentSubmitFailures,
-        final FragmentSubmitSuccess fragmentSubmitSuccess) {
-      Preconditions.checkState((latch == null) == (fragmentSubmitFailures == null));
-      this.latch = latch;
-      this.fragmentSubmitFailures = fragmentSubmitFailures;
-      this.endpoint = endpoint;
-      this.fragmentSubmitSuccesses = fragmentSubmitSuccess;
-      done = new AtomicBoolean(false);
-    }
-
-    @Override
-    public void onNext(Empty empty) {
-      // no op
-    }
-
-    @Override
-    public void onError(Throwable throwable) {
-      if (latch != null
-          && done.compareAndSet(false, true)) { // this block only applies to start rpcs.
-        RpcException ex = RpcException.mapException(throwable);
-        fragmentSubmitFailures.addFailure(endpoint, ex);
-        latch.countDown();
-      } else { // this block only applies to activate rpcs.
-        observer.activateFragmentFailed(
-            new RpcException(
-                String.format(
-                    "Failure sending activate " + "rpc for fragments to %s:%d.",
-                    endpoint.getAddress(), endpoint.getFabricPort()),
-                throwable));
-      }
-    }
-
-    @Override
-    public void onCompleted() {
-
-      injector.injectPause(executionControls, INJECTOR_AFTER_ON_COMPLETED_PAUSE, logger);
-
-      if (latch != null && done.compareAndSet(false, true)) {
-        fragmentSubmitSuccesses.addSuccess(endpoint);
-        latch.countDown();
-      }
-    }
   }
 }

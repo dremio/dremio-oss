@@ -22,7 +22,6 @@ import DividerHr from "../DividerHr";
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     renderCompletely() {
       const { t } = getIntlContext();
       //TODO add renameLink into menu when API will be ready

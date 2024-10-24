@@ -20,7 +20,7 @@ import { debounce } from "lodash/function";
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import { datasetWithoutData } from "schemas/v2/fullDataset";
 import exploreUtils from "utils/explore/exploreUtils";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import { updateParams } from "@inject/actions/explore/dataset/updateLocation";
 
 export const RUN_DATASET_START = "RUN_DATASET_START";

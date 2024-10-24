@@ -47,6 +47,7 @@ public final class VarcharArrayAggAccumulatorHolder extends ArrayAggAccumulatorH
   @Override
   public void addItemToVector(Text data, int index) {
     vector.set(index, data);
+    vector.setValueCount(vector.getValueCount() + 1);
     accumulatedBytes += getSizeOfElement(data);
   }
 

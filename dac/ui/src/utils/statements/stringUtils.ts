@@ -20,7 +20,7 @@
  */
 export const charIfExists = (
   str: string,
-  index: number
+  index: number,
 ): string | undefined => {
   if (index < 0 || index >= str.length) {
     return undefined;

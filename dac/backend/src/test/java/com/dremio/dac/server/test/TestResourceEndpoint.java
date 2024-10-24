@@ -24,8 +24,10 @@ public class TestResourceEndpoint extends BaseTestServer {
   @Test
   public void executeTestCreateAndClearMethod() {
     expectSuccess(
-        getBuilder(getMasterAPIv2().path("test").path("create")).buildPost(null), Void.class);
+        getBuilder(getMasterHttpClient().getAPIv2().path("test").path("create")).buildPost(null),
+        Void.class);
     expectSuccess(
-        getBuilder(getMasterAPIv2().path("test").path("clear")).buildPost(null), Void.class);
+        getBuilder(getMasterHttpClient().getAPIv2().path("test").path("clear")).buildPost(null),
+        Void.class);
   }
 }

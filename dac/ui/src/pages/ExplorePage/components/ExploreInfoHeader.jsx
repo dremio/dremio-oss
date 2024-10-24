@@ -21,7 +21,7 @@ import Immutable from "immutable";
 import DocumentTitle from "react-document-title";
 import { injectIntl } from "react-intl";
 import { browserHistory } from "react-router";
-import CopyButton from "@app/components/Buttons/CopyButton";
+import CopyButton from "#oss/components/Buttons/CopyButton";
 import { Tooltip } from "dremio-ui-lib";
 
 import EllipsedText from "components/EllipsedText";
@@ -30,11 +30,11 @@ import { constructFullPath } from "utils/pathUtils";
 import { formatMessage } from "utils/locale";
 import { isSqlChanged } from "sagas/utils";
 
-import { PHYSICAL_DATASET_TYPES, SCRIPT } from "@app/constants/datasetTypes";
-import { PageTypeButtons } from "@app/pages/ExplorePage/components/PageTypeButtons";
-import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
+import { PHYSICAL_DATASET_TYPES, SCRIPT } from "#oss/constants/datasetTypes";
+import { PageTypeButtons } from "#oss/pages/ExplorePage/components/PageTypeButtons";
+import { PageTypes, pageTypesProp } from "#oss/pages/ExplorePage/pageTypes";
 
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 
 import BreadCrumbs, { formatFullPath } from "components/BreadCrumbs";
 import { DatasetItemLabel } from "components/Dataset/DatasetItemLabel"; // {} for testing purposes since store is not needed here
@@ -48,8 +48,8 @@ import {
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 
 import { getHistory, getExploreState } from "selectors/explore";
-import { getActiveScript } from "@app/selectors/scripts";
-import { TagContent } from "@app/pages/HomePage/components/BranchPicker/components/BranchPickerTag/BranchPickerTag";
+import { getActiveScript } from "#oss/selectors/scripts";
+import { TagContent } from "#oss/pages/HomePage/components/BranchPicker/components/BranchPickerTag/BranchPickerTag";
 
 import "./ExploreInfoHeader.less";
 
@@ -469,7 +469,7 @@ const style = {
     maxWidth: 266,
     display: "flex",
     alignItems: "center",
-    color: "#333",
+    color: "var(--text--primary)",
     fontWeight: 500,
   },
   scriptHeader: {

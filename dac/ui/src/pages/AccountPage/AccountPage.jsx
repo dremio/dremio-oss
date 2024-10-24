@@ -16,8 +16,8 @@
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
 
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
-import SettingPage from "@app/containers/SettingPage";
+import { SonarSideNav } from "#oss/exports/components/SideNav/SonarSideNav";
+import SettingPage from "#oss/containers/SettingPage";
 import UserNavigation from "components/UserNavigation";
 import { accountSection } from "dyn-load/pages/AccountPage/AccountPageConstants";
 import "./AccountPage.less";

@@ -126,14 +126,16 @@ public class TestServer extends BaseTestServer {
     doc("create source 1");
     final SourceUI putSource1 =
         expectSuccess(
-            getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(source)),
+            getBuilder(getHttpClient().getAPIv2().path(sourceResource))
+                .buildPut(Entity.json(source)),
             SourceUI.class);
 
     doc("update source 1");
     ((NASConf) putSource1.getConfig()).path = v1.getAbsolutePath();
     final SourceUI putSource2 =
         expectSuccess(
-            getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(putSource1)),
+            getBuilder(getHttpClient().getAPIv2().path(sourceResource))
+                .buildPut(Entity.json(putSource1)),
             SourceUI.class);
     assertEquals(((NASConf) putSource1.getConfig()).path, ((NASConf) putSource2.getConfig()).path);
 
@@ -141,14 +143,15 @@ public class TestServer extends BaseTestServer {
     ((NASConf) putSource1.getConfig()).path = v2.getAbsolutePath();
     expectStatus(
         CONFLICT,
-        getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(putSource1)),
+        getBuilder(getHttpClient().getAPIv2().path(sourceResource))
+            .buildPut(Entity.json(putSource1)),
         UserExceptionMapper.ErrorMessageWithContext.class);
 
     doc("delete with missing version");
     final GenericErrorMessage errorDelete =
         expectStatus(
             BAD_REQUEST,
-            getBuilder(getAPIv2().path(sourceResource)).buildDelete(),
+            getBuilder(getHttpClient().getAPIv2().path(sourceResource)).buildDelete(),
             GenericErrorMessage.class);
     assertThat(errorDelete.getErrorMessage())
         .isEqualTo(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
@@ -162,13 +165,18 @@ public class TestServer extends BaseTestServer {
     final GenericErrorMessage errorDelete2 =
         expectStatus(
             CONFLICT,
-            getBuilder(getAPIv2().path(sourceResource).queryParam("version", 1234L)).buildDelete(),
+            getBuilder(getHttpClient().getAPIv2().path(sourceResource).queryParam("version", 1234L))
+                .buildDelete(),
             GenericErrorMessage.class);
     assertThat(errorDelete2.getErrorMessage()).isEqualTo(expectedErrorMessage);
 
     doc("delete");
     expectSuccess(
-        getBuilder(getAPIv2().path(sourceResource).queryParam("version", putSource2.getTag()))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv2()
+                    .path(sourceResource)
+                    .queryParam("version", putSource2.getTag()))
             .buildDelete());
   }
 
@@ -198,7 +206,9 @@ public class TestServer extends BaseTestServer {
     }
 
     final SourceUI source =
-        expectSuccess(getBuilder(getAPIv2().path("source/nas_sub")).buildGet(), SourceUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("source/nas_sub")).buildGet(),
+            SourceUI.class);
     final NamespaceTree tree = source.getContents();
 
     // make sure we didn't get the root's content
@@ -213,7 +223,11 @@ public class TestServer extends BaseTestServer {
 
     assertNull(
         expectSuccess(
-                getBuilder(getAPIv2().path("source/nas_sub").queryParam("includeContents", false))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("source/nas_sub")
+                            .queryParam("includeContents", false))
                     .buildGet(),
                 SourceUI.class)
             .getContents());
@@ -223,7 +237,7 @@ public class TestServer extends BaseTestServer {
   public void testInvalidSpace() throws Exception {
     expectError(
         CLIENT_ERROR,
-        getBuilder(getAPIv2().path("space/A.B"))
+        getBuilder(getHttpClient().getAPIv2().path("space/A.B"))
             .buildPut(Entity.json(new Space(null, "A.B", null, null, null, 0, null))),
         ValidationErrorMessage.class);
   }
@@ -231,7 +245,7 @@ public class TestServer extends BaseTestServer {
   @Test
   public void testValidSpace() throws Exception {
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
             .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "AB", null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
   }
@@ -245,7 +259,7 @@ public class TestServer extends BaseTestServer {
     sourceUI.setConfig(sourceConfig);
     expectError(
         CLIENT_ERROR,
-        getBuilder(getAPIv2().path("source/A.B")).buildPut(Entity.json(sourceUI)),
+        getBuilder(getHttpClient().getAPIv2().path("source/A.B")).buildPut(Entity.json(sourceUI)),
         ValidationErrorMessage.class);
   }
 
@@ -258,7 +272,8 @@ public class TestServer extends BaseTestServer {
     sourceConfig.path = "/";
     sourceUI.setConfig(sourceConfig);
 
-    expectSuccess(getBuilder(getAPIv2().path("source/AB")).buildPut(Entity.json(sourceUI)));
+    expectSuccess(
+        getBuilder(getHttpClient().getAPIv2().path("source/AB")).buildPut(Entity.json(sourceUI)));
   }
 
   @Test
@@ -279,16 +294,18 @@ public class TestServer extends BaseTestServer {
         new SpacePath(new SpaceName(config1.getName())).toNamespaceKey(), config1);
 
     final Space space1 =
-        expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildGet(), Space.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("space/space1")).buildGet(), Space.class);
     assertEquals(config1.getName(), space1.getName());
 
     final Space space2 =
-        expectSuccess(getBuilder(getAPIv2().path("space/space2")).buildGet(), Space.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("space/space2")).buildGet(), Space.class);
     assertEquals(config2.getName(), space2.getName());
 
     final com.dremio.dac.api.Space space3 =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("/catalog/"))
+            getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
                 .buildPost(
                     Entity.json(new com.dremio.dac.api.Space(null, "space3", null, null, null))),
             new GenericType<com.dremio.dac.api.Space>() {});
@@ -306,7 +323,8 @@ public class TestServer extends BaseTestServer {
     dt = userService.createUser(dt, "user1234");
     UserLoginSession uls =
         expectSuccess(
-            getAPIv2()
+            getHttpClient()
+                .getAPIv2()
                 .path("/login")
                 .request(JSON)
                 .buildPost(Entity.json(new UserLogin("user", "user1234"))),
@@ -314,25 +332,29 @@ public class TestServer extends BaseTestServer {
 
     final com.dremio.dac.api.Space space4 =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("/catalog/"))
+            getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
                 .buildPost(
                     Entity.json(new com.dremio.dac.api.Space(null, "space4", null, null, null))),
             new GenericType<com.dremio.dac.api.Space>() {});
     assertEquals("space4", space4.getName());
 
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
             .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "test1", null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
 
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
             .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "test2", null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
 
     final JobFilterItems spaces2 =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs/filters/spaces").queryParam("filter", "test"))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("jobs/filters/spaces")
+                        .queryParam("filter", "test"))
                 .buildGet(),
             JobFilterItems.class);
     assertEquals(spaces2.toString(), 2, spaces2.getItems().size());
@@ -340,7 +362,8 @@ public class TestServer extends BaseTestServer {
     final JobFilterItems spaces3 =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("jobs/filters/spaces")
                         .queryParam("filter", "space")
                         .queryParam("limit", 3))
@@ -353,16 +376,19 @@ public class TestServer extends BaseTestServer {
 
   @Test
   public void testDataGrid() throws Exception {
-    try (AutoCloseable ac = withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES, "true")) {
+    try (AutoCloseable ignored =
+        withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR, true)) {
       TestSpacesStoragePlugin.setup();
 
-      WebTarget pathA = getAPIv2().path(getPathJoiner().join("dataset", "testA.dsA3"));
+      WebTarget pathA =
+          getHttpClient().getAPIv2().path(getPathJoiner().join("dataset", "testA.dsA3"));
       DatasetUI datasetUIA = expectSuccess(getBuilder(pathA).buildGet(), DatasetUI.class);
 
       InitialPreviewResponse previewResponseA =
           expectSuccess(
               getBuilder(
-                      getAPIv2()
+                      getHttpClient()
+                          .getAPIv2()
                           .path(
                               getPathJoiner()
                                   .join(
@@ -376,7 +402,7 @@ public class TestServer extends BaseTestServer {
 
       waitForJobComplete(previewResponseA.getJobId().getId());
       final JobDataFragment dataA =
-          getData(previewResponseA.getPaginationUrl(), 0, INITIAL_RESULTSET_SIZE);
+          getHttpClient().getDatasetApi().getJobData(previewResponseA, 0, INITIAL_RESULTSET_SIZE);
 
       assertEquals(10, dataA.getReturnedRowCount());
       assertEquals(4, dataA.getColumns().size());
@@ -391,13 +417,18 @@ public class TestServer extends BaseTestServer {
 
       DatasetUI datasetUIB =
           expectSuccess(
-              getBuilder(getAPIv2().path(getPathJoiner().join("dataset", "testB.dsB1"))).buildGet(),
+              getBuilder(
+                      getHttpClient()
+                          .getAPIv2()
+                          .path(getPathJoiner().join("dataset", "testB.dsB1")))
+                  .buildGet(),
               DatasetUI.class);
 
       InitialPreviewResponse previewResponseB =
           expectSuccess(
               getBuilder(
-                      getAPIv2()
+                      getHttpClient()
+                          .getAPIv2()
                           .path(
                               getPathJoiner()
                                   .join(
@@ -411,7 +442,7 @@ public class TestServer extends BaseTestServer {
 
       waitForJobComplete(previewResponseB.getJobId().getId());
       final JobDataFragment dataB =
-          getData(previewResponseB.getPaginationUrl(), 0, INITIAL_RESULTSET_SIZE);
+          getHttpClient().getDatasetApi().getJobData(previewResponseB, 0, INITIAL_RESULTSET_SIZE);
 
       assertEquals(INITIAL_RESULTSET_SIZE, dataB.getReturnedRowCount());
       assertEquals(2, dataB.getColumns().size());
@@ -419,13 +450,8 @@ public class TestServer extends BaseTestServer {
       assertEquals(DataType.INTEGER, dataB.getColumns().get(1).getType());
       TestSpacesStoragePlugin.cleanup();
 
-      final WebTarget moreDataB =
-          getAPIv2()
-              .path(previewResponseB.getPaginationUrl())
-              .queryParam("offset", 20L)
-              .queryParam("limit", 200L);
       final JobDataFragment dataBMore =
-          expectSuccess(getBuilder(moreDataB).buildGet(), JobDataFragment.class);
+          getHttpClient().getDatasetApi().getJobData(previewResponseB, 20L, 200L);
       assertEquals(200, dataBMore.getReturnedRowCount());
       assertEquals(2, dataBMore.getColumns().size());
       assertEquals(DataType.INTEGER, dataBMore.getColumns().get(0).getType());
@@ -437,7 +463,7 @@ public class TestServer extends BaseTestServer {
   public void testFolderOCC() throws Exception {
 
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
             .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "s1", null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
 
@@ -445,7 +471,7 @@ public class TestServer extends BaseTestServer {
     doc("create folder 1");
     final Folder postFolder1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("space/s1/folder/"))
+            getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/"))
                 .buildPost(Entity.json("{\"name\": \"f1\"}")),
             Folder.class);
 
@@ -461,7 +487,7 @@ public class TestServer extends BaseTestServer {
     final GenericErrorMessage errorDelete =
         expectStatus(
             BAD_REQUEST,
-            getBuilder(getAPIv2().path(spaceResource)).buildDelete(),
+            getBuilder(getHttpClient().getAPIv2().path(spaceResource)).buildDelete(),
             GenericErrorMessage.class);
     assertThat(errorDelete.getErrorMessage())
         .isEqualTo(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
@@ -475,14 +501,22 @@ public class TestServer extends BaseTestServer {
     final GenericErrorMessage errorDelete2 =
         expectStatus(
             CONFLICT,
-            getBuilder(getAPIv2().path(spaceResource).queryParam("version", badVersion))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path(spaceResource)
+                        .queryParam("version", badVersion))
                 .buildDelete(),
             GenericErrorMessage.class);
     assertThat(errorDelete2.getErrorMessage()).isEqualTo(expectedErrorMessage);
 
     doc("delete");
     expectSuccess(
-        getBuilder(getAPIv2().path(spaceResource).queryParam("version", postFolder1.getVersion()))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv2()
+                    .path(spaceResource)
+                    .queryParam("version", postFolder1.getVersion()))
             .buildDelete());
   }
 
@@ -491,52 +525,54 @@ public class TestServer extends BaseTestServer {
     // create spaces.
     doc("create spaces");
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
             .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "s1", null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
             .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "s2", null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
             .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "s3", null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
 
     doc("create folders");
     expectSuccess(
-        getBuilder(getAPIv2().path("space/s1/folder/"))
+        getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/"))
             .buildPost(Entity.json("{\"name\": \"f1\"}")),
         Folder.class);
     expectSuccess(
-        getBuilder(getAPIv2().path("space/s2/folder/"))
+        getBuilder(getHttpClient().getAPIv2().path("space/s2/folder/"))
             .buildPost(Entity.json("{\"name\": \"f1\"}")),
         Folder.class);
     expectSuccess(
-        getBuilder(getAPIv2().path("space/s3/folder/"))
+        getBuilder(getHttpClient().getAPIv2().path("space/s3/folder/"))
             .buildPost(Entity.json("{\"name\": \"f1\"}")),
         Folder.class);
 
     expectSuccess(
-        getBuilder(getAPIv2().path("space/s1/folder/f1/"))
+        getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1/"))
             .buildPost(Entity.json("{\"name\": \"f1\"}")),
         Folder.class);
     expectSuccess(
-        getBuilder(getAPIv2().path("space/s1/folder/f1/"))
+        getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1/"))
             .buildPost(Entity.json("{\"name\": \"f2\"}")),
         Folder.class);
     expectSuccess(
-        getBuilder(getAPIv2().path("space/s1/folder/f1/f1/"))
+        getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1/f1/"))
             .buildPost(Entity.json("{\"name\": \"f1\"}")),
         Folder.class);
     expectSuccess(
-        getBuilder(getAPIv2().path("space/s1/folder/f1/f1/f1"))
+        getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1/f1/f1"))
             .buildPost(Entity.json("{\"name\": \"f2\"}")),
         Folder.class);
 
     doc("get folder config");
     Folder s1f1 =
-        expectSuccess(getBuilder(getAPIv2().path("space/s1/folder/f1")).buildGet(), Folder.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1")).buildGet(),
+            Folder.class);
     assertEquals("f1", s1f1.getName());
     Assert.assertArrayEquals(new String[] {"s1", "f1"}, s1f1.getFullPathList().toArray());
 
@@ -548,7 +584,11 @@ public class TestServer extends BaseTestServer {
     doc("folder with no content");
     Folder noContents1f1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("space/s1/folder/f1").queryParam("includeContents", false))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("space/s1/folder/f1")
+                        .queryParam("includeContents", false))
                 .buildGet(),
             Folder.class);
     assertEquals("f1", noContents1f1.getName());
@@ -556,69 +596,96 @@ public class TestServer extends BaseTestServer {
     assertNull(noContents1f1.getContents());
 
     NamespaceTree lists1f1f2 =
-        expectSuccess(getBuilder(getAPIv2().path("space/s1/folder/f1/f2")).buildGet(), Folder.class)
+        expectSuccess(
+                getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1/f2")).buildGet(),
+                Folder.class)
             .getContents();
     assertEquals(0, lists1f1f2.getDatasets().size());
     assertEquals(0, lists1f1f2.getFolders().size());
 
     NamespaceTree lists1f1f1f1 =
         expectSuccess(
-                getBuilder(getAPIv2().path("space/s1/folder/f1/f1/f1")).buildGet(), Folder.class)
+                getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1/f1/f1")).buildGet(),
+                Folder.class)
             .getContents();
     assertEquals(0, lists1f1f1f1.getDatasets().size());
     assertEquals(1, lists1f1f1f1.getFolders().size());
 
     NamespaceTree lists1f1f1f1f2 =
         expectSuccess(
-                getBuilder(getAPIv2().path("space/s1/folder/f1/f1/f1/f2")).buildGet(), Folder.class)
+                getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1/f1/f1/f2"))
+                    .buildGet(),
+                Folder.class)
             .getContents();
     assertEquals(0, lists1f1f1f1f2.getDatasets().size());
     assertEquals(0, lists1f1f1f1f2.getFolders().size());
 
     Folder f2 =
         expectSuccess(
-            getBuilder(getAPIv2().path("space/s1/folder/f1/f1/f1/f2")).buildGet(), Folder.class);
+            getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1/f1/f1/f2")).buildGet(),
+            Folder.class);
     expectSuccess(
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("space/s1/folder/f1/f1/f1/f2")
                     .queryParam("version", f2.getVersion()))
             .buildDelete());
 
     lists1f1f1f1 =
         expectSuccess(
-                getBuilder(getAPIv2().path("space/s1/folder/f1/f1/f1")).buildGet(), Folder.class)
+                getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1/f1/f1")).buildGet(),
+                Folder.class)
             .getContents();
     assertEquals(0, lists1f1f1f1.getDatasets().size());
     assertEquals(0, lists1f1f1f1.getFolders().size());
 
     doc("create datasets");
-    createDatasetFromParentAndSave(new DatasetPath("s1.ds1"), "cp.\"tpch/supplier.parquet\"");
-    createDatasetFromParentAndSave(new DatasetPath("s2.ds1"), "cp.\"tpch/supplier.parquet\"");
-    createDatasetFromParentAndSave(new DatasetPath("s2.ds2"), "cp.\"tpch/supplier.parquet\"");
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromParentAndSave(new DatasetPath("s1.ds1"), "cp.\"tpch/supplier.parquet\"");
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromParentAndSave(new DatasetPath("s2.ds1"), "cp.\"tpch/supplier.parquet\"");
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromParentAndSave(new DatasetPath("s2.ds2"), "cp.\"tpch/supplier.parquet\"");
 
-    createDatasetFromParentAndSave(new DatasetPath("s1.f1.ds1"), "cp.\"tpch/supplier.parquet\"");
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromParentAndSave(
+            new DatasetPath("s1.f1.ds1"), "cp.\"tpch/supplier.parquet\"");
 
-    createDatasetFromParentAndSave(
-        new DatasetPath("s1.f1.f1.f1.ds1"), "cp.\"tpch/supplier.parquet\"");
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromParentAndSave(
+            new DatasetPath("s1.f1.f1.f1.ds1"), "cp.\"tpch/supplier.parquet\"");
 
-    createDatasetFromParentAndSave(new DatasetPath("s1.f1.ds2"), "cp.\"tpch/supplier.parquet\"");
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromParentAndSave(
+            new DatasetPath("s1.f1.ds2"), "cp.\"tpch/supplier.parquet\"");
 
     lists1f1f1f1 =
         expectSuccess(
-                getBuilder(getAPIv2().path("space/s1/folder/f1/f1/f1")).buildGet(), Folder.class)
+                getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1/f1/f1")).buildGet(),
+                Folder.class)
             .getContents();
     assertEquals(1, lists1f1f1f1.getDatasets().size());
     assertEquals(0, lists1f1f1f1.getFolders().size());
 
     lists1f1 =
-        expectSuccess(getBuilder(getAPIv2().path("space/s1/folder/f1")).buildGet(), Folder.class)
+        expectSuccess(
+                getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1")).buildGet(),
+                Folder.class)
             .getContents();
     assertEquals(2, lists1f1.getDatasets().size());
     assertEquals(2, lists1f1.getFolders().size());
 
     lists1f1f2 =
-        expectSuccess(getBuilder(getAPIv2().path("space/s1/folder/f1/f2")).buildGet(), Folder.class)
+        expectSuccess(
+                getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/f1/f2")).buildGet(),
+                Folder.class)
             .getContents();
     assertEquals(0, lists1f1f2.getDatasets().size());
     assertEquals(0, lists1f1f2.getFolders().size());
@@ -626,26 +693,33 @@ public class TestServer extends BaseTestServer {
     // List spaces
     // TODO we may be able to list spaces using GET folder on space.
     NamespaceTree lists1 =
-        expectSuccess(getBuilder(getAPIv2().path("space/s1")).buildGet(), Space.class)
+        expectSuccess(
+                getBuilder(getHttpClient().getAPIv2().path("space/s1")).buildGet(), Space.class)
             .getContents();
     assertEquals(1, lists1.getDatasets().size());
     assertEquals(1, lists1.getFolders().size());
 
     NamespaceTree lists2 =
-        expectSuccess(getBuilder(getAPIv2().path("space/s2")).buildGet(), Space.class)
+        expectSuccess(
+                getBuilder(getHttpClient().getAPIv2().path("space/s2")).buildGet(), Space.class)
             .getContents();
     assertEquals(2, lists2.getDatasets().size());
     assertEquals(1, lists2.getFolders().size());
 
     NamespaceTree lists3 =
-        expectSuccess(getBuilder(getAPIv2().path("space/s3")).buildGet(), Space.class)
+        expectSuccess(
+                getBuilder(getHttpClient().getAPIv2().path("space/s3")).buildGet(), Space.class)
             .getContents();
     assertEquals(0, lists3.getDatasets().size());
     assertEquals(1, lists3.getFolders().size());
 
     assertNull(
         expectSuccess(
-                getBuilder(getAPIv2().path("space/s1").queryParam("includeContents", false))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("space/s1")
+                            .queryParam("includeContents", false))
                     .buildGet(),
                 Space.class)
             .getContents());
@@ -654,17 +728,17 @@ public class TestServer extends BaseTestServer {
   @Test
   public void testFolderParentNotFound() throws Exception {
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
             .buildPost(Entity.json(new com.dremio.dac.api.Space(null, "s1", null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
     expectSuccess(
-        getBuilder(getAPIv2().path("space/s1/folder/"))
+        getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/"))
             .buildPost(Entity.json("{\"name\": \"f1\"}")),
         Folder.class);
 
     expectStatus(
         Status.BAD_REQUEST,
-        getBuilder(getAPIv2().path("space/s1/folder/wrongfolder/"))
+        getBuilder(getHttpClient().getAPIv2().path("space/s1/folder/wrongfolder/"))
             .buildPost(Entity.json("{\"name\": \"f1\"}")));
   }
 
@@ -672,7 +746,9 @@ public class TestServer extends BaseTestServer {
   public void testSourceTraversal() throws Exception {
     populateInitialData();
     SourceUI source =
-        expectSuccess(getBuilder(getAPIv2().path("source/LocalFS1")).buildGet(), SourceUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("source/LocalFS1")).buildGet(),
+            SourceUI.class);
     NamespaceTree ns = source.getContents();
 
     assertNotNull(source.getId());
@@ -684,17 +760,21 @@ public class TestServer extends BaseTestServer {
   public void testTestApis() {
     doc("Creating test dataset");
     NamespaceService ns = getNamespaceService();
-    expectSuccess(getBuilder(getAPIv2().path("/test/create")).buildPost(Entity.json("")));
+    expectSuccess(
+        getBuilder(getHttpClient().getAPIv2().path("/test/create")).buildPost(Entity.json("")));
     assertEquals(4, ns.getSpaces().size());
     assertEquals(1, ns.getHomeSpaces().size());
     doc("Clearing all data");
-    expectSuccess(getBuilder(getAPIv2().path("/test/clear")).buildPost(Entity.json("")));
+    expectSuccess(
+        getBuilder(getHttpClient().getAPIv2().path("/test/clear")).buildPost(Entity.json("")));
     assertEquals(0, ns.getSpaces().size());
     assertEquals(0, ns.getHomeSpaces().size());
-    expectSuccess(getBuilder(getAPIv2().path("/test/create")).buildPost(Entity.json("")));
+    expectSuccess(
+        getBuilder(getHttpClient().getAPIv2().path("/test/create")).buildPost(Entity.json("")));
     assertEquals(4, ns.getSpaces().size());
     assertEquals(1, ns.getHomeSpaces().size());
-    expectSuccess(getBuilder(getAPIv2().path("/test/clear")).buildPost(Entity.json("")));
+    expectSuccess(
+        getBuilder(getHttpClient().getAPIv2().path("/test/clear")).buildPost(Entity.json("")));
     assertEquals(0, ns.getSpaces().size());
     assertEquals(0, ns.getHomeSpaces().size());
   }
@@ -706,7 +786,7 @@ public class TestServer extends BaseTestServer {
   }
 
   private void assertSerialization(String endpoint, String expectedValue) {
-    Response response = getBuilder(getAPIv2().path(endpoint)).buildGet().invoke();
+    Response response = getBuilder(getHttpClient().getAPIv2().path(endpoint)).buildGet().invoke();
     assertEquals(200, response.getStatus());
     String result = response.readEntity(String.class);
     assertEquals(expectedValue, result);
@@ -726,9 +806,18 @@ public class TestServer extends BaseTestServer {
     DatasetPath datasetPath3 = new DatasetPath("space1.ds3");
 
     doc("create datasets");
-    DatasetUI ds1 = createDatasetFromParentAndSave(datasetPath1, "cp.\"tpch/supplier.parquet\"");
-    DatasetUI ds2 = createDatasetFromParentAndSave(datasetPath2, "cp.\"tpch/supplier.parquet\"");
-    DatasetUI ds3 = createDatasetFromParentAndSave(datasetPath3, "cp.\"tpch/supplier.parquet\"");
+    DatasetUI ds1 =
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromParentAndSave(datasetPath1, "cp.\"tpch/supplier.parquet\"");
+    DatasetUI ds2 =
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromParentAndSave(datasetPath2, "cp.\"tpch/supplier.parquet\"");
+    DatasetUI ds3 =
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromParentAndSave(datasetPath3, "cp.\"tpch/supplier.parquet\"");
 
     doc("run jobs");
     submitJobAndWaitUntilCompletion(
@@ -763,7 +852,8 @@ public class TestServer extends BaseTestServer {
     doc("get home");
     Home home =
         expectSuccess(
-            getBuilder(getAPIv2().path("home/@" + DEFAULT_USERNAME)).buildGet(), Home.class);
+            getBuilder(getHttpClient().getAPIv2().path("home/@" + DEFAULT_USERNAME)).buildGet(),
+            Home.class);
     assertEquals(1, (long) home.getHomeConfig().getExtendedConfig().getDatasetCount());
 
     doc("home contents");
@@ -772,18 +862,21 @@ public class TestServer extends BaseTestServer {
 
     doc("get space");
     final Space space1 =
-        expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildGet(), Space.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("space/space1")).buildGet(), Space.class);
     assertEquals(2, space1.getDatasetCount());
 
     doc("get folder");
     Folder folder2 =
         expectSuccess(
-            getBuilder(getAPIv2().path("space/space1/folder/f2")).buildGet(), Folder.class);
+            getBuilder(getHttpClient().getAPIv2().path("space/space1/folder/f2")).buildGet(),
+            Folder.class);
     assertEquals("f2", folder2.getName());
 
     doc("list inside space");
     NamespaceTree lists1f1 =
-        expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildGet(), Space.class)
+        expectSuccess(
+                getBuilder(getHttpClient().getAPIv2().path("space/space1")).buildGet(), Space.class)
             .getContents();
     assertEquals(1, lists1f1.getFolders().size());
   }
@@ -794,7 +887,7 @@ public class TestServer extends BaseTestServer {
     doc("get dataset summary for virtual dataset DG.dsg3");
     DatasetSummary summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary/DG/dsg3")).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("/datasets/summary/DG/dsg3")).buildGet(),
             DatasetSummary.class);
     assertEquals(6, (int) summary.getDescendants());
     assertEquals(0, (int) summary.getJobCount());
@@ -812,14 +905,16 @@ public class TestServer extends BaseTestServer {
     doc("get dataset summary for virtual dataset DG.dsg4 with empty tags");
     summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary/DG/dsg4")).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("/datasets/summary/DG/dsg4")).buildGet(),
             DatasetSummary.class);
     assertEquals(new ArrayList<>(), summary.getTags());
 
     doc("get dataset summary for physical dataset");
     summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary/LocalFS1/dac-sample1.json")).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path("/datasets/summary/LocalFS1/dac-sample1.json"))
+                .buildGet(),
             DatasetSummary.class);
     assertEquals(10, (int) summary.getDescendants());
     assertEquals(0, (int) summary.getJobCount());
@@ -837,7 +932,9 @@ public class TestServer extends BaseTestServer {
     doc("get dataset summary for physical dataset with empty tags");
     summary =
         expectSuccess(
-            getBuilder(getAPIv2().path("/datasets/summary/LocalFS2/dac-sample2.json")).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path("/datasets/summary/LocalFS2/dac-sample2.json"))
+                .buildGet(),
             DatasetSummary.class);
     assertEquals(new ArrayList<>(), summary.getTags());
   }
@@ -850,7 +947,8 @@ public class TestServer extends BaseTestServer {
     references.put(
         "DG", new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
     WebTarget webTarget =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/datasets/summary/DG/dsg3")
             .queryParam("refType", "BRANCH")
             .queryParam("refValue", "branchtest");
@@ -869,7 +967,8 @@ public class TestServer extends BaseTestServer {
     references = new HashMap<>();
     references.put("DG", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
     webTarget =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/datasets/summary/DG/dsg3")
             .queryParam("refType", "TAG")
             .queryParam("refValue", "tagtest");
@@ -892,7 +991,8 @@ public class TestServer extends BaseTestServer {
             VersionContextReq.VersionContextType.COMMIT,
             "d0628f078890fec234b98b873f9e1f3cd140988a"));
     webTarget =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/datasets/summary/DG/dsg3")
             .queryParam("refType", "COMMIT")
             .queryParam("refValue", "d0628f078890fec234b98b873f9e1f3cd140988a");
@@ -910,7 +1010,8 @@ public class TestServer extends BaseTestServer {
     assertThat(summary.getReferences()).usingRecursiveComparison().isEqualTo(references);
 
     webTarget =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/datasets/summary/DG/dsg3")
             .queryParam("refType", "INVALID")
             .queryParam("refValue", "invalid");
@@ -926,7 +1027,8 @@ public class TestServer extends BaseTestServer {
     List<ParentDatasetUI> parents =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path(
                             "/dataset/DG.dsg10/version/"
                                 + dsg10.getVersion().toString()
@@ -941,7 +1043,10 @@ public class TestServer extends BaseTestServer {
     final String query = "select * from sys.version";
     final Invocation invocation =
         getBuilder(
-                getAPIv2().path("datasets/new_untitled_sql").queryParam("newVersion", newVersion()))
+                getHttpClient()
+                    .getAPIv2()
+                    .path("datasets/new_untitled_sql")
+                    .queryParam("newVersion", newVersion()))
             .buildPost(
                 Entity.entity(new CreateFromSQL(query, null), MediaType.APPLICATION_JSON_TYPE));
     InitialPreviewResponse previewResponse =
@@ -960,7 +1065,10 @@ public class TestServer extends BaseTestServer {
     final DatasetVersion version = newVersion();
     final Invocation invocation =
         getBuilder(
-                getAPIv2().path("datasets/new_tmp_untitled_sql").queryParam("newVersion", version))
+                getHttpClient()
+                    .getAPIv2()
+                    .path("datasets/new_tmp_untitled_sql")
+                    .queryParam("newVersion", version))
             .buildPost(
                 Entity.entity(new CreateFromSQL(query, null), MediaType.APPLICATION_JSON_TYPE));
     InitialUntitledRunResponse runResponse =
@@ -977,7 +1085,10 @@ public class TestServer extends BaseTestServer {
     final String query = "select * from values(0)";
     final Invocation invocation =
         getBuilder(
-                getAPIv2().path("datasets/new_untitled_sql").queryParam("newVersion", newVersion()))
+                getHttpClient()
+                    .getAPIv2()
+                    .path("datasets/new_untitled_sql")
+                    .queryParam("newVersion", newVersion()))
             .buildPost(
                 Entity.entity(new CreateFromSQL(query, null), MediaType.APPLICATION_JSON_TYPE));
     Response previewResponse = expectStatus(BAD_REQUEST, invocation);
@@ -1001,7 +1112,8 @@ public class TestServer extends BaseTestServer {
     final String query = "select * from values(0)";
     final Invocation invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("datasets/new_tmp_untitled_sql")
                     .queryParam("newVersion", newVersion()))
             .buildPost(
@@ -1015,7 +1127,8 @@ public class TestServer extends BaseTestServer {
     final String query = "select * from sys.version";
     final Invocation invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("datasets/new_untitled_sql_and_run")
                     .queryParam("newVersion", newVersion()))
             .buildPost(
@@ -1035,7 +1148,8 @@ public class TestServer extends BaseTestServer {
     final DatasetVersion version = newVersion();
     final Invocation invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("datasets/new_tmp_untitled_sql_and_run")
                     .queryParam("newVersion", version))
             .buildPost(
@@ -1064,7 +1178,8 @@ public class TestServer extends BaseTestServer {
             "d0628f078890fec234b98b873f9e1f3cd140988a"));
     final Response invoke =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("datasets/new_untitled_sql_and_run")
                     .queryParam("newVersion", newVersion()))
             .buildPost(
@@ -1090,7 +1205,8 @@ public class TestServer extends BaseTestServer {
             "d0628f078890fec234b98b873f9e1f3cd140988a"));
     final Response invoke =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("datasets/new_tmp_untitled_sql_and_run")
                     .queryParam("newVersion", newVersion()))
             .buildPost(
@@ -1103,7 +1219,8 @@ public class TestServer extends BaseTestServer {
 
   @Test
   public void testHeaders() throws Exception {
-    final Response invoke = getBuilder(getPublicAPI(3).path("catalog")).buildGet().invoke();
+    final Response invoke =
+        getBuilder(getHttpClient().getAPIv3().path("catalog")).buildGet().invoke();
     final MultivaluedMap<String, Object> headers = invoke.getHeaders();
     assertTrue(headers.containsKey("x-content-type-options"));
     assertTrue(headers.containsKey("x-frame-options"));
@@ -1113,12 +1230,14 @@ public class TestServer extends BaseTestServer {
 
   @Test
   public void testGenericResponseHeaders() throws Exception {
-    final Response invoke = getBuilder(getPublicAPI(3).path("catalog")).buildGet().invoke();
+    final Response invoke =
+        getBuilder(getHttpClient().getAPIv3().path("catalog")).buildGet().invoke();
     final MultivaluedMap<String, Object> headersV3 = invoke.getHeaders();
     assertTrue(headersV3.containsKey(HttpHeaders.CACHE_CONTROL));
     assertEquals(headersV3.getFirst(HttpHeaders.CACHE_CONTROL), "no-cache, no-store");
 
-    final Response invoke2 = getBuilder(getAPIv2().path("source/nas_sub")).buildGet().invoke();
+    final Response invoke2 =
+        getBuilder(getHttpClient().getAPIv2().path("source/nas_sub")).buildGet().invoke();
     final MultivaluedMap<String, Object> headersV2 = invoke2.getHeaders();
     assertTrue(headersV2.containsKey(HttpHeaders.CACHE_CONTROL));
     assertEquals(headersV2.getFirst(HttpHeaders.CACHE_CONTROL), "no-cache, no-store");
@@ -1126,7 +1245,8 @@ public class TestServer extends BaseTestServer {
 
   @Test
   public void testErrorResponse() throws Exception {
-    final Response response = getBuilder(getPublicAPI(2).path("catalog")).buildGet().invoke();
+    final Response response =
+        getBuilder(getHttpClient().getAPIRoot().path("v2").path("catalog")).buildGet().invoke();
     assertNull(response.getHeaders().get("Server"));
     assertEquals(404, response.getStatus());
   }

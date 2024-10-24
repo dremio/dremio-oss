@@ -48,7 +48,7 @@ describe("ExploreCellLargeOverlay", () => {
 
   it("should not render Select All if !props.onSelect ", () => {
     const wrapper = shallow(
-      <ExploreCellLargeOverlay {...commonProps} onSelect={null} />
+      <ExploreCellLargeOverlay {...commonProps} onSelect={null} />,
     );
     expect(wrapper.contains("Select all")).to.eql(false);
   });
@@ -56,11 +56,11 @@ describe("ExploreCellLargeOverlay", () => {
   it("should render Select All if type not eql List or MAP ", () => {
     let wrapper = shallow(<ExploreCellLargeOverlay {...commonProps} />);
     expect(
-      shallow(wrapper.instance().renderHeader()).contains("Select all")
+      shallow(wrapper.instance().renderHeader()).contains("Select all"),
     ).to.eql(true);
 
     wrapper = shallow(
-      <ExploreCellLargeOverlay {...commonProps} columnType="LIST" />
+      <ExploreCellLargeOverlay {...commonProps} columnType="LIST" />,
     );
     expect(wrapper.contains("Select all")).to.eql(false);
   });
@@ -72,12 +72,12 @@ describe("ExploreCellLargeOverlay", () => {
     expect(getContent().find("CellPopover")).to.have.length(0);
 
     wrapper = shallow(
-      <ExploreCellLargeOverlay {...commonProps} columnType="LIST" />
+      <ExploreCellLargeOverlay {...commonProps} columnType="LIST" />,
     );
     expect(getContent().find("CellPopover")).to.have.length(1);
 
     wrapper = shallow(
-      <ExploreCellLargeOverlay {...commonProps} columnType="MAP" />
+      <ExploreCellLargeOverlay {...commonProps} columnType="MAP" />,
     );
     expect(getContent().find("CellPopover")).to.have.length(1);
   });
@@ -92,8 +92,8 @@ describe("ExploreCellLargeOverlay", () => {
         null,
         commonProps.columnType,
         commonProps.columnName,
-        commonProps.cellValue
-      )
+        commonProps.cellValue,
+      ),
     ).to.be.true;
   });
 
@@ -119,7 +119,7 @@ describe("ExploreCellLargeOverlay", () => {
 
     it("should do nothing if !this.props.onSelect", () => {
       const wrapper = shallow(
-        <ExploreCellLargeOverlay {...commonProps} onSelect={null} />
+        <ExploreCellLargeOverlay {...commonProps} onSelect={null} />,
       );
       const instance = wrapper.instance();
       instance.onMouseUp();
@@ -128,13 +128,18 @@ describe("ExploreCellLargeOverlay", () => {
     it("should select all content if column type is numeric", () => {
       const { columnName, cellValue } = commonProps;
       const wrapper = shallow(
-        <ExploreCellLargeOverlay {...commonProps} columnType="INTEGER" />
+        <ExploreCellLargeOverlay {...commonProps} columnType="INTEGER" />,
       );
       const instance = wrapper.instance();
       instance.onMouseUp();
 
       expect(
-        commonProps.selectAll.calledWith(null, "INTEGER", columnName, cellValue)
+        commonProps.selectAll.calledWith(
+          null,
+          "INTEGER",
+          columnName,
+          cellValue,
+        ),
       ).to.be.true;
     });
 
@@ -155,7 +160,7 @@ describe("ExploreCellLargeOverlay", () => {
             columnType,
             selection: Immutable.fromJS({ ...data.model, columnName }),
           },
-        })
+        }),
       ).to.be.true;
 
       expect(commonProps.onSelect.calledWith({ ...data.position, columnType }))

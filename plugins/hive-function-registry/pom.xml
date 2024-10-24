@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>25.1.1-202409260159070462-716c0676</version>
+    <version>${revision}</version>
   </parent>
 
   <artifactId>dremio-hive-function-registry</artifactId>
@@ -390,7 +390,7 @@
       <build>
         <plugins>
           <plugin>
-            <groupId>com.dremio.tools</groupId>
+            <groupId>com.dremio.build-tools</groupId>
             <artifactId>dremio-fmpp-maven-plugin</artifactId>
             <executions>
               <execution>
@@ -534,7 +534,7 @@
             </executions>
           </plugin>
           <plugin>
-            <groupId>com.dremio.tools</groupId>
+            <groupId>com.dremio.build-tools</groupId>
             <artifactId>dremio-fmpp-maven-plugin</artifactId>
             <executions>
               <execution>

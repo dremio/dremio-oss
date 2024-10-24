@@ -73,12 +73,17 @@ public class SqlAlterEngine extends SqlManageEngine {
     writer.keyword("ALTER");
     writer.keyword("ENGINE");
     engineName.unparse(writer, leftPrec, rightPrec);
+    writer.keyword("SET");
+    boolean addComma = minReplicas != null && maxReplicas != null;
     if (minReplicas != null) {
-      writer.keyword("MIN_REPLICAS");
+      writer.keyword("MIN_REPLICAS = ");
       writer.keyword(minReplicas.toString());
     }
+    if (addComma) {
+      writer.keyword(",");
+    }
     if (maxReplicas != null) {
-      writer.keyword("MAX_REPLICAS");
+      writer.keyword("MAX_REPLICAS = ");
       writer.keyword(maxReplicas.toString());
     }
   }

@@ -19,7 +19,7 @@ import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import { Link } from "react-router";
 
-import { MAP, TEXT, LIST, STRUCT } from "@app/constants/DataTypes";
+import { MAP, TEXT, LIST, STRUCT } from "#oss/constants/DataTypes";
 
 import exploreUtils from "utils/explore/exploreUtils";
 import { IconButton } from "dremio-ui-lib/components";
@@ -113,7 +113,7 @@ export class TransformHeader extends PureComponent {
 
       const linkStyle = {
         ...styles.tab,
-        color: isEnabled ? "black" : "var(--color--neutral--300)",
+        color: isEnabled ? "var(--text--primary)" : "var(--text--disabled)",
       };
 
       if (!isEnabled) {
@@ -190,16 +190,18 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     padding: "0 10px",
-    color: "#000000",
+    color: "var(--text--primary)",
     cursor: "pointer",
+    textDecoration: "none",
   },
   activeTab: {
-    backgroundColor: "#77818F",
+    backgroundColor: "var(--fill--brand--solid)",
     position: "absolute",
     bottom: -1,
     width: "calc(100% - 10px)",
     height: 3,
     left: 5,
+    textDecoration: "none",
   },
   content: {
     display: "flex",

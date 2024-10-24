@@ -37,6 +37,7 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -52,6 +53,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
@@ -79,7 +81,7 @@ public class InProcessPubSubClient implements PubSubClient, Closeable {
 
   private final OptionManager optionManager;
   private final Tracer tracer;
-  @Nullable private final InProcessPubSubEventListener eventListener;
+  private final InProcessPubSubEventListener eventListener;
 
   private final CountDownLatch shutdownLatch = new CountDownLatch(1);
   private final ExecutorService executorService;
@@ -90,14 +92,14 @@ public class InProcessPubSubClient implements PubSubClient, Closeable {
   private final Multimap<String, String> subscriptionNamesByTopicName = ArrayListMultimap.create();
   private final Map<String, Subscriber<? extends Message>> subscribersBySubscriptionName =
       new HashMap<>();
-  private final AutoResetEvent publishEvent = new AutoResetEvent();
+  private final AutoResetEvent startProcessingEvent = new AutoResetEvent();
   private final Semaphore messagesInProcessingSemaphore;
 
   @Inject
   public InProcessPubSubClient(
       OptionManager optionManager,
       OpenTelemetry openTelemetry,
-      @Nullable InProcessPubSubEventListener eventListener) {
+      InProcessPubSubEventListener eventListener) {
     this.optionManager = optionManager;
     this.tracer = openTelemetry.getTracer(INSTRUMENTATION_SCOPE_NAME);
     this.eventListener = eventListener;
@@ -147,6 +149,10 @@ public class InProcessPubSubClient implements PubSubClient, Closeable {
       Class<? extends Subscription<M>> subscriptionClass,
       MessageConsumer<M> messageConsumer,
       MessageSubscriberOptions options) {
+    if (options.maxAckPending().isPresent() || options.ackWait().isPresent()) {
+      throw new UnsupportedOperationException(
+          "The settings: maxAckPending, ackWait are not supported for this subscriber.");
+    }
     Subscription<M> subscription;
     Topic<M> topic;
     try {
@@ -187,16 +193,12 @@ public class InProcessPubSubClient implements PubSubClient, Closeable {
 
   private void onPublish(
       String topicName, int queueLength, boolean success, @Nullable String exceptionName) {
-    if (eventListener != null) {
-      eventListener.onPublish(topicName, queueLength, success, exceptionName);
-    }
+    eventListener.onPublish(topicName, queueLength, success, exceptionName);
   }
 
   private void onMessageReceived(
       String topicName, String subscriptionName, boolean success, @Nullable String exceptionName) {
-    if (eventListener != null) {
-      eventListener.onMessageReceived(topicName, subscriptionName, success, exceptionName);
-    }
+    eventListener.onMessageReceived(topicName, subscriptionName, success, exceptionName);
   }
 
   /** Iterates over messages in the message queues and processes them on the executor. */
@@ -204,40 +206,59 @@ public class InProcessPubSubClient implements PubSubClient, Closeable {
     try {
       while (!shutdownLatch.await(0, TimeUnit.MILLISECONDS)) {
         // Continue waiting if no messages to process.
-        publishEvent.waitEvent(
+        startProcessingEvent.waitEvent(
             optionManager.getOption(InProcessPubSubClientOptions.QUEUE_POLL_MILLIS));
 
         // Iterate over all topics, poll messages up to a limit and submit for execution.
         // Ok to do it under a lock as it only queues the tasks w/o running them.
-        boolean setPublishEvent = false;
+        boolean setProcessingEvent = false;
         synchronized (queuesByTopicName) {
           for (Map.Entry<String, ArrayBlockingQueue<MessageContainer<?>>> entry :
               queuesByTopicName.entrySet()) {
+            // Collect up to this number of messages to process them in order by subscription.
             long maxMessagesToPoll =
                 optionManager.getOption(InProcessPubSubClientOptions.MAX_MESSAGES_TO_POLL);
+            Multimap<String, MessageContainer<?>> messagesToProcess = ArrayListMultimap.create();
             while (!entry.getValue().isEmpty() && maxMessagesToPoll-- > 0) {
-              // The peek/poll logic here won't let parallelize this method as poll may return a
-              // different result if multiple threads poll from the queues.
-              ArrayBlockingQueue<MessageContainer<?>> queue = entry.getValue();
-              MessageContainer<?> messageContainer = queue.peek();
-              Subscriber<?> subscriber;
-              synchronized (subscribersBySubscriptionName) {
-                subscriber =
-                    subscribersBySubscriptionName.get(messageContainer.getSubscriptionName());
-              }
+              MessageContainer<?> messageContainer = entry.getValue().peek();
+              Subscriber<?> subscriber = getSubscriber(messageContainer.getSubscriptionName());
               if (subscriber != null) {
-                // Try to acquire permit to process the message.
-                if (messagesInProcessingSemaphore.tryAcquire(
-                    optionManager.getOption(InProcessPubSubClientOptions.QUEUE_POLL_MILLIS),
-                    TimeUnit.MILLISECONDS)) {
-                  final MessageContainer<?> messageContainer1 = queue.poll();
-                  executorService.submit(() -> subscriber.processMessage(messageContainer1));
+                // Cannot add more work to it until it's done to preserve order.
+                if (!subscriber.isProcessing()) {
+                  // Try to acquire permit to process the message.
+                  if (messagesInProcessingSemaphore.tryAcquire(
+                      optionManager.getOption(InProcessPubSubClientOptions.QUEUE_POLL_MILLIS),
+                      TimeUnit.MILLISECONDS)) {
+                    messageContainer = entry.getValue().take();
+                    messagesToProcess.put(messageContainer.getSubscriptionName(), messageContainer);
+                  }
                 }
+              } else {
+                // Subscriber does not exist, remove message from the queue.
+                entry.getValue().take().ack();
               }
             }
 
-            if (!entry.getValue().isEmpty()) {
-              setPublishEvent = true;
+            // Process messages in batches.
+            for (String subscriptionName : messagesToProcess.keySet()) {
+              Collection<MessageContainer<?>> subscriptionMessages =
+                  messagesToProcess.get(subscriptionName);
+              Subscriber<?> subscriber = getSubscriber(subscriptionName);
+              if (subscriber != null) {
+                // Set isProcessing on the subscriber to prevent adding more work
+                // until it's done.
+                subscriber.setIsProcessing();
+                executorService.submit(() -> subscriber.processMessages(subscriptionMessages));
+              } else {
+                // Subscriber is no longer available, release acquired permits.
+                messagesInProcessingSemaphore.release(subscriptionMessages.size());
+              }
+            }
+
+            // If the queue is not empty and some messages were posted to be processed,
+            // trigger next batch processing w/o wait.
+            if (!entry.getValue().isEmpty() && !messagesToProcess.isEmpty()) {
+              setProcessingEvent = true;
             }
           }
         }
@@ -253,12 +274,20 @@ public class InProcessPubSubClient implements PubSubClient, Closeable {
         }
 
         // If any of the queues is not empty, immediately start next processing iteration.
-        if (setPublishEvent || !redeliveryQueue.isEmpty()) {
-          publishEvent.set();
+        if (setProcessingEvent || !redeliveryQueue.isEmpty()) {
+          startProcessingEvent.set();
         }
       }
     } catch (InterruptedException e) {
       logger.warn("Interrupted queue processing", e);
+    } catch (Exception e) {
+      logger.error("Failed in queueProcessingThread", e);
+    }
+  }
+
+  private Subscriber<?> getSubscriber(String subscriptionName) {
+    synchronized (subscribersBySubscriptionName) {
+      return subscribersBySubscriptionName.get(subscriptionName);
     }
   }
 
@@ -324,7 +353,7 @@ public class InProcessPubSubClient implements PubSubClient, Closeable {
                 }
 
                 // Notify queue processing thread that new messages are available.
-                publishEvent.set();
+                startProcessingEvent.set();
 
                 // Notify listener.
                 onPublish(topicName, queue.size(), true, null);
@@ -355,6 +384,7 @@ public class InProcessPubSubClient implements PubSubClient, Closeable {
     private final String topicName;
     private final String subscriptionName;
     private final MessageConsumer<M> messageConsumer;
+    private final AtomicBoolean isProcessing = new AtomicBoolean(false);
 
     private Subscriber(
         String topicName, String subscriptionName, MessageConsumer<M> messageConsumer) {
@@ -367,33 +397,52 @@ public class InProcessPubSubClient implements PubSubClient, Closeable {
       return subscriptionName;
     }
 
-    private void processMessage(MessageContainer<?> messageContainer) {
-      PubSubTracerDecorator.addSubscribeTracing(
-          tracer,
-          subscriptionName,
-          Context.current(),
-          (span) -> {
-            try {
-              messageConsumer.process((MessageContainer<M>) messageContainer);
+    private boolean isProcessing() {
+      return isProcessing.get();
+    }
 
-              // Notify listener.
-              onMessageReceived(topicName, subscriptionName, true, null);
-            } catch (Exception e) {
-              span.recordException(e);
+    private void setIsProcessing() {
+      isProcessing.set(true);
+    }
 
-              // Notify listener.
-              onMessageReceived(topicName, subscriptionName, false, e.getClass().getSimpleName());
+    /** Messages per subscriber are processed synchronously to guarantee the order. */
+    private void processMessages(Collection<MessageContainer<?>> messageContainers) {
+      try {
+        for (MessageContainer<?> messageContainer : messageContainers) {
+          PubSubTracerDecorator.addSubscribeTracing(
+              tracer,
+              subscriptionName,
+              Context.current(),
+              (span) -> {
+                try {
+                  messageConsumer.process((MessageContainer<M>) messageContainer);
 
-              // All uncaught exceptions result in an ack, the message consumer must decide how to
-              // handle
-              // exceptions otherwise.
-              messageContainer.ack();
-            } finally {
-              // Release the permit.
-              messagesInProcessingSemaphore.release();
-            }
-            return null;
-          });
+                  // Notify listener.
+                  onMessageReceived(topicName, subscriptionName, true, null);
+                } catch (Exception e) {
+                  span.recordException(e);
+
+                  // Notify listener.
+                  onMessageReceived(
+                      topicName, subscriptionName, false, e.getClass().getSimpleName());
+
+                  // All uncaught exceptions result in an ack, the message consumer must decide how
+                  // to handle exceptions otherwise.
+                  messageContainer.ack();
+                } finally {
+                  // Release the permit.
+                  messagesInProcessingSemaphore.release();
+                }
+                return null;
+              });
+        }
+      } finally {
+        isProcessing.set(false);
+
+        // Raise startProcessingEvent as the queue processing thread may be waiting for
+        // this subscriber to finish processing before submitting more work.
+        startProcessingEvent.set();
+      }
     }
 
     @Override
@@ -486,6 +535,11 @@ public class InProcessPubSubClient implements PubSubClient, Closeable {
         // This message will not be re-attempted.
         return CompletableFuture.completedFuture(MessageAckStatus.FAILED_PRECONDITION);
       }
+    }
+
+    @Override
+    public String toString() {
+      return String.format("%s, %s: %s", topicName, subscriptionName, getMessage());
     }
   }
 

@@ -15,14 +15,14 @@
  */
 
 import { useContext, useMemo, useState, useEffect } from "react";
-import { intl } from "@app/utils/intl";
-import VersionedPageTableHeader from "@app/exports/pages/VersionedHomePage/components/VersionedPageTableHeader/VersionedPageTableHeader";
+import { intl } from "#oss/utils/intl";
+import VersionedPageTableHeader from "#oss/exports/pages/VersionedHomePage/components/VersionedPageTableHeader/VersionedPageTableHeader";
 import RepoViewBranchList from "./components/RepoViewBranchList/RepoViewBranchList";
 import NewTagDialog from "../../../NewTagDialog/NewTagDialog";
 import NewBranchDialog from "../../../NewBranchDialog/NewBranchDialog";
 import DeleteBranchDialog from "../../../DeleteBranchDialog/DeleteBranchDialog";
 import MergeBranchDialog from "../../../MergeBranchDialog/MergeBranchDialog";
-import { Reference } from "@app/types/nessie";
+import { Reference } from "#oss/types/nessie";
 import { RepoViewContext } from "../../RepoView";
 
 import "./RepoViewBody.less";

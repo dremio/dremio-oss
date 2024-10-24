@@ -23,11 +23,11 @@ import AggregateForm from "components/Aggregate/AggregateForm";
 import Spinner from "components/Spinner";
 import AccelerationRecommendationModal from "./AccelerationRecommendationModal";
 
-import "@app/uiTheme/less/commonModifiers.less";
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import "#oss/uiTheme/less/commonModifiers.less";
+import "#oss/uiTheme/less/Acceleration/Acceleration.less";
 
 import LayoutInfo from "../LayoutInfo";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 class AccelerationAggregate extends PureComponent {
   static getFields() {

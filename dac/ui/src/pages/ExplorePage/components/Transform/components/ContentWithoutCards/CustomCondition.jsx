@@ -52,7 +52,7 @@ class CustomCondition extends Component {
           onChange={this.onChange}
           style={styles.addFieldEditor}
           tooltip={laDeprecated(
-            "Write an expression that evaluates to TRUE or FALSE."
+            "Write an expression that evaluates to TRUE or FALSE.",
           )}
           //todo DX-12762
           blockHeight={140}

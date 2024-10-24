@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { SERVER_STATUS_OK } from "@app/constants/serverStatus";
+import { SERVER_STATUS_OK } from "#oss/constants/serverStatus";
 
 const isProductionBuild = process.env.NODE_ENV === "production";
 

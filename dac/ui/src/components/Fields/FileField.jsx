@@ -199,7 +199,7 @@ const styles = {
     minWidth: PROGRESS_BAR_WIDTH,
     padding: "5px 10px",
     borderRadius: 3,
-    border: `2px solid var(--color--neutral--50)`,
+    border: `2px solid var(--border--neutral)`,
     display: "flex",
     justifyContent: "space-between",
     backgroundColor: "#fff",

@@ -36,7 +36,7 @@ import {
   getFormatPreviewUrl,
   getCurrentFormatUrl,
   getQueryUrl,
-} from "@app/selectors/home";
+} from "#oss/selectors/home";
 
 export const VIEW_ID = "FileFormatModal";
 const PREVIEW_VIEW_ID = "FileFormatModalPreview";
@@ -91,7 +91,7 @@ export class FileFormatController extends Component {
   onSubmitFormat = (values) => {
     const { fullPath, isFolder } = this.props;
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.saveFileFormat(getSaveFormatUrl(fullPath, isFolder), values)
+      this.props.saveFileFormat(getSaveFormatUrl(fullPath, isFolder), values),
     ).then(() => {
       if (this.props.query && this.props.query.then === "query") {
         this.context.router.replace(getQueryUrl(fullPath));
@@ -107,7 +107,7 @@ export class FileFormatController extends Component {
     this.props.loadFilePreview(
       getFormatPreviewUrl(fullPath, isFolder),
       values,
-      PREVIEW_VIEW_ID
+      PREVIEW_VIEW_ID,
     );
   };
 
@@ -133,7 +133,7 @@ function mapStateToProps(state, props) {
   invariant(
     !entityType || ["file", "folder"].indexOf(entityType) !== -1, // todo: DRY this up - all other checks like this moved to DatasetSettings
     "FileFormatController can only work on file or folder entities. Got " +
-      entityType
+      entityType,
   );
 
   const isFolder = entityType === "folder";

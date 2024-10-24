@@ -18,6 +18,7 @@ package com.dremio.plugins.dataplane.exec;
 import static com.dremio.exec.store.iceberg.SnapshotsScanOptions.Mode.LIVE_SNAPSHOTS;
 import static com.dremio.exec.store.iceberg.TestSingleTableIcebergExpirySnapshotsReader.generateUniqueTableName;
 import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
+import static org.apache.iceberg.DremioTableProperties.NESSIE_GC_ENABLED;
 import static org.apache.iceberg.TableProperties.COMMIT_NUM_RETRIES;
 import static org.apache.iceberg.TableProperties.GC_ENABLED;
 import static org.apache.iceberg.TableProperties.MIN_SNAPSHOTS_TO_KEEP;
@@ -79,6 +80,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -102,6 +104,7 @@ import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
@@ -244,8 +247,18 @@ public class TestNessieIcebergExpirySnapshotsReader {
 
     // NessieCatalog defaults GC_ENABLED to true. Hence, set it explicitly. This action will create
     // another metadata json.
-    table1.updateProperties().set(GC_ENABLED, "true").set(COMMIT_NUM_RETRIES, "5").commit();
-    table2.updateProperties().set(GC_ENABLED, "true").set(COMMIT_NUM_RETRIES, "5").commit();
+    table1
+        .updateProperties()
+        .set(NESSIE_GC_ENABLED, "true")
+        .set(GC_ENABLED, "false")
+        .set(COMMIT_NUM_RETRIES, "5")
+        .commit();
+    table2
+        .updateProperties()
+        .set(NESSIE_GC_ENABLED, "true")
+        .set(GC_ENABLED, "false")
+        .set(COMMIT_NUM_RETRIES, "5")
+        .commit();
 
     NessieIcebergExpirySnapshotsReader reader =
         new NessieIcebergExpirySnapshotsReader(
@@ -296,7 +309,12 @@ public class TestNessieIcebergExpirySnapshotsReader {
     tables.forEach(
         t -> IntStream.range(0, noOfSnapshots).forEach(s -> newSnapshot(t, noOfSnapshots + s)));
     tables.forEach(
-        t -> t.updateProperties().set(GC_ENABLED, "true").set(COMMIT_NUM_RETRIES, "5").commit());
+        t ->
+            t.updateProperties()
+                .set(NESSIE_GC_ENABLED, "true")
+                .set(GC_ENABLED, "false")
+                .set(COMMIT_NUM_RETRIES, "5")
+                .commit());
 
     NessieIcebergExpirySnapshotsReader reader =
         new NessieIcebergExpirySnapshotsReader(
@@ -337,7 +355,11 @@ public class TestNessieIcebergExpirySnapshotsReader {
 
     // Following should be retained
     tables.forEach(
-        t -> t.updateProperties().set(GC_ENABLED, "false").set(COMMIT_NUM_RETRIES, "5").commit());
+        t ->
+            t.updateProperties()
+                .set(NESSIE_GC_ENABLED, "false")
+                .set(COMMIT_NUM_RETRIES, "5")
+                .commit());
 
     NessieIcebergExpirySnapshotsReader reader =
         new NessieIcebergExpirySnapshotsReader(
@@ -388,7 +410,12 @@ public class TestNessieIcebergExpirySnapshotsReader {
     SnapshotsScanOptions scanOptions = new SnapshotsScanOptions(LIVE_SNAPSHOTS, cutoff, 1);
 
     tables.forEach(
-        t -> t.updateProperties().set(GC_ENABLED, "true").set(MIN_SNAPSHOTS_TO_KEEP, "4").commit());
+        t ->
+            t.updateProperties()
+                .set(NESSIE_GC_ENABLED, "true")
+                .set(GC_ENABLED, "false")
+                .set(MIN_SNAPSHOTS_TO_KEEP, "4")
+                .commit());
 
     NessieIcebergExpirySnapshotsReader reader =
         new NessieIcebergExpirySnapshotsReader(
@@ -596,7 +623,8 @@ public class TestNessieIcebergExpirySnapshotsReader {
             any(IcebergTableProps.class),
             anyString(),
             any(OperatorContext.class),
-            eq(icebergFileIO)))
+            eq(icebergFileIO),
+            any()))
         .then(
             (Answer<IcebergModel>)
                 invocation -> {
@@ -618,6 +646,7 @@ public class TestNessieIcebergExpirySnapshotsReader {
                       version,
                       plugin,
                       user,
+                      null,
                       s -> s);
                 });
 
@@ -669,7 +698,10 @@ public class TestNessieIcebergExpirySnapshotsReader {
     String table1QualifiedName = String.format("%s@%s", tableName, workingBranchName);
     Table table =
         nessieIcebergCatalog.createTable(
-            TableIdentifier.of(table1QualifiedName), icebergTableSchema);
+            TableIdentifier.of(table1QualifiedName),
+            icebergTableSchema,
+            PartitionSpec.unpartitioned(),
+            Map.of(NESSIE_GC_ENABLED, "false"));
     // Note that gc.enabled is hard-coded to false in NessieCatalog. So, the expiry action will be
     // ignored by default.
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { RSAA } from "redux-api-middleware";
-import { APIV3Call } from "@app/core/APICall";
+import { APIV3Call } from "#oss/core/APICall";
 
 export const LOAD_STARRED_RESOURCE_LIST_START =
   "LOAD_STARRED_RESOURCE_LIST_START";

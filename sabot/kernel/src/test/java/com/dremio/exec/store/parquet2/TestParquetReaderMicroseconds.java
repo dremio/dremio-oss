@@ -39,12 +39,12 @@ public class TestParquetReaderMicroseconds extends BaseTestQuery {
 
   @BeforeClass
   public static void setUp() {
-    setSystemOption(PARQUET_READER_VECTORIZE.getOptionName(), "false");
+    setSystemOption(PARQUET_READER_VECTORIZE, false);
   }
 
   @AfterClass
   public static void tearDown() {
-    resetSystemOption(PARQUET_READER_VECTORIZE.getOptionName());
+    resetSystemOption(PARQUET_READER_VECTORIZE);
   }
 
   @Test

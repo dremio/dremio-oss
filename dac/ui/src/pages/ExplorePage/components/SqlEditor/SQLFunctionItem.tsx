@@ -18,15 +18,15 @@ import { useSelector } from "react-redux";
 import { createSelector } from "reselect";
 import { ExternalLink, IconButton } from "dremio-ui-lib/components";
 import DragSource from "components/DragComponents/DragSource";
-import { intl } from "@app/utils/intl";
-import { getExploreState } from "@app/selectors/explore";
-import { ModifiedSQLFunction } from "@app/endpoints/SQLFunctions/listSQLFunctions";
+import { intl } from "#oss/utils/intl";
+import { getExploreState } from "#oss/selectors/explore";
+import { ModifiedSQLFunction } from "#oss/endpoints/SQLFunctions/listSQLFunctions";
 import {
   Parameter,
   ParameterKindEnum,
   SampleCode,
-} from "@app/types/sqlFunctions";
-import TextHighlight from "@app/components/TextHighlight";
+} from "#oss/types/sqlFunctions";
+import TextHighlight from "#oss/components/TextHighlight";
 import { Tag } from "../TagsEditor/Tag";
 
 import * as classes from "./SQLFunctionItem.module.less";
@@ -42,7 +42,7 @@ type SQLFunctionItemProps = {
 
 const selectIsMultiQueryRunning = createSelector(
   (state) => getExploreState(state)?.view.isMultiQueryRunning,
-  (isMultiQueryRunning: boolean) => isMultiQueryRunning
+  (isMultiQueryRunning: boolean) => isMultiQueryRunning,
 );
 
 const SQLFunctionItem = ({
@@ -132,7 +132,7 @@ const SQLFunctionItem = ({
                           : ""}
                       </b>
                       {`${
-                        param.description ?? param?.type
+                        (param.description ?? param?.type)
                           ? `: ${param.description ?? param?.type}`
                           : ""
                       }`}
@@ -180,7 +180,7 @@ const MemoizedSQLFunctionItem = React.memo(
     !(
       prevProps.isActiveRow !== nextProps.isActiveRow ||
       prevProps.searchKey !== nextProps.searchKey
-    )
+    ),
 );
 
 export default MemoizedSQLFunctionItem;

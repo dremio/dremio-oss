@@ -28,7 +28,7 @@ import { getSearchResult, getViewState } from "selectors/resources";
 
 import ResourceTreeContainer from "../Tree/ResourceTreeContainer";
 import searchComponentConfig from "@inject/components/formsForAddData/searchComponentConfig";
-import { withFilterTreeArs } from "@app/utils/datasetTreeUtils";
+import { withFilterTreeArs } from "#oss/utils/datasetTreeUtils";
 
 import "./ExistingForm.less";
 import {
@@ -104,6 +104,7 @@ export class ExistingForm extends Component {
           showFolders
           showDataSets
           showSources
+          fromModal
           style={{ flex: 1, minHeight: 0, height: 210 }}
           shouldShowOverlay={false}
         />
@@ -151,5 +152,5 @@ export default compose(
   connect(mapStateToProps, {
     loadSourceListData,
     loadSearchData,
-  })
+  }),
 )(ExistingForm);

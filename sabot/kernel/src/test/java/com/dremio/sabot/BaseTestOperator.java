@@ -376,7 +376,7 @@ public class BaseTestOperator extends ExecTest {
     }
   }
 
-  protected static class OperatorTestContext implements AutoCloseable {
+  public static class OperatorTestContext implements AutoCloseable {
 
     SabotConfig config = DEFAULT_SABOT_CONFIG;
     final ScanResult result = CLASSPATH_SCAN_RESULT;
@@ -854,13 +854,24 @@ public class BaseTestOperator extends ExecTest {
       T op = pair.first;
       stats = pair.second;
       stats.startProcessing();
+      stats.startSetup();
       final VectorAccessible output = op.setup(generator.getOutput());
+      stats.stopSetup();
+      stats.stopProcessing();
       int count;
       while (op.getState() != State.DONE && (count = generator.next(batchSize)) != 0) {
         assertState(op, State.CAN_CONSUME);
+
+        stats.startProcessing();
         op.consumeData(count);
+        stats.stopProcessing();
+
         while (op.getState() == State.CAN_PRODUCE) {
+
+          stats.startProcessing();
           int recordsOutput = op.outputData();
+          stats.stopProcessing();
+
           recordCount += recordsOutput;
           if (validator != null && recordsOutput > 0) {
             data.add(new RecordBatchData(output, getTestAllocator()));
@@ -869,11 +880,15 @@ public class BaseTestOperator extends ExecTest {
       }
 
       if (op.getState() == State.CAN_CONSUME) {
+        stats.startProcessing();
         op.noMoreToConsume();
+        stats.stopProcessing();
       }
 
       while (op.getState() == State.CAN_PRODUCE) {
+        stats.startProcessing();
         int recordsOutput = op.outputData();
+        stats.stopProcessing();
         recordCount += recordsOutput;
         if (recordsOutput > 0) {
           data.add(new RecordBatchData(output, getTestAllocator()));
@@ -881,10 +896,10 @@ public class BaseTestOperator extends ExecTest {
       }
 
       if (op.getState() == State.CAN_CONSUME) {
+        stats.startProcessing();
         op.noMoreToConsume();
+        stats.stopProcessing();
       }
-
-      stats.stopProcessing();
       assertState(op, State.DONE);
       if (validator != null) {
         validator.checkValid(data);
@@ -912,7 +927,7 @@ public class BaseTestOperator extends ExecTest {
    * @param isProduceRequired whether CAN_PRODUCE state should be called or not
    * @throws Exception
    */
-  protected <T extends DualInputOperator> void validateDual(
+  protected <T extends DualInputOperator> OperatorStats validateDual(
       PhysicalOperator pop,
       Class<T> clazz,
       Generator left,
@@ -922,13 +937,12 @@ public class BaseTestOperator extends ExecTest {
       boolean isProduceRequired)
       throws Exception {
 
+    Pair<T, OperatorStats> opPair = newOperatorWithStats(clazz, pop, batchSize);
+    T op = opPair.first;
+
     final List<RecordBatchData> data = new ArrayList<>();
     try (Generator leftGen = left;
-        Generator rightGen = right; ) {
-
-      // op is added to closeable list and will be closed when test finished. no need to close here.
-      T op = newOperator(clazz, pop, batchSize);
-
+        Generator rightGen = right) {
       final VectorAccessible output = op.setup(leftGen.getOutput(), right.getOutput());
 
       outside:
@@ -952,7 +966,8 @@ public class BaseTestOperator extends ExecTest {
             break;
           case CAN_PRODUCE:
             int outputCount = op.outputData();
-            if (outputCount > 0 || (outputCount == 0 && result.isExpectZero())) {
+            if (outputCount > 0
+                || (outputCount == 0 && (result != null && result.isExpectZero()))) {
               data.add(new RecordBatchData(output, getTestAllocator()));
             }
             break;
@@ -964,15 +979,18 @@ public class BaseTestOperator extends ExecTest {
       }
 
       assertState(op, State.DONE);
-      if (!isProduceRequired && data.isEmpty() && result.isExpectZero()) {
+      if (!isProduceRequired && data.isEmpty() && (result != null && result.isExpectZero())) {
         ((VectorContainer) output).setAllCount(0);
         data.add(new RecordBatchData(output, getTestAllocator()));
       }
-      result.checkValid(data);
+      if (result != null) {
+        result.checkValid(data);
+      }
 
     } finally {
       AutoCloseables.close(data);
     }
+    return opPair.second;
   }
 
   /**

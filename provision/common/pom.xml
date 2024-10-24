@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-provision-parent</artifactId>
-    <version>25.1.1-202409260159070462-716c0676</version>
+    <version>${revision}</version>
   </parent>
 
   <groupId>com.dremio.provision</groupId>
@@ -47,11 +47,6 @@
     <dependency>
       <groupId>org.hibernate.validator</groupId>
       <artifactId>hibernate-validator</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.hibernate.validator</groupId>
-      <artifactId>hibernate-validator-annotation-processor</artifactId>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>javax.el</groupId>
@@ -137,7 +132,7 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>com.dremio.tools</groupId>
+        <groupId>com.dremio.build-tools</groupId>
         <artifactId>dremio-protostuff-maven-plugin</artifactId>
         <executions>
           <execution>

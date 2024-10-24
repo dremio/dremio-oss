@@ -202,38 +202,50 @@ public class TestDatasetDependencyChanges extends BaseTestServer {
   public void testDatasetDependencyChange() {
     // Create initial dataset
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
             .buildPost(
                 Entity.json(
                     new com.dremio.dac.api.Space(null, "spaceCreateDataset", null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
     DatasetUI ds1 =
-        createDatasetFromSQLAndSave(
-            new DatasetPath("spaceCreateDataset.ds1"), datasetDefOne, Arrays.asList("cp"));
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromSQLAndSave(
+                new DatasetPath("spaceCreateDataset.ds1"), datasetDefOne, Arrays.asList("cp"));
 
     // Create second dataset dependent on the previous dataset
     DatasetUI ds2 =
-        createDatasetFromSQLAndSave(
-            new DatasetPath("spaceCreateDataset.ds2"), datasetDefTwo, Arrays.asList("cp"));
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromSQLAndSave(
+                new DatasetPath("spaceCreateDataset.ds2"), datasetDefTwo, Arrays.asList("cp"));
 
     // Create third dataset dependent on the previous dataset
     DatasetUI ds3 =
-        createDatasetFromSQLAndSave(
-            new DatasetPath("spaceCreateDataset.ds3"), datasetDefThree, Arrays.asList("cp"));
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromSQLAndSave(
+                new DatasetPath("spaceCreateDataset.ds3"), datasetDefThree, Arrays.asList("cp"));
 
     // Rename the dependent dataset
-    rename(getDatasetPath(datasetToChange == 1 ? ds1 : ds2), "old_dataset");
+    DatasetUI datasetUI = datasetToChange == 1 ? ds1 : ds2;
+    getHttpClient().getDatasetApi().rename(datasetUI.toDatasetPath(), "old_dataset");
 
     // Recreate dataset with a different schema
-    createDatasetFromSQLAndSave(
-        new DatasetPath(String.format("spaceCreateDataset.ds%d", datasetToChange)),
-        datasetDefRedefined,
-        Arrays.asList("cp"));
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSave(
+            new DatasetPath(String.format("spaceCreateDataset.ds%d", datasetToChange)),
+            datasetDefRedefined,
+            Arrays.asList("cp"));
 
     // Preview ds3 with changed dependency
     if (expectError) {
       final Invocation invocation =
-          getBuilder(getAPIv2().path("dataset/" + getDatasetPath(ds3).toPathString() + "/preview"))
+          getBuilder(
+                  getHttpClient()
+                      .getAPIv2()
+                      .path("dataset/" + ds3.toDatasetPath().toPathString() + "/preview"))
               .buildGet();
 
       ApiErrorModel errorMessage =
@@ -247,7 +259,8 @@ public class TestDatasetDependencyChanges extends BaseTestServer {
           "Definition of this dataset is out of date",
           errorMessage.getErrorMessage().split("\\.")[0]);
     } else {
-      InitialDataPreviewResponse resp = getPreview(getDatasetPath(ds3));
+      InitialDataPreviewResponse resp =
+          getHttpClient().getDatasetApi().getPreview(ds3.toDatasetPath());
       assertEquals(EXPECTED_COLUMN_COUNT, resp.getData().getReturnedRowCount());
     }
   }

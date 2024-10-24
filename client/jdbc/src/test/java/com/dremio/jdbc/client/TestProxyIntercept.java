@@ -15,6 +15,9 @@
  */
 package com.dremio.jdbc.client;
 
+import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.rpc.proxy.ProxyConfig;
 import com.dremio.jdbc.test.JdbcAssert;
@@ -24,24 +27,34 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class TestProxyIntercept extends BaseTestQuery {
   private static final String SOCKS_PROXY_USERNAME = "testUser";
   private static final String SOCKS_PROXY_PASSWORD = "testPassword";
 
+  @BeforeClass
+  public static void setup() throws Exception {
+    // Skip since ProxyServer does not work with the bouncy castle fips library
+    // The published driver is not from the MapR build anyway
+    assumeNonMaprProfile();
+  }
+
+  private static Properties newProxyProperties(DremioSocks5ProxyServer proxy) {
+    Properties properties = JdbcAssert.getDefaultProperties();
+    properties.put(ProxyConfig.SOCKS_PROXY_HOST, proxy.address().getHostName());
+    properties.put(ProxyConfig.SOCKS_PROXY_PORT, String.valueOf(proxy.address().getPort()));
+    return properties;
+  }
+
   @Test
   public void testProxyNoAuth() throws Exception {
-    final InetSocketAddress destinationAddress = new InetSocketAddress("localhost", getPort());
+    final InetSocketAddress destinationAddress =
+        new InetSocketAddress("localhost", getFirstCoordinatorEndpoint().getUserPort());
 
     try (DremioSocks5ProxyServer proxyNoAuth = new DremioSocks5ProxyServer(destinationAddress)) {
-
-      final String socksProxyHost = proxyNoAuth.address().getHostName();
-      final String socksProxyPort = String.valueOf(proxyNoAuth.address().getPort());
-
-      Properties properties = JdbcAssert.getDefaultProperties();
-      properties.put(ProxyConfig.SOCKS_PROXY_HOST, socksProxyHost);
-      properties.put(ProxyConfig.SOCKS_PROXY_PORT, socksProxyPort);
+      Properties properties = newProxyProperties(proxyNoAuth);
 
       DriverManager.getConnection(getJDBCURL(), properties);
       proxyNoAuth.checkExceptions();
@@ -51,17 +64,14 @@ public class TestProxyIntercept extends BaseTestQuery {
 
   @Test
   public void testProxyAuth() throws Exception {
-    final InetSocketAddress destinationAddress = new InetSocketAddress("localhost", getPort());
+    final InetSocketAddress destinationAddress =
+        new InetSocketAddress("localhost", getFirstCoordinatorEndpoint().getUserPort());
 
     try (DremioSocks5ProxyServer proxyWithAuth =
         new DremioSocks5ProxyServer(
             destinationAddress, SOCKS_PROXY_USERNAME, SOCKS_PROXY_PASSWORD)) {
-      final String socksProxyAuthHost = proxyWithAuth.address().getHostName();
-      final String socksProxyAuthPort = String.valueOf(proxyWithAuth.address().getPort());
 
-      Properties properties = JdbcAssert.getDefaultProperties();
-      properties.put(ProxyConfig.SOCKS_PROXY_HOST, socksProxyAuthHost);
-      properties.put(ProxyConfig.SOCKS_PROXY_PORT, socksProxyAuthPort);
+      Properties properties = newProxyProperties(proxyWithAuth);
       properties.put(ProxyConfig.SOCKS_PROXY_USERNAME, SOCKS_PROXY_USERNAME);
       properties.put(ProxyConfig.SOCKS_PROXY_PASSWORD, SOCKS_PROXY_PASSWORD);
 
@@ -74,30 +84,19 @@ public class TestProxyIntercept extends BaseTestQuery {
 
   @Test
   public void testProxyWrongPassword() {
-    final InetSocketAddress destinationAddress = new InetSocketAddress("localhost", getPort());
+    final InetSocketAddress destinationAddress =
+        new InetSocketAddress("localhost", getFirstCoordinatorEndpoint().getUserPort());
     try (DremioSocks5ProxyServer proxyWithAuth =
         new DremioSocks5ProxyServer(
             destinationAddress, SOCKS_PROXY_USERNAME, SOCKS_PROXY_PASSWORD)) {
-      final String socksProxyAuthHost = proxyWithAuth.address().getHostName();
-      final String socksProxyAuthPort = String.valueOf(proxyWithAuth.address().getPort());
 
-      Properties properties = JdbcAssert.getDefaultProperties();
-      properties.put(ProxyConfig.SOCKS_PROXY_HOST, socksProxyAuthHost);
-      properties.put(ProxyConfig.SOCKS_PROXY_PORT, socksProxyAuthPort);
+      Properties properties = newProxyProperties(proxyWithAuth);
       properties.put(ProxyConfig.SOCKS_PROXY_USERNAME, SOCKS_PROXY_USERNAME);
       properties.put(ProxyConfig.SOCKS_PROXY_PASSWORD, "gnarly");
 
-      Exception exception =
-          Assert.assertThrows(
-              SQLException.class,
-              () -> {
-                DriverManager.getConnection(getJDBCURL(), properties);
-              });
-
-      String expectedMessage = "ProxyConnectException";
-      String actualMessage = exception.getMessage();
-
-      Assert.assertTrue(actualMessage.contains(expectedMessage));
+      assertThatThrownBy(() -> DriverManager.getConnection(getJDBCURL(), properties))
+          .isInstanceOf(SQLException.class)
+          .hasMessageContaining("ProxyConnectException");
 
       proxyWithAuth.checkExceptions();
     }

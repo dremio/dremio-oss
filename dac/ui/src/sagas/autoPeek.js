@@ -37,7 +37,7 @@ export function* handleAutoPeek({ meta }) {
     success: take(
       (action) =>
         action.type === TRANSFORM_PEEK_SUCCESS &&
-        action.meta.peekId === meta.peekId
+        action.meta.peekId === meta.peekId,
     ),
     anotherRequest: take([TRANSFORM_PEEK_START, RUN_TABLE_TRANSFORM_START]),
     locationChange: take(getLocationChangePredicate(location)),

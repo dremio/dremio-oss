@@ -21,7 +21,7 @@ import classNames from "clsx";
 import { IconButton } from "dremio-ui-lib/components";
 import FinderNavSection from "./FinderNavSection";
 import LinkWithRef from "./LinkWithRef/LinkWithRef";
-import { stopPropagation } from "@app/utils/reactEventUtils";
+import { stopPropagation } from "#oss/utils/reactEventUtils";
 
 import "./FinderNav.less";
 
@@ -45,6 +45,7 @@ export class FinderNav extends Component {
     noMarginTop: PropTypes.bool,
     router: PropTypes.any,
     renderLink: PropTypes.func,
+    showCount: PropTypes.bool,
   };
 
   state = {
@@ -72,6 +73,7 @@ export class FinderNav extends Component {
       noMarginTop,
       router,
       renderLink,
+      showCount = true,
     } = this.props;
 
     const wrapClass = classNames(
@@ -108,12 +110,12 @@ export class FinderNav extends Component {
               />
             </IconButton>
             <span>
-              {title} ({navItems.size})
+              {title} {showCount && `(${navItems.size})`}
             </span>
           </>
         ) : (
           <span>
-            {title} ({navItems.size})
+            {title} {showCount && `(${navItems.size})`}
           </span>
         )}
         {addHref && (
@@ -131,7 +133,34 @@ export class FinderNav extends Component {
         )}
       </LinkWithRef>
     ) : (
-      `${title} (${navItems.size})`
+      <div className="w-full h-full flex --alignCenter">
+        {isCollapsible ? (
+          <IconButton
+            className="none-link-collapsible"
+            onClick={(e) => {
+              stopPropagation(e);
+              this.onToggleClick();
+            }}
+            aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${title}`}
+          >
+            <dremio-icon
+              name={
+                isCollapsed
+                  ? "interface/right-chevron"
+                  : "interface/down-chevron"
+              }
+              class="finder-nav__collapse-control"
+            />
+            <span>
+              {title} {showCount && `(${navItems.size})`}
+            </span>
+          </IconButton>
+        ) : (
+          <span>
+            {title} {showCount && `(${navItems.size})`}
+          </span>
+        )}
+      </div>
     );
 
     return (

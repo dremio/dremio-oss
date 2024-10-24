@@ -1,0 +1,709 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+  <!-- Dremio -->
+  <suppress>
+    <notes><![CDATA[
+      incorrectly identified as hadoop
+      (this artifacts contains extra native lib to be used with hadoop)
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.hadoop/hadoop\-native\-libraries@.*$</packageUrl>
+    <cpe>cpe:/a:apache:hadoop</cpe>
+  </suppress>
+
+  <!-- 3rd party dependencies -->
+  <!-- Ant -->
+  <suppress>
+    <notes><![CDATA[
+      file name: ant-1.9.1.jar
+      not distributed. only used at build time
+    ]]></notes>
+    <sha1>35900c96dbebc85dcfbd71f4661059ebcf93c077</sha1>
+    <cve>CVE-2020-1945</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      file name: ant-launcher-1.9.1.jar
+      not distributed. only used at build time
+    ]]></notes>
+    <sha1>7c71043ca185eaada9e36391dd022d92859327de</sha1>
+    <cve>CVE-2020-1945</cve>
+  </suppress>
+
+  <!-- Avatica -->
+  <suppress>
+    <notes><![CDATA[
+      incorrectly identified as Apache Calcite 
+      https://github.com/jeremylong/DependencyCheck/issues/5489
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.calcite\.avatica/.*$</packageUrl>
+    <cpe>cpe:/a:apache:calcite</cpe>
+  </suppress>
+
+  <!-- BSH -->
+  <suppress>
+    <notes><![CDATA[
+      file name: bsh-2.0b4.jar
+      not distributed. only used at build time
+    ]]></notes>
+    <sha1>a05f0a0feefa8d8467ac80e16e7de071489f0d9c</sha1>
+    <vulnerabilityName>CVE-2016-2510</vulnerabilityName>
+  </suppress>
+
+  <!-- Elasticsearch -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      server-only vulnerability
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.elasticsearch/elasticsearch@.*$</packageUrl>
+    <cve>CVE-2019-7611</cve>
+    <cve>CVE-2019-7614</cve>
+  </suppress>
+  -->
+
+
+  <!-- Guava -->
+  <suppress>
+    <notes><![CDATA[
+      file name: guava-13.0.1.jar
+      used by twill but not applicable (no serialization)
+    ]]></notes>
+    <sha1>0d6f22b1e60a2f1ef99e22c9f5fde270b2088365</sha1>
+    <cve>CVE-2018-10237</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      file name: guava-20.0.jar
+      used by ranger but not applicable (no serialization)
+    ]]></notes>
+    <sha1>89507701249388e1ed5ddcf8c41f4ce1be7831ef</sha1>
+    <cve>CVE-2018-10237</cve>
+  </suppress>
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      file name: hive-exec-2.1.1-dremio-202007281636460620-4925919.jar (shaded: com.google.guava:guava:14.0.1)
+      used by hive but not applicable (no serialization)
+    ]]></notes>
+    <sha1>7b4c8f117c11a8f1fcaf4f1b0fd07cbe756a1430</sha1>
+    <cve>CVE-2018-10237</cve>
+  </suppress>
+  -->
+  <suppress>
+    <notes><![CDATA[
+      file name: hive-exec-3.1.1-dremio-202007281635210499-9dff598.jar (shaded: com.google.guava:guava:19.0)
+    ]]></notes>
+    <sha1>65a43a21dbddcc19aa3ca50a63a4b33166bfbc77</sha1>
+    <cve>CVE-2018-10237</cve>
+  </suppress>
+
+  <!-- HBase -->
+  <suppress>
+    <notes><![CDATA[
+      incorrectly identified as hadoop dependency
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.hbase/hbase\-hadoop.*\-compat@.*$</packageUrl>
+    <cpe>cpe:/a:apache:hadoop</cpe>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      incorrectly identified as hbase server
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.hbase/hbase\-(annotations|client|common|hadoop\-compat|hadoop2\-compat|protocol)@.*$</packageUrl>
+    <cve>CVE-2018-8025</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      hbase-server only needed to access hadoop mapreduce input/output formats
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.hbase/hbase\-server@.*$</packageUrl>
+    <cve>CVE-2018-8025</cve>
+  </suppress>
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      file name: hbase-shaded-netty-2.2.1.jar (shaded: io.netty:netty-all:4.1.34.Final)
+      The version of Netty that is shaded for HBase is not used in Dremio codepath
+    ]]></notes>
+    <sha1>8f384d50552ae752e21f7f408076f66d5673c711</sha1>
+    <cve>CVE-2019-16869</cve>
+    <cve>CVE-2019-20444</cve>
+    <cve>CVE-2019-20445</cve>
+    <cve>CVE-2020-11612</cve>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+    <vulnerabilityName>CWE-789: Uncontrolled Memory Allocation</vulnerabilityName>
+  </suppress>
+  -->
+  <suppress>
+    <notes><![CDATA[
+      file name: hbase-protocol-shaded-2.2.0.jar (shaded: com.fasterxml.jackson.core:jackson-databind:2.4.0)
+      The version of Jackson that is shaded for HBase is not used in Dremio codepath
+    ]]></notes>
+    <sha1>3c0d06b6c0a9f4135fcf5c5557c751c0cd066c0c</sha1>
+    <cve>CVE-2017-15095</cve>
+    <cve>CVE-2017-17485</cve>
+    <cve>CVE-2017-7525</cve>
+    <cve>CVE-2018-5968</cve>
+    <cve>CVE-2018-1000873</cve>
+    <cve>CVE-2018-11307</cve>
+    <cve>CVE-2018-12022</cve>
+    <cve>CVE-2018-12023</cve>
+    <cve>CVE-2018-14718</cve>
+    <cve>CVE-2018-14719</cve>
+    <cve>CVE-2018-14720</cve>
+    <cve>CVE-2018-14721</cve>
+    <cve>CVE-2018-19360</cve>
+    <cve>CVE-2018-19361</cve>
+    <cve>CVE-2018-19362</cve>
+    <cve>CVE-2018-7489</cve>
+    <cve>CVE-2019-12086</cve>
+    <cve>CVE-2019-12384</cve>
+    <cve>CVE-2019-12814</cve>
+    <cve>CVE-2019-14379</cve>
+    <cve>CVE-2019-14439</cve>
+    <cve>CVE-2019-14540</cve>
+    <cve>CVE-2019-14892</cve>
+    <cve>CVE-2019-14893</cve>
+    <cve>CVE-2019-16335</cve>
+    <cve>CVE-2019-16942</cve>
+    <cve>CVE-2019-16943</cve>
+    <cve>CVE-2019-17267</cve>
+    <cve>CVE-2019-17531</cve>
+    <cve>CVE-2019-20330</cve>
+    <cve>CVE-2020-8840</cve>
+    <cve>CVE-2020-9546</cve>
+    <cve>CVE-2020-9547</cve>
+    <cve>CVE-2020-9548</cve>
+    <cve>CVE-2020-10672</cve>
+    <cve>CVE-2020-10673</cve>
+    <cve>CVE-2020-10968</cve>
+    <cve>CVE-2020-10969</cve>
+    <cve>CVE-2020-11111</cve>
+    <cve>CVE-2020-11112</cve>
+    <cve>CVE-2020-11113</cve>
+    <cve>CVE-2020-11619</cve>
+    <cve>CVE-2020-11620</cve>
+    <cve>CVE-2020-14060</cve>
+    <cve>CVE-2020-14061</cve>
+    <cve>CVE-2020-14062</cve>
+    <cve>CVE-2020-14195</cve>
+    <vulnerabilityName>CWE-611: Improper Restriction of XML External Entity Reference ('XXE')</vulnerabilityName>
+  </suppress>
+
+  <!-- Hive -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      hive-server only vulnerabilities
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.hive/hive\-(common|contrib|exec|hbase\-handler|llap\-.*|metastore|orc|serde|service\-rpc|spark\-client|storage\-api)@.*$</packageUrl>
+    <cve>CVE-2018-11777</cve>
+    <cve>CVE-2018-1284</cve>
+    <cve>CVE-2018-1314</cve>
+    <cve>CVE-2018-1315</cve>
+  </suppress>
+  -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      hive jdbc driver only vulnerability
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.hive/hive\-(common|contrib|exec|hbase\-handler|llap\-.*|metastore|orc|serde|service\-rpc|spark\-client|storage\-api)@.*$</packageUrl>
+    <cve>CVE-2018-1282</cve>
+  </suppress>
+  -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      hive-server only vulnerabilities
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.hive\.shims/hive\-shims.*@.*$</packageUrl>
+    <cve>CVE-2018-11777</cve>
+    <cve>CVE-2018-1284</cve>
+    <cve>CVE-2018-1314</cve>
+    <cve>CVE-2018-1315</cve>
+  </suppress>
+  -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      hive jdbc driver only vulnerability
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.hive\.shims/hive\-shims.*@.*$</packageUrl>
+    <cve>CVE-2018-1282</cve>
+  </suppress>
+  -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      hive-server only vulnerabilities
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.hive/spark-client@.*$</packageUrl>
+    <cve>CVE-2018-11777</cve>
+    <cve>CVE-2018-1284</cve>
+    <cve>CVE-2018-1314</cve>
+    <cve>CVE-2018-1315</cve>
+  </suppress>
+  -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      hive jdbc driver only vulnerability
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.hive/spark-client.*@.*$</packageUrl>
+    <cve>CVE-2018-1282</cve>
+  </suppress>
+  -->
+
+  <!-- Istio model -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+   file name: istio-model-1.7.7.1.jar
+   Incorrectly identified as istio service .The maven dependency referenced here is a client library, istio-model that
+   only contains the JSON/YAML models to create Istio objects via the Kubernetes client which is not affected by this
+   vulnerability
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/me\.snowdrop/istio\-model@.*$</packageUrl>
+    <cve>CVE-2021-31920</cve>
+    <cve>CVE-2021-31921</cve>
+    <cve>CVE-2021-39155</cve>
+    <cve>CVE-2021-39156</cve>
+  </suppress>
+  -->
+
+  <!-- Jackson -->
+  <suppress>
+    <notes><![CDATA[
+      file name: jackson-mapper-asl-1.9.13.jar
+      declared by parquet
+    ]]></notes>
+    <sha1>1ee2f2bed0e5dd29d1cb155a166e6f8d50bbddb7</sha1>
+    <vulnerabilityName>CVE-2017-15095</vulnerabilityName>
+    <vulnerabilityName>CVE-2017-17485</vulnerabilityName>
+    <vulnerabilityName>CVE-2017-7525</vulnerabilityName>
+    <vulnerabilityName>CVE-2018-1000873</vulnerabilityName>
+    <vulnerabilityName>CVE-2018-14718</vulnerabilityName>
+    <vulnerabilityName>CVE-2018-5968</vulnerabilityName>
+    <vulnerabilityName>CVE-2018-5968</vulnerabilityName>
+    <vulnerabilityName>CVE-2018-7489</vulnerabilityName>
+    <cve>CVE-2019-10172</cve>
+    <vulnerabilityName>CVE-2019-14540</vulnerabilityName>
+    <vulnerabilityName>CVE-2019-14843</vulnerabilityName>
+    <vulnerabilityName>CVE-2019-14893</vulnerabilityName>
+    <vulnerabilityName>CVE-2019-16335</vulnerabilityName>
+    <vulnerabilityName>CVE-2019-17267</vulnerabilityName>
+    <vulnerabilityName>CVE-2020-10672</vulnerabilityName>
+    <vulnerabilityName>CVE-2020-10673</vulnerabilityName>
+  </suppress>
+
+  <!-- Jaeger -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      file name: jaeger-client-1.1.0.jar
+      file name: jaeger-core-1.1.0.jar
+      file name: jaeger-thrift-1.1.0.jar
+      file name: jaeger-tracerresolver-1.1.0.jar
+      The vulnerability is only present in Jaeger server software stack, which shares the same
+      CPE identifier with the Java client, although they don't use the same version system.
+      The Java client is not vulnerable.
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/io\.jaegertracing/jaeger.*</packageUrl>
+    <cve>CVE-2020-10750</cve>
+  </suppress>
+  -->
+
+  <!-- Jetty -->
+  <suppress>
+    <notes><![CDATA[
+      inccorectly identified as mortbay jetty (vs eclipse jetty)
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.eclipse\.jetty.*$</packageUrl>
+    <cpe>cpe:/a:mortbay_jetty:jetty</cpe>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      file name: jetty-util-6.1.26.jar
+      file name: jetty-6.1.26.jar
+      Jetty 6.1.26 not vulnerable ( >= 6.1.17)
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.mortbay\.jetty/jetty.*@6.1.26</packageUrl>
+    <cve>CVE-2009-1523</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      file name: jetty-util-6.1.26.jar
+      file name: jetty-6.1.26.jar
+      declared by Hadoop, but http servers not used.
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.mortbay\.jetty/jetty.*@6.1.26</packageUrl>
+    <cve>CVE-2009-1523</cve>
+    <cve>CVE-2011-4461</cve>
+    <vulnerabilityName>CVE-2017-7656</vulnerabilityName>
+    <vulnerabilityName>CVE-2017-7657</vulnerabilityName>
+    <vulnerabilityName>CVE-2017-7658</vulnerabilityName>
+    <vulnerabilityName>CVE-2017-9735</vulnerabilityName>
+    <vulnerabilityName>CVE-2019-10241</vulnerabilityName>
+    <vulnerabilityName>CVE-2019-10247</vulnerabilityName>
+  </suppress>
+
+  <!-- JQuery -->
+  <suppress>
+    <notes><![CDATA[
+      file name: hadoop-yarn-common-*.jar: jquery-1.8.2.min.js.gz: jquery-1.8.2.min.js
+    ]]></notes>
+    <sha1>149b5180cb9de3f646fc26802440a6ac6e758d40</sha1>
+    <cve>CVE-2012-6708</cve>
+    <cve>CVE-2015-9251</cve>
+    <cve>CVE-2019-11358</cve>
+    <cve>CVE-2020-11022</cve>
+    <cve>CVE-2020-11023</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      file name: hadoop-yarn-common-*.jar: jquery-ui-1.9.1.custom.min.js.gz: jquery-ui-1.9.1.custom.min.js
+    ]]></notes>
+    <sha1>43751816cc0b6480e8fb3b2398952d6a865e8b89</sha1>
+    <cve>CVE-2010-5312</cve>
+    <cve>CVE-2016-7103</cve>
+  </suppress>
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      file name: hadoop-yarn-common-*-dremio-*jar: jquery-3.3.1.min.js
+    ]]></notes>
+    <sha1>0dc32db4aa9c5f03f3b38c47d883dbd4fed13aae</sha1>
+    <cve>CVE-2019-11358</cve>
+    <cve>CVE-2020-11022</cve>
+    <cve>CVE-2020-11023</cve>
+  </suppress>
+  -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      file name: hbase-server-2.2.0.jar: jquery.min.js
+    ]]></notes>
+    <sha1>1055018c28ab41087ef9ccefe411606893dabea2</sha1>
+    <cve>CVE-2019-11358</cve>
+    <cve>CVE-2020-11022</cve>
+    <cve>CVE-2020-11023</cve>
+    <vulnerabilityName>Regex in its jQuery.htmlPrefilter sometimes may introduce XSS</vulnerabilityName>
+  </suppress>
+  -->
+  <suppress>
+    <notes><![CDATA[
+      file name: hbase-server-1.1.13.jar: jquery.min.js
+    ]]></notes>
+    <sha1>06e872300088b9ba8a08427d28ed0efcdf9c6ff5</sha1>
+    <cve>CVE-2012-6708</cve>
+    <cve>CVE-2015-9251</cve>
+    <cve>CVE-2019-11358</cve>
+    <cve>CVE-2020-11022</cve>
+    <cve>CVE-2020-11023</cve>
+    <vulnerabilityName>Regex in its jQuery.htmlPrefilter sometimes may introduce XSS</vulnerabilityName>
+  </suppress>
+
+  <!-- Kafka -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      vulnerability addressed by using commons-collection 3.2.2
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.kafka/kafka_2\.10@.*$</packageUrl>
+    <vulnerabilityName>Bump up commons-collections version to 3.2.2 to address a security flaw</vulnerabilityName>
+  </suppress>
+  -->
+
+  <!-- Kotlin -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      file name: kotlin-stdlib-common-1.3.50.jar
+      Misdetection, not a vulnerable version.
+    ]]></notes>
+    <sha1>3d9cd3e1bc7b92e95f43d45be3bfbcf38e36ab87</sha1>
+    <cve>CVE-2020-15824</cve>
+  </suppress>
+  -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      file name: kotlin-stdlib-1.3.50.jar
+      Misdetection, not a vulnerable version.
+    ]]></notes>
+    <sha1>b529d1738c7e98bbfa36a4134039528f2ce78ebf</sha1>
+    <cve>CVE-2020-15824</cve>
+  </suppress>
+  -->
+
+  <!-- Logback -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      vulnerability in logback-core/logback-classic
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/ch\.qos\.logback\.contrib/.*@.*$</packageUrl>
+    <cve>CVE-2017-5929</cve>
+  </suppress>
+  -->
+
+  <!-- Netty -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      file name: netty-transport-4.1.45.Final.jar
+      CPE configuration includes netty but vulnerability impacts org.wso2.transport.http.netty
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/io\.netty/.*@.*$</packageUrl>
+    <cve>CVE-2019-10797</cve>
+  </suppress>
+  -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      non-boringssl vulnerabilities
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-boringssl\-static@.*$</packageUrl>
+    <cve>CVE-2014-3488</cve>
+    <cve>CVE-2015-2156</cve>
+    <cve>CVE-2019-16869</cve>
+    <cve>CVE-2019-20444</cve>
+    <cve>CVE-2019-20445</cve>
+  </suppress>
+  -->
+  <suppress>
+    <notes><![CDATA[
+   file name: netty-3.10.6.Final-nohttp.jar
+   Used by Hadoop, but not for HTTP protocol
+   ]]></notes>
+    <sha1>742f96e5c0c5875aa0795f90f4d91bd6944310bc</sha1>
+    <cve>CVE-2019-16869</cve>
+    <cve>CVE-2019-20444</cve>
+    <cve>CVE-2019-20445</cve>
+  </suppress>
+  <!--
+  <suppress>
+    <notes><![CDATA[
+       Used for direct memory access to Arrow buffers.
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/io\.netty/netty\-all@.*$</packageUrl>
+    <vulnerabilityName>CWE-119: Improper Restriction of Operations within the Bounds of a Memory Buffer</vulnerabilityName>
+  </suppress>
+  -->
+
+  <!-- Netty TCNative -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      file name: netty-tcnative-1.1.33.Fork24.jar
+      incorrectly identified as netty library
+    ]]></notes>
+    <sha1>bdb9ca4a4482b8e3b01557829a332ae6870ca733</sha1>
+    <cve>CVE-2014-3488</cve>
+    <cve>CVE-2015-2156</cve>
+  </suppress>
+  -->
+
+  <!-- Parquet -->
+  <suppress>
+    <notes><![CDATA[
+      incorrectly identified as hadoop dependency
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.parquet/parquet\-hadoop.*@.*$</packageUrl>
+    <cpe>cpe:/a:apache:hadoop</cpe>
+  </suppress>
+
+  <!-- Plexus -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      build time only dependency
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.codehaus\.plexus/plexus\-utils@.*$</packageUrl>
+    <vulnerabilityName>Directory traversal in org.codehaus.plexus.util.Expand</vulnerabilityName>
+    <vulnerabilityName>Possible XML Injection</vulnerabilityName>
+    <cve>CVE-2017-1000487</cve>
+  </suppress>
+  -->
+
+  <!-- Postgres -->
+  <suppress>
+    <notes><![CDATA[
+      incorrectly identified as postgres server
+      (jdbc cpe: cpe:/a:postgresql:postgresql_jdbc_driver:*:*)
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.postgresql/postgresql@.*$</packageUrl>
+    <cpe>cpe:/a:postgresql:postgresql</cpe>
+  </suppress>
+
+
+  <!-- Protobuf -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      does not impact protobuf-java
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/com\.google\.protobuf/protobuf.*@.*$</packageUrl>
+    <cve>CVE-2015-5237</cve>
+  </suppress>
+  -->
+
+  <suppress>
+    <notes><![CDATA[
+      file name: ranger-hive-plugin-1.1.0.jar
+      Ranger server only vulnerabilities
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.ranger/ranger\-(hive\-plugin|plugins\-.*)@.*$</packageUrl>
+    <cve>CVE-2018-11778</cve>
+    <cve>CVE-2019-12397</cve>
+  </suppress>
+
+  <!-- Solr -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      solr server only issue
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.solr/solr\-solrj@.*$</packageUrl>
+    <vulnerabilityName>CVE-2017-7660</vulnerabilityName>
+  </suppress>
+  -->
+
+  <!-- SQL Server -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      unrelated security issues impacting server
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/com\.dremio\.jdbc/microsoft\-sqljdbc41@.*$</packageUrl>
+    <cve>CVE-2001-0509</cve>
+    <cve>CVE-2007-5090</cve>
+    <cve>CVE-2012-1856</cve>
+    <cve>CVE-2012-2552</cve>
+    <cve>CVE-2014-4061</cve>
+    <cve>CVE-2015-1761</cve>
+    <cve>CVE-2015-1762</cve>
+    <cve>CVE-2015-1763</cve>
+  </suppress>
+  -->
+
+  <!-- Thrift -->
+  <suppress>
+    <notes><![CDATA[
+      Thrift go only vulnerability
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.thrift/.*@.*$</packageUrl>
+    <cve>CVE-2016-5397</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      Thrift Node.js only vulnerability
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.thrift/.*@.*$</packageUrl>
+    <cve>CVE-2018-11798</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      addressed in version 0.9.3.1 and 0.9.3.2
+      file name: libthrift-0.9.3-2dremio.jar
+    ]]></notes>
+    <sha1>c735c9a025ff53e03bfd2e8e92377826c000e9b4</sha1>
+    <cve>CVE-2018-1320</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      addressed in version 0.9.3.2
+      file name: libthrift-0.9.3-2dremio.jar
+    ]]></notes>
+    <sha1>c735c9a025ff53e03bfd2e8e92377826c000e9b4</sha1>
+    <cve>CVE-2019-0205</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      Thrift go only vulnerability
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.thrift/.*@.*$</packageUrl>
+    <cve>CVE-2019-0210</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      libfb303 does not share thrift vulnerabilities
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.thrift/libfb303@.*$</packageUrl>
+    <cve>CVE-2018-1320</cve>
+    <cve>CVE-2019-0205</cve>
+  </suppress>
+
+  <!-- Wildfly -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      mixing wildfly server code with wildfly openssl library
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.wildfly\.openssl/wildfly\-openssl.*@.*$</packageUrl>
+    <cve>CVE-2018-14627</cve>
+    <cve>CVE-2019-3805</cve>
+    <cve>CVE-2020-10740</cve>
+  </suppress>
+  -->
+
+  <!-- ZooKeeper -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      file name: zookeeper-3.4.10.jar
+      https://issues.apache.org/jira/browse/ZOOKEEPER-1917
+      Fixed in Zookeeper 3.4.7
+    ]]></notes>
+    <sha1>08eebdbb7a9df83e02eaa42d0e5da0b57bf2e4da</sha1>
+    <cve>CVE-2014-0085</cve>
+  </suppress>
+  -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+      file name: zookeeper-3.4.10.jar
+      https://issues.apache.org/jira/browse/ZOOKEEPER-1045
+      Fixed in ZooKeeper 3.4.10
+    ]]></notes>
+    <sha1>08eebdbb7a9df83e02eaa42d0e5da0b57bf2e4da</sha1>
+    <cve>CVE-2018-8012</cve>
+  </suppress>
+  -->
+
+  <!-- Azure-ResourceManager-AppPlatform -->
+  <!--
+  <suppress>
+    <notes><![CDATA[
+   file name: azure-resourcemanager-appplatform-2.19.0.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/com\.azure\.resourcemanager/azure\-resourcemanager\-appplatform@.*$</packageUrl>
+    <cve>CVE-2009-2500</cve>
+    <cve>CVE-2009-2501</cve>
+    <cve>CVE-2009-2502</cve>
+    <cve>CVE-2009-2503</cve>
+    <cve>CVE-2009-2504</cve>
+    <cve>CVE-2009-2528</cve>
+    <cve>CVE-2009-3126</cve>
+  </suppress>
+  -->
+
+</suppressions>

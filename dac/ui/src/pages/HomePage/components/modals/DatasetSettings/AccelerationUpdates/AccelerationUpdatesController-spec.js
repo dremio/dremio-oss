@@ -18,7 +18,7 @@ import Immutable from "immutable";
 
 import ApiUtils from "utils/apiUtils/apiUtils";
 import DataFreshnessSection from "components/Forms/DataFreshnessSection";
-import { ALL_TYPES, INCREMENTAL_TYPES } from "@app/constants/columnTypeGroups";
+import { ALL_TYPES, INCREMENTAL_TYPES } from "#oss/constants/columnTypeGroups";
 import { AccelerationUpdatesController } from "./AccelerationUpdatesController";
 import AccelerationUpdatesForm from "./AccelerationUpdatesForm";
 
@@ -59,14 +59,14 @@ describe.skip("AccelerationUpdatesController", () => {
 
   it("should render with minimal props without exploding", () => {
     const wrapper = shallow(
-      <AccelerationUpdatesController {...minimalProps} />
+      <AccelerationUpdatesController {...minimalProps} />,
     );
     expect(wrapper).to.have.length(1);
   });
 
   it("should not render acceleration updates form when settings are not available", () => {
     const wrapper = shallow(
-      <AccelerationUpdatesController {...minimalProps} />
+      <AccelerationUpdatesController {...minimalProps} />,
     );
     expect(wrapper.find(AccelerationUpdatesForm)).to.have.length(0);
   });
@@ -80,7 +80,7 @@ describe.skip("AccelerationUpdatesController", () => {
     it("should call recieveProps to perform summaryDataset and settings loading", () => {
       sinon.stub(AccelerationUpdatesController.prototype, "receiveProps");
       const wrapper = shallow(
-        <AccelerationUpdatesController {...minimalProps} />
+        <AccelerationUpdatesController {...minimalProps} />,
       );
       const instance = wrapper.instance();
       expect(instance.receiveProps).to.be.calledWith(minimalProps, {});
@@ -92,7 +92,7 @@ describe.skip("AccelerationUpdatesController", () => {
     it("should call recieveProps with nextProps", () => {
       sinon.stub(AccelerationUpdatesController.prototype, "receiveProps");
       const wrapper = shallow(
-        <AccelerationUpdatesController {...minimalProps} />
+        <AccelerationUpdatesController {...minimalProps} />,
       );
       const instance = wrapper.instance();
       const nextProps = { entity: {} };
@@ -109,7 +109,7 @@ describe.skip("AccelerationUpdatesController", () => {
     beforeEach(() => {
       sinon.stub(
         AccelerationUpdatesController.prototype,
-        "UNSAFE_componentWillMount"
+        "UNSAFE_componentWillMount",
       );
       props = {
         ...commonProps,
@@ -124,7 +124,7 @@ describe.skip("AccelerationUpdatesController", () => {
             { name: "col1", type: { name: "INTEGER" } },
             { name: "col2", type: { name: "TEXT" } },
           ],
-        })
+        }),
       );
     });
     afterEach(() => {
@@ -162,7 +162,7 @@ describe.skip("AccelerationUpdatesController", () => {
         })),
       };
       const wrapper = shallow(
-        <AccelerationUpdatesController {...minimalProps} />
+        <AccelerationUpdatesController {...minimalProps} />,
       );
       const instance = wrapper.instance();
       const columnTypes = instance
@@ -179,7 +179,7 @@ describe.skip("AccelerationUpdatesController", () => {
         .stub(ApiUtils, "attachFormSubmitHandlers")
         .returns(Promise.resolve());
       const wrapper = shallow(
-        <AccelerationUpdatesController {...commonProps} />
+        <AccelerationUpdatesController {...commonProps} />,
       );
       const instance = wrapper.instance();
       const formValue = commonProps.accelerationSettings.toJS();
@@ -189,8 +189,8 @@ describe.skip("AccelerationUpdatesController", () => {
       expect(ApiUtils.attachFormSubmitHandlers).to.have.been.calledWith(
         commonProps.updateDatasetAccelerationSettings(
           commonProps.entity,
-          formValue
-        )
+          formValue,
+        ),
       );
       ApiUtils.attachFormSubmitHandlers.restore();
     });

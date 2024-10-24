@@ -18,7 +18,7 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { get } from "lodash/object";
 
-import { SelectView } from "@app/components/Fields/SelectView";
+import { SelectView } from "#oss/components/Fields/SelectView";
 import { formDefault } from "uiTheme/radium/typography";
 import classNames from "clsx";
 import SelectItem from "./SelectItem";

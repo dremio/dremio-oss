@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import marked from "marked";
-import "@app/components/markedjsOverrides.js";
+import "#oss/components/markedjsOverrides.js";
 
 const clearWhitespaces = (str) => str.replace(/\r\n|\r|\n/g, "");
 const getCleanMarkup = (markeup) => clearWhitespaces(marked(markeup)); // remove new lines characters
@@ -32,7 +32,7 @@ describe("markedjsOverrides", () => {
     it(`${numberOfLines} new lines are preserved in markup after simple text`, () => {
       const expectedMarkup = `<p>a</p>${"<br>".repeat(numberOfLines)}<p>b</p>`;
       expect(
-        getCleanMarkup("a" + "\n".repeat(numberOfLines + 1) + "b")
+        getCleanMarkup("a" + "\n".repeat(numberOfLines + 1) + "b"),
       ).to.be.equal(expectedMarkup);
     });
   };
@@ -46,7 +46,7 @@ describe("markedjsOverrides", () => {
     const inputString = `# ${headingText}
     ${"\n".repeat(linesNumber)}`;
     const expectedMarkup = `<h1 id="${headingText}">heading</h1>${"<br>".repeat(
-      linesNumber
+      linesNumber,
     )}`;
 
     expect(getCleanMarkup(inputString)).to.be.equal(expectedMarkup);
@@ -57,12 +57,12 @@ describe("markedjsOverrides", () => {
       // DX-17502
       expect(
         getCleanMarkup(
-          '![test](https://www.aswsec.com/pen-test/x.svg"onload="prompt`aw+was+here`)'
-        )
+          '![test](https://www.aswsec.com/pen-test/x.svg"onload="prompt`aw+was+here`)',
+        ),
       )
         //quote is encoded after '...x.svg' that does not allow onload execution
         .to.be.equal(
-          '<p><img src="https://www.aswsec.com/pen-test/x.svg%22onload=%22prompt%60aw+was+here%60" alt="test"></p>'
+          '<p><img src="https://www.aswsec.com/pen-test/x.svg%22onload=%22prompt%60aw+was+here%60" alt="test"></p>',
         );
     });
   });
@@ -71,7 +71,7 @@ describe("markedjsOverrides", () => {
     // DX-18307
     const str = "- a\n\n- b\n\n";
     expect(getCleanMarkup(str)).to.be.equal(
-      clearWhitespaces("<ul><li><p>a</p></li><li><p>b</p><br></li></ul>")
+      clearWhitespaces("<ul><li><p>a</p></li><li><p>b</p><br></li></ul>"),
     );
   });
 });

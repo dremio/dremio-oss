@@ -95,7 +95,8 @@ public class CopyIntoPlanBuilder extends CopyIntoTablePlanBuilderBase {
             sourceLocationNSKey,
             storagePluginId,
             SchemaUtilities.allColPaths(targetTableSchema),
-            getExtendedProperties());
+            getExtendedProperties(),
+            transformationProperties == null);
 
     TableFunctionConfig scanTableFunctionConfig =
         TableFunctionUtil.getDataFileScanTableFunctionConfig(scanTableFunctionContext, false, 1);

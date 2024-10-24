@@ -19,9 +19,9 @@ import static com.dremio.exec.store.hive.BaseHiveStoragePlugin.HIVE_DEFAULT_CTAS
 
 import com.dremio.common.VM;
 import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.store.hive.exec.FileSystemConfUtil;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -56,36 +56,6 @@ public class HiveConfFactory {
   private static final String FS_S3N_IMPL = "fs.s3n.impl";
   private static final String FS_S3_IMPL_DEFAULT = "org.apache.hadoop.fs.s3a.S3AFileSystem";
 
-  private static final String FS_S3_MAXIMUM_CONNECTIONS = "fs.s3a.connection.maximum";
-  private static final String FS_S3_FAST_UPLOAD = "fs.s3a.fast.upload";
-  private static final String FS_S3_FAST_UPLOAD_BUFFER = "fs.s3a.fast.upload.buffer";
-  private static final String FS_S3_FAST_UPLOAD_ACTIVE_BLOCKS = "fs.s3a.fast.upload.active.blocks";
-  private static final String FS_S3_MAX_THREADS = "fs.s3a.threads.max";
-  private static final String FS_S3_MULTIPART_SIZE = "fs.s3a.multipart.size";
-  private static final String FS_S3_MAX_TOTAL_TASKS = "fs.s3a.max.total.tasks";
-
-  // ADL Hadoop file system implementation
-  private static final ImmutableMap<String, String> ADL_PROPS =
-      ImmutableMap.of(
-          "fs.adl.impl", "org.apache.hadoop.fs.adl.AdlFileSystem",
-          "fs.AbstractFileSystem.adl.impl", "org.apache.hadoop.fs.adl.Adl");
-
-  // Azure WASB and WASBS file system implementation
-  private static final ImmutableMap<String, String> WASB_PROPS =
-      ImmutableMap.of(
-          "fs.wasb.impl", "org.apache.hadoop.fs.azure.NativeAzureFileSystem",
-          "fs.AbstractFileSystem.wasb.impl", "org.apache.hadoop.fs.azure.Wasb",
-          "fs.wasbs.impl", "org.apache.hadoop.fs.azure.NativeAzureFileSystem$Secure",
-          "fs.AbstractFileSystem.wasbs.impl", "org.apache.hadoop.fs.azure.Wasbs");
-
-  // Azure ABFS and ABFSS file system implementation
-  private static final ImmutableMap<String, String> ABFS_PROPS =
-      ImmutableMap.of(
-          "fs.abfs.impl", "org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem",
-          "fs.AbstractFileSystem.abfs.impl", "org.apache.hadoop.fs.azurebfs.Abfs",
-          "fs.abfss.impl", "org.apache.hadoop.fs.azurebfs.SecureAzureBlobFileSystem",
-          "fs.AbstractFileSystem.abfss.impl", "org.apache.hadoop.fs.azurebfs.Abfss");
-
   public HiveConf createHiveConf(HiveStoragePluginConfig config) {
     final HiveConf hiveConf = createBaseHiveConf(config);
 
@@ -111,13 +81,6 @@ public class HiveConfFactory {
         throw new UnsupportedOperationException("Unknown authorization type " + config.authType);
     }
     return hiveConf;
-  }
-
-  private void disableFileSystemCache(HiveConf hiveConf) {
-    setConf(hiveConf, "fs.dremioS3.impl.disable.cache", true);
-    setConf(hiveConf, "fs.dremiogcs.impl.disable.cache", true);
-    setConf(hiveConf, "fs.dremioAzureStorage.impl.disable.cache", true);
-    setConf(hiveConf, "fs.dremioAdl.impl.disable.cache", true);
   }
 
   protected HiveConf createBaseHiveConf(BaseHiveStoragePluginConfig<?, ?> config) {
@@ -147,7 +110,7 @@ public class HiveConfFactory {
         setConf(hiveConf, HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL, config.kerberosPrincipal);
       }
     }
-    disableFileSystemCache(hiveConf);
+    FileSystemConfUtil.FS_CACHE_DISABLES.forEach(hiveConf::set);
 
     setConf(hiveConf, HIVE_ENABLE_ASYNC, config.enableAsync);
     setConf(
@@ -173,19 +136,9 @@ public class HiveConfFactory {
       setAwsglueSourceType(hiveConf);
     }
 
-    addS3Properties(hiveConf);
+    FileSystemConfUtil.S3_PROPS.forEach(hiveConf::set);
     addUserProperties(hiveConf, config);
     return hiveConf;
-  }
-
-  private static void addS3Properties(HiveConf hiveConf) {
-    setConf(hiveConf, FS_S3_MAXIMUM_CONNECTIONS, "1000");
-    setConf(hiveConf, FS_S3_FAST_UPLOAD, "true");
-    setConf(hiveConf, FS_S3_FAST_UPLOAD_BUFFER, "disk");
-    setConf(hiveConf, FS_S3_FAST_UPLOAD_ACTIVE_BLOCKS, "4");
-    setConf(hiveConf, FS_S3_MAX_THREADS, "24");
-    setConf(hiveConf, FS_S3_MULTIPART_SIZE, "67108864");
-    setConf(hiveConf, FS_S3_MAX_TOTAL_TASKS, "30");
   }
 
   /**
@@ -236,18 +189,9 @@ public class HiveConfFactory {
     trySetDefault(userPropertyNames, hiveConf, FS_S3_IMPL, FS_S3_IMPL_DEFAULT);
     trySetDefault(userPropertyNames, hiveConf, FS_S3N_IMPL, FS_S3_IMPL_DEFAULT);
 
-    ADL_PROPS
-        .entrySet()
-        .asList()
-        .forEach(entry -> setConf(hiveConf, entry.getKey(), entry.getValue()));
-    WASB_PROPS
-        .entrySet()
-        .asList()
-        .forEach(entry -> setConf(hiveConf, entry.getKey(), entry.getValue()));
-    ABFS_PROPS
-        .entrySet()
-        .asList()
-        .forEach(entry -> setConf(hiveConf, entry.getKey(), entry.getValue()));
+    FileSystemConfUtil.ADL_PROPS.forEach(hiveConf::set);
+    FileSystemConfUtil.WASB_PROPS.forEach(hiveConf::set);
+    FileSystemConfUtil.ABFS_PROPS.forEach(hiveConf::set);
   }
 
   private static void trySetDefault(

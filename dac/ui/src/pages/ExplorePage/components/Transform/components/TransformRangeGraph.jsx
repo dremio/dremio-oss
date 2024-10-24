@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import { domUtils } from "@app/utils/domUtils";
+import { domUtils } from "#oss/utils/domUtils";
 import BarChart from "components/Charts/BarChart";
 
 import TransformRangeSlider, {
@@ -86,7 +86,7 @@ class TransformRangeGraph extends Component {
       this.setState({
         [`${activeSlider}RangeOffset`]: Math.min(
           Math.max(event.clientX - offset, 0),
-          this.props.width
+          this.props.width,
         ),
       });
     }

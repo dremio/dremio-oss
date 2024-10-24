@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.rpc.user;
 
+import com.dremio.options.OptionManager;
+
 /** Impersonation manager interface */
 public interface InboundImpersonationManager {
   /**
@@ -25,4 +27,16 @@ public interface InboundImpersonationManager {
    * @param session user session
    */
   void replaceUserOnSession(String targetName, UserSession session);
+
+  /**
+   * Checks whether the proxy user is allowed to impersonate the target user. Throws a UserException
+   * if the impersonation policy is violated.
+   *
+   * @param proxyName username of the proxy user. User can be local or imported from external
+   *     provider.
+   * @param targetName username of the subject user. User can be local or imported from external
+   *     provider.
+   * @param optionManager service that provides the impersonation policy string.
+   */
+  void canImpersonate(String proxyName, String targetName, OptionManager optionManager);
 }

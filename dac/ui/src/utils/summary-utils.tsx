@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { VIRTUAL_DATASET } from "@app/constants/datasetTypes";
+import { VIRTUAL_DATASET } from "#oss/constants/datasetTypes";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import {
   constructLinkWithRefInfo,
   constructSummaryBaseLink,
 } from "./pathUtils";
 import { Button } from "dremio-ui-lib/components";
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import LinkWithRef from "#oss/components/LinkWithRef/LinkWithRef";
 import { intl } from "./intl";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 
@@ -41,22 +41,22 @@ export const getSummaryActions = ({
   const versionedSelfLink = constructLinkWithRefInfo(
     selfLink,
     versionContext,
-    resourceId
+    resourceId,
   );
   const versionedDetailsLink = constructLinkWithRefInfo(
     constructSummaryBaseLink(isView, "wiki", selfLink, editLink),
     versionContext,
-    resourceId
+    resourceId,
   );
   const versionedLineageLink = constructLinkWithRefInfo(
     constructSummaryBaseLink(isView, "graph", selfLink, editLink),
     versionContext,
-    resourceId
+    resourceId,
   );
   const versionedHistoryLink = constructLinkWithRefInfo(
     constructSummaryBaseLink(isView, "history", selfLink, editLink),
     versionContext,
-    resourceId
+    resourceId,
   );
 
   const toLink = versionedEditLink ? versionedEditLink : versionedSelfLink;

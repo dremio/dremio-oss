@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LogResponseV2 as LogResponse } from "@app/services/nessie/client";
+import { LogResponseV2 as LogResponse } from "#oss/services/nessie/client";
 
 type CommitBrowserState = {
   search?: string;

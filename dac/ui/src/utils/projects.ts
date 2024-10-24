@@ -15,13 +15,13 @@
  */
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import sessionStorageUtils from "@inject/utils/storageUtils/sessionStorageUtils";
-import { store } from "@app/store/store";
+import { store } from "#oss/store/store";
 // @ts-ignore
 import { resetPrivilegesState } from "@inject/actions/privileges";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
-import { resetAllSourcesView } from "@app/actions/resources/sources";
-import { SonarContentsResource } from "@app/exports/resources/SonarContentsResource";
-import { resetHomeContents } from "@app/actions/home";
+import { resetAllSourcesView } from "#oss/actions/resources/sources";
+import { SonarContentsResource } from "#oss/exports/resources/SonarContentsResource";
+import { resetHomeContents } from "#oss/actions/home";
 import { $SqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
 

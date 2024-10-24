@@ -109,8 +109,9 @@ public class HashAggStats {
     // minimal.
     OOB_SPILL, // Spill was done due to oob.
     OOB_DROP_ALREADY_SPILLING, // Number of times operator dropped spilling notification as it was
-  // already spilling
-  ;
+    // already spilling
+    SETUP_MILLIS,
+    CAN_PRODUCE_MILLIS;
 
     private final DisplayType displayType;
     private final AggregationType aggregationType;

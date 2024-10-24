@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import FormUtils from "@app/utils/FormUtils/FormUtils";
+import FormUtils from "#oss/utils/FormUtils/FormUtils";
 import Host from "./Host";
 
 const { CONFIG_PROP_NAME, addFormPrefixToPropName } = FormUtils;

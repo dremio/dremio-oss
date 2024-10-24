@@ -97,7 +97,7 @@ public class PlannerSettings implements Context {
       new BooleanValidator("planner.enable_constant_folding", true);
   public static final BooleanValidator PRUNE_EMPTY_RELNODES =
       new BooleanValidator("planner.enable_empty_subtree_pruning", true);
-  public static final BooleanValidator EXCHANGE =
+  public static final BooleanValidator DISABLE_EXCHANGES =
       new BooleanValidator("planner.disable_exchanges", false);
   public static final BooleanValidator HASHAGG =
       new BooleanValidator("planner.enable_hashagg", true);
@@ -534,9 +534,19 @@ public class PlannerSettings implements Context {
       new BooleanValidator("planner.join.use_key_for_next_factor", false);
   public static final BooleanValidator JOIN_ROTATE_FACTORS =
       new BooleanValidator("planner.join.rotate_factors", true);
-
   public static final BooleanValidator ENABLE_RANGE_QUERY_REWRITE =
       new BooleanValidator("planner.enable_range_query_rewrite", false);
+  public static final BooleanValidator ENABLE_COUNT_STAR_OPTIMIZATION =
+      new BooleanValidator("planner.enable_count_star_optimization", false);
+  public static final BooleanValidator ENABLE_MULTI_COLUMN_COUNT_REWRITE =
+      new BooleanValidator("planner.enable_multi_column_count_rewrite", true);
+  public static final BooleanValidator ENABLE_QUALIFIED_AGGREGATE_REWRITE =
+      new BooleanValidator("planner.enable_qualified_aggregate_rewrite", true);
+
+  public static final BooleanValidator REWRITE_LISTAGG_TO_ARRAY_AGG =
+      new BooleanValidator("planner.rewrite_listagg_to_array_agg", false);
+  public static final BooleanValidator PUSH_ARRAY_COLUMNS_INTO_SCAN =
+      new BooleanValidator("planner.push_array_columns_into_scan", false);
 
   public static final DoubleValidator FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR =
       new RangeDoubleValidator(
@@ -666,6 +676,8 @@ public class PlannerSettings implements Context {
 
   public static final BooleanValidator USE_LEGACY_TYPEOF =
       new BooleanValidator("planner.use_legacy_type", false);
+  public static final BooleanValidator USE_LEGACY_DECORRELATOR =
+      new BooleanValidator("planner.use_legacy_decorrelator", false);
 
   /**
    * Options to reject queries which will attempt to process more than this many splits: per
@@ -800,6 +812,10 @@ public class PlannerSettings implements Context {
     return options.getOption(IGNORE_SCANNED_COLUMNS_LIMIT);
   }
 
+  public boolean pushArrayColumnsIntoScan() {
+    return options.getOption(PUSH_ARRAY_COLUMNS_INTO_SCAN);
+  }
+
   public long getNoOfSplitsPerFile() {
     return options.getOption(NO_OF_SPLITS_PER_FILE);
   }
@@ -813,7 +829,7 @@ public class PlannerSettings implements Context {
   }
 
   public boolean isSingleMode() {
-    return forceSingleMode || options.getOption(EXCHANGE);
+    return forceSingleMode || options.getOption(DISABLE_EXCHANGES);
   }
 
   public long getMaxPlanningPerPhaseMS() {

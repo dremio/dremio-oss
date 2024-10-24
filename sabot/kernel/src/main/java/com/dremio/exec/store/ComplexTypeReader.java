@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store;
 
+import com.dremio.common.expression.BasePath;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
 import com.dremio.exec.record.VectorContainer;
@@ -31,32 +32,36 @@ import org.apache.arrow.vector.ValueVector;
 
 /** This class helps in handling coercion of nested complex type columns */
 public class ComplexTypeReader implements AutoCloseable {
-  private final SampleMutator mutator;
-  private final OperatorContext context;
-  private final Stopwatch javaCodeGenWatch;
-  private final TypeCoercion typeCoercion;
-  private final Stopwatch gandivaCodeGenWatch;
+  protected final SampleMutator mutator;
+  protected final OperatorContext context;
+  protected final Stopwatch javaCodeGenWatch;
+  protected final TypeCoercion typeCoercion;
+  protected final Stopwatch gandivaCodeGenWatch;
 
-  private OutputMutator outputMutator;
-  private ComplexTypeCopier[] copiers;
+  protected OutputMutator outputMutator;
+  protected ComplexTypeCopier[] copiers;
+  protected final int depth;
 
   public ComplexTypeReader(
       OperatorContext context,
       SampleMutator mutator,
       TypeCoercion typeCoercion,
       Stopwatch javaCodeGenWatch,
-      Stopwatch gandivaCodeGenWatch) {
+      Stopwatch gandivaCodeGenWatch,
+      int depth) {
     Preconditions.checkArgument(mutator != null, "Invalid argument");
     this.mutator = mutator;
     this.context = context;
     this.typeCoercion = typeCoercion;
     this.javaCodeGenWatch = javaCodeGenWatch;
     this.gandivaCodeGenWatch = gandivaCodeGenWatch;
+    this.depth = depth;
   }
 
-  private void createCopiers() {
+  protected void createCopiers() {
     ArrayList<ValueVector> outComplexVectors = new ArrayList<>();
     ArrayList<ValueVector> inComplexVectors = new ArrayList<>();
+    ArrayList<Integer> outFieldIds = new ArrayList<>();
 
     Preconditions.checkState(outputMutator != null, "Invalid state");
     Iterator<ValueVector> outVectorIterator = outputMutator.getVectors().iterator();
@@ -65,11 +70,17 @@ public class ComplexTypeReader implements AutoCloseable {
     // for each outvector find matching invector by doing case insensitive name search
     while (outVectorIterator.hasNext()) {
       ValueVector outV = outVectorIterator.next();
-      ValueVector inV = inFieldMap.getOrDefault(outV.getField().getName().toLowerCase(), null);
+      ValueVector inV = getInVector(outV.getField().getName(), inFieldMap);
       final CompleteType targetType = CompleteType.fromField(outV.getField());
       if (targetType.isComplex()) {
         inComplexVectors.add(inV);
         outComplexVectors.add(outV);
+        outFieldIds.add(
+            outputMutator
+                .getContainer()
+                .getSchema()
+                .getFieldId(BasePath.getSimple(outV.getName()))
+                .getFieldIds()[0]);
       }
     }
 
@@ -78,10 +89,16 @@ public class ComplexTypeReader implements AutoCloseable {
             context,
             inComplexVectors,
             outComplexVectors,
+            outFieldIds,
             outputMutator.getVector(ColumnUtils.COPY_HISTORY_COLUMN_NAME),
             typeCoercion,
             javaCodeGenWatch,
-            gandivaCodeGenWatch);
+            gandivaCodeGenWatch,
+            depth);
+  }
+
+  protected ValueVector getInVector(String name, Map<String, ValueVector> inFieldMap) {
+    return inFieldMap.getOrDefault(name.toLowerCase(), null);
   }
 
   public void setupProjector(

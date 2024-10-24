@@ -31,7 +31,12 @@ import prefixSection from "components/Forms/prefixSection";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
 
 import { label, divider } from "uiTheme/radium/forms";
-import { ExcelFormatForm, TextFormatForm, XLSFormatForm, ParquetFormatForm } from "./FormatForms";
+import {
+  ExcelFormatForm,
+  TextFormatForm,
+  XLSFormatForm,
+  ParquetFormatForm,
+} from "./FormatForms";
 
 function validate(values, props) {
   const { intl } = props;
@@ -61,7 +66,7 @@ const typeToForm = {
 
 const FIELDS = ["type", "version", "location", "isFolder"];
 const SECTIONS = Object.keys(typeToForm).map((key) =>
-  prefixSection(key)(typeToForm[key])
+  prefixSection(key)(typeToForm[key]),
 );
 const DEBOUNCE_DELAY = 100;
 
@@ -300,8 +305,8 @@ export default injectIntl(
       validate,
     },
     SECTIONS,
-    mapStateToProps
-  )(FileFormatForm)
+    mapStateToProps,
+  )(FileFormatForm),
 );
 
 const styles = {

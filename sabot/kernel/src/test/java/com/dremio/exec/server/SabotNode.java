@@ -139,6 +139,7 @@ import com.dremio.service.listing.DatasetListingServiceImpl;
 import com.dremio.service.maestroservice.MaestroClientFactory;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.orphanage.Orphanage;
@@ -246,14 +247,19 @@ public class SabotNode implements AutoCloseable {
     Preconditions.checkNotNull(clusterCoordinator);
     this.overrideModules = overrideModules;
 
-    DremioConfig dremioConfig = DremioConfig.create(null, config);
-    dremioConfig = dremioConfig.withValue(DremioConfig.ENABLE_COORDINATOR_BOOL, allRoles);
+    DremioConfig dremioConfig = initDremioConfig(config, allRoles);
 
     rootBootstrapContext = new BootStrapContext(dremioConfig, classpathScan);
     guiceSingletonHandler = new GuiceServiceModule();
     injector =
         createInjector(
             dremioConfig, classpathScan, clusterCoordinator, allRoles, rootBootstrapContext);
+  }
+
+  protected DremioConfig initDremioConfig(SabotConfig config, boolean allRoles) {
+    DremioConfig dremioConfig = DremioConfig.create(null, config);
+    dremioConfig = dremioConfig.withValue(DremioConfig.ENABLE_COORDINATOR_BOOL, allRoles);
+    return dremioConfig;
   }
 
   protected Injector createInjector(
@@ -522,6 +528,10 @@ public class SabotNode implements AutoCloseable {
 
         bind(CatalogStatusEvents.class).toInstance(new CatalogStatusEventsImpl());
 
+        // No-op implementation as executors should not interact with catalog event publishing
+        bind(CatalogEventMessagePublisherProvider.class)
+            .toInstance(CatalogEventMessagePublisherProvider.NO_OP);
+
         // CatalogService is expensive to create so we eagerly create it
         bind(CatalogService.class)
             .toInstance(
@@ -541,7 +551,8 @@ public class SabotNode implements AutoCloseable {
                     clusterRoles,
                     getProvider(ModifiableSchedulerService.class),
                     getProvider(VersionedDatasetAdapterFactory.class),
-                    getProvider(CatalogStatusEvents.class)));
+                    getProvider(CatalogStatusEvents.class),
+                    getProvider(ExecutorService.class)));
 
         conduitServiceRegistry.registerService(
             new InformationSchemaServiceImpl(
@@ -633,7 +644,9 @@ public class SabotNode implements AutoCloseable {
         bind(LocalJobTelemetryServer.class)
             .toInstance(
                 new LocalJobTelemetryServer(
+                    getProvider(OptionManager.class),
                     gRpcServerBuilderFactory,
+                    getProvider(KVStoreProvider.class),
                     getProvider(LegacyKVStoreProvider.class),
                     getProvider(NodeEndpoint.class),
                     grpcTracerFacade,

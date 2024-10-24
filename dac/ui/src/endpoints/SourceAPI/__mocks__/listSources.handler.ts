@@ -31,18 +31,18 @@ export const restoreMockData = () => {
 
 export const listSourcesHandler = rest.get(
   decodeURIComponent(
-    getSourcesUrl(true).replace(`//${window.location.host}`, "")
+    getSourcesUrl(true).replace(`//${window.location.host}`, ""),
   ),
   (req, res, ctx) => {
     return res(ctx.delay(200), ctx.json(mockData));
-  }
+  },
 );
 
 export const listSourcesHandler2 = rest.get(
   decodeURIComponent(
-    getSourcesUrl(false).replace(`//${window.location.host}`, "")
+    getSourcesUrl(false).replace(`//${window.location.host}`, ""),
   ),
   (req, res, ctx) => {
     return res(ctx.delay(200), ctx.json(mockData));
-  }
+  },
 );

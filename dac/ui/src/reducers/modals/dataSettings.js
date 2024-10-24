@@ -34,7 +34,7 @@ export default function dataSettings(state = initialState, action) {
         Immutable.fromJS({
           historyItems: [],
           enabled: false,
-        })
+        }),
       );
     case ActionTypes.ACCELERATION_DATA_SUCCESS:
       return state.set(
@@ -42,7 +42,7 @@ export default function dataSettings(state = initialState, action) {
         Immutable.fromJS({
           historyItems: action.payload.infosList, // todo: naming normalization (server-side?)
           enabled: action.payload.enabled,
-        })
+        }),
       );
     case ActionTypes.ACCELERATION_UPDATE_START:
       return state.set(
@@ -50,7 +50,7 @@ export default function dataSettings(state = initialState, action) {
         Immutable.fromJS({
           historyItems: state.get("acceleration").get("historyItems"),
           enabled: state.get("acceleration").get("enabled"),
-        })
+        }),
       );
     case ActionTypes.ACCELERATION_UPDATE_SUCCESS:
       return state.set(
@@ -58,12 +58,12 @@ export default function dataSettings(state = initialState, action) {
         Immutable.fromJS({
           historyItems: state.get("acceleration").get("historyItems"),
           enabled: state.get("acceleration").get("enabled"),
-        })
+        }),
       );
     case ActionTypes.ACCELERATION_SETTINGS_SUCCESS:
       return state.set(
         "accelerationSettings",
-        Immutable.fromJS(action.payload)
+        Immutable.fromJS(action.payload),
       );
     default:
       return state;

@@ -16,12 +16,17 @@
 package com.dremio.sabot.exec.rpc;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.GeneralRPCProtos;
+import com.dremio.exec.rpc.RpcOutcomeListener;
 import java.io.IOException;
 
 public interface TunnelProvider {
   AccountingExecToCoordTunnel getCoordTunnel();
 
   AccountingExecTunnel getExecTunnel(final NodeEndpoint endpoint);
+
+  AccountingExecTunnel getExecTunnelDlr(
+      final NodeEndpoint endpoint, RpcOutcomeListener<GeneralRPCProtos.Ack> handler);
 
   AccountingFileTunnel getFileTunnel(FileStreamManager streamManager, int maxBatchesPerFile)
       throws IOException;

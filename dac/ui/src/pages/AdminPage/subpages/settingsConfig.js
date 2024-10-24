@@ -15,7 +15,7 @@
  */
 import ByteField from "components/Fields/ByteField";
 import DurationField from "components/Fields/DurationField";
-import { formatMessage } from "@app/utils/locale";
+import { formatMessage } from "#oss/utils/locale";
 
 // todo: loc
 export const SECTIONS = new Map([

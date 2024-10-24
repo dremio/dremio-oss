@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
 import {
   CLIENT_TOOLS_POWERBI,
   CLIENT_TOOLS_TABLEAU,
-} from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+} from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 
 const usePowerBI = async () => {
   return await getSupportFlag<boolean>(CLIENT_TOOLS_POWERBI);

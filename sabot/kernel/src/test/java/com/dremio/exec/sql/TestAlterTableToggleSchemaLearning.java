@@ -35,7 +35,7 @@ public class TestAlterTableToggleSchemaLearning extends BaseTestQuery {
 
   @Before
   public void setup() {
-    setSystemOption(ExecConstants.ENABLE_INTERNAL_SCHEMA, "true");
+    setSystemOption(ExecConstants.ENABLE_INTERNAL_SCHEMA, true);
   }
 
   private SqlNode parse(String toParse) throws SqlParseException {

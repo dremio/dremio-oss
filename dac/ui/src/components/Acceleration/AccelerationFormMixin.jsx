@@ -16,13 +16,12 @@
 import { compose } from "redux";
 import { injectIntl } from "react-intl";
 import { Button } from "dremio-ui-lib/components";
-import { FormTitle } from "@app/components/Forms";
-import EllipsedText from "@app/components/EllipsedText";
-import { intl } from "@app/utils/intl";
+import { FormTitle } from "#oss/components/Forms";
+import EllipsedText from "#oss/components/EllipsedText";
+import { intl } from "#oss/utils/intl";
 
 function AccelerationFormMixin(input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     renderHeader() {
       const { mode } = this.state;
       const {

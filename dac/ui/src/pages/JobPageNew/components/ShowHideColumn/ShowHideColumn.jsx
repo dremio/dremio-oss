@@ -16,7 +16,7 @@
 import { useRef } from "react";
 import { injectIntl } from "react-intl";
 import PropTypes from "prop-types";
-import { TableColumns } from "@app/constants/Constants";
+import { TableColumns } from "#oss/constants/Constants";
 import Immutable from "immutable";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
 import FilterSelectMenu from "components/Fields/FilterSelectMenu";

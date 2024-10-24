@@ -15,7 +15,7 @@
  */
 import Immutable from "immutable";
 
-import { MAP, LIST, BOOLEAN, TEXT } from "@app/constants/DataTypes";
+import { MAP, LIST, BOOLEAN, TEXT } from "#oss/constants/DataTypes";
 import {
   UNMATCHED_CELL_VALUE,
   EMPTY_NULL_VALUE,
@@ -35,32 +35,32 @@ describe("#DataFormatUtils", () => {
 
     it("should return EMPTY_NULL_VALUE when value is undefined", () => {
       expect(DataFormatUtils.formatValue(undefined, TEXT, row)).to.be.equal(
-        EMPTY_NULL_VALUE
+        EMPTY_NULL_VALUE,
       );
     });
 
     it("should return EMPTY_STRING_VALUE when value is empty string", () => {
       expect(DataFormatUtils.formatValue("", TEXT, row)).to.be.equal(
-        EMPTY_STRING_VALUE
+        EMPTY_STRING_VALUE,
       );
     });
 
     it("should return EMPTY_NULL_VALUE when value is null", () => {
       expect(DataFormatUtils.formatValue(null, TEXT, row)).to.be.equal(
-        EMPTY_NULL_VALUE
+        EMPTY_NULL_VALUE,
       );
     });
 
     it("should return UNMATCHED_CELL_VALUE when row deleted", () => {
       row = row.set("isDeleted", true);
       expect(DataFormatUtils.formatValue(null, TEXT, row)).to.be.equal(
-        UNMATCHED_CELL_VALUE
+        UNMATCHED_CELL_VALUE,
       );
     });
 
     it("should return string when value is BOOLEAN", () => {
       expect(DataFormatUtils.formatValue(true, BOOLEAN, row)).to.be.equal(
-        "true"
+        "true",
       );
     });
 

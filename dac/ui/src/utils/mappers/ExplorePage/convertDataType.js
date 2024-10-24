@@ -21,7 +21,7 @@ import {
   TIME,
   DATETIME,
   getTransformType,
-} from "@app/constants/DataTypes";
+} from "#oss/constants/DataTypes";
 
 export default function mapConvertDataType(form) {
   const {

@@ -22,6 +22,7 @@ import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
 import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.VM;
 import com.dremio.common.concurrent.CloseableExecutorService;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.concurrent.CloseableThreadPool;
@@ -32,6 +33,7 @@ import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.context.RequestContext;
+import com.dremio.datastore.WarningTimer;
 import com.dremio.datastore.format.Format;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.maestro.MaestroForwarder;
@@ -98,10 +100,14 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.NettyArrowBuf;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.inject.Provider;
@@ -158,6 +164,7 @@ public class ForemenWorkManager implements Service, SafeExit {
   private final Provider<RequestContext> requestContextProvider;
   private final Provider<PartitionStatsCacheStoreProvider> transientStoreProvider;
   private PartitionStatsCache partitionStatsCache;
+  private final CloseableExecutorService jobSubmissionExecutorService;
 
   public ForemenWorkManager(
       final Provider<FabricService> fabric,
@@ -182,6 +189,9 @@ public class ForemenWorkManager implements Service, SafeExit {
     this.queryCancelTool = new QueryCancelToolImpl();
     this.requestContextProvider = requestContextProvider;
     this.transientStoreProvider = transientStoreProvider;
+    this.jobSubmissionExecutorService =
+        new ContextMigratingCloseableExecutorService<>(
+            CloseableThreadPool.newFixedThreadPool("job-submission-", VM.availableProcessors()));
   }
 
   public ExecToCoordResultsHandler getExecToCoordResultsHandler() {
@@ -287,7 +297,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(profileSender, pool, jobResultsAllocator);
+    AutoCloseables.close(profileSender, pool, jobResultsAllocator, jobSubmissionExecutorService);
   }
 
   @VisibleForTesting
@@ -411,7 +421,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
       @Override
       public void operationComplete(Future<Void> future) throws Exception {
-        foreman.cancel("User - Connection closed", false, false);
+        foreman.cancel("User - Connection closed", false, false, true);
       }
     }
 
@@ -643,6 +653,11 @@ public class ForemenWorkManager implements Service, SafeExit {
     }
 
     @Override
+    public ExecutorService getJobSubmissionThreadPool() {
+      return jobSubmissionExecutorService;
+    }
+
+    @Override
     public void submitLocalQuery(
         ExternalId externalId,
         QueryObserver observer,
@@ -650,7 +665,8 @@ public class ForemenWorkManager implements Service, SafeExit {
         boolean prepare,
         LocalExecutionConfig config,
         boolean runInSameThread,
-        UserSession userSession) {
+        UserSession userSession,
+        long jobSubmissionTime) {
       try {
         // make sure we keep a local observer out of band.
         final QueryObserver oobJobObserver =
@@ -679,7 +695,8 @@ public class ForemenWorkManager implements Service, SafeExit {
             new UserRequest(
                 prepare ? RpcType.CREATE_PREPARED_STATEMENT : RpcType.RUN_QUERY,
                 query,
-                runInSameThread);
+                runInSameThread,
+                jobSubmissionTime);
         submit(
             externalId,
             oobJobObserver,
@@ -702,83 +719,94 @@ public class ForemenWorkManager implements Service, SafeExit {
       UserRequest request,
       TerminationListenerRegistry registry,
       Executor executor) {
-    commandPool
-        .get()
-        .<Void>submit(
-            CommandPool.Priority.HIGH,
-            ExternalIdHelper.toString(externalId) + ":work-submission",
-            "work-submission",
-            (waitInMillis) ->
-                submitWorkCommand(
-                    externalId,
-                    session,
-                    responseHandler,
-                    request,
-                    registry,
-                    executor,
-                    waitInMillis),
-            request.runInSameThread())
-        .whenComplete(
-            (o, e) -> {
-              if (e != null) {
-                QueryProfile profile =
-                    foremenTool.getProfile(externalId).isPresent()
-                        ? foremenTool.getProfile(externalId).get()
-                        : null;
-                UserException exception =
-                    UserException.resourceError()
-                        .message(
-                            e.getMessage()
-                                + ". Root cause: "
-                                + Throwables.getRootCause(e).getMessage())
-                        .buildSilently();
-                UserResult result =
-                    new UserResult(
-                        null,
-                        ExternalIdHelper.toQueryId(externalId),
-                        UserBitShared.QueryResult.QueryState.FAILED,
-                        profile,
-                        exception,
-                        null,
-                        false,
-                        false,
-                        false);
-                responseHandler.completed(result);
-              }
-            });
+    CompletableFuture<Void> workSubmissionFuture;
+    if (request.runInSameThread()) {
+      workSubmissionFuture = new CompletableFuture<>();
+      try {
+        submitWorkCommand(externalId, session, responseHandler, request, registry, executor);
+        workSubmissionFuture.complete(null);
+      } catch (Throwable th) {
+        workSubmissionFuture.completeExceptionally(th);
+      }
+    } else {
+      workSubmissionFuture =
+          CompletableFuture.runAsync(
+              () ->
+                  submitWorkCommand(
+                      externalId, session, responseHandler, request, registry, executor),
+              jobSubmissionExecutorService);
+    }
+
+    workSubmissionFuture.whenComplete(
+        (o, e) -> {
+          if (e != null) {
+            QueryProfile profile =
+                foremenTool.getProfile(externalId).isPresent()
+                    ? foremenTool.getProfile(externalId).get()
+                    : null;
+            UserException exception =
+                UserException.resourceError()
+                    .message(
+                        e.getMessage() + ". Root cause: " + Throwables.getRootCause(e).getMessage())
+                    .buildSilently();
+            UserResult result =
+                new UserResult(
+                    null,
+                    ExternalIdHelper.toQueryId(externalId),
+                    UserBitShared.QueryResult.QueryState.FAILED,
+                    profile,
+                    exception,
+                    null,
+                    false,
+                    false,
+                    false);
+            responseHandler.completed(result);
+          }
+        });
   }
 
   @VisibleForTesting // package-protected for testing purposes. Don't make it public.
+  @WithSpan("work-submission")
   Void submitWorkCommand(
       ExternalId externalId,
       UserSession session,
       UserResponseHandler responseHandler,
       UserRequest request,
       TerminationListenerRegistry registry,
-      Executor executor,
-      Long waitInMillis) {
-    if (!canAcceptWork()) {
-      throw UserException.resourceError().message(UserException.QUERY_REJECTED_MSG).buildSilently();
-    }
+      Executor executor) {
+    try (WarningTimer timer =
+        new WarningTimer(
+            String.format("Work submission %s", ExternalIdHelper.toString(externalId)),
+            TimeUnit.MILLISECONDS.toMillis(100),
+            logger)) {
+      final Thread currentThread = Thread.currentThread();
+      final String originalName = currentThread.getName();
+      currentThread.setName(ExternalIdHelper.toString(externalId) + ":work-submission");
 
-    if (waitInMillis > CommandPool.WARN_DELAY_MS) {
-      logger.warn(
-          "Work submission {} waited too long in the command pool: wait was {}ms",
-          ExternalIdHelper.toString(externalId),
-          waitInMillis);
+      try {
+        Span.current().setAttribute("dremio.jobId", ExternalIdHelper.toString(externalId));
+        if (!canAcceptWork()) {
+          throw UserException.resourceError()
+              .message(UserException.QUERY_REJECTED_MSG)
+              .buildSilently();
+        }
+
+        session.incrementQueryCount();
+        final QueryObserver observer =
+            dbContext
+                .get()
+                .getQueryObserverFactory()
+                .get()
+                .createNewQueryObserver(externalId, session, responseHandler);
+        final QueryObserver oobObserver =
+            new OutOfBandQueryObserver(observer, executor, requestContextProvider);
+        final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
+        submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
+        return null;
+      } finally {
+        currentThread.setName(originalName);
+      }
     }
-    session.incrementQueryCount();
-    final QueryObserver observer =
-        dbContext
-            .get()
-            .getQueryObserverFactory()
-            .get()
-            .createNewQueryObserver(externalId, session, responseHandler);
-    final QueryObserver oobObserver =
-        new OutOfBandQueryObserver(observer, executor, requestContextProvider);
-    final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
-    submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
-    return null;
   }
 
   /** Worker for queries coming from user layer. */

@@ -80,32 +80,32 @@ export default class MetadataRefresh extends Component {
 
     if (values.metadataPolicy.namesRefreshMillis < MIN_TIME) {
       errors.metadataPolicy.namesRefreshMillis = laDeprecated(
-        "Dataset discovery fetch must be at least 1 minute."
+        "Dataset discovery fetch must be at least 1 minute.",
       );
     }
 
     if (values.metadataPolicy.datasetDefinitionRefreshAfterMillis < MIN_TIME) {
       errors.metadataPolicy.datasetDefinitionRefreshAfterMillis = laDeprecated(
-        "Dataset details fetch must be at least 1 minute."
+        "Dataset details fetch must be at least 1 minute.",
       );
     }
 
     if (values.metadataPolicy.datasetDefinitionExpireAfterMillis < MIN_TIME) {
       errors.metadataPolicy.datasetDefinitionExpireAfterMillis = laDeprecated(
-        "Dataset details expiry must be at least 1 minute."
+        "Dataset details expiry must be at least 1 minute.",
       );
     } else if (
       values.metadataPolicy.datasetDefinitionRefreshAfterMillis >
       values.metadataPolicy.datasetDefinitionExpireAfterMillis
     ) {
       errors.metadataPolicy.datasetDefinitionExpireAfterMillis = laDeprecated(
-        "Dataset details cannot be configured to expire faster than they fetch."
+        "Dataset details cannot be configured to expire faster than they fetch.",
       );
     }
 
     if (values.metadataPolicy.authTTLMillis < MIN_TIME) {
       errors.metadataPolicy.authTTLMillis = laDeprecated(
-        "Authorization expiry must be at least 1 minute."
+        "Authorization expiry must be at least 1 minute.",
       );
     }
 

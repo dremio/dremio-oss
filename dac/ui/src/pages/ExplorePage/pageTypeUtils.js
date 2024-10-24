@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
+import { PageTypes } from "#oss/pages/ExplorePage/pageTypes";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import {
   addProjectBase,
@@ -35,7 +35,7 @@ const isPageTypeContainedInPath = (pathname) => {
   const patternSlashCount = countSlashes(
     pathname.startsWith("/new_query")
       ? sqlPaths.sqlEditor.fullRoute() //Existing (temporary) dataset is also /sql?version=a&tipVersion=b
-      : sqlPaths.existingDataset.fullRoute()
+      : sqlPaths.existingDataset.fullRoute(),
   );
   let validSlashCount = patternSlashCount;
   if (getProjectBase() !== "/") {
@@ -61,6 +61,6 @@ export const excludePageType = (pathname) => {
  */
 export const changePageTypeInUrl = (pathname, newPageType) => {
   return addProjectBase(
-    excludePageType(rmProjectBase(pathname)) + getPathPart(newPageType)
+    excludePageType(rmProjectBase(pathname)) + getPathPart(newPageType),
   );
 };

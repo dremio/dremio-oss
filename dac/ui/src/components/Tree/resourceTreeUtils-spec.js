@@ -50,7 +50,7 @@ describe("resourceTreeUtils", () => {
         'Samples."samples.dremio.com"."SF weather 2018-2019.csv"';
       const result = constructSummaryFullPath(pathParts);
       expect(result).to.equal(
-        "Samples/samples.dremio.com/SF weather 2018-2019.csv"
+        "Samples/samples.dremio.com/SF weather 2018-2019.csv",
       );
     });
   });
@@ -151,7 +151,7 @@ describe("resourceTreeUtils", () => {
         state,
         // @ts-ignore
         action,
-        payloadKey
+        payloadKey,
       );
 
       expect(result.toJS()).to.deep.equal(expectedResult);
@@ -241,7 +241,7 @@ describe("resourceTreeUtils", () => {
         state,
         // @ts-ignore
         action,
-        payloadKey
+        payloadKey,
       );
       const expectedResult = {
         starResourceList: [

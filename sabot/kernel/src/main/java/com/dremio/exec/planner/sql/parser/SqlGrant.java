@@ -90,7 +90,9 @@ public class SqlGrant extends SqlCall implements SimpleDirectHandler.Creator {
     SOURCE,
     SPACE,
     FUNCTION,
-    CATALOG
+    CATALOG,
+    BRANCH,
+    TAG
   }
 
   public static final SqlSpecialOperator OPERATOR =

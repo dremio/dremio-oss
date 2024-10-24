@@ -67,6 +67,7 @@ public class TestSqlAlterTableSortOrder extends BaseTestQuery {
             add("ALTER TABLE t1 LOCALSORT BY (a)");
             add("ALTER TABLE t1 LOCALSORT BY (a, b, c, d, e, f, g, h)");
             add("ALTER TABLE t1 LOCALSORT BY (blah, foo, block, mic, ToTaL_COST23)");
+            add("ALTER TABLE t1 DROP LOCALSORT");
           }
         };
     for (String malformedQuery : malformedQueries) {
@@ -86,6 +87,7 @@ public class TestSqlAlterTableSortOrder extends BaseTestQuery {
             put(
                 "ALTER TABLE t1 LOCALSORT BY (blah, foo, block, mic, ToTaL_COST23)",
                 "ALTER TABLE \"t1\" LOCALSORT BY (\"blah\", \"foo\", \"block\", \"mic\", \"ToTal_COST23\")");
+            put("ALTER TABLE t1 DROP LOCALSORT", "ALTER TABLE \"t1\" DROP LOCALSORT");
           }
         };
 

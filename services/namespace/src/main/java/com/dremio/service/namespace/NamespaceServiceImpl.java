@@ -37,7 +37,6 @@ import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.Document;
-import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableDocument;
@@ -53,6 +52,7 @@ import com.dremio.datastore.api.options.ImmutableMaxResultsOption;
 import com.dremio.datastore.api.options.ImmutableVersionOption;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
 import com.dremio.service.namespace.catalogstatusevents.events.DatasetDeletionCatalogStatusEvent;
 import com.dremio.service.namespace.dataset.DatasetMetadata;
@@ -128,7 +128,6 @@ public class NamespaceServiceImpl implements NamespaceService {
   private static final NameSpaceContainerVersionExtractor CONTAINER_VERSION_EXTRACTOR =
       new NameSpaceContainerVersionExtractor();
 
-  public static final String DAC_NAMESPACE = "dac-namespace";
   // NOTE: the name of the partition chunks store needs to stay "metadata-dataset-splits" for
   // backwards compatibility.
   public static final String PARTITION_CHUNKS = "metadata-dataset-splits";
@@ -147,7 +146,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   private static final Set<Type> VALID_ROOT_CONTAINER_TYPES =
       ImmutableSet.of(FUNCTION, HOME, SOURCE, SPACE);
 
-  private final IndexedStore<String, NameSpaceContainer> namespace;
+  private final NamespaceStore namespace;
   private final IndexedStore<PartitionChunkId, PartitionChunk> partitionChunkStore;
   private final KVStore<PartitionChunkId, MultiSplit> multiSplitStore;
   private final CatalogStatusEvents catalogStatusEvents;
@@ -156,63 +155,58 @@ public class NamespaceServiceImpl implements NamespaceService {
   public static final class Factory implements NamespaceService.Factory {
     private final KVStoreProvider kvStoreProvider;
     private final CatalogStatusEvents catalogStatusEvents;
+    private final CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider;
 
     @Inject
-    public Factory(KVStoreProvider kvStoreProvider, CatalogStatusEvents catalogStatusEvents) {
+    public Factory(
+        KVStoreProvider kvStoreProvider,
+        CatalogStatusEvents catalogStatusEvents,
+        CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider) {
       this.kvStoreProvider = kvStoreProvider;
       this.catalogStatusEvents = catalogStatusEvents;
+      this.catalogEventMessagePublisherProvider = catalogEventMessagePublisherProvider;
     }
 
     @Override
     public NamespaceService get(String userName) {
       Preconditions.checkNotNull(userName, "requires userName"); // per method contract
-      return new NamespaceServiceImpl(kvStoreProvider, catalogStatusEvents);
+      return new NamespaceServiceImpl(
+          kvStoreProvider, catalogStatusEvents, catalogEventMessagePublisherProvider);
     }
 
     @Override
     public NamespaceService get(NamespaceIdentity identity) {
       Preconditions.checkNotNull(identity, "requires identity"); // per method contract
-      return new NamespaceServiceImpl(kvStoreProvider, catalogStatusEvents);
+      return new NamespaceServiceImpl(
+          kvStoreProvider, catalogStatusEvents, catalogEventMessagePublisherProvider);
     }
   }
 
   @Inject
   public NamespaceServiceImpl(
-      KVStoreProvider kvStoreProvider, CatalogStatusEvents catalogStatusEvents) {
-    this.namespace = kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+      KVStoreProvider kvStoreProvider,
+      CatalogStatusEvents catalogStatusEvents,
+      CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider) {
+    this(kvStoreProvider, catalogStatusEvents, catalogEventMessagePublisherProvider, false);
+  }
+
+  public NamespaceServiceImpl(
+      KVStoreProvider kvStoreProvider,
+      CatalogStatusEvents catalogStatusEvents,
+      CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider,
+      boolean cacheLookups) {
+    this.namespace =
+        new NamespaceStore(
+            () -> kvStoreProvider,
+            createDmlCallbacks(catalogEventMessagePublisherProvider),
+            cacheLookups);
     this.partitionChunkStore = kvStoreProvider.getStore(PartitionChunkCreator.class);
     this.multiSplitStore = kvStoreProvider.getStore(MultiSplitStoreCreator.class);
     this.catalogStatusEvents = catalogStatusEvents;
   }
 
-  IndexedStore<String, NameSpaceContainer> getNamespaceStore() {
+  NamespaceStore getNamespaceStore() {
     return namespace;
-  }
-
-  /** Creator for name space kvstore. */
-  public static class NamespaceStoreCreator
-      implements IndexedStoreCreationFunction<String, NameSpaceContainer> {
-
-    @Override
-    public IndexedStore<String, NameSpaceContainer> build(StoreBuildingFactory factory) {
-      return new NamespaceStore(
-          factory
-              .<String, NameSpaceContainer>newStore()
-              .name(DAC_NAMESPACE)
-              .keyFormat(Format.ofString())
-              .valueFormat(
-                  Format.wrapped(
-                      NameSpaceContainer.class,
-                      NameSpaceContainer::toProtoStuff,
-                      NameSpaceContainer::new,
-                      Format.ofProtostuff(
-                          com.dremio.service.namespace.protostuff.NameSpaceContainer.class)))
-              .buildIndexed(getConverter()));
-    }
-
-    protected DocumentConverter<String, NameSpaceContainer> getConverter() {
-      return new NamespaceConverter();
-    }
   }
 
   @SuppressWarnings("unchecked")
@@ -580,8 +574,48 @@ public class NamespaceServiceImpl implements NamespaceService {
     return numPartitionChunksDeleted;
   }
 
-  protected IndexedStore<String, NameSpaceContainer> getStore() {
+  protected NamespaceStore getStore() {
     return namespace;
+  }
+
+  private static List<NamespaceDmlCallback> createDmlCallbacks(
+      CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider) {
+    return List.of(
+        new NamespaceDmlCallback() {
+          @Override
+          public void onAdd(List<String> path) {
+            publish(
+                path,
+                CatalogEventProto.CatalogEventMessage.CatalogEventType.CATALOG_EVENT_TYPE_CREATED);
+          }
+
+          @Override
+          public void onUpdate(List<String> path) {
+            publish(
+                path,
+                CatalogEventProto.CatalogEventMessage.CatalogEventType.CATALOG_EVENT_TYPE_UPDATED);
+          }
+
+          @Override
+          public void onDelete(List<String> path) {
+            publish(
+                path,
+                CatalogEventProto.CatalogEventMessage.CatalogEventType.CATALOG_EVENT_TYPE_DELETED);
+          }
+
+          private void publish(
+              List<String> path, CatalogEventProto.CatalogEventMessage.CatalogEventType type) {
+            catalogEventMessagePublisherProvider
+                .get()
+                .publish(
+                    CatalogEventProto.CatalogEventMessage.newBuilder()
+                        .addEvents(
+                            CatalogEventProto.CatalogEventMessage.CatalogEvent.newBuilder()
+                                .addAllPath(path)
+                                .setEventType(type))
+                        .build());
+          }
+        });
   }
 
   /**
@@ -665,8 +699,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         && isPhysicalDataset(newOrUpdatedEntity.getContainer().getDataset().getType())
         && existingContainer.getType() == FOLDER) {
       namespace.delete(
-          (new NamespaceInternalKey(new NamespaceKey(existingContainer.getFullPathList())))
-              .getKey(),
+          NamespaceUtils.getKey(existingContainer),
           new ImmutableVersionOption.Builder()
               .setTag(existingContainer.getFolder().getTag())
               .build());
@@ -1951,9 +1984,9 @@ public class NamespaceServiceImpl implements NamespaceService {
 
     String tag = CONTAINER_VERSION_EXTRACTOR.getTag(child);
     if (!Strings.isNullOrEmpty(tag)) {
-      namespace.delete(childKey.getKey(), new ImmutableVersionOption.Builder().setTag(tag).build());
+      namespace.delete(childKey, new ImmutableVersionOption.Builder().setTag(tag).build());
     } else {
-      namespace.delete(childKey.getKey());
+      namespace.delete(childKey);
     }
 
     if (child.getType() == DATASET) {
@@ -1995,10 +2028,9 @@ public class NamespaceServiceImpl implements NamespaceService {
     traverseAndDeleteChildren(key, container, callback);
     if (deleteRoot) {
       if (!Strings.isNullOrEmpty(version)) {
-        namespace.delete(
-            key.getKey(), new ImmutableVersionOption.Builder().setTag(version).build());
+        namespace.delete(key, new ImmutableVersionOption.Builder().setTag(version).build());
       } else {
-        namespace.delete(key.getKey());
+        namespace.delete(key);
       }
     }
     return container;
@@ -2042,7 +2074,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   @Deprecated
   @Override
   public void deleteEntity(NamespaceKey entityPath) throws NamespaceException {
-    namespace.delete(new NamespaceInternalKey(entityPath).getKey());
+    namespace.delete(entityPath);
   }
 
   @Override
@@ -2130,7 +2162,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
     Document<String, NameSpaceContainer> updatedDoc =
         namespace.put(newValue.getPathKey().getKey(), newValue.getContainer());
-    namespace.delete(oldKey.getKey());
+    namespace.delete(oldKey);
     return documentToContainer(updatedDoc).getDataset();
   }
 
@@ -2226,7 +2258,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         case FOLDER:
           // delete the folder as it is being converted to a dataset
           namespace.delete(
-              searchKey.getKey(),
+              searchKey,
               new ImmutableVersionOption.Builder()
                   .setTag(existingContainer.getFolder().getTag())
                   .build());

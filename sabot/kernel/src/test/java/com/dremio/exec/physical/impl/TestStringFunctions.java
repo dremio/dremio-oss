@@ -225,6 +225,17 @@ public class TestStringFunctions extends BaseTestFunction {
   }
 
   @Test
+  public void lcase() {
+    testFunctions(
+        new Object[][] {
+          {"lcase('ABcEFgh')", "abcefgh"},
+          {"lcase('aBc')", "abc"},
+          {"lcase('')", ""},
+          {"lcase('ÂbĆDËFgh')", "âbćdëfgh"}
+        });
+  }
+
+  @Test
   public void position() {
     testFunctions(
         new Object[][] {
@@ -384,6 +395,17 @@ public class TestStringFunctions extends BaseTestFunction {
           {"upper('aBc')", "ABC"},
           {"upper('')", ""},
           {"upper('âBćDëFGH')", "ÂBĆDËFGH"}
+        });
+  }
+
+  @Test
+  public void ucase() {
+    testFunctions(
+        new Object[][] {
+          {"ucase('ABcEFgh')", "ABCEFGH"},
+          {"ucase('aBc')", "ABC"},
+          {"ucase('')", ""},
+          {"ucase('âBćDëFGH')", "ÂBĆDËFGH"}
         });
   }
 

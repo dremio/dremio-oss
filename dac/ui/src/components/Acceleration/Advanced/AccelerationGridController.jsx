@@ -19,8 +19,8 @@ import Immutable from "immutable";
 import PropTypes from "prop-types";
 import { get } from "lodash/object";
 
-import "@app/uiTheme/less/commonModifiers.less";
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import "#oss/uiTheme/less/commonModifiers.less";
+import "#oss/uiTheme/less/Acceleration/Acceleration.less";
 
 import AccelerationGridControllerMixin from "dyn-load/components/Acceleration/Advanced/AccelerationGridControllerMixin";
 
@@ -31,14 +31,14 @@ import {
   cellType,
   fieldTypes,
   granularityValue,
-} from "@app/constants/AccelerationConstants";
-import { TIMESTAMP } from "@app/constants/DataTypes";
+} from "#oss/constants/AccelerationConstants";
+import { TIMESTAMP } from "#oss/constants/DataTypes";
 import {
   findAllMeasureTypes,
   getDefaultMeasureTypes,
 } from "utils/accelerationUtils";
-import { getSupportFlags } from "@app/selectors/supportFlags";
-import { ALLOW_REFLECTION_PARTITION_TRANFORMS } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getSupportFlags } from "#oss/selectors/supportFlags";
+import { ALLOW_REFLECTION_PARTITION_TRANFORMS } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 import {
   PartitionTransformations,
   ReflectionDataType,

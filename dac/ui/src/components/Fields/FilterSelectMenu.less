@@ -52,7 +52,7 @@
       align-items: flex-start;
 
       &:hover {
-        background-color: white;
+        background-color: var(--fill--popover);
       }
 
       span {
@@ -77,7 +77,7 @@
       &.--chosen {
         background-color: var(--fill--primary--selected);
         &:hover {
-          background-color: var(--fill--primary--hover);
+          background-color: var(--fill--primary--selected--hover);
         }
       }
       &.--disabled {
@@ -121,13 +121,14 @@
       width: 29px;
       margin-left: 4px;
       margin-right: 8px;
+      color: var(--icon--primary);
     }
     &__dragTargetCls {
       width: 95%;
       height: 100%;
     }
     &__dragTargetHoverCls {
-      border-bottom: 1px solid var(--color--brand--400);
+      border-bottom: 1px solid var(--border--brand--solid);
       width: 100%;
     }
   }

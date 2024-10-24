@@ -16,8 +16,8 @@
 import { useEffect } from "react";
 import { useResourceSnapshot, useResourceStatus } from "smart-resource/react";
 
-import { EntityPanelResource } from "@app/resources/EntityResource";
-import { transformEntity } from "@app/utils/entity-utils";
+import { EntityPanelResource } from "#oss/resources/EntityResource";
+import { transformEntity } from "#oss/utils/entity-utils";
 import Immutable from "immutable";
 
 export const useEntityPanelDetails = (

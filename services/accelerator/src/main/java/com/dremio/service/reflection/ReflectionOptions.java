@@ -51,6 +51,13 @@ public interface ReflectionOptions {
           "reflection.materialization.cache.refresh.delay_millis",
           Long.MAX_VALUE,
           TimeUnit.SECONDS.toMillis(30));
+  // how often should all the reflection entries be checked whether the anchor datasets are deleted
+  // set to the same as MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS for performance consideration
+  PositiveLongValidator DELETED_DATASET_HANDLING_DELAY_MILLIS =
+      new PositiveLongValidator(
+          "reflection.deleted_dataset_handling.delay_millis",
+          Long.MAX_VALUE,
+          TimeUnit.SECONDS.toMillis(30));
   // how long the planner can block waiting on materialization cache initialization before
   // continuing without reflections
   PositiveLongValidator MATERIALIZATION_CACHE_INIT_TIMEOUT_SECONDS =
@@ -178,4 +185,8 @@ public interface ReflectionOptions {
   // The maximum number of reflections allowed by Reflection Manager.
   LongValidator MAX_NUM_REFLECTIONS_LIMIT =
       new RangeLongValidator("reflection.max_num_reflections_limit", 0L, Long.MAX_VALUE, 500);
+  // Maximum wait for submitting a refresh job before timing out.
+  PositiveLongValidator REFRESH_JOB_SUBMISSION_TIMEOUT_MINUTES =
+      new PositiveLongValidator(
+          "reflection.manager.refresh_job_submission.timeout", Long.MAX_VALUE, 5);
 }

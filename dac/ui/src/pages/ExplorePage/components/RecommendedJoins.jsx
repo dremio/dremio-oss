@@ -48,7 +48,7 @@ export class RecommendedJoins extends Component {
     router: PropTypes.object.isRequired,
   };
 
-  loadTablePromise = null; // eslint-disable-line react/sort-comp
+  loadTablePromise = null;
 
   constructor(props) {
     super(props);
@@ -85,7 +85,7 @@ export class RecommendedJoins extends Component {
         schema: datasetSchema,
         viewId: RECOMMENDED_JOINS_VIEW_ID,
         uiPropsForEntity,
-      })
+      }),
     );
     return this.loadTablePromise;
   }
@@ -113,7 +113,7 @@ export class RecommendedJoins extends Component {
           joinedTableKeyColumnName: matchingKeys.get(leftKey),
           joinedColumn: leftKey,
         }))
-        .toJS()
+        .toJS(),
     );
   }
 

@@ -18,10 +18,10 @@ import { RSAA } from "redux-api-middleware";
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import exploreUtils from "utils/explore/exploreUtils";
 import { datasetWithoutData } from "schemas/v2/fullDataset";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import { updateBody } from "@inject/actions/explore/dataset/updateLocation";
-import { getNessieReferencePayload } from "@app/utils/nessieUtils";
-import { store } from "@app/store/store";
+import { getNessieReferencePayload } from "#oss/utils/nessieUtils";
+import { store } from "#oss/store/store";
 
 export const NEW_UNTITLED_START = "NEW_UNTITLED_START";
 export const NEW_UNTITLED_SUCCESS = "NEW_UNTITLED_SUCCESS";
@@ -38,7 +38,7 @@ function newUntitledFetch(
   parentFullPath,
   viewId,
   references,
-  willLoadTable
+  willLoadTable,
 ) {
   // todo: DX-6630: why is this called multiple times per PERFORM_NEW_UNTITLED?
   // (only one seems to be sent though)
@@ -48,7 +48,7 @@ function newUntitledFetch(
     parentFullPath,
     newVersion,
     true,
-    willLoadTable
+    willLoadTable,
   );
   return {
     [RSAA]: {
@@ -57,7 +57,7 @@ function newUntitledFetch(
         schemaUtils.getSuccessActionTypeWithSchema(
           NEW_UNTITLED_SUCCESS,
           datasetWithoutData,
-          meta
+          meta,
         ),
         { type: NEW_UNTITLED_FAILURE, meta },
       ],
@@ -74,7 +74,7 @@ export const newUntitled = (
   parentFullPath,
   viewId,
   willLoadTable,
-  customReference
+  customReference,
 ) => {
   return (dispatch) => {
     const { nessie } = store.getState(); //getState from Thunk API was not working from transformWatcher.performWatchedTransform Saga
@@ -85,8 +85,8 @@ export const newUntitled = (
         parentFullPath,
         viewId,
         Object.keys(references).length ? references : customReference,
-        willLoadTable
-      )
+        willLoadTable,
+      ),
     );
   };
 };
@@ -117,7 +117,7 @@ export function postNewUntitledSql(
   queryContext,
   viewId,
   references,
-  noUpdate
+  noUpdate,
 ) {
   const meta = { viewId };
 
@@ -137,7 +137,7 @@ export function postNewUntitledSql(
         schemaUtils.getSuccessActionTypeWithSchema(
           NEW_UNTITLED_SQL_SUCCESS,
           datasetWithoutData,
-          meta
+          meta,
         ),
         { type: NEW_UNTITLED_SQL_FAILURE, meta: { ...meta, noUpdate } },
       ],
@@ -156,13 +156,13 @@ export function newUntitledSql(
   references,
   sessionId,
   version,
-  noUpdate
+  noUpdate,
 ) {
   return (dispatch) => {
     const newVersion = version ? version : exploreUtils.getNewDatasetVersion();
     const href = exploreUtils.getUntitledSqlHref({ newVersion, sessionId });
     return dispatch(
-      postNewUntitledSql(href, sql, queryContext, viewId, references, noUpdate)
+      postNewUntitledSql(href, sql, queryContext, viewId, references, noUpdate),
     );
   };
 }
@@ -174,7 +174,7 @@ export function newUntitledSqlAndRun(
   references,
   sessionId,
   version,
-  noUpdate
+  noUpdate,
 ) {
   return (dispatch) => {
     const newVersion = version ? version : exploreUtils.getNewDatasetVersion();
@@ -183,7 +183,7 @@ export function newUntitledSqlAndRun(
       sessionId,
     });
     return dispatch(
-      postNewUntitledSql(href, sql, queryContext, viewId, references, noUpdate)
+      postNewUntitledSql(href, sql, queryContext, viewId, references, noUpdate),
     );
   };
 }

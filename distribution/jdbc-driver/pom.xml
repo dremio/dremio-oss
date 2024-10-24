@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>25.1.1-202409260159070462-716c0676</version>
+    <version>${revision}</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
@@ -138,11 +138,11 @@
         </exclusion>
         <exclusion>
           <groupId>org.bouncycastle</groupId>
-          <artifactId>bcpkix-jdk15on</artifactId>
+          <artifactId>bcpkix-jdk18on</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.bouncycastle</groupId>
-          <artifactId>bcpkix-jdk15on</artifactId>
+          <artifactId>bcpkix-jdk18on</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.glassfish.jersey.containers</groupId>
@@ -692,11 +692,11 @@
             <!-- Entries to relocate netty native libraries  -->
             <relocation>
               <pattern>META-INF.native.libnetty_</pattern>
-              <shadedPattern>META-INF.native.libcdjd_netty_</shadedPattern>
+              <shadedPattern>META-INF.native.libcom_dremio_jdbc_shaded_netty_</shadedPattern>
             </relocation>
             <relocation>
               <pattern>META-INF.native.netty_</pattern>
-              <shadedPattern>META-INF.native.cdjd_netty_</shadedPattern>
+              <shadedPattern>META-INF.native.com_dremio_jdbc_shaded_netty_</shadedPattern>
             </relocation>
 
             <!-- Entries to relocate log4j resource bundle -->

@@ -60,7 +60,6 @@ public class HashAggregate extends AbstractSingle {
     this.hashTableBatchSize = hashTableBatchSize;
   }
 
-  // for testing only
   public HashAggregate(
       OpProps props,
       PhysicalOperator child,
@@ -69,7 +68,15 @@ public class HashAggregate extends AbstractSingle {
       boolean vectorize,
       boolean useSpill,
       float cardinality) {
-    this(props, child, groupByExprs, aggrExprs, vectorize, useSpill, cardinality, 3968);
+    this(
+        props,
+        child,
+        groupByExprs,
+        aggrExprs,
+        vectorize,
+        useSpill,
+        cardinality,
+        props.getTargetBatchSize());
   }
 
   public boolean isVectorize() {

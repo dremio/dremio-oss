@@ -44,6 +44,8 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.NamespaceStore;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
@@ -67,6 +69,7 @@ import java.util.Set;
 public class TestUtilities {
 
   public static final String DFS_TEST_PLUGIN_NAME = "dfs_test";
+  public static final String ICEBERG_TEST_TABLES_ROOT_PATH = "/tmp/iceberg-test-tables";
 
   /**
    * Create and removes a temporary folder
@@ -248,7 +251,7 @@ public class TestUtilities {
       SourceConfig c = new SourceConfig();
       InternalFileConf conf = new InternalFileConf();
       conf.connection = "file:///";
-      conf.path = "/tmp/iceberg-test-tables";
+      conf.path = ICEBERG_TEST_TABLES_ROOT_PATH;
       conf.mutability = SchemaMutability.ALL;
       conf.defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
       c.setConnectionConf(conf);
@@ -318,7 +321,7 @@ public class TestUtilities {
       throws NamespaceException, IOException {
     {
       List<String> list = new ArrayList<>();
-      list.add(NamespaceServiceImpl.DAC_NAMESPACE);
+      list.add(NamespaceStore.DAC_NAMESPACE);
       list.add(NamespaceServiceImpl.PARTITION_CHUNKS);
       list.add(CatalogServiceImpl.CATALOG_SOURCE_DATA_NAMESPACE);
       list.add("wlmqueue");
@@ -338,7 +341,10 @@ public class TestUtilities {
     }
 
     final NamespaceService namespace =
-        new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
+        new NamespaceServiceImpl(
+            kvStoreProvider,
+            new CatalogStatusEventsImpl(),
+            CatalogEventMessagePublisherProvider.NO_OP);
 
     List<String> list = new ArrayList<>();
     list.add("__jobResultsStore");

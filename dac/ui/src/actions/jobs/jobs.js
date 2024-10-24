@@ -26,7 +26,7 @@ import {
 } from "utils/jobsQueryState";
 import { addNotification } from "actions/notification";
 import tokenUtils from "@inject/utils/tokenUtils";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const UPDATE_JOB_DETAILS = "UPDATE_JOB_DETAILS";
 

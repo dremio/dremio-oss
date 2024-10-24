@@ -42,7 +42,7 @@ export default class PropertyListConfig extends FormElementConfig {
 
   addValidators(validations) {
     validations.functions.push(
-      SourceProperties.getValidators(super.getConfig())
+      SourceProperties.getValidators(super.getConfig()),
     );
     return validations;
   }

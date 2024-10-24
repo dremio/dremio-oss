@@ -11,9 +11,7 @@ notices and/or trademarks:
 
 * This code was Written by Gil Tene of Azul Systems, and released to the   * public domain, as explained at http://creativecommons.org/publicdomain/zero/1.0/   For users of this code who wish to consume it under the BSD license  rather than under the public domain or CC0 contribution text mentioned  above, the code found under this directory is *also* provided under the  following license (commonly referred to as the BSD 2-Clause License). This  license does not detract from the above stated release of the code into  the public domain, and simply represents an additional license granted by  the Author.   -----------------------------------------------------------------------------  ** Beginning of BSD 2-Clause License text. **    Copyright (c) 2012, 2013, 2014 Gil Tene   All rights reserved.    Redistribution and use in source and binary forms, with or without   modification, are permitted provided that the following conditions are met:    1. Redistributions of source code must retain the above copyright notice,      this list of conditions and the following disclaimer.    2. Redistributions in binary form must reproduce the above copyright notice,      this list of conditions and the following disclaimer in the documentation      and/or other materials provided with the distribution.    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE   ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF   THE POSSIBILITY OF SUCH DAMAGE.
 
-// Copyright (c) 2013 The Chromium Authors. All rights reserved. // // Redistribution and use in source and binary forms, with or without // modification, are permitted provided that the following conditions are // met: // //    * Redistributions of source code must retain the above copyright // notice, this list of conditions and the following disclaimer. //    * Redistributions in binary form must reproduce the above // copyright notice, this list of conditions and the following disclaimer // in the documentation and/or other materials provided with the // distribution. //    * Neither the name of Google Inc. nor the names of its // contributors may be used to endorse or promote products derived from // this software without specific prior written permission. // // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS // AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT // LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR // A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT // OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, // SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT // LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, // DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-<p>Copyright © 2024 <a href=https://samhuri.net>Sami Samhuri, http://samhuri.net</a> &lt;<a href=/cdn-cgi/l/email-protection#3340525e5a7340525e5b46415a1d5d5647><span class=__cf_email__ data-cfemail=a2d1c3cfcbe2d1c3cfcad7d0cb8cccc7d6>[email&#160;protected]</span></a>&gt;</p>
+<p>Copyright © 2024 <a href=https://samhuri.net>Sami Samhuri, http://samhuri.net</a> &lt;<a href=/cdn-cgi/l/email-protection#b8cbd9d5d1f8cbd9d5d0cdcad196d6ddcc><span class=__cf_email__ data-cfemail=255644484c655644484d50574c0b4b4051>[email&#160;protected]</span></a>&gt;</p>
 
 ========================================================================= ==  NOTICE file corresponding to section 4(d) of the Apache License,   == ==  Version 2.0, in this case for MicroProfile OpenAPI                 == =========================================================================  The majority of this software were originally based on the following: * Swagger Core   https://github.com/swagger-api/swagger-core   under Apache License, v2.0
 
@@ -105,8 +103,6 @@ Apache Yetus Copyright 2008-2019 The Apache Software Foundation  This product in
 
 Apache ZooKeeper Copyright 2009-2014 The Apache Software Foundation
 
-Apache log4j Copyright 2010 The Apache Software Foundation  This product includes software developed at The Apache Software Foundation (http://www.apache.org/).
-
 ApacheDS Copyright 2003-2013 The Apache Software Foundation This product includes software developed at The Apache Software Foundation (http://www.apache.org/). Copyright 1998-2008 The OpenLDAP Foundation All rights reserved. Redistribution and use in source and binary forms, with or without modification, are permitted only as authorized by the OpenLDAP Public License. A copy of this license is available in the file LICENSE in the top-level directory of the distribution or, alternatively, at <http://www.OpenLDAP.org/license.html>. OpenLDAP is a registered trademark of the OpenLDAP Foundation. Individual files and/or contributed packages may be copyright by other parties and/or subject to additional restrictions. This work is derived from the University of Michigan LDAP v3.3 distribution.  Information concerning this software is available at <http://www.umich.edu/~dirsvcs/ldap/ldap.html>. This work also contains materials derived from public sources. Additional information about OpenLDAP can be obtained at <http://www.openldap.org/>. --- Portions Copyright 1998-2008 Kurt D. Zeilenga. Portions Copyright 1998-2006 Net Boolean Incorporated. Portions Copyright 2001-2006 IBM Corporation. All rights reserved. Redistribution and use in source and binary forms, with or without modification, are permitted only as authorized by the OpenLDAP Public License. --- Portions Copyright 1999-2007 Howard Y.H. Chu. Portions Copyright 1999-2007 Symas Corporation. Portions Copyright 1998-2003 Hallvard B. Furuseth. Portions Copyright 2007 Gavin Henry Portions Copyright 2007 Suretec Systems All rights reserved. Redistribution and use in source and binary forms, with or without modification, are permitted provided that this notice is preserved. The names of the copyright holders may not be used to endorse or promote products derived from this software without their specific prior written permission.  This software is provided ``as is'' without express or implied warranty. --- Portions Copyright (c) 1992-1996 Regents of the University of Michigan. All rights reserved. Redistribution and use in source and binary forms are permitted provided that this notice is preserved and that due credit is given to the University of Michigan at Ann Arbor.  The name of the University may not be used to endorse or promote products derived from this software without specific prior written permission.  This software is provided ``as is'' without express or implied warranty. --- Portions Copyright (c) 2001-2011  Vladimir Lysyy Licensed under the Apache License, Version 2.0 (the License);   you may not use this source code except in compliance with the License.   You may obtain a copy of the License at       http://www.apache.org/licenses/LICENSE-2.0   Unless required by applicable law or agreed to in writing, software   distributed under the License is distributed on an AS IS BASIS,   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   See the License for the specific language governing permissions and   limitations under the License.
 
 Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
@@ -138,8 +134,6 @@ Copyright (c) 1997, PostgreSQL Global Development Group
 Copyright (c) 2000 - 2019 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Copyright (c) 2000-2011 INRIA, France Telecom
-
-Copyright (c) 2000-2024 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org). Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sub license, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Copyright (c) 2001-2016, Arno Unkrig Copyright (c) 2015-2016  TIBCO Software Inc.
 
@@ -203,8 +197,6 @@ Copyright (c) 2011 Oracle and/or its affiliates. All rights reserved.
 
 Copyright (c) 2011, Christopher Finke All rights reserved.
 
-Copyright (c) 2011-2013 Phillip Clark
-
 Copyright (c) 2011-2013 Terence Parr
 
 Copyright (c) 2011-2016 Heather Arthur <fayearthur@gmail.com>
@@ -229,8 +221,6 @@ Copyright (c) 2012 Nicholas Fisher
 
 Copyright (c) 2012 Raynos.
 
-Copyright (c) 2012, 2013, 2014 James Halliday <mail@substack.net>, 2009 Thomas Robinson <280north.com>
-
 Copyright (c) 2012, 2018 Oracle and/or its affiliates. All rights reserved. This program and the accompanying materials are made available under the terms of the Eclipse Public License v. 2.0, which is available at http://www.eclipse.org/legal/epl-2.0. This Source Code may also be made available under the following Secondary Licenses when the conditions for such availability set forth in the Eclipse Public License v. 2.0 are satisfied: GNU General Public License, version 2 with the GNU Classpath Exception, which is available at https://www.gnu.org/software/classpath/license.html. SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 
 Copyright (c) 2012, 2019 Oracle and/or its affiliates. All rights reserved. This program and the accompanying materials are made available under the terms of the Eclipse Public License v. 2.0, which is available at http://www.eclipse.org/legal/epl-2.0. This Source Code may also be made available under the following Secondary Licenses when the conditions for such availability set forth in the Eclipse Public License v. 2.0 are satisfied: GNU General Public License, version 2 with the GNU Classpath Exception, which is available at https://www.gnu.org/software/classpath/license.html. SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
@@ -247,21 +237,15 @@ Copyright (c) 2012-2021 Alexei Boronine Copyright (c) 2016 Florian Dormont
 
 Copyright (c) 2013 Andrey Popp
 
-Copyright (c) 2013 Braveg1rl
-
 Copyright (c) 2013 James Halliday
 
 Copyright (c) 2013 Julian Gruber <julian@juliangruber.com>
 
 Copyright (c) 2013 Masayuki Tanaka
 
-Copyright (c) 2013 Meryn Stol
-
 Copyright (c) 2013 Mikola Lysenko
 
 Copyright (c) 2013 Raynos.
-
-Copyright (c) 2013 The Chromium Authors. All rights reserved.
 
 Copyright (c) 2013-2015 Oracle and/or its affiliates. All rights reserved.
 
@@ -361,8 +345,6 @@ Copyright (c) 2015 Nick Williams Copyright (c) 2011 Heather Arthur <fayearthur@g
 
 Copyright (c) 2015 Ravindra Marella
 
-Copyright (c) 2015 React Motion authors
-
 Copyright (c) 2015 Rich Harris
 
 Copyright (c) 2015 Shusaku Uesugi
@@ -401,8 +383,6 @@ Copyright (c) 2015-present, Ryan Florence, Michael Jackson
 
 Copyright (c) 2016 - present Microsoft Corporation
 
-Copyright (c) 2016 - present Mike Lischke
-
 Copyright (c) 2016 Alexander Kuznetsov
 
 Copyright (c) 2016 Baz
@@ -410,8 +390,6 @@ Copyright (c) 2016 Baz
 Copyright (c) 2016 Dan Abramov
 
 Copyright (c) 2016 David Frank
-
-Copyright (c) 2016 Eugene Rodionov
 
 Copyright (c) 2016 Jordan Harband
 
@@ -501,8 +479,6 @@ Copyright (c) 2018, React Community Forked from React (https://github.com/facebo
 
 Copyright (c) 2018-present, iamkun
 
-Copyright (c) 2018–present Artem Zakharchenko
-
 Copyright (c) 2019 Ademola Adegbuyi
 
 Copyright (c) 2019 Alexander Reardon
@@ -551,8 +527,6 @@ Copyright (c) 2021 Vitaly Rtishchev
 
 Copyright (c) 2021, Oath Inc.
 
-Copyright (c) 2021-present Floating UI contributors
-
 Copyright (c) 2021-present Tanner Linsley
 
 Copyright (c) 2022 ECMAScript Shims
@@ -565,15 +539,21 @@ Copyright (c) 2022 Sentry (https://sentry.io) and individual contributors. All r
 
 Copyright (c) 2022 WorkOS
 
+Copyright (c) 2022-present Preact Team
+
 Copyright (c) 2023 ECMAScript Shims
 
 Copyright (c) 2023 Inspect JS
 
 Copyright (c) 2023 Jordan Harband
 
+Copyright (c) 2023 React Intersection Observer authors
+
 Copyright (c) 2023 Sven Sauleau
 
-Copyright (c) 2024 Adam Shaw
+Copyright (c) 2024 Inspect JS
+
+Copyright (c) 2024 Jordan Harband
 
 Copyright (c) Microsoft Corporation.
 
@@ -625,8 +605,6 @@ Copyright 2014 Google Inc.
 
 Copyright 2014 The gRPC Authors
 
-Copyright 2014 Yahoo Inc. All rights reserved.
-
 Copyright 2014, Google Inc. All rights reserved. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:            * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.            * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.            * Neither the name of Google Inc. nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Copyright 2014-2018 Chronicle Software Ltd
@@ -652,6 +630,8 @@ Copyright 2016-2019 The OpenTracing Authors
 Copyright 2017 Andrey Sitnik <andrey@sitnik.ru>
 
 Copyright 2017 Google Inc.  All Rights Reserved.
+
+Copyright 2017 Jayway
 
 Copyright 2017 Kat Marchán Copyright npm, Inc.
 
@@ -739,8 +719,6 @@ Copyright(c) 2018 Microsoft Corporation All rights reserved.
 
 Dremio Copyright 2015-2017 Dremio Corporation  This product includes software developed at  The Apache Software Foundation (http://www.apache.org/).  --------------------------------------------------------------------------------  This project includes code from Iceberg, developed at Netflix, Inc. with the following copyright notice:  | Copyright 2017 Netflix, Inc. | | Licensed under the Apache License, Version 2.0 (the License); | you may not use this file except in compliance with the License. | You may obtain a copy of the License at | |   http://www.apache.org/licenses/LICENSE-2.0 | | Unless required by applicable law or agreed to in writing, software | distributed under the License is distributed on an AS IS BASIS, | WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. | See the License for the specific language governing permissions and | limitations under the License.
 
-Dremio Copyright 2015-2017 Dremio Corporation  This product includes software developed at  The Apache Software Foundation (http://www.apache.org/).  Apache Avro Copyright The Apache Software Foundation  Apache Commons Copyright The Apache Software Foundation  Apache Curator Copyright The Apache Software Foundation  Apache Hadoop Copyright The Apache Software Foundation  Apache HTTP Components Copyright The Apache Software Foundation  Apache Iceberg Copyright The Apache Software Foundation  Apache Kerby Copyright The Apache Software Foundation  This product includes additional software licensed under the terms of the following licenses, see LICENSE file: * Apache Software License, Version 2.0 * Creative Commons 1.0 Universal * Eclipse Distribution License, Version 1.0 * Eclipse Public License, Version 1.0 * Eclipse Public License, Version 2.0 * GNU General Public License, Version 2 with the GNU Classpath Exception  ---  The main docs page for a particular Nessie release under https://projectnessie.org/docs/ contains an aggregated license report (since Nessie version 0.83).
-
 Elasticsearch Copyright 2009-2017 Elasticsearch
 
 FreeMarker is Free software, licensed under the Apache License, Version 2.0.
@@ -771,8 +749,6 @@ Notices for Eclipse Project for Interceptors This content is produced and mainta
 
 Prometheus instrumentation library for JVM applications Copyright 2012-2015 The Prometheus Authors  This product includes software developed at Boxever Ltd. (http://www.boxever.com/).  This product includes software developed at SoundCloud Ltd. (http://soundcloud.com/).  This product includes software developed as part of the Ocelli project by Netflix Inc. (https://github.com/Netflix/ocelli/).
 
-Swagger Core - ${pom.name} Copyright (c) 2015. SmartBear Software Inc. Swagger Core - ${pom.name}  is licensed under Apache 2.0 license. Copy of the Apache 2.0 license can be found in `LICENSE` file.
-
 The Checker Framework Copyright 2004-present by the Checker Framework developers   Most of the Checker Framework is licensed under the GNU General Public License, version 2 (GPL2), with the classpath exception.  The text of this license appears below.  This is the same license used for OpenJDK.  A few parts of the Checker Framework have more permissive licenses.   * The annotations are licensed under the MIT License.  (The text of this    license appears below.)  More specifically, all the parts of the Checker    Framework that you might want to include with your own program use the    MIT License.  This is the checker-qual.jar file and all the files that    appear in it:  every file in a qual/ directory, plus utility files such    as NullnessUtil.java, RegexUtil.java, SignednessUtil.java, etc.    In addition, the cleanroom implementations of third-party annotations,    which the Checker Framework recognizes as aliases for its own    annotations, are licensed under the MIT License.  Some external libraries that are included with the Checker Framework have different licenses.   * javaparser is dual licensed under the LGPL or the Apache license -- you    may use it under whichever one you want.  (The javaparser source code    contains a file with the text of the GPL, but it is not clear why, since    javaparser does not use the GPL.)  See file stubparser/LICENSE    and the source code of all its files.   * JUnit is licensed under the Common Public License v1.0 (see    http://www.junit.org/license), with parts (Hamcrest) licensed under the    BSD License (see http://hamcrest.org/JavaHamcrest/).   * Libraries in plume-lib (https://github.com/plume-lib/) are licensed    under the MIT License.  The Checker Framework includes annotations for the JDK in directory checker/jdk/, and for some other libraries.  Each annotated library uses the same license as the unannotated version of the library.
 
 The MIT License   Copyright (c) 2009 codehaus.org.   Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:   The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.   THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -784,8 +760,6 @@ The MIT License (MIT) Copyright (c) 2015 Dmitry Ivanov
 The MIT License (MIT) Copyright (c) 2015-2020 Adphorus Copyright (c) 2020-     Hypeserver
 
 The MIT License (MIT) Copyright (c) 2017 Kent C. Dodds
-
-The MIT License (MIT) Copyright (c) 2017 PayPal
 
 The MIT License (MIT) Copyright (c) 2020 Brian Vaughn
 
@@ -811,13 +785,17 @@ This product includes software developed by The Apache Software Foundation (http
 
 Toposort - Topological sorting for node.js Copyright (c) 2012 by Marcel Klehr <mklehr@gmx.net> MIT LICENSE Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-[The BSD license] Copyright (c) 2016 The ANTLR Project All rights reserved.
-
 foodmart-data-json Foodmart data set in JSON format Copyright (C) 2013-2013 Pentaho Copyright (C) 2015-2015 Julian Hyde All Rights Reserved.  Based upon the Pentaho mondrian-data-foodmart-json artifact developed as part of the Pentaho Mondrian OLAP engine (http://mondrian.pentaho.com).
 
-https://github.com/vigna/fastutil/blob/master/LICENSE-2.0
+https://github.com/Azure/azure-sdk-for-java/blob/main/NOTICE.txt
 
-opyright 2014 The gRPC Authors  Licensed under the Apache License, Version 2.0 (the License); you may not use this file except in compliance with the License. You may obtain a copy of the License at      http://www.apache.org/licenses/LICENSE-2.0  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an AS IS BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.  -----------------------------------------------------------------------  This product contains a modified portion of 'OkHttp', an open source HTTP & SPDY client for Android and Java applications, which can be obtained at:    * LICENSE:     * okhttp/third_party/okhttp/LICENSE (Apache License 2.0)   * HOMEPAGE:     * https://github.com/square/okhttp   * LOCATION_IN_GRPC:     * okhttp/third_party/okhttp  This product contains a modified portion of 'Envoy', an open source cloud-native high-performance edge/middle/service proxy, which can be obtained at:    * LICENSE:     * xds/third_party/envoy/LICENSE (Apache License 2.0)   * NOTICE:     * xds/third_party/envoy/NOTICE   * HOMEPAGE:     * https://www.envoyproxy.io   * LOCATION_IN_GRPC:     * xds/third_party/envoy  This product contains a modified portion of 'protoc-gen-validate (PGV)', an open source protoc plugin to generate polyglot message validators, which can be obtained at:    * LICENSE:     * xds/third_party/protoc-gen-validate/LICENSE (Apache License 2.0)   * NOTICE:       * xds/third_party/protoc-gen-validate/NOTICE   * HOMEPAGE:     * https://github.com/envoyproxy/protoc-gen-validate   * LOCATION_IN_GRPC:     * xds/third_party/protoc-gen-validate  This product contains a modified portion of 'udpa', an open source universal data plane API, which can be obtained at:    * LICENSE:     * xds/third_party/udpa/LICENSE (Apache License 2.0)   * HOMEPAGE:     * https://github.com/cncf/udpa   * LOCATION_IN_GRPC:     * xds/third_party/udpa
+https://github.com/grpc/grpc-java/blob/master/NOTICE.txt
+
+https://github.com/micrometer-metrics/micrometer/blob/main/NOTICE
+
+https://github.com/projectnessie/nessie/blob/main/NOTICE
+
+https://github.com/swagger-api/swagger-core/blob/master/NOTICE
 
 protostuff  Copyright 2009 David Yu dyuproject@gmail.com
 

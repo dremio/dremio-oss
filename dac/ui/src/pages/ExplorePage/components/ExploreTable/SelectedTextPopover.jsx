@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import { Popover } from "@app/components/Popover";
+import { Popover } from "#oss/components/Popover";
 import Immutable from "immutable";
 import {
   MAP,
@@ -24,14 +24,14 @@ import {
   MIXED,
   BINARY,
   STRUCT,
-} from "@app/constants/DataTypes";
+} from "#oss/constants/DataTypes";
 import Menu from "components/Menus/Menu";
 import MenuItemLink from "components/Menus/MenuItemLink";
 import MenuItem from "components/Menus/MenuItem";
 import Divider from "@mui/material/Divider";
 import { withLocation } from "containers/dremioLocation";
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { ALLOW_DOWNLOAD } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { ALLOW_DOWNLOAD } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 
 import "./SelectedTextPopover.less";
 
@@ -117,7 +117,7 @@ export class SelectedTextPopoverView extends Component {
       ? this.items.filter(
           (item) =>
             item.get("transform") !== "extract" &&
-            item.get("transform") !== "split"
+            item.get("transform") !== "split",
         )
       : this.items;
   };
@@ -129,7 +129,7 @@ export class SelectedTextPopoverView extends Component {
 
   renderForItemsOfList(newState) {
     const extract = this.items.filter(
-      (item) => item.get("transform") === "extract"
+      (item) => item.get("transform") === "extract",
     );
     if (extract && extract.size > 0) {
       return this.renderItem(extract.get(0), newState);

@@ -17,7 +17,7 @@ import { useState, useMemo, useCallback, useEffect, forwardRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { loadGrant } from "@inject/actions/resources/grant";
 import { debounce } from "lodash";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import { MultiSelect, Label } from "dremio-ui-lib";
 import { Button } from "dremio-ui-lib/components";
 import { searchRoles } from "@inject/actions/roles";
@@ -28,8 +28,8 @@ import {
   useCanSearchRolesAndUsers,
 } from "../../privileges-page-utils";
 import { GrantObject } from "../../PrivilegesPage";
-import { GranteeType as CatalogGranteeType } from "@app/exports/endpoints/ArcticCatalogGrants/ArcticCatalogGrants.types";
-import { GranteeType as OrgGranteeType } from "@app/exports/endpoints/Grants/Grants.types";
+import { GranteeType as CatalogGranteeType } from "#oss/exports/endpoints/ArcticCatalogGrants/ArcticCatalogGrants.types";
+import { GranteeType as OrgGranteeType } from "#oss/exports/endpoints/Grants/Grants.types";
 import * as classes from "./AddToPrivileges.module.less";
 
 export type UserOrRole = {

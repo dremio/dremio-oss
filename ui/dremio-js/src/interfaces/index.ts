@@ -20,6 +20,7 @@ export * from "./Dataset.js";
 export * from "./Engine.js";
 export * from "./Folder.js";
 export * from "./Job.js";
+export * from "./Ownable.js";
 export * from "./Problem.js";
 export * from "./Project.js";
 export * from "./Role.js";

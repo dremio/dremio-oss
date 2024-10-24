@@ -36,6 +36,7 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClient;
 import com.dremio.service.maestroservice.MaestroClient;
+import com.dremio.service.maestroservice.MaestroServiceGrpc;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
@@ -332,7 +333,11 @@ class MaestroProxyQueryTracker implements QueryTracker {
     }
 
     if (screenCompletion != null) {
-      final NodeQueryScreenCompletion completion = screenCompletion;
+      // Update NodeQueryScreenCompletion with profile endTime
+      final NodeQueryScreenCompletion completion =
+          screenCompletion.toBuilder()
+              .setScreenOperatorCompletionTime(profile.getEndTime())
+              .build();
       Consumer<StreamObserver<Empty>> consumer =
           observer -> {
             try {
@@ -340,12 +345,16 @@ class MaestroProxyQueryTracker implements QueryTracker {
                   "sending screen completion to foreman {}:{}",
                   foreman.getAddress(),
                   foreman.getFabricPort());
-              maestroServiceClient.screenComplete(completion, observer);
+              maestroServiceClient.screenComplete(
+                  completion.toBuilder().setRpcStartedAt(System.currentTimeMillis()).build(),
+                  observer);
             } catch (Exception e) {
               observer.onError(e);
             }
           };
-      consumer.accept(new RetryingObserver(consumer));
+      consumer.accept(
+          new RetryingObserver(
+              consumer, MaestroServiceGrpc.getScreenCompleteMethod().getBareMethodName()));
     }
     if (firstError != null) {
       final NodeQueryFirstError error = firstError;
@@ -356,12 +365,15 @@ class MaestroProxyQueryTracker implements QueryTracker {
                   "sending fragment error to foreman {}:{}",
                   foreman.getAddress(),
                   foreman.getFabricPort());
-              maestroServiceClient.nodeFirstError(error, observer);
+              maestroServiceClient.nodeFirstError(
+                  error.toBuilder().setRpcStartedAt(System.currentTimeMillis()).build(), observer);
             } catch (Exception e) {
               observer.onError(e);
             }
           };
-      consumer.accept(new RetryingObserver(consumer));
+      consumer.accept(
+          new RetryingObserver(
+              consumer, MaestroServiceGrpc.getNodeFirstErrorMethod().getBareMethodName()));
     }
   }
 
@@ -414,12 +426,16 @@ class MaestroProxyQueryTracker implements QueryTracker {
                 "sending node completion message to foreman {}:{}",
                 foreman.getAddress(),
                 foreman.getFabricPort());
-            maestroServiceClient.nodeQueryComplete(completion, observer);
+            maestroServiceClient.nodeQueryComplete(
+                completion.toBuilder().setRpcStartedAt(System.currentTimeMillis()).build(),
+                observer);
           } catch (Exception e) {
             observer.onError(e);
           }
         };
-    consumer.accept(new RetryingObserver(consumer));
+    consumer.accept(
+        new RetryingObserver(
+            consumer, MaestroServiceGrpc.getNodeQueryCompleteMethod().getBareMethodName()));
   }
 
   private void checkIfResultsSent(FragmentStatus status) {
@@ -463,13 +479,15 @@ class MaestroProxyQueryTracker implements QueryTracker {
 
   private class RetryingObserver implements StreamObserver<Empty> {
     Consumer<StreamObserver<Empty>> retryFunction;
+    String rpcName;
     int backoffMillis;
     int numRetriesDone;
 
-    RetryingObserver(Consumer<StreamObserver<Empty>> retryFunction) {
+    RetryingObserver(Consumer<StreamObserver<Empty>> retryFunction, String rpcName) {
       this.retryFunction = retryFunction;
       this.backoffMillis = INITIAL_BACKOFF_MILLIS;
       this.numRetriesDone = 0;
+      this.rpcName = rpcName;
       incrementPendingMessages();
     }
 
@@ -487,7 +505,8 @@ class MaestroProxyQueryTracker implements QueryTracker {
         decrementPendingMessages();
       } else if (numRetriesDone >= MAX_RETRIES) {
         logger.error(
-            "sending failure for query {} to maestro failed, all {} retries exhausted",
+            "Maestro {} rpc for query {} failed, all {} retries exhausted",
+            rpcName,
             QueryIdHelper.getQueryId(queryId),
             MAX_RETRIES,
             throwable);
@@ -498,8 +517,11 @@ class MaestroProxyQueryTracker implements QueryTracker {
         numRetriesDone++;
         backoffMillis = Integer.min(backoffMillis * 2, MAX_BACKOFF_MILLIS);
         logger.warn(
-            "sending failure for query {} to maestro failed, will retry after " + "backoff {} ms",
+            "Maestro {} rpc for query {} failed, retry number {}/{}, will retry again after backoff {} ms",
+            rpcName,
             QueryIdHelper.getQueryId(queryId),
+            numRetriesDone,
+            MAX_RETRIES,
             backoffMillis,
             throwable);
         retryExecutor.schedule(
@@ -512,7 +534,6 @@ class MaestroProxyQueryTracker implements QueryTracker {
       decrementPendingMessages();
     }
   }
-  ;
 
   private synchronized void incrementPendingMessages() {
     if (pendingMessages.getAndIncrement() == 0) {

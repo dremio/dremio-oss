@@ -20,7 +20,7 @@ import classNames from "clsx";
 import { injectIntl } from "react-intl";
 
 import EllipsedText from "components/EllipsedText";
-import { typeToIconType } from "@app/constants/DataTypes";
+import { typeToIconType } from "#oss/constants/DataTypes";
 import { constructFullPath } from "utils/pathUtils";
 
 import { IconButton, Tooltip } from "dremio-ui-lib";
@@ -31,7 +31,7 @@ import {
   disabled as disabledCls,
   iconInDropdown as iconCls,
   datasetAdd,
-} from "@app/uiTheme/less/DragComponents/ColumnMenuItem.less";
+} from "#oss/uiTheme/less/DragComponents/ColumnMenuItem.less";
 import DragSource from "./DragSource";
 
 class ColumnMenuItem extends PureComponent {
@@ -114,7 +114,7 @@ class ColumnMenuItem extends PureComponent {
             data-qa={`inner-join-field-${item.get("name")}-${fieldType}`}
           >
             <dremio-icon
-              class="mr-05"
+              class="mr-05 icon-primary"
               name={`data-types/${typeToIconType[item.get("type")]}`}
             ></dremio-icon>
             <div className={itemContainer}>

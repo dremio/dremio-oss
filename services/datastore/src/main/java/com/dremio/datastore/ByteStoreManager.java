@@ -17,6 +17,7 @@ package com.dremio.datastore;
 
 import static com.dremio.datastore.RocksDBStore.BLOB_PATH;
 import static com.dremio.datastore.RocksDBStore.FILTER_SIZE_IN_BYTES;
+import static com.dremio.datastore.RocksDBStore.OVERRIDE_FILTER_SIZE_MAP;
 import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -43,7 +44,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -81,8 +81,8 @@ class ByteStoreManager implements AutoCloseable {
   private static final long ROCKSDB_OPEN_SLEEP_MILLIS = 100L;
   // TODO: (DX-16211) this is a temporary hack for a blob whitelist
   static final String BLOB_WHITELIST_STORE = "dac-namespace";
-  private static final Set<String> BLOB_WHITELIST = Collections.singleton(BLOB_WHITELIST_STORE);
-
+  private static final Set<String> BLOB_WHITELIST =
+      Set.of(BLOB_WHITELIST_STORE, "intermediate_profiles");
   static final String CATALOG_STORE_NAME = "catalog";
 
   private final boolean inMemory;
@@ -165,13 +165,16 @@ class ByteStoreManager implements AutoCloseable {
   private RocksDBStore newRocksDBStore(
       String name, ColumnFamilyDescriptor columnFamilyDescriptor, ColumnFamilyHandle handle) {
     final RocksMetaManager rocksManager;
-    if (BLOB_WHITELIST.contains(name)) {
-      rocksManager = new RocksMetaManager(baseDirectory, name, FILTER_SIZE_IN_BYTES);
-    } else {
-      rocksManager = new RocksMetaManager(baseDirectory, name, Long.MAX_VALUE);
-    }
+    rocksManager = new RocksMetaManager(baseDirectory, name, selectFilterSize(name));
     return new RocksDBStore(
         name, columnFamilyDescriptor, handle, db, stripeCount, rocksManager, dbReadOnly);
+  }
+
+  private static long selectFilterSize(String name) {
+    if (BLOB_WHITELIST.contains(name)) {
+      return OVERRIDE_FILTER_SIZE_MAP.getOrDefault(name, FILTER_SIZE_IN_BYTES);
+    }
+    return Long.MAX_VALUE;
   }
 
   // Validates that the first file found in the DB directory is owned by the currently running user.
@@ -262,7 +265,6 @@ class ByteStoreManager implements AutoCloseable {
           "WAL settings: size: '{} MB', TTL: '{}' seconds",
           dboptions.walSizeLimitMB(),
           dboptions.walTtlSeconds());
-
       registerMetrics(dboptions);
       db = openDB(dboptions, path, new ArrayList<>(Lists.transform(families, func)), familyHandles);
     }

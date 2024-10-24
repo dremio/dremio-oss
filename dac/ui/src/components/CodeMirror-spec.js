@@ -78,7 +78,7 @@ describe("CodeMirror", () => {
       instance.resetValue.resetHistory();
 
       wrapper = shallow(
-        <CodeMirror {...commonProps} defaultValue={undefined} />
+        <CodeMirror {...commonProps} defaultValue={undefined} />,
       );
       instance = wrapper.instance();
       sinon.spy(instance, "resetValue");
@@ -139,7 +139,7 @@ describe("CodeMirror", () => {
       instance.editor = commonProps.codeMirror();
       instance.resetValue();
       expect(instance.editor.setValue).to.be.calledWith(
-        commonProps.defaultValue
+        commonProps.defaultValue,
       );
       expect(commonProps.onChange).to.not.be.called;
       expect(instance.reseting).to.be.false;

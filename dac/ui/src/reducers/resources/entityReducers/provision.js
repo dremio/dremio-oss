@@ -16,7 +16,7 @@
 import {
   LOAD_PROVISIONING_SUCCESS,
   LOAD_AWS_DEFAULTS_SUCCESS,
-} from "@app/actions/resources/provisioning";
+} from "#oss/actions/resources/provisioning";
 import Immutable from "immutable";
 import { decorateProvision } from "utils/decorators/resourceDecorators";
 import { extraProvisionReducer } from "@inject/reducers/resources/entityReducers/provisionExtra";
@@ -31,7 +31,7 @@ export default function provisionReducer(state, action) {
             [provision.id]: decorateProvision(Immutable.fromJS(provision)),
           };
         },
-        {}
+        {},
       );
       return state.mergeIn(["provision"], Immutable.Map(provisions));
     }
@@ -39,7 +39,7 @@ export default function provisionReducer(state, action) {
     case LOAD_AWS_DEFAULTS_SUCCESS: {
       return state.setIn(
         ["awsDefaults"],
-        Immutable.fromJS({ awsProps: action.payload })
+        Immutable.fromJS({ awsProps: action.payload }),
       );
     }
 

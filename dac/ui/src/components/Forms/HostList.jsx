@@ -26,7 +26,7 @@ import {
   sectionTitle,
   description as descriptionStyle,
 } from "uiTheme/radium/forms";
-import FormUtils from "@app/utils/FormUtils/FormUtils";
+import FormUtils from "#oss/utils/FormUtils/FormUtils";
 
 import Host from "./Host";
 
@@ -73,7 +73,7 @@ function validateHostList(values, elementConfig) {
   set(
     result,
     propertyName,
-    hostList.map((host) => Host.validate(host))
+    hostList.map((host) => Host.validate(host)),
   );
   return result;
 }
@@ -132,7 +132,7 @@ export default class HostList extends Component {
     const defaultPort =
       this.props.defaultPort || this.props.elementConfig.default_port || 9200;
     get(this.props.fields, this.props.elementConfig.propertyName).addField(
-      HostList.getNewHost(defaultPort)
+      HostList.getNewHost(defaultPort),
     );
   }
 

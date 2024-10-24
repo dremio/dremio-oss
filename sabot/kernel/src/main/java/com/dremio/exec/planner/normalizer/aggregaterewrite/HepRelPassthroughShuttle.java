@@ -23,7 +23,7 @@ import org.apache.calcite.rel.RelNode;
  * RelShuttle, but when it encounters a HepRelVertex it passthrough to the current rel (because
  * whoever designed it didn't make the current rel a child of the node ...)
  */
-public abstract class HepRelPassthroughShuttle extends StatelessRelShuttleImpl {
+public class HepRelPassthroughShuttle extends StatelessRelShuttleImpl {
   @Override
   public RelNode visit(RelNode other) {
     if (!(other instanceof HepRelVertex)) {

@@ -18,7 +18,7 @@ import FormElementConfig from "utils/FormUtils/FormElementConfig";
 import SourceFormJsonPolicy from "utils/FormUtils/SourceFormJsonPolicy";
 import FormSectionConfig from "utils/FormUtils/FormSectionConfig";
 import ContainerSelectionWrapper from "components/Forms/Wrappers/ContainerSelectionWrapper";
-import { getRendererOverride } from "@app/utils/FormUtils/containerSelectionOverride";
+import { getRendererOverride } from "#oss/utils/FormUtils/containerSelectionOverride";
 
 export default class ContainerSelectionConfig extends FormElementConfig {
   constructor(config, functionalElements) {

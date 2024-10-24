@@ -190,7 +190,11 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper
     IcebergModel icebergModel =
         ((SupportsIcebergMutablePlugin) config.getPlugin())
             .getIcebergModel(
-                config.getIcebergTableProps(), config.getProps().getUserName(), context, fileIO);
+                config.getIcebergTableProps(),
+                config.getProps().getUserName(),
+                context,
+                fileIO,
+                null);
     IcebergTableProps icebergTableProps = config.getIcebergTableProps();
     switch (icebergTableProps.getIcebergOpType()) {
       case CREATE:
@@ -203,7 +207,8 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper
                 context.getStats(),
                 null,
                 null,
-                icebergTableProps.getTableProperties());
+                icebergTableProps.getTableProperties(),
+                icebergTableProps.getTableLocation());
         break;
       case INSERT:
         icebergOpCommitter =

@@ -87,6 +87,7 @@ public final class PrefixedTokensSearchTests {
         .add("ALTER TABLE + ENABLE", new Input("ALTER TABLE mytable ENABLE", 4))
         .add("ALTER TABLE + FORGET", new Input("ALTER TABLE mytable FORGET", 4))
         .add("ALTER TABLE + LOCALSORT", new Input("ALTER TABLE mytable LOCALSORT", 2))
+        .add("ALTER TABLE + CLUSTER", new Input("ALTER TABLE mytable CLUSTER", 2))
         .add("ALTER TABLE + MODIFY", new Input("ALTER TABLE mytable MODIFY", 4))
         .add("ALTER TABLE + REFRESH", new Input("ALTER TABLE mytable REFRESH", 5))
         .add("ALTER TABLE + RESET", new Input("ALTER TABLE mytable RESET", 4))
@@ -99,6 +100,13 @@ public final class PrefixedTokensSearchTests {
   public void callUdf() {
     GoldenFileTestBuilder.create(PrefixedTokensSearchTests::executeTest)
         .add("CALL UDF", new Input("SELECT myudf(1, 2)", 2))
+        .runTests();
+  }
+
+  @Test
+  public void callTabularUdf() {
+    GoldenFileTestBuilder.create(PrefixedTokensSearchTests::executeTest)
+        .add("CALL TABULAR UDF", new Input("SELECT * FROM TABLE ( myTabularUdf(1)", 3))
         .runTests();
   }
 

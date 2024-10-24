@@ -245,8 +245,10 @@ public class DeltaMetadataFetchJobManager {
                   logger.error("Unexpected error occurred in DeltaMetadataFetchJob. Error", exp);
 
                   throw UserException.dataReadError(exp.getCause())
-                      .message("Failed to read metadata for delta dataset %s", selectionRoot)
-                      .build(logger);
+                      .message(
+                          "Failed to read metadata for delta dataset %s. %s",
+                          selectionRoot, exp.getCause().getMessage())
+                      .buildSilently();
                 }
 
                 return null;

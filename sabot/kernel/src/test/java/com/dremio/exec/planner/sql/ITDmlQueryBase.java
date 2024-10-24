@@ -99,25 +99,16 @@ public class ITDmlQueryBase extends BaseTestQuery {
 
   @BeforeClass
   public static void beforeClass() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM, "true");
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES, "true");
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM, true);
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES, true);
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, true);
   }
 
   @AfterClass
   public static void afterClass() {
-    setSystemOption(
-        ExecConstants.ENABLE_ICEBERG_VACUUM,
-        ExecConstants.ENABLE_ICEBERG_VACUUM.getDefault().getBoolVal().toString());
-    setSystemOption(
-        ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES,
-        ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES
-            .getDefault()
-            .getBoolVal()
-            .toString());
-    setSystemOption(
-        ExecConstants.ENABLE_ICEBERG_SORT_ORDER,
-        ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getDefault().getBoolVal().toString());
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM);
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES);
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER);
   }
 
   @Before

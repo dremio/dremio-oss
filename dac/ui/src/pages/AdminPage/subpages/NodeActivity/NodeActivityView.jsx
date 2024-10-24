@@ -18,20 +18,20 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import Immutable from "immutable";
 
-import StatefulTableViewer from "@app/components/StatefulTableViewer";
-import NumberFormatUtils from "@app/utils/numberFormatUtils";
-import { getViewState } from "@app/selectors/resources";
-import SettingHeader from "@app/components/SettingHeader";
-import NodeTableCell from "@app/pages/AdminPage/subpages/NodeActivity/NodeTableCell";
-import NodeTableCellStatus from "@app/pages/AdminPage/subpages/NodeActivity/NodeTableCellStatus";
-import { NodeTableCellColors } from "@app/pages/AdminPage/subpages/NodeActivity/NodeTableCell";
+import StatefulTableViewer from "#oss/components/StatefulTableViewer";
+import NumberFormatUtils from "#oss/utils/numberFormatUtils";
+import { getViewState } from "#oss/selectors/resources";
+import SettingHeader from "#oss/components/SettingHeader";
+import NodeTableCell from "#oss/pages/AdminPage/subpages/NodeActivity/NodeTableCell";
+import NodeTableCellStatus from "#oss/pages/AdminPage/subpages/NodeActivity/NodeTableCellStatus";
+import { NodeTableCellColors } from "#oss/pages/AdminPage/subpages/NodeActivity/NodeTableCell";
 import NodeActivityViewMixin from "dyn-load/pages/AdminPage/subpages/NodeActivity/NodeActivityViewMixin";
 import "./NodeActivity.less";
 import { page, pageContent } from "uiTheme/radium/general";
-import EllipsedText from "@app/components/EllipsedText";
-import CopyButton from "@app/components/Buttons/CopyButton";
+import EllipsedText from "#oss/components/EllipsedText";
+import CopyButton from "#oss/components/Buttons/CopyButton";
 import { Tooltip } from "dremio-ui-lib";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 export const VIEW_ID = "NodeActivityView";
 export const COLUMNS_CONFIG = [
@@ -143,7 +143,7 @@ class NodeActivityView extends PureComponent {
   }
   getToolTipForIncompatibleNode() {
     return laDeprecated(
-      "Please ensure that the version of dremio is the same on all coordinators and executors."
+      "Please ensure that the version of dremio is the same on all coordinators and executors.",
     );
   }
   getNodeCell(node) {

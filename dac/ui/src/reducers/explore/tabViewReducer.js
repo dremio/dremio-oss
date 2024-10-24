@@ -16,7 +16,7 @@
 
 import { cloneDeep } from "lodash";
 import viewReducer from "./view";
-import { SET_TAB_VIEW, REMOVE_TAB_VIEW } from "@app/actions/resources/scripts";
+import { SET_TAB_VIEW, REMOVE_TAB_VIEW } from "#oss/actions/resources/scripts";
 
 export const tabViewReducer =
   (context) =>

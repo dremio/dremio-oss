@@ -28,14 +28,47 @@ public class TestEngineManagementParse {
   public static Stream<Arguments> testAlterEngineParseVariants() {
     return Stream.of(
         // ALTER ENGINE Statements
-        Arguments.of("ALTER ENGINE e1 MIN_REPLICAS 1 MAX_REPLICAS 2", true),
-        Arguments.of("ALTER ENGINE e1 MIN_REPLICAS 0", true),
-        Arguments.of("ALTER ENGINE e1 MAX_REPLICAS 2", true),
-        Arguments.of("ALTER ENGINE e1", true),
+        // Check syntax with quote
+        Arguments.of("ALTER ENGINE \"e1\" SET (MIN_REPLICAS = 1, MAX_REPLICAS = 2)", true),
+        Arguments.of("ALTER ENGINE e1 SET (MIN_REPLICAS = 1, MAX_REPLICAS = 2)", true),
+        Arguments.of("ALTER ENGINE \"e 1\" SET (MIN_REPLICAS = 1, MAX_REPLICAS = 2)", true),
+        Arguments.of("ALTER ENGINE \"e 1 e 1\" SET (MIN_REPLICAS = 1, MAX_REPLICAS = 2)", true),
+        Arguments.of("ALTER ENGINE \"e1\" SET (MIN_REPLICAS = 0)", true),
+        Arguments.of("ALTER ENGINE \"e1\" SET (MAX_REPLICAS = 2)", true),
+        Arguments.of("ALTER ENGINE \"e1\" SET", false),
+        Arguments.of("ALTER ENGINE \"e1\" SET()", true),
+        Arguments.of("ALTER ENGINE e 1 SET (MIN_REPLICAS = 1, MAX_REPLICAS = 2)", false),
+
+        // check correct syntax without quote
+        Arguments.of("ALTER ENGINE e1 SET (MIN_REPLICAS = 1, MAX_REPLICAS = 2)", true),
+        Arguments.of("ALTER ENGINE e1 SET (MAX_REPLICAS = 5, MIN_REPLICAS = 2)", true),
+        Arguments.of("ALTER ENGINE e1 SET (MIN_REPLICAS = 0)", true),
+        Arguments.of("ALTER ENGINE e1 SET (MAX_REPLICAS = 2)", true),
+        Arguments.of("ALTER ENGINE e1 SET", false),
+        Arguments.of("ALTER ENGINE e1 SET()", true),
+
+        // You can't finish with a comma
+        Arguments.of("ALTER ENGINE e1 SET (MIN_REPLICAS = 0,)", false),
+        Arguments.of("ALTER ENGINE e1 SET (MAX_REPLICAS = 0,)", false),
+
+        // No comma
+        Arguments.of("ALTER ENGINE e1 SET (MIN_REPLICAS = 1 MAX_REPLICAS = 2)", false),
+        Arguments.of("ALTER ENGINE e1 SET (MAX_REPLICAS = 2 MIN_REPLICAS = 2)", false),
+
+        // Missing mandatory SET
+        Arguments.of("ALTER ENGINE e1 MIN_REPLICAS = 1 MAX_REPLICAS = 2)", false),
+        Arguments.of("ALTER ENGINE e1 MIN_REPLICAS = 0)", false),
+        Arguments.of("ALTER ENGINE e1 MAX_REPLICAS = 2)", false),
+        Arguments.of("ALTER ENGINE e1", false),
+
+        // Missing = around MIN_REPLICAS / MAX_REPLICAS
+        Arguments.of("ALTER ENGINE e1 SET (MIN_REPLICAS 1 MAX_REPLICAS 2)", false),
+        Arguments.of("ALTER ENGINE e1 SET (MIN_REPLICAS 0)", false),
+        Arguments.of("ALTER ENGINE e1 SET (MAX_REPLICAS 2)", false),
         Arguments.of("ALTER ENGINE", false), // No engine id
-        Arguments.of("ALTER ENGINE e1 MIN_REPLICAS MAX_REPLICAS", false), // No value
-        Arguments.of("ALTER ENGINE e1 MIN_REPLICAS", false), // No value
-        Arguments.of("ALTER ENGINE e1 MAX_REPLICAS", false) // No value
+        Arguments.of("ALTER ENGINE \"e1\" MIN_REPLICAS MAX_REPLICAS", false), // No value
+        Arguments.of("ALTER ENGINE \"e1\" MIN_REPLICAS", false), // No value
+        Arguments.of("ALTER ENGINE \"e1\" MAX_REPLICAS", false) // No value
         );
   }
 

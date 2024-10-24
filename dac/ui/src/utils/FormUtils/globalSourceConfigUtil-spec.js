@@ -63,7 +63,7 @@ describe("globalSourceConfigUtil", () => {
     const expectedUiConfig = cloneDeep(uiConfig);
     expectedUiConfig.form.tabs[1].sections[0].elements.push(
       crossSourceSelectionUiConfig,
-      inlineMetadataRefreshConfig
+      inlineMetadataRefreshConfig,
     );
     addAlwaysPresent(functionalConfig, uiConfig);
     expect(functionalConfig).to.deep.equal(expectedFunctionalConfig);

@@ -453,7 +453,9 @@ public class TestServerJobsCount extends BaseTestServer {
   public void testCountsLocalFS1Rest() {
     doc("list source LocalFS1");
     SourceUI fs1 =
-        expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS1")).buildGet(), SourceUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("/source/LocalFS1")).buildGet(),
+            SourceUI.class);
     assertNotNull(fs1.getContents());
     assertEquals(0, fs1.getContents().getDatasets().size());
     assertEquals(0, fs1.getContents().getPhysicalDatasets().size());
@@ -470,7 +472,9 @@ public class TestServerJobsCount extends BaseTestServer {
   public void testCountsLocalFS2Rest() {
     doc("list source LocalFS2");
     SourceUI fs2 =
-        expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS2")).buildGet(), SourceUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("/source/LocalFS2")).buildGet(),
+            SourceUI.class);
     assertNotNull(fs2.getContents());
     assertEquals(0, fs2.getContents().getDatasets().size());
     assertEquals(0, fs2.getContents().getPhysicalDatasets().size());

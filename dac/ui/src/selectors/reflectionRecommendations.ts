@@ -18,28 +18,28 @@ import {
   AggregationRecommendation,
   RawRecommendation,
   ReflectionRecommendations,
-} from "@app/components/Acceleration/ReflectionRecommendations.types";
+} from "#oss/components/Acceleration/ReflectionRecommendations.types";
 
 const getReflectionRecommendations = (
-  state: any
+  state: any,
 ): ReflectionRecommendations => {
   return state.resources.reflectionRecommendations;
 };
 
 export const getRawRecommendation = (
-  state: any
+  state: any,
 ): RawRecommendation | undefined => {
   return getReflectionRecommendations(state).find(
     (recommendation): recommendation is RawRecommendation =>
-      recommendation.type === "RAW"
+      recommendation.type === "RAW",
   );
 };
 
 export const getAggregationRecommendation = (
-  state: any
+  state: any,
 ): AggregationRecommendation | undefined => {
   return getReflectionRecommendations(state).find(
     (recommendation): recommendation is AggregationRecommendation =>
-      recommendation.type === "AGGREGATION"
+      recommendation.type === "AGGREGATION",
   );
 };

@@ -349,8 +349,6 @@ public class FragmentWorkManager implements Service, SafeExit {
             pool.get(),
             bitContext.getOptionManager());
 
-    newGauge("fragments.active", fragmentExecutors::size);
-
     final ExecConnectionCreator connectionCreator =
         new ExecConnectionCreator(
             fabricServiceProvider
@@ -496,7 +494,7 @@ public class FragmentWorkManager implements Service, SafeExit {
               factory.getCommandRunner(endpoint.getAddress(), endpoint.getFabricPort()));
     }
 
-    private boolean isInProcessTarget(NodeEndpoint endpoint) {
+    public boolean isInProcessTarget(NodeEndpoint endpoint) {
       NodeEndpoint self = identity.get();
       return endpoint.getAddress().equals(self.getAddress())
           && endpoint.getFabricPort() == self.getFabricPort();

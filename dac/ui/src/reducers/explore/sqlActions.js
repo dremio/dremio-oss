@@ -56,7 +56,7 @@ export default function grid(state = initialState, action) {
           items: gridTableMapper.mapHelpFunctions(action.meta.sqlFuncs),
           isInProgress: false,
           isFailed: false,
-        })
+        }),
       );
 
     default:

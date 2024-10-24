@@ -82,7 +82,7 @@ describe("TransformRange", () => {
           bound: 5,
           width: 1000,
           data: [],
-        })
+        }),
       ).to.equal(null);
     });
 
@@ -94,15 +94,15 @@ describe("TransformRange", () => {
             bound: 5,
             width: 1000,
             data,
-          })
-        )
+          }),
+        ),
       ).to.equal(500);
       expect(
         TransformRange.getChartOffsetForBound({
           bound: 11,
           width: 1000,
           data,
-        })
+        }),
       ).to.equal(1000);
     });
 
@@ -114,15 +114,15 @@ describe("TransformRange", () => {
             bound: 5,
             width: 1000,
             data: stringData,
-          })
-        )
+          }),
+        ),
       ).to.equal(500);
       expect(
         TransformRange.getChartOffsetForBound({
           bound: 11,
           width: 1000,
           data: stringData,
-        })
+        }),
       ).to.equal(1000);
     });
   });

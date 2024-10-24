@@ -25,10 +25,9 @@ import com.dremio.dac.cmd.CmdUtils;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.Document;
-import com.dremio.datastore.api.IndexedStore;
 import com.dremio.io.file.Path;
 import com.dremio.service.embedded.catalog.EmbeddedPointerStore;
-import com.dremio.service.namespace.NamespaceServiceImpl.NamespaceStoreCreator;
+import com.dremio.service.namespace.NamespaceStore;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
@@ -142,8 +141,7 @@ public class NessieRepoMaintenanceCommand {
 
   private static void listObsoleteMetadataKeys(
       LocalKVStoreProvider kvStore, EmbeddedPointerStore store, LocalLogger logger) {
-    IndexedStore<String, NameSpaceContainer> namespace =
-        kvStore.getStore(NamespaceStoreCreator.class);
+    NamespaceStore namespace = new NamespaceStore(() -> kvStore);
     Iterable<Document<String, NameSpaceContainer>> docs = namespace.find();
     Set<UUID> liveTableIds = new HashSet<>();
     for (Document<String, NameSpaceContainer> doc : docs) {

@@ -20,22 +20,22 @@ import {
   explorePageChanged,
   genLoadJobSummary,
   watchUpdateHistoryOnJobProgress,
-} from "@app/sagas/runDataset";
-import { fetchJobFailureInfo } from "@app/sagas/performTransformNew";
-import { fetchDatasetMetadata } from "@app/sagas/transformWatcherNew";
-import { LOGOUT_USER_SUCCESS } from "@app/actions/account";
-import { navigateToNextDataset } from "@app/actions/explore/dataset/common";
+} from "#oss/sagas/runDataset";
+import { fetchJobFailureInfo } from "#oss/sagas/performTransformNew";
+import { fetchDatasetMetadata } from "#oss/sagas/transformWatcherNew";
+import { LOGOUT_USER_SUCCESS } from "#oss/actions/account";
+import { navigateToNextDataset } from "#oss/actions/explore/dataset/common";
 import {
   EXPLORE_PAGE_LOCATION_CHANGED,
   loadNextRows,
   startExplorePageListener,
   stopExplorePageListener,
   updateExploreJobProgress,
-} from "@app/actions/explore/dataset/data";
-import { loadNewDataset } from "@app/actions/explore/datasetNew/edit";
-import { setQueryStatuses, waitForJobResults } from "@app/actions/explore/view";
-import { updateHistoryWithJobState } from "@app/actions/explore/history";
-import { getExploreState } from "@app/selectors/explore";
+} from "#oss/actions/explore/dataset/data";
+import { loadNewDataset } from "#oss/actions/explore/datasetNew/edit";
+import { setQueryStatuses, waitForJobResults } from "#oss/actions/explore/view";
+import { updateHistoryWithJobState } from "#oss/actions/explore/history";
+import { getExploreState } from "#oss/selectors/explore";
 import socket, {
   WS_MESSAGE_JOB_PROGRESS,
   WS_MESSAGE_QV_JOB_PROGRESS,
@@ -43,12 +43,12 @@ import socket, {
 } from "@inject/utils/socket";
 import { cloneDeep } from "lodash";
 import Immutable from "immutable";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
-import { selectActiveScript } from "@app/components/SQLScripts/sqlScriptsUtils";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
+import { selectActiveScript } from "#oss/components/SQLScripts/sqlScriptsUtils";
 import { replaceScript } from "dremio-ui-common/sonar/scripts/endpoints/replaceScript.js";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
-import { updateQuerySelectionsInStorage } from "@app/sagas/utils/querySelections";
-import { QueryRange } from "@app/utils/statements/statement";
+import { updateQuerySelectionsInStorage } from "#oss/sagas/utils/querySelections";
+import { QueryRange } from "#oss/utils/statements/statement";
 
 class JobFailedError {
   name: string;

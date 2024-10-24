@@ -39,6 +39,15 @@ class IcebergNessieCommand extends IcebergBaseCommand {
     this.nessieTableOperations = tableOperations;
   }
 
+  public IcebergNessieCommand(
+      String tableLocation,
+      Configuration configuration,
+      IcebergNessieTableOperations tableOperations,
+      UserBitShared.QueryId queryId) {
+    super(configuration, tableLocation, tableOperations, queryId);
+    this.nessieTableOperations = tableOperations;
+  }
+
   @Override
   public void deleteTable() {
     RuntimeException ex = null;

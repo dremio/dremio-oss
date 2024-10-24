@@ -26,7 +26,7 @@ import clsx from "clsx";
 import { ReactNode, useMemo } from "react";
 // @ts-ignore
 import { TagList } from "dremio-ui-lib";
-import CopyButton from "@app/components/Buttons/CopyButton";
+import CopyButton from "#oss/components/Buttons/CopyButton";
 import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";
 import { hideForNonDefaultBranch } from "dremio-ui-common/utilities/versionContext.js";
 import { getEdition } from "@inject/utils/versionUtils";

@@ -33,7 +33,7 @@ export const setEntityActiveState = (id, isActive) => ({
  */
 export const pinnedEntities = (
   state = localStorageUtils.getPinnedItems(),
-  { type, id, isActive }
+  { type, id, isActive },
 ) => {
   switch (type) {
     case SET_ENTITY_ACTIVE_STATE: {

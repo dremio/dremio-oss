@@ -40,7 +40,8 @@ import java.util.stream.Collectors;
  * <p>Paths can be compared. The comparison is equivalent to their URI representation.
  */
 public final class Path implements Comparable<Path> {
-  public static final String AZURE_AUTHORITY_SUFFIX = ".blob.core.windows.net";
+  public static final String AZURE_BLOB_AUTHORITY_SUFFIX = ".blob.core.windows.net";
+  public static final String AZURE_DFS_AUTHORITY_SUFFIX = ".dfs.core.windows.net";
   public static final String CONTAINER_SEPARATOR = "@";
 
   public static final Set<String> S3_FILE_SYSTEM = ImmutableSet.of(S3A_SCHEME, S3_SCHEME, "s3n");

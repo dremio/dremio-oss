@@ -15,9 +15,13 @@
  */
 
 import type { CatalogObjectMethods } from "./CatalogObject.js";
+import type { Grantee } from "./Grantee.js";
 
 export type CommunityDatasetProperties = {
   readonly createdAt: Date;
+  /**
+   * @deprecated
+   */
   readonly id: string;
   readonly fields: { name: string; type: { name: string } }[];
   readonly owner: { id: string; type: "ROLE" | "USER" } | undefined;
@@ -29,3 +33,12 @@ export type CommunityDatasetMethods = CatalogObjectMethods;
 
 export type CommunityDataset = CommunityDatasetProperties &
   CommunityDatasetMethods;
+
+export type EnterpriseDatasetMethods = {
+  grants(): Promise<{
+    availablePrivileges: string[];
+    grants: { grantee: Grantee; privileges: string[] }[];
+  }>;
+};
+
+export type EnterpriseDataset = CommunityDataset & EnterpriseDatasetMethods;

@@ -35,6 +35,11 @@ class ConstantExtraSizer implements Sizer {
   }
 
   @Override
+  public int getDataLengthFromIndex(int startIndex, int numberOfEntries) {
+    return sizeInBytes * numberOfEntries;
+  }
+
+  @Override
   public void reset() {
     // no caching.
   }

@@ -16,7 +16,7 @@
 import { createSelector } from "reselect";
 import Immutable from "immutable";
 
-import { HOME_SPACE_NAME, RECENT_SPACE_NAME } from "@app/constants/Constants";
+import { HOME_SPACE_NAME, RECENT_SPACE_NAME } from "#oss/constants/Constants";
 
 function _getResourceName(resourceName) {
   if (resourceName === "home" || !resourceName) {
@@ -50,7 +50,7 @@ function getDatasetsList(state, props) {
     const dataset = entities.getIn(["dataset", name]);
     return dataset.set(
       "datasetConfig",
-      entities.getIn(["datasetConfig", dataset.get("datasetConfig")])
+      entities.getIn(["datasetConfig", dataset.get("datasetConfig")]),
     );
   });
 }
@@ -131,7 +131,7 @@ function _getTreeChildrenFromContents(state, contents) {
     contents
       .get("folders")
       .map((key) =>
-        _getTreeNodeFromEntity(state, entities.getIn(["folder", key]))
+        _getTreeNodeFromEntity(state, entities.getIn(["folder", key])),
       ),
     contents
       .get("files")
@@ -141,7 +141,7 @@ function _getTreeChildrenFromContents(state, contents) {
       .map((key) => createTreeNode(entities.getIn(["dataset", key]))),
     contents
       .get("physicalDatasets")
-      .map((key) => createTreeNode(entities.getIn(["physicalDataset", key])))
+      .map((key) => createTreeNode(entities.getIn(["physicalDataset", key]))),
   );
 }
 
@@ -153,7 +153,7 @@ function _getTreeNodeFromEntity(state, entity) {
   if (expanded) {
     return createTreeNode(entity, expanded).set(
       "children",
-      _getTreeChildrenFromContents(state, entity.get("contents"))
+      _getTreeChildrenFromContents(state, entity.get("contents")),
     );
   }
   return createTreeNode(entity);
@@ -170,7 +170,7 @@ export const getSummaryDataset = createSelector(
   [_getSummaryDataset],
   (datasets) => {
     return datasets;
-  }
+  },
 );
 
 export const getDatasets = createSelector([getDatasetsList], (datasets) => {
@@ -189,5 +189,5 @@ export const isSpaceContentInProgress = createSelector(
   [getResourceProgressState],
   (isInProgress) => {
     return isInProgress;
-  }
+  },
 );

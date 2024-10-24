@@ -41,46 +41,46 @@ import type { Script } from "dremio-ui-common/sonar/scripts/Script.type.js";
 import {
   initializeExploreJobProgress,
   setExploreJobIdInProgress,
-} from "@app/actions/explore/dataset/data";
-import { TRANSFORM_PEEK_START } from "@app/actions/explore/dataset/peek";
+} from "#oss/actions/explore/dataset/data";
+import { TRANSFORM_PEEK_START } from "#oss/actions/explore/dataset/peek";
 import {
   clearExploreJobs,
   fetchJobDetails,
   fetchJobSummary,
-} from "@app/actions/explore/exploreJobs";
+} from "#oss/actions/explore/exploreJobs";
 import {
   setExploreTableLoading,
   setQuerySelections,
   setQueryStatuses,
   setQueryTabNumber,
-} from "@app/actions/explore/view";
-import { updateViewState } from "@app/actions/resources";
+} from "#oss/actions/explore/view";
+import { updateViewState } from "#oss/actions/resources";
 import {
   LOAD_JOB_RESULTS,
   LOAD_JOB_TABS,
-} from "@app/actions/resources/scripts";
-import { EXPLORE_TABLE_ID, EXPLORE_VIEW_ID } from "@app/reducers/explore/view";
+} from "#oss/actions/resources/scripts";
+import { EXPLORE_TABLE_ID, EXPLORE_VIEW_ID } from "#oss/reducers/explore/view";
 import {
   CANCEL_TABLE_DATA_LOAD,
   hideTableSpinner,
   loadDataset,
   resetTableViewStateOnPageLeave,
-} from "@app/sagas/performLoadDataset";
+} from "#oss/sagas/performLoadDataset";
 import {
   handleResumeRunDataset,
   jobUpdateWatchers,
-} from "@app/sagas/runDataset";
-import { transformThenNavigate } from "@app/sagas/transformWatcher";
-import { getTabForActions } from "@app/sagas/utils";
-import { getQuerySelectionsFromStorage } from "@app/sagas/utils/querySelections";
-import { getTableDataRaw } from "@app/selectors/explore";
-import { getAllJobDetails } from "@app/selectors/exploreJobs";
-import { getQueryStatuses } from "@app/selectors/jobs";
-import { getDatasetPreview } from "@app/exports/endpoints/Datasets/getDatasetPreview";
-import { JobDetails } from "@app/exports/types/JobDetails.type";
-import { JobSummary } from "@app/exports/types/JobSummary.type";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
-import { QueryRange } from "@app/utils/statements/statement";
+} from "#oss/sagas/runDataset";
+import { transformThenNavigate } from "#oss/sagas/transformWatcher";
+import { getTabForActions } from "#oss/sagas/utils";
+import { getQuerySelectionsFromStorage } from "#oss/sagas/utils/querySelections";
+import { getTableDataRaw } from "#oss/selectors/explore";
+import { getAllJobDetails } from "#oss/selectors/exploreJobs";
+import { getQueryStatuses } from "#oss/selectors/jobs";
+import { getDatasetPreview } from "#oss/exports/endpoints/Datasets/getDatasetPreview";
+import { JobDetails } from "#oss/exports/types/JobDetails.type";
+import { JobSummary } from "#oss/exports/types/JobSummary.type";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
+import { QueryRange } from "#oss/utils/statements/statement";
 
 const logger = getLoggingContext().createLogger("sagas/scriptJobs");
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from "enzyme";
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 import * as IntervalTypes from "./IntervalTypes";
 import StartTimeSelect from "./StartTimeSelect";
 
@@ -48,7 +48,7 @@ describe("StartTimeSelect", () => {
         endTime,
       });
       expect(instance.getSelectedInterval().get("type")).to.eql(
-        IntervalTypes.LAST_HOUR_INTERVAL
+        IntervalTypes.LAST_HOUR_INTERVAL,
       );
 
       startTime = Number(moment().subtract(6, "h"));
@@ -58,7 +58,7 @@ describe("StartTimeSelect", () => {
         endTime,
       });
       expect(instance.getSelectedInterval().get("type")).to.eql(
-        IntervalTypes.LAST_6_HOURS_INTERVAL
+        IntervalTypes.LAST_6_HOURS_INTERVAL,
       );
     });
     it("should return undefined if range is not match with other intervals", () => {
@@ -72,7 +72,7 @@ describe("StartTimeSelect", () => {
     });
     it("should return defaultType if range is empty", () => {
       expect(instance.getSelectedInterval().get("type")).to.eql(
-        IntervalTypes.ALL_TIME_INTERVAL
+        IntervalTypes.ALL_TIME_INTERVAL,
       );
     });
   });

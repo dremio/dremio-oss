@@ -16,7 +16,7 @@
 
 import { type FunctionComponent } from "react";
 import { Avatar, Card } from "dremio-ui-lib/components";
-// import { intl } from "@app/utils/intl";
+// import { intl } from "#oss/utils/intl";
 import type { Project } from "../../types/Project.type";
 import classes from "./ProjectCard.less";
 import { nameToInitials } from "../../utilities/nameToInitials";

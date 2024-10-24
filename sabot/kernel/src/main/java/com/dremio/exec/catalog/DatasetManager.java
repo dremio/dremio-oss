@@ -31,8 +31,6 @@ import com.dremio.connector.impersonation.extensions.SupportsImpersonation;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.EntityPath;
-import com.dremio.connector.metadata.EntityPathWithOptions;
-import com.dremio.connector.metadata.ImmutableEntityPathWithOptions;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.SearchQueryUtils;
@@ -84,7 +82,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
@@ -504,15 +501,22 @@ class DatasetManager {
     // Check completeness and validity of table metadata and get it.
     final Stopwatch stopwatch = Stopwatch.createStarted();
     if (plugin.checkValidity(namespaceKeyWithConfig, options)) {
-      NamespaceTable table = getTableFromNamespace(key, datasetConfig, plugin, options, true);
-      options
-          .getStatsCollector()
-          .addDatasetStat(
-              new NamespaceKey(datasetConfig.getFullPathList()).getSchemaPath(),
-              MetadataAccessType.CACHED_METADATA.name(),
-              stopwatch.elapsed(TimeUnit.MILLISECONDS));
-      return table;
+      return getExistingTableFromNamespace(namespaceKeyWithConfig, plugin, options, stopwatch);
     }
+
+    return getInvalidTableFromPlugin(
+        namespaceKeyWithConfig, plugin, options, stopwatch, ignoreColumnCount);
+  }
+
+  private DremioTable getInvalidTableFromPlugin(
+      NamespaceKeyWithConfig namespaceKeyWithConfig,
+      ManagedStoragePlugin plugin,
+      MetadataRequestOptions options,
+      Stopwatch stopwatch,
+      boolean ignoreColumnCount) {
+
+    NamespaceKey key = namespaceKeyWithConfig.key();
+    DatasetConfig datasetConfig = namespaceKeyWithConfig.datasetConfig();
 
     // If only the cached version is needed, check and return when no entry is found
     if (options.neverPromote()) {
@@ -542,27 +546,18 @@ class DatasetManager {
         MetadataObjectsUtils.toNamespaceKey(handle.get().getDatasetPath());
     if (datasetConfig == null && !canonicalKey.equals(key)) {
       // before we do anything with this accessor, we should reprobe namespace as it is possible
-      // that the request the
-      // user made was not the canonical key and therefore we missed when trying to retrieve data
-      // from the namespace.
+      // that the request the user made was not the canonical key and therefore we missed when
+      // trying to retrieve data from the namespace.
 
       try {
         datasetConfig = userNamespaceService.getDataset(canonicalKey);
-        namespaceKeyWithConfig =
+        NamespaceKeyWithConfig canonicalKeyWithConfig =
             new ImmutableNamespaceKeyWithConfig.Builder()
                 .setKey(canonicalKey)
                 .setDatasetConfig(datasetConfig)
                 .build();
-        if (plugin.checkValidity(namespaceKeyWithConfig, options)) {
-          NamespaceTable table =
-              getTableFromNamespace(canonicalKey, datasetConfig, plugin, options, true);
-          options
-              .getStatsCollector()
-              .addDatasetStat(
-                  new NamespaceKey(datasetConfig.getFullPathList()).getSchemaPath(),
-                  MetadataAccessType.CACHED_METADATA.name(),
-                  stopwatch.elapsed(TimeUnit.MILLISECONDS));
-          return table;
+        if (plugin.checkValidity(canonicalKeyWithConfig, options)) {
+          return getExistingTableFromNamespace(canonicalKeyWithConfig, plugin, options, stopwatch);
         }
       } catch (NamespaceException e) {
         // ignore, we'll fall through.
@@ -570,10 +565,26 @@ class DatasetManager {
     }
 
     // arriving here means that the metadata for the table is either incomplete, missing or out of
-    // date. We need
-    // to save it and return the updated data.
+    // date. We need to save it and return the updated data.
     return refreshMetadataAndGetTable(
         stopwatch, canonicalKey, datasetConfig, handle.get(), plugin, options, ignoreColumnCount);
+  }
+
+  private DremioTable getExistingTableFromNamespace(
+      NamespaceKeyWithConfig namespaceKeyWithConfig,
+      ManagedStoragePlugin plugin,
+      MetadataRequestOptions options,
+      Stopwatch stopwatch) {
+    NamespaceKey key = namespaceKeyWithConfig.key();
+    DatasetConfig datasetConfig = namespaceKeyWithConfig.datasetConfig();
+    NamespaceTable table = getTableFromNamespace(key, datasetConfig, plugin, options, true);
+    options
+        .getStatsCollector()
+        .addDatasetStat(
+            new NamespaceKey(datasetConfig.getFullPathList()).getSchemaPath(),
+            MetadataAccessType.CACHED_METADATA.name(),
+            stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    return table;
   }
 
   private BulkResponse<NamespaceKeyWithConfig, Optional<DremioTable>> bulkGetTablesFromPlugin(
@@ -618,152 +629,38 @@ class DatasetManager {
       return responseBuilder.build();
     }
 
-    BulkResponse<NamespaceKeyWithConfig, Boolean> responseWithValidity =
-        filteredKeys.bulkTransformAndHandleRequests(
-            datasets -> plugin.bulkCheckValidity(datasets, options),
-            Function.identity(),
-            ValueTransformer.identity());
-
-    // tables with invalid metadata per validity check
-    BulkRequest.Builder<NamespaceKeyWithConfig> requestBuilderWithInvalid =
-        BulkRequest.builder(keys.size());
-
-    responseWithValidity
-        .responses()
-        .forEach(
-            response -> {
-              NamespaceKeyWithConfig keyWithConfig = response.key();
-              boolean isMetadataValid;
-              try {
-                isMetadataValid = response.response().toCompletableFuture().get();
-              } catch (Exception ex) {
-                responseBuilder.add(
-                    keyWithConfig,
-                    CompletableFuture.failedStage(ex),
-                    response.elapsed(TimeUnit.NANOSECONDS));
-                return;
-              }
-
-              if (isMetadataValid) {
-                Stopwatch stopwatch = Stopwatch.createStarted();
-                // for keys with valid metadata, just return a NamespaceTable wrapping that metadata
-                CompletionStage<Optional<DremioTable>> tableFromNamespace =
-                    CompletableFuture.completedFuture(
-                        Optional.of(
-                            getTableFromNamespace(
-                                keyWithConfig.key(),
-                                keyWithConfig.datasetConfig(),
-                                plugin,
-                                options,
-                                true)));
-                long elapsed =
-                    response.elapsed(TimeUnit.NANOSECONDS) + stopwatch.elapsed().toNanos();
-                responseBuilder.add(keyWithConfig, tableFromNamespace, elapsed);
-              } else {
-                requestBuilderWithInvalid.add(
-                    keyWithConfig, response.elapsed(TimeUnit.NANOSECONDS));
-              }
-            });
-
-    if (options.neverPromote()) {
-      // if neverPromote is enabled, return empty futures for any keys without valid metadata
-      responseBuilder.addAll(requestBuilderWithInvalid.build().handleRequests(Optional.empty()));
-    } else {
-      // retrieve current metadata directly from plugin
-      responseBuilder.addAll(
-          bulkGetInvalidTablesFromPlugin(
-              requestBuilderWithInvalid.build(), plugin, options, ignoreColumnCount));
-    }
-
-    return responseBuilder.build();
-  }
-
-  private BulkResponse<NamespaceKeyWithConfig, Optional<DremioTable>>
-      bulkGetInvalidTablesFromPlugin(
-          BulkRequest<NamespaceKeyWithConfig> keys,
-          ManagedStoragePlugin plugin,
-          MetadataRequestOptions options,
-          boolean ignoreColumnCount) {
-
     Stopwatch stopwatch = Stopwatch.createStarted();
 
-    DatasetRetrievalOptions datasetRetrievalOptions =
-        getDatasetRetrievalOptions(plugin, options, ignoreColumnCount);
-    Function<NamespaceKeyWithConfig, EntityPathWithOptions> keyTransformer =
-        namespaceKeyWithConfig ->
-            ImmutableEntityPathWithOptions.builder()
-                .entityPath(
-                    namespaceKeyWithConfig.datasetConfig() != null
-                        ? new EntityPath(namespaceKeyWithConfig.datasetConfig().getFullPathList())
-                        : MetadataObjectsUtils.toEntityPath(namespaceKeyWithConfig.key()))
-                .options(
-                    datasetRetrievalOptions.asGetDatasetOptions(
-                        namespaceKeyWithConfig.datasetConfig()))
-                .build();
-
-    ValueTransformer<
-            EntityPathWithOptions,
-            Optional<DatasetHandle>,
-            NamespaceKeyWithConfig,
-            CompletionStage<Optional<DremioTable>>>
-        valueTransformer =
-            (entityPathWithOptions, namespaceKeyWithConfig, optHandle) -> {
-              DatasetHandle handle = optHandle.orElse(null);
-
-              if (handle == null) {
-                return CompletableFuture.completedFuture(Optional.empty());
+    BulkResponse<NamespaceKeyWithConfig, Optional<DremioTable>> tables =
+        filteredKeys.bulkTransformAndHandleRequestsAsync(
+            datasets -> plugin.bulkCheckValidity(datasets, options),
+            Function.identity(),
+            (originalKey, transformedKey, isValid) -> {
+              if (isValid) {
+                // If metadata is valid, get the metadata from Namespace on current thread.
+                // This reduces load on the metadataIOPool when validityCheck=false.
+                return ContextAwareCompletableFuture.of(
+                    Optional.of(
+                        getExistingTableFromNamespace(originalKey, plugin, options, stopwatch)));
               }
-
-              NamespaceKey canonicalKey =
-                  MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath());
-              DatasetConfig datasetConfig = namespaceKeyWithConfig.datasetConfig();
-              NamespaceKey requestedKey =
-                  datasetConfig != null
-                      ? new NamespaceKey(datasetConfig.getFullPathList())
-                      : namespaceKeyWithConfig.key();
-              if (datasetConfig == null && !canonicalKey.equals(requestedKey)) {
-                // before we do anything with this accessor, we should re-probe namespace as it is
-                // possible that the request the user made was not the canonical key, and therefore
-                // we missed when trying to retrieve data from the namespace
-                try {
-                  datasetConfig = userNamespaceService.getDataset(canonicalKey);
-                  namespaceKeyWithConfig =
-                      new ImmutableNamespaceKeyWithConfig.Builder()
-                          .setKey(canonicalKey)
-                          .setDatasetConfig(datasetConfig)
-                          .build();
-                  if (plugin.checkValidity(namespaceKeyWithConfig, options)) {
-                    NamespaceTable table =
-                        getTableFromNamespace(canonicalKey, datasetConfig, plugin, options, true);
-                    return CompletableFuture.completedFuture(Optional.of(table));
-                  }
-                } catch (NamespaceException e) {
-                  // ignore, we'll fall through.
-                }
-              }
-
-              // arriving here means that the metadata for the table is either incomplete, missing
-              // or out of date. We need to save it and return the updated data.
-              DatasetConfig config = datasetConfig;
+              // If we have to get metadata from source plugin,
+              // then make sure we execute async using dedicated pool.
               return ContextAwareCompletableFuture.createFrom(
                   metadataIOPool.execute(
                       new MetadataIOPool.MetadataTask<>(
-                          "refresh_metadata_async",
-                          handle.getDatasetPath(),
+                          "get_table_from_plugin_async",
+                          new EntityPath(originalKey.key().getPathComponents()),
                           () ->
                               Optional.ofNullable(
-                                  refreshMetadataAndGetTable(
-                                      stopwatch,
-                                      canonicalKey,
-                                      config,
-                                      handle,
+                                  getInvalidTableFromPlugin(
+                                      originalKey,
                                       plugin,
                                       options,
+                                      stopwatch,
                                       ignoreColumnCount)))));
-            };
+            });
 
-    return keys.bulkTransformAndHandleRequestsAsync(
-        plugin::bulkGetDatasetHandles, keyTransformer, valueTransformer);
+    return responseBuilder.addAll(tables).build();
   }
 
   /**
@@ -973,6 +870,11 @@ class DatasetManager {
     if (!permittedNessieKey(key)) {
       return null;
     }
+    // If the key is the root, we do an early return - nothing to lookup in Nessie
+    if (key.size() == 1 && plugin.getName().equals(key)) {
+      return null;
+    }
+
     try {
       versionedDatasetAdapter =
           versionedDatasetAdapterFactory.newInstance(

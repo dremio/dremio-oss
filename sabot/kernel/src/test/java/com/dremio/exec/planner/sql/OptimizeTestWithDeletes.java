@@ -20,7 +20,10 @@ import static org.apache.iceberg.types.Types.NestedField.required;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
+import com.dremio.exec.store.iceberg.IcebergTestTables;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.nio.file.Files;
@@ -30,6 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.StringUtils;
@@ -45,13 +50,16 @@ import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.Transaction;
 import org.apache.iceberg.Transactions;
+import org.apache.iceberg.hadoop.HadoopFileIO;
+import org.apache.iceberg.hadoop.HadoopTableOperations;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.LockManagers;
 
 public class OptimizeTestWithDeletes extends BaseTestQuery {
   private static FileSystem fs;
-  private static final String SOURCE_TABLE_PATH = "iceberg/v2/multi_rowgroup_orders_with_deletes";
   private static final String SETUP_BASE_PATH =
-      "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes";
+      IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH;
+  private static IcebergTestTables.Table ORDERS_WITH_DELETES_TABLE;
 
   private static final Schema ICEBERG_SCHEMA =
       new Schema(
@@ -80,13 +88,41 @@ public class OptimizeTestWithDeletes extends BaseTestQuery {
     setupTableData();
   }
 
-  private static void setupTableData() throws Exception {
-    Path path = new Path(SETUP_BASE_PATH);
-    if (fs.exists(path)) {
-      fs.delete(path, true);
+  public static void cleanup() throws Exception {
+    Preconditions.checkNotNull(ORDERS_WITH_DELETES_TABLE);
+    try {
+      AutoCloseables.close(ORDERS_WITH_DELETES_TABLE);
+    } finally {
+      ORDERS_WITH_DELETES_TABLE = null;
     }
-    fs.mkdirs(path);
-    copyFromJar(SOURCE_TABLE_PATH + "/data", Paths.get(SETUP_BASE_PATH + "/data"));
+  }
+
+  private static void setupTableData() throws Exception {
+    Preconditions.checkState(
+        ORDERS_WITH_DELETES_TABLE == null, "ORDERS_WITH_DELETES_TABLE not cleaned up properly");
+    ORDERS_WITH_DELETES_TABLE = IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES.get();
+    // we let IcebergTestTables.Table copy the whole table but then delete everything except the
+    // "data" folder. this is required to acquire the FolderLock on the shared folder location to
+    // not conflict with parallel tests.
+    Path copiedTableRoot = new Path(ORDERS_WITH_DELETES_TABLE.getLocation());
+    final FileStatus[] files = fs.listStatus(copiedTableRoot);
+    for (FileStatus status : files) {
+      Path file = status.getPath();
+      if (status.isDirectory() && "data".equals(file.getName())) {
+        continue;
+      }
+      fs.delete(file, status.isDirectory());
+    }
+  }
+
+  protected static void refreshTableMetadata(String table) throws Exception {
+    runSQL("alter table %s refresh metadata", table);
+  }
+
+  protected static final class TestHadoopTableOperations extends HadoopTableOperations {
+    public TestHadoopTableOperations(org.apache.hadoop.fs.Path location, Configuration conf) {
+      super(location, new HadoopFileIO(conf), conf, LockManagers.defaultLockManager());
+    }
   }
 
   private static TableInfo setupUnpartitionedV2Table(
@@ -129,7 +165,7 @@ public class OptimizeTestWithDeletes extends BaseTestQuery {
     rowDelta.commit();
     rowDeltaTransaction.commitTransaction();
 
-    refresh(tableFqn);
+    refreshTableMetadata(tableFqn);
     return new TableInfo(tableFqn, metadataPath, ops);
   }
 
@@ -183,7 +219,7 @@ public class OptimizeTestWithDeletes extends BaseTestQuery {
     rowDelta2.commit();
     rowDeltaTransaction2.commitTransaction();
 
-    refresh(tableFqn);
+    refreshTableMetadata(tableFqn);
     return new TableInfo(tableFqn, metadataPath, ops);
   }
 
@@ -311,7 +347,7 @@ public class OptimizeTestWithDeletes extends BaseTestQuery {
         .commit();
     transaction.commitTransaction();
 
-    refresh(tableFqn);
+    refreshTableMetadata(tableFqn);
     assertOptimize(allocator, tableFqn, "MIN_INPUT_FILES=2, MIN_FILE_SIZE_MB=0", 2L, 1L, 1L);
 
     new TestBuilder(allocator)
@@ -369,7 +405,7 @@ public class OptimizeTestWithDeletes extends BaseTestQuery {
     transaction.newRowDelta().addDeletes(DEL_F2).commit();
     transaction.commitTransaction();
 
-    refresh(tableFqn);
+    refreshTableMetadata(tableFqn);
     assertOptimize(allocator, tableFqn, "MIN_INPUT_FILES=2, MIN_FILE_SIZE_MB=0", 2L, 2L, 1L);
 
     // delf1 had 300 deletes linked to df1 (1000 rows) and df2 (1000 rows) each, while delf2 has 10

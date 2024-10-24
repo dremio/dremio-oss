@@ -17,8 +17,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePromise } from "react-smart-promise";
 
-import { FetchOption, V2BetaApi } from "@app/services/nessie/client";
-import { Reference } from "@app/types/nessie";
+import { FetchOption, V2BetaApi } from "#oss/services/nessie/client";
+import { Reference } from "#oss/types/nessie";
 
 export type RepoViewContextType = {
   defaultRef: Reference;
@@ -31,7 +31,10 @@ export type RepoViewContextType = {
 
 export function useRepoViewContext(api: V2BetaApi): RepoViewContextType {
   const [allRefsErr, allBranches, allRefsStatus] = usePromise(
-    useCallback(() => api.getAllReferencesV2({ fetch: FetchOption.All }), [api])
+    useCallback(
+      () => api.getAllReferencesV2({ fetch: FetchOption.All }),
+      [api],
+    ),
   );
 
   const [defaultRef, setDefaultRef] = useState({} as Reference);

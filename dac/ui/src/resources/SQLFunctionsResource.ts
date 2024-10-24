@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { listSqlFunctions } from "@app/endpoints/SQLFunctions/listSQLFunctions";
+import { listSqlFunctions } from "#oss/endpoints/SQLFunctions/listSQLFunctions";
 import { SmartResource } from "smart-resource";
 
 const SQLFunctionsResource = new SmartResource(listSqlFunctions);

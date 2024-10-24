@@ -16,21 +16,25 @@
 
 package com.dremio;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.Test;
 
 public class TestExplainJson extends BaseTestQuery {
 
   @Test
   public void withSpecifier() throws Exception {
-    checkFirstRecordContains(
-        "explain json original for select * from INFORMATION_SCHEMA.CATALOGS",
-        "json",
-        "LogicalProject");
+    assertThat(
+            getValueInFirstRecord(
+                "explain json original for select * from INFORMATION_SCHEMA.CATALOGS", "json"))
+        .contains("LogicalProject");
   }
 
   @Test
   public void withoutSpecifier() throws Exception {
-    checkFirstRecordContains(
-        "explain json for select * from INFORMATION_SCHEMA.CATALOGS", "json", "LogicalProject");
+    assertThat(
+            getValueInFirstRecord(
+                "explain json for select * from INFORMATION_SCHEMA.CATALOGS", "json"))
+        .contains("LogicalProject");
   }
 }

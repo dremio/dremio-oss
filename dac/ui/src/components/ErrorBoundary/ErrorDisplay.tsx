@@ -18,7 +18,7 @@ import { type ErrorInfo } from "react";
 //@ts-ignore
 import { ErrorDisplay as BaseErrorDisplay } from "dremio-ui-lib";
 import { SupportInfo } from "./SupportInfo";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 type Props = {
   className?: string;
@@ -31,7 +31,7 @@ export const ErrorDisplay = (props: Props): JSX.Element => {
   // Just in case it's used from a non-TS file
   if (process.env.NODE_ENV === "development" && !props.title) {
     throw new Error(
-      "ErrorBoundary: a title prop customized and translated for the specific context it's wrapping should be provided."
+      "ErrorBoundary: a title prop customized and translated for the specific context it's wrapping should be provided.",
     );
   }
 

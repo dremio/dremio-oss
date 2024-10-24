@@ -42,6 +42,7 @@ import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.MaterializationExpander.RebuildPlanException;
 import com.dremio.exec.planner.acceleration.StrippingFactory;
 import com.dremio.exec.planner.acceleration.descriptor.UnexpandedMaterializationDescriptor;
+import com.dremio.exec.planner.plancache.CacheRefresherService;
 import com.dremio.exec.planner.plancache.PlanCacheInvalidationHelper;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.server.SabotContext;
@@ -138,6 +139,8 @@ public class TestReflectionService {
 
   @Mock private Catalog catalog;
 
+  @Mock private CacheRefresherService cacheRefresherService;
+
   private Materialization materialization;
   private ReflectionEntry entry;
   private ReflectionGoal goal;
@@ -181,7 +184,8 @@ public class TestReflectionService {
             DirectProvider.wrap(reflectionStatusService),
             Mockito.mock(ExecutorService.class),
             false,
-            allocator);
+            allocator,
+            DirectProvider.wrap(cacheRefresherService));
 
     // Test KV store objects
     ReflectionId rId = new ReflectionId("r1");
@@ -276,7 +280,8 @@ public class TestReflectionService {
             DirectProvider.wrap(Mockito.mock(ReflectionStatusService.class)),
             Mockito.mock(ExecutorService.class),
             false,
-            allocator) {
+            allocator,
+            DirectProvider.wrap(cacheRefresherService)) {
           @Override
           UnexpandedMaterializationDescriptor getDescriptor(
               Materialization materialization,
@@ -315,7 +320,8 @@ public class TestReflectionService {
             DirectProvider.wrap(Mockito.mock(ReflectionStatusService.class)),
             Mockito.mock(ExecutorService.class),
             false,
-            allocator) {
+            allocator,
+            DirectProvider.wrap(cacheRefresherService)) {
           @Override
           MaterializationCache createMaterializationCache() {
             return mockCache;
@@ -515,7 +521,8 @@ public class TestReflectionService {
         Provider<ReflectionStatusService> reflectionStatusService,
         ExecutorService executorService,
         boolean isMaster,
-        BufferAllocator allocator) {
+        BufferAllocator allocator,
+        Provider<CacheRefresherService> cacheRefresherService) {
       super(
           config,
           storeProvider,
@@ -528,7 +535,8 @@ public class TestReflectionService {
           isMaster,
           allocator,
           null,
-          new DatasetEventHub());
+          new DatasetEventHub(),
+          cacheRefresherService);
     }
 
     @Override

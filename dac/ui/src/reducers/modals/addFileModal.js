@@ -36,7 +36,7 @@ export default function jobCreating(state = initialState, action) {
         state,
         ["filePath"],
         action.payload,
-        AddFileModalMapper.mapFilePayload
+        AddFileModalMapper.mapFilePayload,
       );
 
     case ActionTypes.UPLOAD_FILE_FAILURE:
@@ -50,7 +50,7 @@ export default function jobCreating(state = initialState, action) {
         state,
         ["preview"],
         gridTableMapper.mapJson({}, action.payload, 1),
-        AddFileModalMapper.mapFileFormatPayload
+        AddFileModalMapper.mapFileFormatPayload,
       );
 
     case ActionTypes.FILE_FORMAT_PREVIEW_FAILURE:

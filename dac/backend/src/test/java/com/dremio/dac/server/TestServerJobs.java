@@ -89,10 +89,12 @@ public class TestServerJobs extends BaseTestServer {
     while (true) {
       final JobUI jip =
           expectSuccess(
-              getBuilder(getAPIv2().path("job/" + jobId.getId())).buildGet(), JobUI.class);
+              getBuilder(getHttpClient().getAPIv2().path("job/" + jobId.getId())).buildGet(),
+              JobUI.class);
       if (jip.getJobAttempt().getState() == JobState.RUNNING) {
         final JobsUI all =
-            expectSuccess(getBuilder(getAPIv2().path("jobs")).buildGet(), JobsUI.class);
+            expectSuccess(
+                getBuilder(getHttpClient().getAPIv2().path("jobs")).buildGet(), JobsUI.class);
         assertEquals(1, all.getJobs().size());
         runningState = true;
         break;
@@ -109,7 +111,8 @@ public class TestServerJobs extends BaseTestServer {
     while (true) {
       final JobUI job =
           expectSuccess(
-              getBuilder(getAPIv2().path("job/" + jobId.getId())).buildGet(), JobUI.class);
+              getBuilder(getHttpClient().getAPIv2().path("job/" + jobId.getId())).buildGet(),
+              JobUI.class);
       final JobState state = job.getJobAttempt().getState();
       if (state == JobState.CANCELED || state == JobState.COMPLETED || state == JobState.FAILED) {
         return job;
@@ -129,7 +132,11 @@ public class TestServerJobs extends BaseTestServer {
   public void testJob() throws Exception {
     TestSpacesStoragePlugin.setup();
     expectSuccess(
-        getBuilder(getAPIv2().path("dataset/testA.dsA1/data").queryParam("limit", "10000"))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv2()
+                    .path("dataset/testA.dsA1/data")
+                    .queryParam("limit", "10000"))
             .buildGet(),
         JobDataFragment.class);
     final SearchJobsRequest request1 =
@@ -156,7 +163,9 @@ public class TestServerJobs extends BaseTestServer {
     jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request));
     job1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("job/" + job1.getJobId().getId())).buildGet(), JobUI.class);
+            getBuilder(getHttpClient().getAPIv2().path("job/" + job1.getJobId().getId()))
+                .buildGet(),
+            JobUI.class);
     assertEquals(jobs.get(0).getJobId(), job1.getJobId());
     assertEquals(jobs.get(0).getSql(), job1.getJobAttempt().getInfo().getSql());
     assertEquals(
@@ -170,7 +179,7 @@ public class TestServerJobs extends BaseTestServer {
   public void testJobPhysicalDatasetParent() throws Exception {
     populateInitialData();
     final DatasetPath datasetPath = new DatasetPath("DG.dsg1");
-    final DatasetUI dsg1 = getDataset(datasetPath);
+    final DatasetUI dsg1 = getHttpClient().getDatasetApi().getDataset(datasetPath);
     final JobsService jobsService = l(JobsService.class);
     final JobId jobId =
         submitJobAndWaitUntilCompletion(
@@ -198,7 +207,8 @@ public class TestServerJobs extends BaseTestServer {
     @SuppressWarnings("unused")
     JobUI job1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("job/" + jobDetails.getJobId().getId())).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("job/" + jobDetails.getJobId().getId()))
+                .buildGet(),
             JobUI.class);
     assertEquals(1, jobAttempt.getInfo().getParentsList().size());
     assertEquals(
@@ -210,7 +220,10 @@ public class TestServerJobs extends BaseTestServer {
 
     JobDetailsUI jobDetailsUI =
         expectSuccess(
-            getBuilder(getAPIv2().path("job/" + jobDetails.getJobId().getId() + "/details"))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("job/" + jobDetails.getJobId().getId() + "/details"))
                 .buildGet(),
             JobDetailsUI.class);
     assertNotNull(jobDetails);
@@ -251,7 +264,8 @@ public class TestServerJobs extends BaseTestServer {
     }
     JobUI job1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("job/" + jobDetails.getJobId().getId())).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("job/" + jobDetails.getJobId().getId()))
+                .buildGet(),
             JobUI.class);
     assertEquals(2, job1.getJobAttempt().getInfo().getParentsList().size());
     for (ParentDatasetInfo parentDataset : job1.getJobAttempt().getInfo().getParentsList()) {
@@ -264,7 +278,10 @@ public class TestServerJobs extends BaseTestServer {
 
     JobDetailsUI jobDetailsUI =
         expectSuccess(
-            getBuilder(getAPIv2().path("job/" + jobDetails.getJobId().getId() + "/details"))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("job/" + jobDetails.getJobId().getId() + "/details"))
                 .buildGet(),
             JobDetailsUI.class);
     assertNotNull(jobDetails);
@@ -295,7 +312,8 @@ public class TestServerJobs extends BaseTestServer {
     @SuppressWarnings("unused")
     JobUI job1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("job/" + jobDetails.getJobId().getId())).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("job/" + jobDetails.getJobId().getId()))
+                .buildGet(),
             JobUI.class);
     assertEquals(1, jobAttempt.getInfo().getParentsList().size());
     assertEquals(
@@ -309,7 +327,11 @@ public class TestServerJobs extends BaseTestServer {
   public void testJobDetails() throws Exception {
     TestSpacesStoragePlugin.setup();
     expectSuccess(
-        getBuilder(getAPIv2().path("dataset/testA.dsA1/data").queryParam("limit", "10000"))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv2()
+                    .path("dataset/testA.dsA1/data")
+                    .queryParam("limit", "10000"))
             .buildGet(),
         JobDataFragment.class);
     final SearchJobsRequest request =
@@ -323,7 +345,10 @@ public class TestServerJobs extends BaseTestServer {
     List<JobSummary> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request));
     JobDetailsUI jobDetails =
         expectSuccess(
-            getBuilder(getAPIv2().path("job/" + jobs.get(0).getJobId().getId() + "/details"))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("job/" + jobs.get(0).getJobId().getId() + "/details"))
                 .buildGet(),
             JobDetailsUI.class);
     assertNotNull(jobDetails);
@@ -332,7 +357,10 @@ public class TestServerJobs extends BaseTestServer {
     waitForCompleteJobInIndex(JobsProtoUtil.toStuff(jobs.get(0).getJobId()));
     jobDetails =
         expectSuccess(
-            getBuilder(getAPIv2().path("job/" + jobs.get(0).getJobId().getId() + "/details"))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("job/" + jobs.get(0).getJobId().getId() + "/details"))
                 .buildGet(),
             JobDetailsUI.class);
     assertEquals(1, jobDetails.getTableDatasetProfiles().size());
@@ -345,12 +373,15 @@ public class TestServerJobs extends BaseTestServer {
     JobsService jobsService = l(JobsService.class);
     TestSpacesStoragePlugin.setup();
     // run at least one job
+    DatasetUI datasetUI1 =
+        getHttpClient().getDatasetApi().getDataset(new DatasetPath("testB.dsB1"));
     final InitialPreviewResponse previewResponse =
-        getPreview(getDataset(new DatasetPath("testB.dsB1"))); // This triggers a job
+        getHttpClient().getDatasetApi().getPreview(datasetUI1); // This triggers a job
     waitForJobComplete(previewResponse.getJobId().getId());
 
     doc("getting list of all jobs");
-    JobsUI allJobs = expectSuccess(getBuilder(getAPIv2().path("jobs")).buildGet(), JobsUI.class);
+    JobsUI allJobs =
+        expectSuccess(getBuilder(getHttpClient().getAPIv2().path("jobs")).buildGet(), JobsUI.class);
     int dsB1Jobs = 0;
     List<JobListItem> foundJobs = new ArrayList<>();
     for (JobListItem job : allJobs.getJobs()) {
@@ -363,7 +394,9 @@ public class TestServerJobs extends BaseTestServer {
     doc("getting list of all jobs for dataset testB.dsB1");
     JobsUI jobsUI =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1")).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1"))
+                .buildGet(),
             JobsUI.class);
     assertEquals(
         "from all jobs:\n"
@@ -378,20 +411,23 @@ public class TestServerJobs extends BaseTestServer {
         jobsUI.getJobs().size());
     assertEquals(dsB1Jobs, jobsUI.getJobs().size());
 
+    DatasetUI datasetUI = getHttpClient().getDatasetApi().getDataset(new DatasetPath("testB.dsB1"));
     final InitialPreviewResponse previewResponseA =
-        getPreview(getDataset(new DatasetPath("testB.dsB1"))); // this triggers a job
+        getHttpClient().getDatasetApi().getPreview(datasetUI); // this triggers a job
     waitForJobComplete(previewResponseA.getJobId().getId());
 
     jobsUI =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1")).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1"))
+                .buildGet(),
             JobsUI.class);
     // getting the data 2x on the same version does not create a new job
     assertEquals(dsB1Jobs, jobsUI.getJobs().size());
     dsB1Jobs++;
 
     // get version
-    DatasetUI dsGet = getDataset(new DatasetPath("testB.dsB1"));
+    DatasetUI dsGet = getHttpClient().getDatasetApi().getDataset(new DatasetPath("testB.dsB1"));
 
     int dsB1JobsVersion = 0;
     for (JobListItem job : jobsUI.getJobs()) {
@@ -408,7 +444,7 @@ public class TestServerJobs extends BaseTestServer {
         JobRequest.newBuilder()
             .setSqlQuery(getQueryFromConfig(dsGet))
             .setQueryType(QueryType.UI_PREVIEW)
-            .setDatasetPath(getDatasetPath(dsGet).toNamespaceKey())
+            .setDatasetPath(dsGet.toDatasetPath().toNamespaceKey())
             .setDatasetVersion(v2)
             .build());
 
@@ -416,7 +452,7 @@ public class TestServerJobs extends BaseTestServer {
         JobRequest.newBuilder()
             .setSqlQuery(new SqlQuery(dsGet.getSql(), dsGet.getContext(), USERNAME))
             .setQueryType(QueryType.UI_PREVIEW)
-            .setDatasetPath(getDatasetPath(dsGet).toNamespaceKey())
+            .setDatasetPath(dsGet.toDatasetPath().toNamespaceKey())
             .setDatasetVersion(v2)
             .build());
 
@@ -490,12 +526,15 @@ public class TestServerJobs extends BaseTestServer {
     JobsService jobsService = l(JobsService.class);
     TestSpacesStoragePlugin.setup();
     // run at least one job
+    DatasetUI datasetUI1 =
+        getHttpClient().getDatasetApi().getDataset(new DatasetPath("testB.dsB1"));
     final InitialPreviewResponse previewResponse =
-        getPreview(getDataset(new DatasetPath("testB.dsB1"))); // This triggers a job
+        getHttpClient().getDatasetApi().getPreview(datasetUI1); // This triggers a job
     waitForJobComplete(previewResponse.getJobId().getId());
 
     doc("getting list of all jobs");
-    JobsUI allJobs = expectSuccess(getBuilder(getAPIv2().path("jobs")).buildGet(), JobsUI.class);
+    JobsUI allJobs =
+        expectSuccess(getBuilder(getHttpClient().getAPIv2().path("jobs")).buildGet(), JobsUI.class);
     int dsB1Jobs = 0;
     List<JobListItem> foundJobs = new ArrayList<>();
     for (JobListItem job : allJobs.getJobs()) {
@@ -508,7 +547,9 @@ public class TestServerJobs extends BaseTestServer {
     doc("getting list of all jobs for dataset testB.dsB1");
     JobsUI jobsUI =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1")).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1"))
+                .buildGet(),
             JobsUI.class);
     assertEquals(
         "from all jobs:\n"
@@ -523,20 +564,23 @@ public class TestServerJobs extends BaseTestServer {
         jobsUI.getJobs().size());
     assertEquals(dsB1Jobs, jobsUI.getJobs().size());
 
+    DatasetUI datasetUI = getHttpClient().getDatasetApi().getDataset(new DatasetPath("testB.dsB1"));
     final InitialPreviewResponse previewResponseA =
-        getPreview(getDataset(new DatasetPath("testB.dsB1"))); // this triggers a job
+        getHttpClient().getDatasetApi().getPreview(datasetUI); // this triggers a job
     waitForJobComplete(previewResponseA.getJobId().getId());
 
     jobsUI =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1")).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1"))
+                .buildGet(),
             JobsUI.class);
     // getting the data 2x on the same version does not create a new job
     assertEquals(dsB1Jobs, jobsUI.getJobs().size());
     dsB1Jobs++;
 
     // get version
-    DatasetUI dsGet = getDataset(new DatasetPath("testB.dsB1"));
+    DatasetUI dsGet = getHttpClient().getDatasetApi().getDataset(new DatasetPath("testB.dsB1"));
 
     int dsB1JobsVersion = 0;
     for (JobListItem job : jobsUI.getJobs()) {
@@ -552,7 +596,7 @@ public class TestServerJobs extends BaseTestServer {
         JobRequest.newBuilder()
             .setSqlQuery(getQueryFromConfig(dsGet))
             .setQueryType(QueryType.UI_RUN)
-            .setDatasetPath(getDatasetPath(dsGet).toNamespaceKey())
+            .setDatasetPath(dsGet.toDatasetPath().toNamespaceKey())
             .setDatasetVersion(v2)
             .build());
 
@@ -608,7 +652,9 @@ public class TestServerJobs extends BaseTestServer {
     doc("getting list of all jobs for dataset for a dataset using simple equality filter");
     jobsUI =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1")).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1"))
+                .buildGet(),
             JobsUI.class);
     assertEquals(dsB1Jobs, jobsUI.getJobs().size());
 
@@ -617,7 +663,8 @@ public class TestServerJobs extends BaseTestServer {
     jobsUI =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("jobs")
                         .queryParam("filter", "ds==testB.dsB1;dsv==" + dsGet.getDatasetVersion()))
                 .buildGet(),
@@ -628,7 +675,8 @@ public class TestServerJobs extends BaseTestServer {
     jobsUI =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("jobs")
                         .queryParam("sort", "st")
                         .queryParam("order", "ASCENDING"))
@@ -645,7 +693,8 @@ public class TestServerJobs extends BaseTestServer {
     jobsUI =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("jobs")
                         .queryParam("sort", "st")
                         .queryParam("order", "DESCENDING"))
@@ -659,14 +708,20 @@ public class TestServerJobs extends BaseTestServer {
     doc("Get jobs using contains query/search all fields in all jobs");
     jobsUI =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs").queryParam("filter", "*=contains=dsB1")).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path("jobs").queryParam("filter", "*=contains=dsB1"))
+                .buildGet(),
             JobsUI.class);
     assertEquals(dsB1Jobs, jobsUI.getJobs().size());
 
     doc("Get jobs using contains query/search all fields in all jobs");
     jobsUI =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs").queryParam("filter", "all=contains=dsB?"))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("jobs")
+                        .queryParam("filter", "all=contains=dsB?"))
                 .buildGet(),
             JobsUI.class);
     assertEquals(dsB1Jobs, jobsUI.getJobs().size());
@@ -676,18 +731,19 @@ public class TestServerJobs extends BaseTestServer {
 
   private DatasetUI setupIteratorTests(String datasetName) throws Exception {
     TestSpacesStoragePlugin.setup();
-    DatasetUI dataset = getDataset(new DatasetPath(datasetName));
+    DatasetUI dataset = getHttpClient().getDatasetApi().getDataset(new DatasetPath(datasetName));
 
     // run dataset twice. We do a run and a preview since subsequent previews won't actually
     // rerun...
-    final InitialPreviewResponse previewResponse = getPreview(dataset);
+    final InitialPreviewResponse previewResponse =
+        getHttpClient().getDatasetApi().getPreview(dataset);
     waitForJobComplete(previewResponse.getJobId().getId());
 
     submitJobAndWaitUntilCompletion(
         JobRequest.newBuilder()
             .setSqlQuery(getQueryFromConfig(dataset))
             .setQueryType(QueryType.UI_RUN)
-            .setDatasetPath(getDatasetPath(dataset).toNamespaceKey())
+            .setDatasetPath(dataset.toDatasetPath().toNamespaceKey())
             .setDatasetVersion(dataset.getDatasetVersion())
             .build());
 
@@ -696,7 +752,7 @@ public class TestServerJobs extends BaseTestServer {
 
   private void validateIteartorPaginationTest(
       String path, String datasetName, String datasetVersion) {
-    WebTarget webTarget = getAPIv2().path(path);
+    WebTarget webTarget = getHttpClient().getAPIv2().path(path);
     if (datasetName != null) {
       if (datasetVersion == null) {
         webTarget.queryParam("filter", "ds==" + datasetName);
@@ -708,11 +764,15 @@ public class TestServerJobs extends BaseTestServer {
         expectSuccess(getBuilder(webTarget.queryParam("limit", 1)).buildGet(), JobsUI.class);
     assertEquals(1, jobs.getJobs().size());
     assertNotNull(jobs.getNext());
-    JobsUI jobs2 = expectSuccess(getBuilder(jobs.getNext()).buildGet(), JobsUI.class);
+    JobsUI jobs2 = fetchNext(jobs.getNext());
     assertEquals(1, jobs2.getJobs().size());
-    JobsUI jobs3 = expectSuccess(getBuilder(jobs2.getNext()).buildGet(), JobsUI.class);
+    JobsUI jobs3 = fetchNext(jobs2.getNext());
     assertEquals(0, jobs3.getJobs().size());
     assertNull(jobs3.getNext());
+  }
+
+  private JobsUI fetchNext(String nextUrl) {
+    return expectSuccess(getHttpClient().request("apiv2" + nextUrl).buildGet(), JobsUI.class);
   }
 
   @Test
@@ -724,7 +784,11 @@ public class TestServerJobs extends BaseTestServer {
     {
       JobsUI jobs =
           expectSuccess(
-              getBuilder(getAPIv2().path("jobs").queryParam("filter", "ds==" + datasetName))
+              getBuilder(
+                      getHttpClient()
+                          .getAPIv2()
+                          .path("jobs")
+                          .queryParam("filter", "ds==" + datasetName))
                   .buildGet(),
               JobsUI.class);
       assertEquals(2, jobs.getJobs().size());
@@ -734,7 +798,8 @@ public class TestServerJobs extends BaseTestServer {
       JobsUI jobs =
           expectSuccess(
               getBuilder(
-                      getAPIv2()
+                      getHttpClient()
+                          .getAPIv2()
                           .path("jobs")
                           .queryParam(
                               "filter",
@@ -745,7 +810,9 @@ public class TestServerJobs extends BaseTestServer {
     }
 
     {
-      JobsUI jobs = expectSuccess(getBuilder(getAPIv2().path("jobs/")).buildGet(), JobsUI.class);
+      JobsUI jobs =
+          expectSuccess(
+              getBuilder(getHttpClient().getAPIv2().path("jobs/")).buildGet(), JobsUI.class);
       assertEquals(2, jobs.getJobs().size());
     }
   }

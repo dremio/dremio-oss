@@ -20,14 +20,14 @@ import Immutable from "immutable";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
 import socket from "@inject/utils/socket";
-import { flexColumnContainer } from "@app/uiTheme/less/layout.less";
+import { flexColumnContainer } from "#oss/uiTheme/less/layout.less";
 
 import ViewStateWrapper from "components/ViewStateWrapper";
 import ViewCheckContent from "components/ViewCheckContent";
 import JobsContentMixin, {
   MIN_LEFT_PANEL_WIDTH,
   SEPARATOR_WIDTH,
-} from "@app/pages/JobPage/components/JobsContentMixin";
+} from "#oss/pages/JobPage/components/JobsContentMixin";
 import JobTable from "./JobsTable/JobTable";
 import JobDetailsWrapper from "./JobDetails/JobDetailsWrapper";
 import JobsFilters from "./JobsFilters/JobsFilters";
@@ -88,7 +88,7 @@ export class JobsContent extends PureComponent {
   UNSAFE_componentWillReceiveProps(nextProps) {
     if (nextProps.jobs !== this.props.jobs) {
       this.runActionForJobs(nextProps.jobs, false, (jobId) =>
-        socket.startListenToJobProgress(jobId)
+        socket.startListenToJobProgress(jobId),
       );
       // if we don't have an active job id highlight the first job
       if (!nextProps.jobId) {

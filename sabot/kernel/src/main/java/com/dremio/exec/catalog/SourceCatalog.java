@@ -20,6 +20,7 @@ import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import java.util.List;
 
 /** Interface to perform actions on sources. */
 public interface SourceCatalog {
@@ -34,6 +35,8 @@ public interface SourceCatalog {
    * @return A StoragePlugin casted to the expected output.
    */
   <T extends StoragePlugin> T getSource(String name);
+
+  <T extends StoragePlugin> T getSource(String name, boolean skipStatusCheck);
 
   /**
    * Create a source based on the provided configuration. Includes both the creation as well the
@@ -71,4 +74,6 @@ public interface SourceCatalog {
    * @param sourceName name of the source, set to null to invalidate on all
    */
   void clearPermissionCache(String sourceName);
+
+  List<SourceConfig> getSourceConfigs();
 }

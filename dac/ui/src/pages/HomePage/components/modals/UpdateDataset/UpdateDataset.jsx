@@ -88,7 +88,7 @@ export class UpdateDataset extends PureComponent {
           },
           {
             name: t(
-              hasDeps ? "Common.Actions.RenameAnyway" : "Common.Actions.Rename"
+              hasDeps ? "Common.Actions.RenameAnyway" : "Common.Actions.Rename",
             ),
             key: "renameDataset",
             type: hasDeps ? CUSTOM : NEXT,
@@ -116,7 +116,7 @@ export class UpdateDataset extends PureComponent {
           },
           {
             name: t(
-              hasDeps ? "Common.Actions.MoveAnyway" : "Common.Actions.Move"
+              hasDeps ? "Common.Actions.MoveAnyway" : "Common.Actions.Move",
             ),
             key: "moveDataset",
             type: hasDeps ? CUSTOM : NEXT,
@@ -225,7 +225,7 @@ export class UpdateDataset extends PureComponent {
           this.props.hide();
         }
         return null;
-      }
+      },
     );
   };
 

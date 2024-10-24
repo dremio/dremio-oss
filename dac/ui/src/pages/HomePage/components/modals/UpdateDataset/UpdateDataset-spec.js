@@ -56,7 +56,7 @@ describe("UpdateDataset", () => {
     it("should call loadDependentDatasets with full path", () => {
       instance.receiveProps(commonProps, {});
       expect(commonProps.loadDependentDatasets).to.have.been.calledWith(
-        commonProps.item.get("fullPathList")
+        commonProps.item.get("fullPathList"),
       );
     });
   });
@@ -69,7 +69,7 @@ describe("UpdateDataset", () => {
       });
       expect(commonProps.moveDataSet).to.have.been.calledWith(
         commonProps.item.get("fullPathList"),
-        ["Prod-Sample", "ds3"]
+        ["Prod-Sample", "ds3"],
       );
     });
   });
@@ -83,7 +83,7 @@ describe("UpdateDataset", () => {
       expect(commonProps.createDatasetFromExisting).to.have.been.calledWith(
         commonProps.item.get("fullPathList"),
         ["Prod-Sample2", "ds3"],
-        { name: "ds3" }
+        { name: "ds3" },
       );
     });
 
@@ -92,7 +92,7 @@ describe("UpdateDataset", () => {
       expect(commonProps.createDatasetFromExisting).to.have.been.calledWith(
         commonProps.item.get("fullPathList"),
         ["Prod-Sample", "ds3"],
-        { name: "ds3" }
+        { name: "ds3" },
       );
     });
   });
@@ -102,7 +102,7 @@ describe("UpdateDataset", () => {
       instance.renameDataset({ datasetName: "ds12" });
       expect(commonProps.renameSpaceDataset).to.have.been.calledWith(
         commonProps.item,
-        "ds12"
+        "ds12",
       );
     });
   });
@@ -112,7 +112,7 @@ describe("UpdateDataset", () => {
       instance.removeFormat();
       expect(commonProps.convertDatasetToFolder).to.have.been.calledWith(
         commonProps.item,
-        "toggleFolderPhysicalDataset"
+        "toggleFolderPhysicalDataset",
       );
     });
     it("should call removeFileFormat for a file", () => {
@@ -123,7 +123,7 @@ describe("UpdateDataset", () => {
       instance = shallow(<UpdateDataset {...tempProps} />).instance();
       instance.removeFormat();
       expect(tempProps.removeFileFormat).to.have.been.calledWith(
-        tempProps.item
+        tempProps.item,
       );
     });
   });
@@ -140,7 +140,7 @@ describe("UpdateDataset", () => {
       instance.submit("renameDataset", { datasetName: "ds1" });
       expect(commonProps.renameSpaceDataset).to.be.calledWith(
         commonProps.item,
-        "ds1"
+        "ds1",
       );
       expect(ApiUtils.attachFormSubmitHandlers).to.be.calledOnce;
     });
@@ -152,7 +152,7 @@ describe("UpdateDataset", () => {
       });
       expect(commonProps.moveDataSet).to.be.calledWith(
         commonProps.item.get("fullPathList"),
-        ["Prod-Sample", "ds3"]
+        ["Prod-Sample", "ds3"],
       );
       expect(ApiUtils.attachFormSubmitHandlers).to.be.calledOnce;
     });
@@ -164,7 +164,7 @@ describe("UpdateDataset", () => {
       });
       expect(commonProps.createDatasetFromExisting).to.be.calledWith(
         commonProps.item.get("fullPathList"),
-        ["Prod-Sample", "ds3"]
+        ["Prod-Sample", "ds3"],
       );
       expect(ApiUtils.attachFormSubmitHandlers).to.be.calledOnce;
     });

@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import Checkbox from "components/Fields/Checkbox";
-import { checkboxStandalone } from "@app/components/Fields/Checkbox.less";
+import { checkboxStandalone } from "#oss/components/Fields/Checkbox.less";
 import PropTypes from "prop-types";
 import { HoverHelp } from "dremio-ui-lib";
 import { flexContainer } from "./FormWrappers.less";

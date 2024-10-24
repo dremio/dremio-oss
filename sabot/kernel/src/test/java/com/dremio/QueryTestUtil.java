@@ -33,8 +33,6 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import java.util.List;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.apache.arrow.memory.OutOfMemoryException;
 
 /** Utilities useful for tests that issue SQL queries. */
@@ -122,26 +120,6 @@ public class QueryTestUtil {
   }
 
   /**
-   * Normalize the query relative to the test environment.
-   *
-   * <p>Looks for "${WORKING_PATH}" in the query string, and replaces it the current working patch
-   * obtained from {@link com.dremio.common.util.TestTools#getWorkingPath()}.
-   *
-   * @param query the query string
-   * @return the normalized query string
-   */
-  public static String normalizeQuery(final String query) {
-    if (query.contains("${WORKING_PATH}")) {
-      return query.replaceAll(
-          Pattern.quote("${WORKING_PATH}"), Matcher.quoteReplacement(TestTools.getWorkingPath()));
-    } else if (query.contains("[WORKING_PATH]")) {
-      return query.replaceAll(
-          Pattern.quote("[WORKING_PATH]"), Matcher.quoteReplacement(TestTools.getWorkingPath()));
-    }
-    return query;
-  }
-
-  /**
    * Execute a SQL query, and print the results.
    *
    * @param client Dremio client to use
@@ -152,14 +130,13 @@ public class QueryTestUtil {
    */
   public static int testRunAndPrint(
       final DremioClient client, final QueryType type, final String queryString) throws Exception {
-    final String query = normalizeQuery(queryString);
     SabotConfig config = client.getConfig();
     AwaitableUserResultsListener resultListener =
         new AwaitableUserResultsListener(
             config.getBoolean(TEST_QUERY_PRINTING_SILENT)
                 ? new SilentListener()
                 : new PrintingResultsListener(config, Format.TSV, VectorUtil.DEFAULT_COLUMN_WIDTH));
-    client.runQuery(type, query, resultListener);
+    testWithListener(client, type, queryString, resultListener);
     return resultListener.await();
   }
 
@@ -171,8 +148,7 @@ public class QueryTestUtil {
    * @throws Exception
    */
   public static void test(final DremioClient client, final String queryString) throws Exception {
-    final String query = normalizeQuery(queryString);
-    String[] queries = query.split(";");
+    String[] queries = queryString.split(";");
     for (String q : queries) {
       final String trimmedQuery = q.trim();
       if (trimmedQuery.isEmpty()) {
@@ -210,7 +186,7 @@ public class QueryTestUtil {
       final QueryType type,
       final String queryString,
       final UserResultsListener resultListener) {
-    final String query = QueryTestUtil.normalizeQuery(queryString);
+    final String query = TestTools.replaceWorkingPathPlaceholders(queryString);
     client.runQuery(type, query, resultListener);
   }
 }

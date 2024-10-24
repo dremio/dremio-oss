@@ -85,19 +85,18 @@
   "dependencies": {
     "@dremio/dremio-js": "link:../../ui/dremio-js",
     "@emotion/css": "^11.11.2",
-    "@floating-ui/react-dom": "^2.0.1",
+    "@floating-ui/react-dom": "^2.1.1",
     "@types/lodash": "^4.14.191",
-    "@types/react": "^18",
     "antlr4-c3": "^3.1.1",
     "antlr4ts": "^0.5.0-alpha.4",
-    "clsx": "^1.2.1",
+    "clsx": "^2",
     "define-route": "^0.3.1",
     "dremio-ui-lib": "link:../ui-lib",
+    "fuzzysort": "^3.0.2",
     "intl-messageformat": "^10.2.1",
     "leantable": "^0.4.11",
     "lodash": "^4.17.21",
     "moize": "^6.1.3",
-    "monaco-editor": "0.49.0",
     "msw": "^1.2.0",
     "parse-ms": "^4.0.0",
     "pretty-ms": "^9.0.0",
@@ -143,18 +142,22 @@
     "jsdom": "^20.0.0",
     "npm-run-all": "^4.1.5",
     "openapi-typescript": "^6.6.0",
-    "prettier": "3.2.5",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "prettier": "3.3.3",
     "ts-node": "^10.9.1",
     "tsx": "^4.10.3",
-    "typescript": "5.4.2"
+    "typescript": "5.5.4"
   },
   "peerDependencies": {
+    "monaco-editor": "0.49.0",
     "react": ">=16.8.0",
-    "react-dom": ">=16.8.0"
+    "@types/react": ">=18"
   },
-  "packageManager": "pnpm@9.3.0",
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "packageManager": "pnpm@9.9.0",
   "pnpm": {
     "patchedDependencies": {
       "antlr4ts@0.5.0-alpha.4": "patches/antlr4ts@0.5.0-alpha.4.patch"

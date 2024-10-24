@@ -16,7 +16,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
-import DatasetItemLabel from "@app/components/Dataset/DatasetItemLabel";
+import DatasetItemLabel from "#oss/components/Dataset/DatasetItemLabel";
 import { Label } from "dremio-ui-lib";
 import Immutable from "immutable";
 import { getIconByEntityType } from "utils/iconUtils";

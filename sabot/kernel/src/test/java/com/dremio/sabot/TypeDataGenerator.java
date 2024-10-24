@@ -62,20 +62,18 @@ public class TypeDataGenerator<T extends Comparable<T>> implements Generator {
   }
 
   public void generateValues() {
-    int numOfUniqueKeys = Math.min(fieldInfo.getNumOfUniqueValues(), numOfRows);
-    int groupInterval = numOfRows / numOfUniqueKeys;
+    int numOfUniqueKeysInBatch = Math.min(fieldInfo.getNumOfUniqueValuesInBatch(), batchSize);
+    dataList = new ArrayList<>();
+    int groupInterval = batchSize / numOfUniqueKeysInBatch;
     int batchIndex = 0;
     T currentValue = randomGenerator.getRandomValue();
-    while (batchIndex < numOfBatches) {
-      for (int i = 0; i < batchSize; i++) {
-        dataList.add(currentValue);
-        if ((i + 1) % groupInterval == 0) {
-          currentValue = randomGenerator.getRandomValue();
-        }
-      }
-      batchIndex++;
-    }
 
+    for (int i = 0; i < batchSize; i++) {
+      dataList.add(currentValue);
+      if ((i + 1) % groupInterval == 0) {
+        currentValue = randomGenerator.getRandomValue();
+      }
+    }
     switch (fieldInfo.getSortOrder()) {
       case RANDOM:
         Collections.shuffle(dataList);
@@ -101,33 +99,30 @@ public class TypeDataGenerator<T extends Comparable<T>> implements Generator {
 
   @Override
   public int next(int records) {
-    if (dataList.isEmpty()) {
-      generateValues();
-    }
+    generateValues();
     if (absoluteIndex >= numOfRows) {
       return 0;
     }
     switch (fieldInfo.getField().getFieldType().getType().getTypeID()) {
       case Int:
         for (int i = 0; i < records && absoluteIndex < numOfRows; i++, absoluteIndex++) {
-          ((IntVector) vector).setSafe(i, (Integer) dataList.get(absoluteIndex));
+          ((IntVector) vector).setSafe(i, (Integer) dataList.get(i));
         }
         break;
       case Utf8:
         for (int i = 0; i < records && absoluteIndex < numOfRows; i++, absoluteIndex++) {
-          ((BaseVariableWidthVector) vector)
-              .setSafe(i, ((String) dataList.get(absoluteIndex)).getBytes());
+          ((BaseVariableWidthVector) vector).setSafe(i, ((String) dataList.get(i)).getBytes());
         }
         break;
       case Date:
         for (int i = 0; i < records && absoluteIndex < numOfRows; i++, absoluteIndex++) {
-          Date d = (Date) dataList.get(absoluteIndex);
+          Date d = (Date) dataList.get(i);
           ((DateMilliVector) vector).setSafe(i, d.toInstant().toEpochMilli());
         }
         break;
       case Bool:
         for (int i = 0; i < records && absoluteIndex < numOfRows; i++, absoluteIndex++) {
-          ((BitVector) vector).setSafe(i, (Boolean) dataList.get(absoluteIndex) ? 1 : 0);
+          ((BitVector) vector).setSafe(i, (Boolean) dataList.get(i) ? 1 : 0);
         }
         break;
     }

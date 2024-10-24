@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 
 export const getSpaceUpdated = (values, props) => {
   return props.entityId

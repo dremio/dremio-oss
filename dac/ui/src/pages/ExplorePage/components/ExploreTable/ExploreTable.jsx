@@ -30,7 +30,7 @@ import ViewStateWrapper from "components/ViewStateWrapper";
 import ViewCheckContent from "components/ViewCheckContent";
 import { withLocation } from "containers/dremioLocation";
 import { getViewState } from "selectors/resources";
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 import { EXPLORE_TABLE_ID } from "reducers/explore/view";
 import { loadNextRows } from "actions/explore/dataset/data";
 import ExploreTableCell from "./ExploreTableCell";
@@ -127,7 +127,7 @@ export class ExploreTableView extends PureComponent {
   static getDefaultColumnWidth(widthThatWillBeSet, columns) {
     const size = columns.length || 1;
     const numberOfColumnsWithNonDefaultWidth = columns.filter(
-      (col) => col.width
+      (col) => col.width,
     ).length;
     const widthReservedByUserActions = columns
       .map((col) => col.width || 0)
@@ -144,7 +144,7 @@ export class ExploreTableView extends PureComponent {
     { widthScale = 1, width, height, maxHeight, rightTreeVisible },
     wrappers,
     columns,
-    nodeOffsetTop
+    nodeOffsetTop,
   ) {
     if (!wrappers[0] && !wrappers[1] && !width && !height) {
       console.error("Can't find wrapper element, size maybe wrong");
@@ -154,16 +154,16 @@ export class ExploreTableView extends PureComponent {
       width,
       wrappers[0],
       widthScale,
-      rightTreeVisible
+      rightTreeVisible,
     );
     const heightThatWillBeSet = ExploreTableView.tableHeight(
       height,
       wrappers[1],
-      nodeOffsetTop
+      nodeOffsetTop,
     );
     const defaultColumnWidth = ExploreTableView.getDefaultColumnWidth(
       widthThatWillBeSet,
-      columns
+      columns,
     );
 
     return Immutable.Map({
@@ -216,14 +216,14 @@ export class ExploreTableView extends PureComponent {
     // https://github.com/facebook/fixed-data-table/issues/415
     $(".fixedDataTableCellLayout_columnResizerContainer").on(
       "mousedown",
-      this.removeResizerHiddenElem
+      this.removeResizerHiddenElem,
     );
   }
 
   componentWillUnmount() {
     $(".fixedDataTableCellLayout_columnResizerContainer").off(
       "mousedown",
-      this.removeResizerHiddenElem
+      this.removeResizerHiddenElem,
     );
     this.removeNoBackBtnOnScroll();
   }
@@ -289,7 +289,7 @@ export class ExploreTableView extends PureComponent {
       return true;
     }
     return !this.getColumnsToCompare(newColumns).equals(
-      this.getColumnsToCompare(this.state.columns)
+      this.getColumnsToCompare(this.state.columns),
     );
   }
 
@@ -316,7 +316,7 @@ export class ExploreTableView extends PureComponent {
       { ...this.props, height, width },
       wrappers,
       columns,
-      nodeOffsetTop
+      nodeOffsetTop,
     );
     this.setState((state) => {
       if (!state.size.equals(size)) {
@@ -335,14 +335,14 @@ export class ExploreTableView extends PureComponent {
     const { columns } = this.state;
     const resizeColumns = this.state.columns.toJS();
     const resizeColumnIndex = resizeColumns.findIndex(
-      ({ index }) => index === columnKey
+      ({ index }) => index === columnKey,
     );
 
     // DX-5848
     // https://github.com/facebook/fixed-data-table/issues/401
     // https://github.com/facebook/fixed-data-table/issues/415
     $(".fixedDataTableColumnResizerLineLayout_main").addClass(
-      "fixedDataTableColumnResizerLineLayout_hiddenElem"
+      "fixedDataTableColumnResizerLineLayout_hiddenElem",
     );
 
     this.setState({
@@ -354,7 +354,7 @@ export class ExploreTableView extends PureComponent {
 
   removeResizerHiddenElem = () => {
     $(".fixedDataTableColumnResizerLineLayout_main").removeClass(
-      "fixedDataTableColumnResizerLineLayout_hiddenElem"
+      "fixedDataTableColumnResizerLineLayout_hiddenElem",
     );
   };
 
@@ -556,7 +556,7 @@ ExploreTableView = injectIntl(ExploreTableView);
 
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  mapDispatchToProps,
 )(withLocation(ExploreTableView));
 
 const styles = {
@@ -564,7 +564,8 @@ const styles = {
     position: "absolute",
     height: "100%",
     width: "100%",
-    backgroundColor: "rgba(255, 255, 255, 0.4)",
+    backgroundColor: "var(--fill--secondary)",
+    opacity: "0.4",
     zIndex: 2,
     pointerEvents: "none",
   },

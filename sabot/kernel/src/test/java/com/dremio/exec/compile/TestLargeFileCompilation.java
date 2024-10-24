@@ -16,6 +16,7 @@
 package com.dremio.exec.compile;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.expression.SupportedEngines.CodeGenOption;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.google.common.base.Joiner;
@@ -32,26 +33,16 @@ public class TestLargeFileCompilation extends BaseTestQuery {
   public final TestRule timeoutRule = TestTools.getTimeoutRule(150, TimeUnit.SECONDS); // 150secs
 
   private static final String LARGE_QUERY_GROUP_BY;
-
   private static final String LARGE_QUERY_ORDER_BY;
-
   private static final String LARGE_QUERY_ORDER_BY_WITH_LIMIT;
-
   private static final String LARGE_QUERY_FILTER;
-
   private static final String LARGE_SELECT_QUERY;
-
   private static final String LARGE_QUERY_SELECT_LIST;
-
   private static final int ITERATION_COUNT =
-      Integer.valueOf(System.getProperty("TestLargeFileCompilation.iteration", "1"));
-
+      Integer.getInteger("TestLargeFileCompilation.iteration", 1);
   private static final int NUM_PROJECT_COULMNS = 2000;
-
   private static final int NUM_ORDERBY_COULMNS = 500;
-
   private static final int NUM_GROUPBY_COULMNS = 225;
-
   private static final int NUM_FILTER_COULMNS = 150;
 
   static {
@@ -112,6 +103,13 @@ public class TestLargeFileCompilation extends BaseTestQuery {
     LARGE_SELECT_QUERY = sb.append("full_name\nfrom cp.\"employee.json\" limit 1)").toString();
   }
 
+  protected static void runRepeatedly(String query, Object... args) throws Exception {
+    query = String.format(query, args);
+    for (int i = 0; i < ITERATION_COUNT; i++) {
+      runSQL(query);
+    }
+  }
+
   @Test
   public void testTEXT_WRITER() throws Exception {
     testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
@@ -125,53 +123,52 @@ public class TestLargeFileCompilation extends BaseTestQuery {
     testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
     testNoResult("use dfs_test");
     testNoResult("alter session set \"%s\"='parquet'", ExecConstants.OUTPUT_FORMAT_OPTION);
-    testNoResult(
-        ITERATION_COUNT, "create table %s as %s", "wide_table_parquet", LARGE_SELECT_QUERY);
+    runRepeatedly("create table %s as %s", "wide_table_parquet", LARGE_SELECT_QUERY);
   }
 
   @Test
   public void testGROUP_BY() throws Exception {
     testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
-    testNoResult(ITERATION_COUNT, LARGE_QUERY_GROUP_BY);
+    runRepeatedly(LARGE_QUERY_GROUP_BY);
   }
 
   @Test
   public void testEXTERNAL_SORT() throws Exception {
     testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
-    testNoResult(ITERATION_COUNT, LARGE_QUERY_ORDER_BY);
+    runRepeatedly(LARGE_QUERY_ORDER_BY);
   }
 
   @Test
   public void testTOP_N_SORT() throws Exception {
     testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
-    testNoResult(ITERATION_COUNT, LARGE_QUERY_ORDER_BY_WITH_LIMIT);
+    runRepeatedly(LARGE_QUERY_ORDER_BY_WITH_LIMIT);
   }
 
   @Test
   public void testFILTER() throws Exception {
     testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
-    testNoResult(ITERATION_COUNT, LARGE_QUERY_FILTER);
+    runRepeatedly(LARGE_QUERY_FILTER);
   }
 
   @Test
   public void testProject() throws Exception {
     testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
-    testNoResult(ITERATION_COUNT, LARGE_QUERY_SELECT_LIST);
+    runRepeatedly(LARGE_QUERY_SELECT_LIST);
   }
 
   @Ignore("Needs more than 8GB of ram to run. (oss/pom.xml) Also today fails to run.")
   @Test
   public void testLargeReduce() throws Exception {
-    setSystemOption(ExecConstants.PROJECTION_COMPLEXITY_ENABLE_LIMIT, "false");
-    setSystemOption(ExecConstants.QUERY_EXEC_OPTION, "'Gandiva'"); // Or Java
+    setSystemOption(ExecConstants.PROJECTION_COMPLEXITY_ENABLE_LIMIT, false);
+    setSystemOption(ExecConstants.QUERY_EXEC_OPTION, CodeGenOption.Gandiva); // Or Java
     String sql = readResourceAsString("queries/huge_exp_expansion.sql");
     testNoResult(sql); // FAILS
   }
 
   @Test
   public void expressionLimits() throws Exception {
-    setSystemOption(ExecConstants.PROJECTION_COMPLEXITY_JAVA_LIMIT, "500");
-    setSystemOption(ExecConstants.QUERY_EXEC_OPTION, "'Java'");
+    setSystemOption(ExecConstants.PROJECTION_COMPLEXITY_JAVA_LIMIT, 500);
+    setSystemOption(ExecConstants.QUERY_EXEC_OPTION, CodeGenOption.Java);
 
     List<String> s = new ArrayList<>();
     for (int i = 0; i < 500; i++) {
@@ -185,8 +182,8 @@ public class TestLargeFileCompilation extends BaseTestQuery {
     errorMsgTestHelper(
         sql, "Projection complexity/work estimate above limit for Java compilation, aborting.");
 
-    setSystemOption(ExecConstants.PROJECTION_COMPLEXITY_GANDIVA_LIMIT, "500");
-    setSystemOption(ExecConstants.QUERY_EXEC_OPTION, "'Gandiva'");
+    setSystemOption(ExecConstants.PROJECTION_COMPLEXITY_GANDIVA_LIMIT, 500);
+    setSystemOption(ExecConstants.QUERY_EXEC_OPTION, CodeGenOption.Gandiva);
 
     errorMsgTestHelper(
         sql, "Projection complexity/work estimate above limit for Gandiva compilation, aborting.");

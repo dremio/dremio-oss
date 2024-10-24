@@ -15,12 +15,10 @@
  */
 package com.dremio.exec.server;
 
-import static com.dremio.exec.ExecConstants.SLICE_TARGET;
-import static com.dremio.exec.ExecConstants.SLICE_TARGET_DEFAULT;
+import static com.dremio.exec.ExecConstants.SLICE_TARGET_OPTION;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.proto.UserBitShared;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -50,21 +48,19 @@ public class TestTpcdsSf1Leaks extends BaseTestQuery {
   public void testSortSpill() throws Exception {
     final String query =
         "CREATE TABLE dfs_test.test PARTITION BY (ss_store_sk) LOCALSORT BY (ss_customer_sk) AS SELECT * FROM dfs_test.tpcds.store_sales";
-    setSessionOption(ExecConstants.TEST_MEMORY_LIMIT.getOptionName(), "1000000000");
-    testRunAndPrint(UserBitShared.QueryType.SQL, query);
+    try (AutoCloseable ignored = withOption(ExecConstants.TEST_MEMORY_LIMIT, 1000000000L)) {
+      testSql(query);
+    }
   }
 
   @Test
   public void test() throws Exception {
-    setSessionOption(SLICE_TARGET, "10");
-    try {
+    try (AutoCloseable ignored = withOption(SLICE_TARGET_OPTION, 10)) {
       final String query = getFile("tpcds-sf1/q73.sql");
       for (int i = 0; i < 20; i++) {
         System.out.printf("%nRun #%d%n", i + 1);
         runSQL(query);
       }
-    } finally {
-      setSessionOption(SLICE_TARGET, Long.toString(SLICE_TARGET_DEFAULT));
     }
   }
 }

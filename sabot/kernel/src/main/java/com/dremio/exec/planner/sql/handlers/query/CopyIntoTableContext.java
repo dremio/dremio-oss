@@ -66,7 +66,7 @@ public final class CopyIntoTableContext {
   private final boolean isValidationMode;
   private String branch;
   private List<String> mappings;
-  private List<String> transformationColNames;
+  private String serializedTransformationProperties;
 
   public CopyIntoTableContext(SqlCopyIntoTable call) {
 
@@ -86,11 +86,6 @@ public final class CopyIntoTableContext {
     this.branch = validateAndConvertBranch(call.getTableVersionSpec());
 
     this.mappings = validateAndConvertMappings(call.getMappings());
-
-    this.transformationColNames =
-        call.getTransformationColNames().stream()
-            .map(String::toLowerCase)
-            .collect(Collectors.toList());
   }
 
   // CTOR for copy_errors use case
@@ -100,7 +95,8 @@ public final class CopyIntoTableContext {
       FileType fileFormat,
       String originalQueryId,
       Map<FormatOption, Object> formatOptions,
-      Map<IngestionOption, String> ingestionOptions) {
+      Map<IngestionOption, String> ingestionOptions,
+      String serializedTransformationProperties) {
     this.storageLocation = validatedStorageLocation;
     this.providedStorageLocation = validatedStorageLocation;
     validateAndConvertFiles(files);
@@ -110,6 +106,7 @@ public final class CopyIntoTableContext {
     this.filePattern = Optional.empty();
     this.originalQueryId = originalQueryId;
     this.isValidationMode = true;
+    this.serializedTransformationProperties = serializedTransformationProperties;
   }
 
   /**
@@ -462,25 +459,26 @@ public final class CopyIntoTableContext {
     Preconditions.checkNotNull(recordBatchData, "recordBatchData must not be null");
 
     VectorAccessible container = recordBatchData.getVectorAccessible();
-
+    CopyJobHistoryTableSchemaProvider copyJobHistoryTableSchemaProvider =
+        new CopyJobHistoryTableSchemaProvider(schemaVersion);
     String queryId =
         valueFromVectorContainerByName(
-                container, CopyJobHistoryTableSchemaProvider.getJobIdColName())
+                container, copyJobHistoryTableSchemaProvider.getJobIdColName())
             .toString();
     String storageLocation =
         valueFromVectorContainerByName(
-                container, CopyJobHistoryTableSchemaProvider.getStorageLocationColName())
+                container, copyJobHistoryTableSchemaProvider.getStorageLocationColName())
             .toString();
 
     String fileFormatString =
         valueFromVectorContainerByName(
-                container, CopyJobHistoryTableSchemaProvider.getFileFormatColName())
+                container, copyJobHistoryTableSchemaProvider.getFileFormatColName())
             .toString();
     FileType fileFormat = fileTypeFromString(fileFormatString);
 
     String formatOptionsJson =
         valueFromVectorContainerByName(
-                container, CopyJobHistoryTableSchemaProvider.getCopyOptionsColName())
+                container, copyJobHistoryTableSchemaProvider.getCopyOptionsColName())
             .toString();
     Map<FormatOption, Object> formatOptionsMap =
         CopyIntoFileLoadInfo.Util.getFormatOptions(formatOptionsJson);
@@ -488,14 +486,17 @@ public final class CopyIntoTableContext {
     String rejectedFilesFullPath =
         valueFromVectorContainerByName(container, "file_paths").toString();
     List<String> filesWithRejection = Arrays.asList(rejectedFilesFullPath.split(","));
-
+    Object transformationProps =
+        valueFromVectorContainerByName(
+            container, copyJobHistoryTableSchemaProvider.getTransformationProperties());
     return new CopyIntoTableContext(
         storageLocation,
         filesWithRejection,
         fileFormat,
         queryId,
         formatOptionsMap,
-        Collections.emptyMap());
+        Collections.emptyMap(),
+        transformationProps != null ? transformationProps.toString() : null);
   }
 
   private static Object valueFromVectorContainerByName(
@@ -529,8 +530,8 @@ public final class CopyIntoTableContext {
     return mappings;
   }
 
-  public List<String> getTransformationColNames() {
-    return transformationColNames;
+  public String getSerializedTransformationProperties() {
+    return serializedTransformationProperties;
   }
 
   public enum FileTypeSpecificFormatOptions {

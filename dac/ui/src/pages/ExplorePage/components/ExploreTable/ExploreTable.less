@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/mixins.less"; // replacement of typography.less with mixins.less changes the output significantly
+@import "~#oss/uiTheme/less/mixins.less"; // replacement of typography.less with mixins.less changes the output significantly
 //but the change is in better direction. Duplicated styles from typography are not loaded
 
 :global {
@@ -107,7 +107,7 @@
     }
 
     .type {
-      color: gray;
+      color: var(--icon--primary);
       opacity: 0.6;
       font-size: 12px;
       cursor: pointer;
@@ -124,6 +124,7 @@
 
     .public_fixedDataTableCell_main {
       background-color: transparent;
+      border-color: var(--border--neutral);
     }
 
     .public_fixedDataTableCell_cellContent {
@@ -195,6 +196,7 @@
 
       .public_fixedDataTableCell_columnResizerKnob {
         width: 8px;
+        background-color: var(--fill--info--solid);
       }
     }
 
@@ -214,6 +216,11 @@
       width: 4px;
     }
 
+    .ScrollbarLayout_main {
+      background-color: var(--fill--primary);
+      border-color: var(--border--neutral);
+    }
+
     .ScrollbarLayout_face {
       // override awkward transition that makes the scrollbar look laggy when you "mousewheel" or drag
       // clicking the track to jump the position won't animate now, but I think this is the better of the options
@@ -221,8 +228,10 @@
     }
 
     .public_fixedDataTable_header,
+    .public_fixedDataTable_scrollbarSpacer,
     .public_fixedDataTable_header .public_fixedDataTableCell_main {
       background: var(--fill--secondary);
+      border-color: var(--border--neutral);
     }
 
     .public_fixedDataTableRow_highlighted,
@@ -240,6 +249,9 @@
       width: 16px;
       color: var(--icon--primary);
       cursor: pointer;
+      &:hover {
+        color: var(--icon--hover);
+      }
     }
   }
 }

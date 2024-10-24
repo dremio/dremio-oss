@@ -21,7 +21,7 @@ import Radio from "components/Fields/Radio";
 import { FieldWithError, TextField } from "components/Fields";
 import NewFieldSection from "components/Forms/NewFieldSection";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 import { formLabel } from "uiTheme/radium/typography";
 
@@ -31,7 +31,7 @@ import {
   inputForRadio,
   radioStacked,
   rowMargin,
-} from "@app/uiTheme/less/forms.less";
+} from "#oss/uiTheme/less/forms.less";
 import TransformForm, { formWrapperProps } from "../../forms/TransformForm";
 import { transformProps } from "./../../forms/TransformationPropTypes";
 import FORMATS from "./DateFormatOptions";
@@ -211,5 +211,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(TextToDateForm);

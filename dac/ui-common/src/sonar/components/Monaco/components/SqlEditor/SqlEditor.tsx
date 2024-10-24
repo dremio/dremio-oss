@@ -20,6 +20,7 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useContext,
   type HTMLProps,
 } from "react";
 import * as monaco from "monaco-editor";
@@ -34,6 +35,7 @@ import { useMonacoTokenProvider } from "../../utilities/useMonacoTokenProvider";
 import { useSqlEditorExtensions } from "./helpers/useSqlEditorExtensions";
 import { useSuggestWidgetObserver } from "./helpers/useSuggestWidgetObserver";
 import type { MonacoExtensions } from "./types/extensions.type";
+import { useColorScheme } from "../../../../../appTheme/appTheme";
 
 type SqlEditorProps = Omit<HTMLProps<HTMLDivElement>, "onChange"> &
   Partial<{
@@ -42,7 +44,6 @@ type SqlEditorProps = Omit<HTMLProps<HTMLDivElement>, "onChange"> &
     extensions: Array<(extensions: MonacoExtensions) => MonacoExtensions>;
     keyboardShortcuts: monaco.editor.IActionDescriptor[];
     onChange: (val: string) => unknown;
-    theme: typeof SQL_LIGHT_THEME | typeof SQL_DARK_THEME;
   }>;
 
 type SqlEditorRef = {
@@ -61,12 +62,13 @@ export const SqlEditor = forwardRef<SqlEditorRef, SqlEditorProps>(
       extensions,
       keyboardShortcuts,
       onChange,
-      theme = SQL_LIGHT_THEME,
       ...props
     },
     ref,
   ) => {
     const divEl = useRef<HTMLDivElement>(null);
+    const colorScheme = useColorScheme();
+    const theme = colorScheme === "dark" ? SQL_DARK_THEME : SQL_LIGHT_THEME;
 
     const options: monaco.editor.IStandaloneEditorConstructionOptions = useMemo(
       () => ({ ...getSqlEditorOptions(), value: defaultValue }),

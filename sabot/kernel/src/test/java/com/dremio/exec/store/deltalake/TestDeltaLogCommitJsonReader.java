@@ -17,12 +17,10 @@ package com.dremio.exec.store.deltalake;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.FileUtils;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.FileSystem;
@@ -166,19 +164,6 @@ public class TestDeltaLogCommitJsonReader extends BaseTestQuery {
   }
 
   @Test
-  public void testErrorOnIncompatibleProtocolVersion() throws Exception {
-    try (AutoCloseable ac =
-        withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, false)) {
-      IOException exception =
-          assertThrows(IOException.class, () -> parseCommitJson("/deltalake/test1_5.json"));
-      assertEquals("Protocol version 2 is incompatible for Dremio plugin", exception.getMessage());
-    }
-    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, true)) {
-      DeltaLogSnapshot snapshot = parseCommitJson("/deltalake/test1_5.json");
-    }
-  }
-
-  @Test
   public void testCommitInfoOperationOptimize() throws IOException {
     DeltaLogSnapshot snapshot = parseCommitJson("/deltalake/test_operations/0003_optimize.json");
 
@@ -257,34 +242,28 @@ public class TestDeltaLogCommitJsonReader extends BaseTestQuery {
 
   @Test
   public void testCommitInfoWithColumnMapping() throws Exception {
-    try (AutoCloseable ignore =
-        withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, true)) {
-      DeltaLogSnapshot snapshot =
-          parseCommitJson("/deltalake/columnMapping/_delta_log/00000000000000000000.json");
+    DeltaLogSnapshot snapshot =
+        parseCommitJson("/deltalake/columnMapping/_delta_log/00000000000000000000.json");
 
-      assertEquals(DeltaConstants.OPERATION_CREATE_OR_REPLACE_TABLE, snapshot.getOperationType());
-      assertEquals(DeltaColumnMappingMode.NAME, snapshot.getColumnMappingMode());
-      assertEquals(0L, snapshot.getNetBytesAdded());
-      assertEquals(0L, snapshot.getNetFilesAdded());
-      assertEquals(0L, snapshot.getNetOutputRows());
-      assertEquals(1697855825248L, snapshot.getTimestamp());
-    }
+    assertEquals(DeltaConstants.OPERATION_CREATE_OR_REPLACE_TABLE, snapshot.getOperationType());
+    assertEquals(DeltaColumnMappingMode.NAME, snapshot.getColumnMappingMode());
+    assertEquals(0L, snapshot.getNetBytesAdded());
+    assertEquals(0L, snapshot.getNetFilesAdded());
+    assertEquals(0L, snapshot.getNetOutputRows());
+    assertEquals(1697855825248L, snapshot.getTimestamp());
   }
 
   @Test
   public void testCommitInfoWithConvertedIceberg() throws Exception {
-    try (AutoCloseable ignore =
-        withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, true)) {
-      DeltaLogSnapshot snapshot =
-          parseCommitJson(
-              "/deltalake/columnMappingConvertedIceberg/_delta_log/00000000000000000000.json");
+    DeltaLogSnapshot snapshot =
+        parseCommitJson(
+            "/deltalake/columnMappingConvertedIceberg/_delta_log/00000000000000000000.json");
 
-      assertEquals("CONVERT", snapshot.getOperationType());
-      assertEquals(DeltaColumnMappingMode.ID, snapshot.getColumnMappingMode());
-      assertEquals(0L, snapshot.getNetBytesAdded());
-      assertEquals(0L, snapshot.getNetFilesAdded());
-      assertEquals(4L, snapshot.getNetOutputRows());
-      assertEquals(1699368782067L, snapshot.getTimestamp());
-    }
+    assertEquals("CONVERT", snapshot.getOperationType());
+    assertEquals(DeltaColumnMappingMode.ID, snapshot.getColumnMappingMode());
+    assertEquals(0L, snapshot.getNetBytesAdded());
+    assertEquals(0L, snapshot.getNetFilesAdded());
+    assertEquals(4L, snapshot.getNetOutputRows());
+    assertEquals(1699368782067L, snapshot.getTimestamp());
   }
 }

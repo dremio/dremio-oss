@@ -19,7 +19,7 @@ import static org.apache.calcite.sql.fun.SqlStdOperatorTable.ARRAY_VALUE_CONSTRU
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CAST;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.logical.RelDataTypeEqualityUtil;
+import com.dremio.exec.planner.logical.RelDataTypeEqualityComparer;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -165,8 +165,15 @@ public final class ArrayValueConstructorConvertlet extends RexCallConvertlet {
         RexCall arrayItemCall = (RexCall) arrayItem;
         if (arrayItemCall.op.equals(CAST)) {
           RexNode noCastValue = arrayItemCall.getOperands().get(0);
-          if (RelDataTypeEqualityUtil.areEquals(
-              arrayItem.getType(), noCastValue.getType(), false, false)) {
+
+          if (RelDataTypeEqualityComparer.areEquals(
+              arrayItem.getType(),
+              noCastValue.getType(),
+              RelDataTypeEqualityComparer.Options.builder()
+                  .withConsiderNullability(false)
+                  .withConsiderPrecision(false)
+                  .withConsiderScale(false)
+                  .build())) {
             // Array Coercion and UDF replacement could have added a no op precision cast:
             arrayItem = noCastValue;
           }

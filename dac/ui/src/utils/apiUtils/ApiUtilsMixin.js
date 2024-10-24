@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { API_URL_V2, API_URL_V3 } from "@app/constants/Api";
+import { API_URL_V2, API_URL_V3 } from "#oss/constants/Api";
 
 export default function (input) {
   input.prototype.getAPIVersion = function (version) {

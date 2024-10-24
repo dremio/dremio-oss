@@ -56,7 +56,7 @@ describe("Advanced", () => {
     expect(commonProps.getAllSettings).to.have.been.calledWith(
       Object.keys(LABELS),
       false,
-      "ADVANCED_SETTINGS_VIEW_ID"
+      "ADVANCED_SETTINGS_VIEW_ID",
     );
   });
 });

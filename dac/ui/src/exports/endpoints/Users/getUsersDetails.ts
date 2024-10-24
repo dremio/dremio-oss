@@ -23,10 +23,10 @@ export type GetUsersDetailsParams = {
 };
 
 export const getUsersDetails = (
-  params: GetUsersDetailsParams
+  params: GetUsersDetailsParams,
 ): Promise<Map<string, UserDetails>> => {
   return Promise.allSettled(
-    params.ids.map((id) => getUserDetails({ id }))
+    params.ids.map((id) => getUserDetails({ id })),
   ).then((results) => {
     return results.reduce((userMap, result) => {
       if (result.status === "fulfilled") {

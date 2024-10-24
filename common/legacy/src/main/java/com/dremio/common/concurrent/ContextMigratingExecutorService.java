@@ -272,8 +272,12 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
     }
 
     @Override
-    public void close() throws Exception {
-      delegate.close();
+    public void close() {
+      try {
+        delegate.close();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 }

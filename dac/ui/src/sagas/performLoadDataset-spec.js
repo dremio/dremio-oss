@@ -20,12 +20,12 @@ import { getLocation } from "selectors/routing";
 import { updateViewState } from "actions/resources";
 import { handleResumeRunDataset, DataLoadError } from "sagas/runDataset";
 import { loadExistingDataset } from "actions/explore/dataset/edit";
-import { oldGetExploreJobId, getFullDataset } from "@app/selectors/explore";
+import { oldGetExploreJobId, getFullDataset } from "#oss/selectors/explore";
 import { newUntitled } from "actions/explore/dataset/new";
 import { EXPLORE_TABLE_ID } from "reducers/explore/view";
-import { focusSqlEditor } from "@app/actions/explore/view";
-import { getViewStateFromAction } from "@app/reducers/resources/view";
-import { TRANSFORM_PEEK_START } from "@app/actions/explore/dataset/peek";
+import { focusSqlEditor } from "#oss/actions/explore/view";
+import { getViewStateFromAction } from "#oss/reducers/resources/view";
+import { TRANSFORM_PEEK_START } from "#oss/actions/explore/dataset/peek";
 import {
   loadTableData,
   CANCEL_TABLE_DATA_LOAD,
@@ -78,7 +78,7 @@ describe("performLoadDataset saga", () => {
       gen = handlePerformLoadDataset({ meta: { dataset, viewId } });
       next = gen.next(); // loadDataset call
       expect(next.value).to.eql(
-        call(loadDataset, dataset, viewId, undefined, undefined, true)
+        call(loadDataset, dataset, viewId, undefined, undefined, true),
       );
       const apiAction = "an api action";
       next = gen.next(apiAction); // transformThenNavigate call
@@ -87,7 +87,7 @@ describe("performLoadDataset saga", () => {
         call(transformThenNavigate, apiAction, viewId, {
           replaceNav: true,
           preserveTip: true,
-        })
+        }),
       );
     });
 
@@ -101,7 +101,7 @@ describe("performLoadDataset saga", () => {
       next = gen.next();
       next = gen.next();
       expect(next.value).to.eql(
-        call(loadTableData, datasetVersion, undefined, isRunOrPreview)
+        call(loadTableData, datasetVersion, undefined, isRunOrPreview),
       );
       next = gen.next();
       expect(next.done).to.be.true;
@@ -131,8 +131,8 @@ describe("performLoadDataset saga", () => {
           updateViewState(viewId, {
             isFailed: true,
             error: { message: errorMessage },
-          })
-        )
+          }),
+        ),
       );
       next = gen.next();
       expect(next.done).to.be.true;
@@ -191,8 +191,8 @@ describe("performLoadDataset saga", () => {
           undefined,
           undefined,
           undefined,
-          undefined
-        )
+          undefined,
+        ),
       );
 
       shouldWatchApiAction(
@@ -207,8 +207,8 @@ describe("performLoadDataset saga", () => {
           undefined,
           undefined,
           undefined,
-          undefined
-        )
+          undefined,
+        ),
       );
     });
 
@@ -223,8 +223,8 @@ describe("performLoadDataset saga", () => {
           "foo.path.to.dataset",
           viewId,
           undefined,
-          {}
-        )
+          {},
+        ),
       );
     });
   });
@@ -275,7 +275,7 @@ describe("performLoadDataset saga", () => {
               jobId,
               forceLoad,
               paginationUrl,
-              isRunOrPreview
+              isRunOrPreview,
             ),
             // listener for cancelation action is added
             isLoadCanceled: take([
@@ -284,7 +284,7 @@ describe("performLoadDataset saga", () => {
             ]),
             // load task would be canceled and view state would be reset if page for a current dataset is left
             locationChange: call(resetTableViewStateOnPageLeave),
-          })
+          }),
         );
       });
 
@@ -313,13 +313,13 @@ describe("performLoadDataset saga", () => {
         next = loadTableDataGen.throw(error);
         // calculate a view state
         expect(next.value).to.be.eql(
-          call(getViewStateFromAction, error.response)
+          call(getViewStateFromAction, error.response),
         );
         // update a view state with error
         const viewState = "view state";
         next = loadTableDataGen.next(viewState);
         expect(next.value).to.be.eql(
-          put(updateViewState(EXPLORE_TABLE_ID, viewState))
+          put(updateViewState(EXPLORE_TABLE_ID, viewState)),
         );
       });
     });

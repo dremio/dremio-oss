@@ -811,8 +811,7 @@ public class HiveMetadataUtils {
     final BatchSchema batchSchema =
         DeltaLakeSchemaConverter.newBuilder()
             .withMapEnabled(typeOptions.isMapTypeEnabled())
-            .withColumnMapping(
-                typeOptions.isDeltaColumnMappingEnabled(), snapshot.getColumnMappingMode())
+            .withColumnMapping(snapshot.getColumnMappingMode())
             .build()
             .fromSchemaString(snapshot.getSchema());
     HiveMetadataUtils.checkLeafFieldCounter(
@@ -1756,13 +1755,13 @@ public class HiveMetadataUtils {
             return PartitionValue.of(name, truncatedChar);
           case TIMESTAMP:
             try {
-              return PartitionValue.of(name, DateTimes.toMillisFromJdbcTimestamp(value));
+              return PartitionValue.of(name, DateTimes.isoFormattedLocalTimestampToMillis(value));
             } catch (IllegalArgumentException ex) {
               return PartitionValue.of(name);
             }
           case DATE:
             try {
-              return PartitionValue.of(name, DateTimes.toMillisFromJdbcDate(value));
+              return PartitionValue.of(name, DateTimes.isoFormattedLocalDateToMillis(value));
             } catch (IllegalArgumentException ex) {
               return PartitionValue.of(name);
             }

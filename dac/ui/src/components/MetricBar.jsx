@@ -29,7 +29,7 @@ const MetricBar = ({ progress, className, isProgressBar, isLarge }) => {
           className={classNames(
             "progressBar",
             className,
-            isLarge ? "--large" : "--small"
+            isLarge ? "--large" : "--small",
           )}
           value={progress}
           max="100"

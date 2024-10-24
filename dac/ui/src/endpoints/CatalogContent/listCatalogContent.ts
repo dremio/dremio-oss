@@ -16,7 +16,7 @@
 
 //@ts-ignore
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-import { APIV3Call } from "@app/core/APICall";
+import { APIV3Call } from "#oss/core/APICall";
 
 export const getCatalogContentUrl = (include: boolean) =>
   new APIV3Call()

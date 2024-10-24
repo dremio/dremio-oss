@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
-import static java.util.Objects.requireNonNull;
+import static com.dremio.exec.planner.sql.handlers.BaseTestCreateFolderHandler.extractNamespaceKeyFromSqlNode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
@@ -30,7 +30,6 @@ import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.ReferenceType;
 import com.dremio.exec.planner.sql.parser.SqlCreateFolder;
-import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.store.NamespaceAlreadyExistsException;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.plugins.s3.store.S3StoragePlugin;
@@ -41,7 +40,6 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,7 +51,7 @@ import org.projectnessie.model.ContentKey;
 @ExtendWith(MockitoExtension.class)
 public class TestCreateFolderHandler {
   private static final String DEFAULT_CONTEXT = "@dremio";
-  private static final String NON_EXISTENT_SOURCE_NAME = "non_exist";
+  protected static final String NON_EXISTENT_SOURCE_NAME = "non_exist";
   private static final String DEFAULT_SOURCE_NAME = "dataplane_source_1";
   private static final String NON_VERSIONED_SOURCE_NAME = "s3Source";
   private static final String DEFAULT_FOLDER_NAME = "myFolder";
@@ -161,7 +159,6 @@ public class TestCreateFolderHandler {
     NamespaceKey path =
         SqlNodeUtil.unwrap(NON_EXISTENT_SOURCE_INPUT, SqlCreateFolder.class).getPath();
     verify(catalog).resolveSingle(path);
-    verify(catalog).validatePrivilege(path, SqlGrant.Privilege.ALTER);
   }
 
   @Test
@@ -181,7 +178,6 @@ public class TestCreateFolderHandler {
     assertThat(result.get(0).summary).contains("Folder").contains("has been created");
     NamespaceKey path = SqlNodeUtil.unwrap(DEFAULT_SOURCE_INPUT, SqlCreateFolder.class).getPath();
     verify(catalog).resolveSingle(path);
-    verify(catalog).validatePrivilege(path, SqlGrant.Privilege.ALTER);
   }
 
   @Test
@@ -206,7 +202,6 @@ public class TestCreateFolderHandler {
     NamespaceKey path = new NamespaceKey(Arrays.asList(DEFAULT_CONTEXT, DEFAULT_FOLDER_NAME));
     verify(catalog)
         .resolveSingle(extractNamespaceKeyFromSqlNode(SINGLE_FOLDER_NAME_NO_USER_SESSION_INPUT));
-    verify(catalog).validatePrivilege(path, SqlGrant.Privilege.ALTER);
   }
 
   @Test
@@ -228,7 +223,6 @@ public class TestCreateFolderHandler {
     NamespaceKey path = new NamespaceKey(Arrays.asList(DEFAULT_SOURCE_NAME, DEFAULT_FOLDER_NAME));
     verify(catalog)
         .resolveSingle(extractNamespaceKeyFromSqlNode(SINGLE_FOLDER_NAME_WITH_USER_SESSION_INPUT));
-    verify(catalog).validatePrivilege(path, SqlGrant.Privilege.ALTER);
   }
 
   @Test
@@ -245,7 +239,6 @@ public class TestCreateFolderHandler {
     NamespaceKey path =
         SqlNodeUtil.unwrap(NON_VERSIONED_SOURCE_INPUT, SqlCreateFolder.class).getPath();
     verify(catalog).resolveSingle(path);
-    verify(catalog).validatePrivilege(path, SqlGrant.Privilege.ALTER);
   }
 
   @Test
@@ -267,7 +260,6 @@ public class TestCreateFolderHandler {
         .contains(String.format("created at branch %s", DEV_BRANCH_NAME));
     NamespaceKey path = SqlNodeUtil.unwrap(WITH_REFERENCE_INPUT, SqlCreateFolder.class).getPath();
     verify(catalog).resolveSingle(path);
-    verify(catalog).validatePrivilege(path, SqlGrant.Privilege.ALTER);
   }
 
   @Test
@@ -293,7 +285,6 @@ public class TestCreateFolderHandler {
     assertThat(result.get(0).summary).contains("Folder").contains("already exists");
     NamespaceKey path = SqlNodeUtil.unwrap(WITH_IF_NOT_EXISTS, SqlCreateFolder.class).getPath();
     verify(catalog).resolveSingle(path);
-    verify(catalog).validatePrivilege(path, SqlGrant.Privilege.ALTER);
   }
 
   @Test
@@ -318,26 +309,5 @@ public class TestCreateFolderHandler {
         .hasMessageContaining("already exists");
     NamespaceKey path = SqlNodeUtil.unwrap(WITHOUT_IF_NOT_EXISTS, SqlCreateFolder.class).getPath();
     verify(catalog).resolveSingle(path);
-    verify(catalog).validatePrivilege(path, SqlGrant.Privilege.ALTER);
-  }
-
-  @Test
-  public void createFolderWithoutALTERPrivilege() throws Exception {
-    doThrow(UserException.validationError().message("permission denied").buildSilently())
-        .when(catalog)
-        .validatePrivilege(DEFAULT_SOURCE_INPUT.getPath(), SqlGrant.Privilege.ALTER);
-    when(catalog.resolveSingle(extractNamespaceKeyFromSqlNode(DEFAULT_SOURCE_INPUT)))
-        .thenReturn(extractNamespaceKeyFromSqlNode(DEFAULT_SOURCE_INPUT));
-
-    assertThatThrownBy(() -> handler.toResult("", DEFAULT_SOURCE_INPUT))
-        .isInstanceOf(UserException.class)
-        .hasMessage("permission denied");
-    NamespaceKey path = SqlNodeUtil.unwrap(DEFAULT_SOURCE_INPUT, SqlCreateFolder.class).getPath();
-    verify(catalog).resolveSingle(path);
-    verify(catalog).validatePrivilege(path, SqlGrant.Privilege.ALTER);
-  }
-
-  private NamespaceKey extractNamespaceKeyFromSqlNode(SqlNode sqlNode) throws Exception {
-    return requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlCreateFolder.class)).getPath();
   }
 }

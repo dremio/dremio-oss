@@ -60,7 +60,8 @@ public class TestPromotion extends BaseTestServer {
     // create the source
     source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(source)),
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH))
+                .buildPost(Entity.json(source)),
             new GenericType<Source>() {});
 
     assertFalse(
@@ -96,7 +97,11 @@ public class TestPromotion extends BaseTestServer {
     doc("load the json dir");
     Folder folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(id)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 19);
@@ -119,7 +124,10 @@ public class TestPromotion extends BaseTestServer {
     final File file =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(fileId)))
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(fileId)))
                 .buildGet(),
             new GenericType<File>() {});
 
@@ -130,37 +138,50 @@ public class TestPromotion extends BaseTestServer {
     dataset =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(fileId)))
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(fileId)))
                 .buildPost(Entity.json(dataset)),
             new GenericType<Dataset>() {});
 
     doc("load the dataset");
     dataset =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId()))
+                .buildGet(),
             new GenericType<Dataset>() {});
 
     doc("verify listing");
     folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(id)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 19);
 
     doc("unpromote file");
     expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId()))
+            .buildDelete());
 
     doc("dataset should no longer exist");
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId())).buildGet());
 
     doc("verify listing");
     folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(id)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 19);
@@ -168,7 +189,7 @@ public class TestPromotion extends BaseTestServer {
 
   @Test
   public void mapFile() throws Exception {
-    setSystemOption(ExecConstants.ENABLE_MAP_DATA_TYPE, "true");
+    setSystemOption(ExecConstants.ENABLE_MAP_DATA_TYPE, true);
     doc("browse to the datasets directory");
     String id = getFolderIdByName(source.getChildren(), "datasets");
     assertNotNull(id, "Failed to find datasets directory");
@@ -176,7 +197,11 @@ public class TestPromotion extends BaseTestServer {
     doc("load the datasets dir");
     Folder folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(id)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 22);
@@ -199,7 +224,10 @@ public class TestPromotion extends BaseTestServer {
     final File file =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(fileId)))
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(fileId)))
                 .buildGet(),
             new GenericType<File>() {});
 
@@ -211,13 +239,17 @@ public class TestPromotion extends BaseTestServer {
     dataset =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(fileId)))
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(fileId)))
                 .buildPost(Entity.json(dataset)),
             new GenericType<Dataset>() {});
 
     final Response response =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId()))
+                .buildGet());
     final String body = response.readEntity(String.class);
     assertTrue(
         body.contains(
@@ -226,26 +258,32 @@ public class TestPromotion extends BaseTestServer {
     doc("load the dataset");
     dataset =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId()))
+                .buildGet(),
             new GenericType<Dataset>() {});
 
     doc("verify listing");
     folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(id)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 22);
 
     doc("unpromote file");
     expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId()))
+            .buildDelete());
 
     doc("dataset should no longer exist");
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
-    resetSystemOption(ExecConstants.ENABLE_MAP_DATA_TYPE.getOptionName());
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId())).buildGet());
+    resetSystemOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
   }
 
   @Test
@@ -257,7 +295,11 @@ public class TestPromotion extends BaseTestServer {
     doc("load the json dir");
     Folder folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(id)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 19);
@@ -270,7 +312,10 @@ public class TestPromotion extends BaseTestServer {
     Folder dsFolder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(folderId)))
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(folderId)))
                 .buildGet(),
             new GenericType<Folder>() {});
 
@@ -281,7 +326,8 @@ public class TestPromotion extends BaseTestServer {
     folder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path(CATALOG_PATH)
                         .path(PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildGet(),
@@ -293,7 +339,8 @@ public class TestPromotion extends BaseTestServer {
     dataset =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path(CATALOG_PATH)
                         .path(PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildPost(Entity.json(dataset)),
@@ -302,17 +349,19 @@ public class TestPromotion extends BaseTestServer {
     doc("load the promoted dataset");
     dataset =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId()))
+                .buildGet(),
             new GenericType<Dataset>() {});
 
     doc("unpromote the folder");
     expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId()))
+            .buildDelete());
 
     doc("dataset should no longer exist");
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId())).buildGet());
   }
 
   @Test
@@ -325,7 +374,10 @@ public class TestPromotion extends BaseTestServer {
     Folder dsFolder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(folderId)))
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(folderId)))
                 .buildGet(),
             new GenericType<Folder>() {});
 
@@ -336,7 +388,8 @@ public class TestPromotion extends BaseTestServer {
     Folder folder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path(CATALOG_PATH)
                         .path(PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildGet(),
@@ -349,7 +402,8 @@ public class TestPromotion extends BaseTestServer {
     dataset =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path(CATALOG_PATH)
                         .path(PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildPost(Entity.json(dataset)),
@@ -358,16 +412,18 @@ public class TestPromotion extends BaseTestServer {
     doc("load the promoted dataset");
     dataset =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId()))
+                .buildGet(),
             new GenericType<Dataset>() {});
 
     doc("unpromote the folder");
     expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId()))
+            .buildDelete());
 
     doc("dataset should no longer exist");
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(dataset.getId())).buildGet());
   }
 }

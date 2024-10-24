@@ -20,6 +20,7 @@ import type {
 } from "../../_internal/types/Config.js";
 import { Engine } from "./Engine.js";
 import { engineEntityToProperties } from "./utils.js";
+import type { SignalParam } from "../../_internal/types/Params.js";
 
 export const EnginesResource = (config: ResourceConfig & SonarV3Config) => {
   return {
@@ -31,9 +32,9 @@ export const EnginesResource = (config: ResourceConfig & SonarV3Config) => {
       new Engine(engineEntityToProperties(properties), config),
     list: () => {
       return {
-        async *data() {
+        async *data({ signal }: SignalParam = {}) {
           yield* await config
-            .sonarV3Request("engines")
+            .sonarV3Request("engines", { signal })
             .then((res) => res.json())
             .then((engines) =>
               engines.map(

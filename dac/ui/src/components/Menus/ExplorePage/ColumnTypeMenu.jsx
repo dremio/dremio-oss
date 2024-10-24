@@ -29,7 +29,7 @@ import {
   DATE,
   TIME,
   DATETIME,
-} from "@app/constants/DataTypes";
+} from "#oss/constants/DataTypes";
 
 import Menu from "./Menu";
 

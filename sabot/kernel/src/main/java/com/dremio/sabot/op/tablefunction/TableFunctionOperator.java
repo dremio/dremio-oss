@@ -17,18 +17,24 @@ package com.dremio.sabot.op.tablefunction;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
 import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.work.foreman.UnsupportedFunctionException;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
+import com.dremio.sabot.op.join.vhash.spill.slicer.CombinedSizer;
+import com.dremio.sabot.op.join.vhash.spill.slicer.Sizer;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,6 +78,10 @@ public class TableFunctionOperator implements SingleInputOperator {
   private int currentrow = -1;
   private int records;
   static long BATCH_LIMIT_BYTES = 1_048_576;
+  private CombinedSizer sizer;
+  private int maxRowSize;
+  public long warnThreshold;
+  private long maxAvgRowSize = 0;
 
   public TableFunctionOperator(
       FragmentExecutionContext fec, OperatorContext context, AbstractTableFunctionPOP operator) {
@@ -79,12 +89,23 @@ public class TableFunctionOperator implements SingleInputOperator {
     this.functionOperator = operator;
     this.fec = fec;
     this.tableFunctionFactory = new InternalTableFunctionFactory();
+    this.warnThreshold =
+        context.getOptions().getOption(ExecConstants.WARN_MAX_BATCH_SIZE_THRESHOLD);
   }
 
   @Override
   public <OUT, IN, EXCEP extends Throwable> OUT accept(
       OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
+  }
+
+  private void createSizer() {
+    List<Sizer> sizerList = new ArrayList<>();
+
+    for (VectorWrapper<?> vectorWrapper : output) {
+      sizerList.add(Sizer.get(vectorWrapper.getValueVector()));
+    }
+    this.sizer = new CombinedSizer(sizerList);
   }
 
   @Override
@@ -169,7 +190,13 @@ public class TableFunctionOperator implements SingleInputOperator {
       currentrow = -1;
       state = State.CAN_CONSUME;
     }
-
+    int incomingBatchAvgRowSize = Sizer.getAverageRowSize(output, totalOutputRecords);
+    if (totalOutputRecords > 0
+        && incomingBatchAvgRowSize > warnThreshold
+        && incomingBatchAvgRowSize > maxAvgRowSize) {
+      maxRowSize = Math.max(maxRowSize, sizer.getMaxRowLengthInBatch(totalOutputRecords));
+      maxAvgRowSize = incomingBatchAvgRowSize;
+    }
     return totalOutputRecords;
   }
 
@@ -199,6 +226,7 @@ public class TableFunctionOperator implements SingleInputOperator {
     input = accessible;
     output = tableFunction.setup(accessible);
     context.getStats().setRecordOutput(true);
+    createSizer();
     return output;
   }
 
@@ -216,6 +244,9 @@ public class TableFunctionOperator implements SingleInputOperator {
   public void close() throws Exception {
     AutoCloseables.close(tableFunction);
     addDisplayStatsWithZeroValue(context, EnumSet.allOf(ScanOperator.Metric.class));
+    if (maxRowSize >= warnThreshold) {
+      logger.warn("Max row size scanned by this Scan Operator #" + this + " - " + maxRowSize);
+    }
   }
 
   /** Table function operator creator */

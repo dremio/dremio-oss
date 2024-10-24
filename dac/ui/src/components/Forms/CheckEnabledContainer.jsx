@@ -31,7 +31,7 @@ import {
   flexColumnContainer,
   noMargin,
   flexJustifyBetween,
-} from "@app/uiTheme/less/layout.less";
+} from "#oss/uiTheme/less/layout.less";
 import {
   checkboxMargin,
   indentedContainer,
@@ -66,7 +66,7 @@ export default class CheckEnabledContainer extends Component {
     const elementConfigJson = elementConfig.getConfig();
     const checkField = FormUtils.getFieldByComplexPropName(
       fields,
-      elementConfig.getPropName()
+      elementConfig.getPropName(),
     );
     this.setCheckboxFieldCheckedProp(checkField); // to avoid react controlled/uncontrolled field warning
 

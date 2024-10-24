@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
+import { useFeatureFlag } from "#oss/exports/providers/useFeatureFlag";
 import { ENABLE_M6ID_AND_DDV4_ENGINES } from "@inject/featureFlags/flags/ENABLE_M6ID_AND_DDV4_ENGINES";
 
 export const useInstanceFamilyIsEnabled = () => {

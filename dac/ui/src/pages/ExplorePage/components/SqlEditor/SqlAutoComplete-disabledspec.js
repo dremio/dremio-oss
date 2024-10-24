@@ -19,7 +19,7 @@ import Immutable from "immutable";
 import DragTarget from "components/DragComponents/DragTarget";
 
 import { SqlAutoComplete } from "./SqlAutoComplete";
-import { setStore } from "@app/store/store";
+import { setStore } from "#oss/store/store";
 
 const fakeRange1 = {
   startLineNumber: 1,

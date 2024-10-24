@@ -21,15 +21,15 @@ export default class FormSectionConfig {
 
     if (this._config.sections) {
       this._config.sections = this._config.sections.map(
-        (section) => new FormSectionConfig(section, functionalElements)
+        (section) => new FormSectionConfig(section, functionalElements),
       );
     }
     if (this._config.elements) {
       this._config.elements = this._config.elements.map((element) =>
         SourceFormJsonPolicy.joinConfigsAndConvertElementToObj(
           element,
-          functionalElements
-        )
+          functionalElements,
+        ),
       );
     }
   }
@@ -48,30 +48,30 @@ export default class FormSectionConfig {
       .concat(
         this.getSections().reduce(
           (fields, section) => fields.concat(section.getFields()),
-          []
-        )
+          [],
+        ),
       );
   }
 
   addInitValues(initValues, state, props) {
     initValues = this.getDirectElements().reduce(
       (accum, element) => element.addInitValues(accum, state, props),
-      initValues
+      initValues,
     );
     return this.getSections().reduce(
       (accum, section) => section.addInitValues(accum, state, props),
-      initValues
+      initValues,
     );
   }
 
   addValidators(validations) {
     validations = this.getDirectElements().reduce(
       (accum, element) => element.addValidators(accum),
-      validations
+      validations,
     );
     return this.getSections().reduce(
       (accum, section) => section.addValidators(accum),
-      validations
+      validations,
     );
   }
 
@@ -90,7 +90,7 @@ export default class FormSectionConfig {
   removeNotFoundElements() {
     if (this.getDirectElements().length) {
       this._config.elements = this.getDirectElements().filter((element) =>
-        element.foundInFunctionalConfig()
+        element.foundInFunctionalConfig(),
       );
     }
     this.getSections().forEach((section) => section.removeNotFoundElements());

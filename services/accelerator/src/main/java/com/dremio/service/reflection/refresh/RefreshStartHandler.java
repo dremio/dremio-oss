@@ -16,6 +16,7 @@
 package com.dremio.service.reflection.refresh;
 
 import com.dremio.exec.store.CatalogService;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobsService;
@@ -44,17 +45,20 @@ public class RefreshStartHandler {
   private final JobsService jobsService;
   private final MaterializationStore materializationStore;
   private final WakeUpCallback wakeUpCallback;
+  private final OptionManager optionManager;
 
   public RefreshStartHandler(
       CatalogService catalogService,
       JobsService jobsService,
       MaterializationStore materializationStore,
-      WakeUpCallback wakeUpCallback) {
+      WakeUpCallback wakeUpCallback,
+      OptionManager optionManager) {
     this.catalogService = Preconditions.checkNotNull(catalogService, "Catalog service required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobs service required");
     this.materializationStore =
         Preconditions.checkNotNull(materializationStore, "materialization store required");
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
+    this.optionManager = Preconditions.checkNotNull(optionManager, "option manager required");
   }
 
   @WithSpan
@@ -94,7 +98,8 @@ public class RefreshStartHandler {
             materialization.getId(),
             sql,
             QueryType.ACCELERATOR_CREATE,
-            new WakeUpManagerWhenJobDone(wakeUpCallback, "materialization job done"));
+            new WakeUpManagerWhenJobDone(wakeUpCallback, "materialization job done"),
+            optionManager);
 
     logger.debug(
         "Submitted REFRESH REFLECTION job {} for {}",

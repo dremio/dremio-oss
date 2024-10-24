@@ -85,6 +85,11 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
         Math.toIntExact(
             this.context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
 
+    final int rowSizeLimit =
+        Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_ROW_SIZE_BYTES));
+    final boolean rowSizeLimitEnabled =
+        this.context.getOptions().getOption(ExecConstants.ENABLE_ROW_SIZE_LIMIT_ENFORCEMENT);
+
     for (VectorWrapper<?> w : accessible) {
       final Field f = w.getField();
       final ValueVector incomingVector = w.getValueVector();
@@ -101,6 +106,8 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
               new BinaryConverter(
                   conversion,
                   sizeLimit,
+                  rowSizeLimitEnabled,
+                  rowSizeLimit,
                   maxLeafLimit,
                   (VarBinaryVector) incomingVector,
                   outgoingVector));
@@ -109,6 +116,8 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
               new CharConverter(
                   conversion,
                   sizeLimit,
+                  rowSizeLimitEnabled,
+                  rowSizeLimit,
                   maxLeafLimit,
                   (VarCharVector) incomingVector,
                   outgoingVector));
@@ -186,10 +195,19 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
     BinaryConverter(
         ConversionColumn column,
         int sizeLimit,
+        boolean rowSizeLimitEnabled,
+        int rowSizeLimit,
         int maxLeafLimit,
         VarBinaryVector vector,
         ValueVector outgoingVector) {
-      super(column, sizeLimit, maxLeafLimit, vector, outgoingVector);
+      super(
+          column,
+          sizeLimit,
+          rowSizeLimitEnabled,
+          rowSizeLimit,
+          maxLeafLimit,
+          vector,
+          outgoingVector);
     }
 
     @Override
@@ -208,10 +226,19 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
     CharConverter(
         ConversionColumn column,
         int sizeLimit,
+        boolean rowSizeLimitEnabled,
+        int rowSizeLimit,
         int maxLeafLimit,
         VarCharVector vector,
         ValueVector outgoingVector) {
-      super(column, sizeLimit, maxLeafLimit, vector, outgoingVector);
+      super(
+          column,
+          sizeLimit,
+          rowSizeLimitEnabled,
+          rowSizeLimit,
+          maxLeafLimit,
+          vector,
+          outgoingVector);
     }
 
     @Override
@@ -237,6 +264,8 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
     public JsonConverter(
         ConversionColumn column,
         int sizeLimit,
+        boolean rowSizeLimitEnabled,
+        int rowSizeLimit,
         int maxLeafLimit,
         T vector,
         ValueVector outgoingVector) {
@@ -247,6 +276,8 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
           new JsonReader(
               context.getManagedBuffer(),
               sizeLimit,
+              rowSizeLimitEnabled,
+              rowSizeLimit,
               maxLeafLimit,
               context.getOptions().getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR),
               false,

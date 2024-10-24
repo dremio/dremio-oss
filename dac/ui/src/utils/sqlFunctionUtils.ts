@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { ModifiedSQLFunction as SQLFunction } from "@app/endpoints/SQLFunctions/listSQLFunctions";
-import { ModelFunctionFunctionCategoriesEnum as FunctionCategories } from "@app/types/sqlFunctions";
+import { ModifiedSQLFunction as SQLFunction } from "#oss/endpoints/SQLFunctions/listSQLFunctions";
+import { ModelFunctionFunctionCategoriesEnum as FunctionCategories } from "#oss/types/sqlFunctions";
 
 export const FunctionCategoryLabels = {
   [FunctionCategories.AGGREGATE]: "Aggregate",
@@ -39,13 +39,13 @@ export const SQLFunctionCategories = Object.values(FunctionCategories).map(
   (cat: any) => ({
     label: FunctionCategoryLabels[cat],
     id: cat,
-  })
+  }),
 );
 
 export const sortAndFilterSQLFunctions = (
   functions: SQLFunction[],
   categories: FunctionCategories[],
-  searchKey: string
+  searchKey: string,
 ) => {
   const functionsInCategories =
     categories.length === 0
@@ -55,12 +55,12 @@ export const sortAndFilterSQLFunctions = (
             ? fn.functionCategories.some((cat: FunctionCategories) => {
                 return categories.includes(cat);
               })
-            : false
+            : false,
         );
 
   return searchKey !== ""
     ? functionsInCategories.filter((func: any) =>
-        func.name.toLowerCase().includes(searchKey.toLowerCase())
+        func.name.toLowerCase().includes(searchKey.toLowerCase()),
       )
     : functionsInCategories;
 };

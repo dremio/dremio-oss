@@ -16,11 +16,11 @@
 import { Component, createRef } from "react";
 import deepEqual from "deep-equal";
 import PropTypes from "prop-types";
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 import c3 from "c3";
 import "c3/c3.css";
 import $ from "jquery";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 import {
   isDateType,
@@ -30,7 +30,7 @@ import {
   DECIMAL,
   DATE,
   DATETIME,
-} from "@app/constants/DataTypes";
+} from "#oss/constants/DataTypes";
 import ChartTooltip from "./ChartTooltip";
 
 const BAR_CHART_HEIGHT = 108;
@@ -133,7 +133,7 @@ class BarChart extends Component {
   getTickValues(length) {
     const tickCount = MAX_TICK_COUNT > length ? length - 1 : MAX_TICK_COUNT;
     return Array.from(Array(tickCount).keys()).map(
-      (i) => i * Math.round(length / tickCount)
+      (i) => i * Math.round(length / tickCount),
     );
   }
 
@@ -173,7 +173,7 @@ class BarChart extends Component {
 
   scaleData(data) {
     return data.map((item) =>
-      item !== 0 ? Math.log(item) / Math.LN10 + 1 : item
+      item !== 0 ? Math.log(item) / Math.LN10 + 1 : item,
     );
   }
 
@@ -257,9 +257,9 @@ class BarChart extends Component {
         <span>
           {`${formatMessage({ id: "Common.Range" })}:
             ${this.formatValue(range.lowerLimit, true)} - ${this.formatValue(
-            range.upperLimit,
-            true
-          )}`}
+              range.upperLimit,
+              true,
+            )}`}
         </span>
         <br />({item.y} {formatMessage({ id: "Common.Rows.LowerCase" })})
       </p>

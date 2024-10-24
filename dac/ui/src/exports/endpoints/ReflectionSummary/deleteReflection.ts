@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { APIV3Call } from "@app/core/APICall";
+import { APIV3Call } from "#oss/core/APICall";
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 
 type DeleteReflectionParams = { reflectionId: string };
@@ -23,7 +23,7 @@ const deleteReflectionUrl = (params: DeleteReflectionParams) =>
   new APIV3Call().paths(`/reflection/${params.reflectionId}`).toString();
 
 export const deleteReflection = async (
-  params: DeleteReflectionParams
+  params: DeleteReflectionParams,
 ): Promise<void> => {
   return getApiContext()
     .fetch(deleteReflectionUrl(params), { method: "DELETE" })

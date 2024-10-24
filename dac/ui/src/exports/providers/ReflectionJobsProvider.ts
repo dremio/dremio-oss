@@ -20,7 +20,7 @@ import { useResourceSnapshot } from "smart-resource1/react";
 import { withRouter, WithRouterProps } from "react-router";
 import { parseQueryState } from "dremio-ui-common/utilities/jobs.js";
 import { JobsQueryParams } from "dremio-ui-common/types/Jobs.types";
-import { DefaultJobQuery } from "@app/pages/JobsPage/jobs-page-utils";
+import { DefaultJobQuery } from "#oss/pages/JobsPage/jobs-page-utils";
 import { PaginatedReflectionJobsResource } from "../resources/ReflectionJobsResource";
 import { debounce } from "lodash";
 
@@ -30,7 +30,7 @@ const debouncedFetch = debounce(
   500,
   {
     leading: true,
-  }
+  },
 );
 
 /*
@@ -40,7 +40,7 @@ const debouncedFetch = debounce(
  */
 const useReflectionJobs = (
   query: JobsQueryParams | undefined,
-  reflectionId: string
+  reflectionId: string,
 ) => {
   const jobs = useResourceSnapshot(PaginatedReflectionJobsResource);
   const hasMorePages = !!jobs.value?.next;
@@ -128,5 +128,5 @@ export const ReflectionJobsProvider = withRouter(
       pagesRequested,
       loading,
     });
-  }
+  },
 );

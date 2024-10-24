@@ -15,12 +15,15 @@
  */
 package com.dremio.dac.server;
 
+import static com.dremio.common.utils.PathUtils.getKeyJoiner;
+import static com.dremio.common.utils.PathUtils.getPathJoiner;
 import static com.dremio.dac.server.FamilyExpectation.SUCCESS;
 import static org.glassfish.jersey.CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE;
 
 import com.dremio.common.SentinelSecure;
 import com.dremio.common.perf.Timer;
 import com.dremio.dac.explore.model.DataPOJO;
+import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.ViewFieldTypeMixin;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.util.JSONUtil;
@@ -141,5 +144,18 @@ public class BaseClientUtils {
       }
       return response;
     }
+  }
+
+  protected String versionedResourcePath(DatasetUI datasetUI) {
+    return getPathJoiner()
+        .join(
+            "/dataset",
+            getKeyJoiner().join(datasetUI.getFullPath()),
+            "version",
+            datasetUI.getDatasetVersion());
+  }
+
+  protected String resourcePath(DatasetUI datasetUI) {
+    return getPathJoiner().join("/dataset", getKeyJoiner().join(datasetUI.getFullPath()));
   }
 }

@@ -368,9 +368,10 @@ public interface AttemptObserver {
   void putProfileFailed();
 
   static AttemptEvent toEvent(AttemptEvent.State state) {
-    return AttemptEvent.newBuilder()
-        .setState(state)
-        .setStartTime(System.currentTimeMillis())
-        .build();
+    return toEvent(state, System.currentTimeMillis());
+  }
+
+  static AttemptEvent toEvent(AttemptEvent.State state, long startTime) {
+    return AttemptEvent.newBuilder().setState(state).setStartTime(startTime).build();
   }
 }

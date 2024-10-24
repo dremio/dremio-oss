@@ -28,36 +28,36 @@ import { withRouter } from "react-router";
 import { injectIntl } from "react-intl";
 import { compose } from "redux";
 
-import { getQueryStatuses } from "@app/selectors/jobs";
+import { getQueryStatuses } from "#oss/selectors/jobs";
 
 import DataGraph from "@inject/pages/ExplorePage/subpages/datagraph/DataGraph";
 import DetailsWizard from "components/Wizards/DetailsWizard";
 import { MARGIN_PANEL } from "uiTheme/radium/sizes";
 
-import { RECOMMENDED_JOIN } from "@app/constants/explorePage/joinTabs";
-import { Wiki } from "@app/pages/ExplorePage/components/Wiki/Wiki";
-import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
+import { RECOMMENDED_JOIN } from "#oss/constants/explorePage/joinTabs";
+import { Wiki } from "#oss/pages/ExplorePage/components/Wiki/Wiki";
+import { PageTypes, pageTypesProp } from "#oss/pages/ExplorePage/pageTypes";
 import {
   getApproximate,
   getDatasetEntityId,
   getExploreState,
   getJobProgress,
-} from "@app/selectors/explore";
-import { getJobSummaries } from "@app/selectors/exploreJobs";
+} from "#oss/selectors/explore";
+import { getJobSummaries } from "#oss/selectors/exploreJobs";
 import {
   loadJobResults,
   loadJobTabs,
   removeTabView,
-} from "@app/actions/resources/scripts";
+} from "#oss/actions/resources/scripts";
 import { runDatasetSql, previewDatasetSql } from "actions/explore/dataset/run";
 import { loadSourceListData } from "actions/resources/sources";
 import {
   navigateToExploreDefaultIfNecessary,
   constructFullPath,
-} from "utils/pathUtils";
-import { getExploreViewState } from "@app/selectors/resources";
-import Reflections from "@app/pages/ExplorePage/subpages/reflections/Reflections";
-import SQLScriptLeaveTabDialog from "@app/components/SQLScripts/components/SQLScriptLeaveTabDialog/SQLScriptLeaveTabDialog";
+} from "#oss/utils/pathUtils";
+import { getExploreViewState } from "#oss/selectors/resources";
+import Reflections from "#oss/pages/ExplorePage/subpages/reflections/Reflections";
+import SQLScriptLeaveTabDialog from "#oss/components/SQLScripts/components/SQLScriptLeaveTabDialog/SQLScriptLeaveTabDialog";
 import {
   updateColumnFilter,
   setCurrentSql,
@@ -65,30 +65,30 @@ import {
   setPreviousAndCurrentSql,
   setSelectedSql,
   setQuerySelections,
-} from "@app/actions/explore/view";
+} from "#oss/actions/explore/view";
 import {
   toggleExploreSql,
   setResizeProgressState,
-} from "@app/actions/explore/ui";
+} from "#oss/actions/explore/ui";
 
 import NavCrumbs, {
   showNavCrumbs,
 } from "@inject/components/NavCrumbs/NavCrumbs";
-import { handleOnTabRouting } from "@app/pages/ExplorePage/components/SqlEditor/SqlQueryTabs/utils.tsx";
+import { handleOnTabRouting } from "#oss/pages/ExplorePage/components/SqlEditor/SqlQueryTabs/utils.tsx";
 import {
   setQueryStatuses as setQueryStatusesFunc,
   setQueryTabNumber,
 } from "actions/explore/view";
-import { cancelJobAndShowNotification } from "@app/actions/jobs/jobs";
+import { cancelJobAndShowNotification } from "#oss/actions/jobs/jobs";
 import {
   clearExploreJobs,
   fetchJobDetails,
   fetchJobSummary,
-} from "@app/actions/explore/exploreJobs";
+} from "#oss/actions/explore/exploreJobs";
 import {
   extractQueries,
   extractSelections,
-} from "@app/utils/statements/statementParser";
+} from "#oss/utils/statements/statementParser";
 import HistoryLineController from "../components/Timeline/HistoryLineController";
 import DatasetsPanel from "../components/SqlEditor/Sidebar/DatasetsPanel";
 import ExploreInfoHeader from "../components/ExploreInfoHeader";
@@ -106,22 +106,21 @@ import {
   EXPLORE_HEADER_HEIGHT,
   getExploreContentHeight,
 } from "./utils";
-import ResizeObserver from "resize-observer-polyfill";
-import { fetchSupportFlags } from "@app/actions/supportFlags";
+import { fetchSupportFlags } from "#oss/actions/supportFlags";
 import config from "@inject/utils/config";
 import { isEnterprise, isCommunity } from "dyn-load/utils/versionUtils";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 import HistoryPage from "./HistoryPage/HistoryPage";
 import { HomePageTop } from "@inject/pages/HomePage/HomePageTop";
-import { newQuery } from "@app/exports/paths";
-import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
-import { intl } from "@app/utils/intl";
-import { getSourceMap } from "@app/selectors/home";
-import { isVersionedSource } from "@app/utils/sourceUtils";
+import { newQuery } from "#oss/exports/paths";
+import { ErrorBoundary } from "#oss/components/ErrorBoundary/ErrorBoundary";
+import { intl } from "#oss/utils/intl";
+import { getSourceMap } from "#oss/selectors/home";
+import { isVersionedSource } from "@inject/utils/sourceUtils";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import { DATASET_PATH_FROM_ONBOARDING } from "@inject/components/SonarWelcomeModal/constants";
-import { selectState } from "@app/selectors/nessie/nessie";
-import { REFLECTION_ARCTIC_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { selectState } from "#oss/selectors/nessie/nessie";
+import { REFLECTION_ARCTIC_ENABLED } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 import { withAvailablePageTypes } from "dyn-load/utils/explorePageTypes";
 import {
   CodeView,
@@ -131,48 +130,48 @@ import {
   TabPanel,
   getControlledTabPanelProps,
 } from "dremio-ui-lib/components";
-import QueryDataset from "@app/components/QueryDataset/QueryDataset";
+import QueryDataset from "#oss/components/QueryDataset/QueryDataset";
 import { SqlRunnerTabs } from "dremio-ui-common/sonar/SqlRunnerSession/components/SqlRunnerTabs.js";
 import { EXPLORE_DRAG_TYPE } from "../constants";
-import { addDatasetATSyntax } from "@app/utils/nessieUtils";
+import { addDatasetATSyntax } from "#oss/utils/nessieUtils";
 import { withCatalogARSFlag } from "@inject/utils/arsUtils";
-import { PHYSICAL_DATASET } from "@app/constants/datasetTypes";
+import { PHYSICAL_DATASET } from "#oss/constants/datasetTypes";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import { formatQuery } from "dremio-ui-common/sql/formatter/sqlFormatter.js";
 import socket from "@inject/utils/socket";
 import {
   MultiTabIsEnabledProvider,
   withIsMultiTabEnabled,
-} from "@app/components/SQLScripts/useMultiTabIsEnabled";
+} from "#oss/components/SQLScripts/useMultiTabIsEnabled";
 import clsx from "clsx";
 import { DatasetDetailsPanel } from "../components/DatasetDetailsPanel/DatasetDetailsPanel";
-import { getEntitySummary } from "@app/endpoints/EntitySummary/getEntitySummary";
-import sentryUtil from "@app/utils/sentryUtil";
-import { getEntityTypeFromObject } from "@app/utils/entity-utils";
-import { ENTITY_TYPES_LIST } from "@app/constants/Constants";
+import { getEntitySummary } from "#oss/endpoints/EntitySummary/getEntitySummary";
+import sentryUtil from "#oss/utils/sentryUtil";
+import { getEntityTypeFromObject } from "#oss/utils/entity-utils";
+import { ENTITY_TYPES_LIST } from "#oss/constants/Constants";
 import { EntityDetailsPanel } from "../components/EntityDetailsPanel/EntityDetailsPanel";
 import { EmptyDetailsPanel } from "../components/EmptyDetailsPanel/EmptyDetailsPanel";
 import {
   handleOpenTabScript,
   fetchAllAndMineScripts,
-} from "@app/components/SQLScripts/sqlScriptsUtils";
+} from "#oss/components/SQLScripts/sqlScriptsUtils";
 import {
   $SqlRunnerSession,
   newTab,
 } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
-import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
+import { isTabbableUrl } from "#oss/utils/explorePageTypeUtils";
 import {
   closeTab,
   closeTabs,
   newPopulatedTab,
 } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { fetchScripts } from "@app/actions/resources/scripts";
-import { addNotification } from "@app/actions/notification";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { SQLRUNNER_TABS_UI } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import { fetchScripts } from "#oss/actions/resources/scripts";
+import { addNotification } from "#oss/actions/notification";
 import { BadRequestError } from "dremio-ui-common/errors/BadRequestError";
-import SQLScriptRenameDialog from "@app/components/SQLScripts/components/SQLScriptRenameDialog/SQLScriptRenameDialog";
+import SQLScriptRenameDialog from "#oss/components/SQLScripts/components/SQLScriptRenameDialog/SQLScriptRenameDialog";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 import {
   isTemporaryScript,
@@ -186,6 +185,10 @@ import DocumentTitle from "react-document-title";
 import { useScript } from "dremio-ui-common/sonar/scripts/providers/useScript.js";
 import { generateNewTabName } from "dremio-ui-common/sonar/SqlRunnerSession/utilities/generateNewTabName.js";
 import { getSelectedSql } from "dremio-ui-common/sonar/components/Monaco/components/SqlEditor/helpers/getSqlSelections.js";
+import { PageTop } from "dremio-ui-common/components/PageTop.js";
+import { SearchTriggerWrapper } from "#oss/exports/searchModal/SearchTriggerWrapper";
+import deepEqual from "deep-equal";
+import { CurrentTabIdProvider } from "#oss/exports/providers/CurrentTabIdProvider";
 
 const newQueryLink = newQuery();
 const HISTORY_BAR_WIDTH = 34;
@@ -667,6 +670,22 @@ export class ExplorePageContentWrapper extends PureComponent {
     }
   };
 
+  loadDatasetSummary = async (dataset) => {
+    const versionContext = getVersionContextFromId(dataset.get("entityId"));
+    try {
+      const res = await getEntitySummary({
+        fullPath: dataset.get("displayFullPath"),
+        versionContext: versionContext,
+      });
+
+      this.setState({ datasetDetails: Immutable.fromJS(res) }, () =>
+        this.handleResize(),
+      );
+    } catch (e) {
+      sentryUtil.logException(e);
+    }
+  };
+
   scriptCreating = false;
 
   componentDidUpdate(prevProps) {
@@ -686,6 +705,7 @@ export class ExplorePageContentWrapper extends PureComponent {
       isMultiQueryRunning,
       location,
       pageType,
+      dataset,
     } = this.props;
 
     const prevStatusesArray = getStatusesArray(
@@ -704,6 +724,18 @@ export class ExplorePageContentWrapper extends PureComponent {
       location.query?.queryPath !== prevProps.location.query?.queryPath
     ) {
       this.handleQueryPath(location.query?.queryPath);
+    }
+
+    // Dataset details panel should update with dataset info when navigating to dataset
+    if (
+      !isTabbableUrl(location) &&
+      dataset.get("id") !== prevProps.dataset.get("id") &&
+      !deepEqual(
+        dataset.get("displayFullPath")?.toJS(),
+        prevProps.dataset.get("displayFullPath")?.toJS(),
+      )
+    ) {
+      this.loadDatasetSummary(dataset);
     }
 
     // if a single job, force the explore table to be in view
@@ -1024,7 +1056,11 @@ export class ExplorePageContentWrapper extends PureComponent {
       this.insertFieldName(pathList, ranges);
     } else {
       const text = constructFullPath(pathList);
-      this.insertAtRanges(text + addDatasetATSyntax(pathList.toJS()), ranges);
+      this.insertAtRanges(
+        // the new resource tree passes in a normal string[]
+        text + addDatasetATSyntax(pathList.toJS?.() ?? pathList),
+        ranges,
+      );
     }
   }
 
@@ -1063,7 +1099,7 @@ export class ExplorePageContentWrapper extends PureComponent {
   handleResize = () => {
     const width = this.state.sidebarCollapsed
       ? COLLAPSED_SIDEBAR_WIDTH
-      : this.state.sidebarWidth ?? SIDEBAR_MIN_WIDTH;
+      : (this.state.sidebarWidth ?? SIDEBAR_MIN_WIDTH);
     this.setState({ editorWidth: this.getNewEditorWidth(width) });
   };
 
@@ -1722,7 +1758,14 @@ export class ExplorePageContentWrapper extends PureComponent {
         )}
         {/* <ExplorePage /> always assumes there are two HTML elements (grid-template-rows: auto 1fr)
       so if the NavCrumbs don't render we need a dummy <div> in the DOM */}
-        {showNavCrumbs ? <NavCrumbs /> : <HomePageTop />}
+        {showNavCrumbs ? (
+          <PageTop>
+            <NavCrumbs />
+            <SearchTriggerWrapper className="ml-auto" />
+          </PageTop>
+        ) : (
+          <HomePageTop />
+        )}
         <div
           className={classNames(
             "explorePage",
@@ -1815,63 +1858,154 @@ export class ExplorePageContentWrapper extends PureComponent {
                     >
                       <MultiTabIsEnabledProvider>
                         {isTabbable && (
-                          <SqlRunnerTabs
-                            canClose={() =>
-                              $SqlRunnerSession.$merged.value?.scriptIds
-                                .length > 1
-                            }
-                            onTabSelected={(tabId) => {
-                              const script =
-                                ScriptsResource.getResource().value?.find(
-                                  (script) => script.id === tabId,
-                                );
-                              if (!script) {
-                                return;
+                          <CurrentTabIdProvider>
+                            <SqlRunnerTabs
+                              canClose={() =>
+                                $SqlRunnerSession.$merged.value?.scriptIds
+                                  .length > 1
                               }
-                              if (
-                                isMultiQueryRunning &&
-                                exploreUtils.hasUnsubmittedQueries(
-                                  this.props.queryStatuses,
-                                )
-                              ) {
-                                this.onLeaveTabWhileQueriesRunning(() =>
+                              onTabSelected={(tabId) => {
+                                const script =
+                                  ScriptsResource.getResource().value?.find(
+                                    (script) => script.id === tabId,
+                                  );
+                                if (!script) {
+                                  return;
+                                }
+                                if (
+                                  isMultiQueryRunning &&
+                                  exploreUtils.hasUnsubmittedQueries(
+                                    this.props.queryStatuses,
+                                  )
+                                ) {
+                                  this.onLeaveTabWhileQueriesRunning(() =>
+                                    handleOpenTabScript(this.props.router)(
+                                      script,
+                                    ),
+                                  );
+                                } else {
                                   handleOpenTabScript(this.props.router)(
                                     script,
-                                  ),
-                                );
-                              } else {
-                                handleOpenTabScript(this.props.router)(script);
-                              }
-                            }}
-                            onTabClosed={(scriptId) => {
-                              const script =
-                                ScriptsResource.getResource().value?.find(
-                                  (script) => script.id === scriptId,
-                                );
-                              if (
-                                isTemporaryScript(script) &&
-                                script.content.trim().length > 0
-                              ) {
-                                this.setState({
-                                  requestedTemporaryTabClose: scriptId,
+                                  );
+                                }
+                              }}
+                              onTabClosed={(scriptId) => {
+                                const script =
+                                  ScriptsResource.getResource().value?.find(
+                                    (script) => script.id === scriptId,
+                                  );
+                                if (
+                                  isTemporaryScript(script) &&
+                                  script.content.trim().length > 0
+                                ) {
+                                  this.setState({
+                                    requestedTemporaryTabClose: scriptId,
+                                  });
+                                  return;
+                                }
+                                handleTabClosed(scriptId, {
+                                  shouldDelete: isTemporaryScript(script),
                                 });
-                                return;
-                              }
-                              handleTabClosed(scriptId, {
-                                shouldDelete: isTemporaryScript(script),
-                              });
-                            }}
-                            onScriptRename={(scriptId) => {
-                              const script =
-                                ScriptsResource.getResource().value?.find(
-                                  (script) => script.id === scriptId,
-                                );
-                              this.onRenameTab(script);
-                            }}
-                            tabActions={(tabId) => {
-                              const isTemporary = (() => {
-                                try {
-                                  return isTemporaryScript(
+                              }}
+                              onScriptRename={(scriptId) => {
+                                const script =
+                                  ScriptsResource.getResource().value?.find(
+                                    (script) => script.id === scriptId,
+                                  );
+                                this.onRenameTab(script);
+                              }}
+                              tabActions={(tabId) => {
+                                const isTemporary = (() => {
+                                  try {
+                                    return isTemporaryScript(
+                                      ScriptsResource.getResource().value.find(
+                                        (script) =>
+                                          script.id ===
+                                          $SqlRunnerSession.$source.value
+                                            .currentScriptId,
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    return false;
+                                  }
+                                })();
+                                return [
+                                  {
+                                    id: "rename",
+                                    label: isTemporary
+                                      ? "Save"
+                                      : intl.formatMessage({
+                                          id: "Common.Rename",
+                                        }),
+                                    handler: () => {
+                                      const script =
+                                        ScriptsResource.getResource().value?.find(
+                                          (script) => script.id === tabId,
+                                        );
+                                      this.onRenameTab(script);
+                                    },
+                                  },
+                                  {
+                                    id: "saveScript",
+                                    label: intl.formatMessage({
+                                      id: "NewQuery.SaveScriptAs",
+                                    }),
+                                    handler: () => {
+                                      window.sqlUtils.handleSaveScriptAs();
+                                    },
+                                  },
+                                  {
+                                    id: "saveView",
+                                    label: intl.formatMessage({
+                                      id: "NewQuery.SaveAsViewBtn",
+                                    }),
+                                    handler: () => {
+                                      window.sqlUtils.handleSaveViewAs();
+                                    },
+                                  },
+                                  {
+                                    id: "close",
+                                    label: intl.formatMessage({
+                                      id: "Common.Close",
+                                    }),
+                                    handler: () => {
+                                      const script =
+                                        ScriptsResource.getResource().value?.find(
+                                          (script) => script.id === tabId,
+                                        );
+                                      if (isTemporaryScript(script)) {
+                                        this.setState({
+                                          requestedTemporaryTabClose: tabId,
+                                        });
+                                        return;
+                                      }
+                                      handleTabClosed(tabId);
+                                    },
+                                    disabled:
+                                      $SqlRunnerSession.$merged.value?.scriptIds
+                                        .length <= 1,
+                                  },
+                                  {
+                                    id: "closeOthers",
+                                    label: t(
+                                      "Sonar.SqlRunner.Tab.Actions.CloseOthers",
+                                    ),
+                                    handler: () => {
+                                      handleCloseOthers();
+                                    },
+                                    disabled: !getCloseableScripts().length,
+                                  },
+                                ];
+                              }}
+                              customNewTabHandler={() => {
+                                const createNewTab = async () => {
+                                  await newTab();
+                                  await ScriptsResource.fetch();
+                                  await fetchAllAndMineScripts(
+                                    this.props.fetchScripts,
+                                    null,
+                                  );
+                                  handleOpenTabScript(this.props.router)(
                                     ScriptsResource.getResource().value.find(
                                       (script) =>
                                         script.id ===
@@ -1879,110 +2013,23 @@ export class ExplorePageContentWrapper extends PureComponent {
                                           .currentScriptId,
                                     ),
                                   );
-                                } catch (e) {
-                                  return false;
-                                }
-                              })();
-                              return [
-                                {
-                                  id: "rename",
-                                  label: isTemporary
-                                    ? "Save"
-                                    : intl.formatMessage({
-                                        id: "Common.Rename",
-                                      }),
-                                  handler: () => {
-                                    const script =
-                                      ScriptsResource.getResource().value?.find(
-                                        (script) => script.id === tabId,
-                                      );
-                                    this.onRenameTab(script);
-                                  },
-                                },
-                                {
-                                  id: "saveScript",
-                                  label: intl.formatMessage({
-                                    id: "NewQuery.SaveScriptAs",
-                                  }),
-                                  handler: () => {
-                                    window.sqlUtils.handleSaveScriptAs();
-                                  },
-                                },
-                                {
-                                  id: "saveView",
-                                  label: intl.formatMessage({
-                                    id: "NewQuery.SaveAsViewBtn",
-                                  }),
-                                  handler: () => {
-                                    window.sqlUtils.handleSaveViewAs();
-                                  },
-                                },
-                                {
-                                  id: "close",
-                                  label: intl.formatMessage({
-                                    id: "Common.Close",
-                                  }),
-                                  handler: () => {
-                                    const script =
-                                      ScriptsResource.getResource().value?.find(
-                                        (script) => script.id === tabId,
-                                      );
-                                    if (isTemporaryScript(script)) {
-                                      this.setState({
-                                        requestedTemporaryTabClose: tabId,
-                                      });
-                                      return;
-                                    }
-                                    handleTabClosed(tabId);
-                                  },
-                                  disabled:
-                                    $SqlRunnerSession.$merged.value?.scriptIds
-                                      .length <= 1,
-                                },
-                                {
-                                  id: "closeOthers",
-                                  label: t(
-                                    "Sonar.SqlRunner.Tab.Actions.CloseOthers",
-                                  ),
-                                  handler: () => {
-                                    handleCloseOthers();
-                                  },
-                                  disabled: !getCloseableScripts().length,
-                                },
-                              ];
-                            }}
-                            customNewTabHandler={() => {
-                              const createNewTab = async () => {
-                                await newTab();
-                                await ScriptsResource.fetch();
-                                await fetchAllAndMineScripts(
-                                  this.props.fetchScripts,
-                                  null,
-                                );
-                                handleOpenTabScript(this.props.router)(
-                                  ScriptsResource.getResource().value.find(
-                                    (script) =>
-                                      script.id ===
-                                      $SqlRunnerSession.$source.value
-                                        .currentScriptId,
-                                  ),
-                                );
-                              };
+                                };
 
-                              if (
-                                isMultiQueryRunning &&
-                                exploreUtils.hasUnsubmittedQueries(
-                                  this.props.queryStatuses,
-                                )
-                              ) {
-                                this.onLeaveTabWhileQueriesRunning(() => {
+                                if (
+                                  isMultiQueryRunning &&
+                                  exploreUtils.hasUnsubmittedQueries(
+                                    this.props.queryStatuses,
+                                  )
+                                ) {
+                                  this.onLeaveTabWhileQueriesRunning(() => {
+                                    createNewTab();
+                                  });
+                                } else {
                                   createNewTab();
-                                });
-                              } else {
-                                createNewTab();
-                              }
-                            }}
-                          />
+                                }
+                              }}
+                            />
+                          </CurrentTabIdProvider>
                         )}
                       </MultiTabIsEnabledProvider>
                       {this.getContentHeader()}

@@ -21,7 +21,7 @@ import CancelablePromise from "utils/CancelablePromise";
 import {
   RECOMMENDED_JOIN,
   CUSTOM_JOIN,
-} from "@app/constants/explorePage/joinTabs";
+} from "#oss/constants/explorePage/joinTabs";
 import StepWizard from "../components/StepWizard";
 import { JoinController } from "./JoinController";
 
@@ -132,7 +132,7 @@ describe("JoinController", () => {
       expect(commonProps.loadRecommendedJoin).to.be.calledWith({ href });
 
       expect(instance.recommendationsPromise).to.be.instanceOf(
-        CancelablePromise
+        CancelablePromise,
       );
     });
   });
@@ -163,7 +163,7 @@ describe("JoinController", () => {
       expect(props.fields.activeDataset.onChange).to.be.calledWith("");
       expect(props.fields.columns.onChange).to.be.calledWith([]);
       expect(
-        contextTypes.router.replace.args[0][0].state.previewVersion
+        contextTypes.router.replace.args[0][0].state.previewVersion,
       ).to.equal("");
     });
 

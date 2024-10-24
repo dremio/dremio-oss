@@ -34,6 +34,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.service.Service;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionSettingsImpl;
 import com.dremio.service.users.SystemUser;
@@ -52,6 +53,7 @@ public class SampleDataPopulatorService implements Service {
   private final Provider<ConnectionReader> connectionReader;
   private final Provider<OptionManager> optionManager;
   private final Provider<SearchService> searchService;
+  private final CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider;
 
   private SampleDataPopulator sample;
 
@@ -66,6 +68,7 @@ public class SampleDataPopulatorService implements Service {
       Provider<CatalogService> catalogService,
       Provider<ConnectionReader> connectionReader,
       Provider<SearchService> searchService,
+      CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider,
       Provider<OptionManager> optionManager,
       boolean prepopulate,
       boolean addDefaultUser) {
@@ -76,6 +79,7 @@ public class SampleDataPopulatorService implements Service {
     this.catalogService = catalogService;
     this.connectionReader = connectionReader;
     this.searchService = searchService;
+    this.catalogEventMessagePublisherProvider = catalogEventMessagePublisherProvider;
     this.optionManager = optionManager;
     this.prepopulate = prepopulate;
     this.addDefaultUser = addDefaultUser;
@@ -133,6 +137,7 @@ public class SampleDataPopulatorService implements Service {
                   searchService.get(),
                   userService,
                   catalogService.get(),
+                  catalogEventMessagePublisherProvider,
                   optionManager.get()));
 
       sample.populateInitialData();

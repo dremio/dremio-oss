@@ -24,7 +24,7 @@ describe("pinnedEntities reducer", () => {
   it("sets isActive state to a state", () => {
     const newState = pinnedEntitiesReducer(
       defaultState,
-      setEntityActiveState("1", true)
+      setEntityActiveState("1", true),
     );
     expect(isPinned(newState, "1")).to.be.true;
   });
@@ -32,7 +32,7 @@ describe("pinnedEntities reducer", () => {
   it("removes current entity from state if isActive = false", () => {
     const newState = pinnedEntitiesReducer(
       { 1: true },
-      setEntityActiveState("1", false)
+      setEntityActiveState("1", false),
     );
     expect(isPinned(newState, "1")).to.be.false;
     expect(newState).to.be.eql({});

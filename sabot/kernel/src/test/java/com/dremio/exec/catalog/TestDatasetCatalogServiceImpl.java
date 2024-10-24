@@ -66,6 +66,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetCommonProtobuf;
@@ -96,6 +97,7 @@ import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -182,7 +184,11 @@ public class TestDatasetCatalogServiceImpl {
           new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
       kvStoreProvider.start();
 
-      namespaceService = new NamespaceServiceImpl(kvStoreProvider, mock(CatalogStatusEvents.class));
+      namespaceService =
+          new NamespaceServiceImpl(
+              kvStoreProvider,
+              mock(CatalogStatusEvents.class),
+              CatalogEventMessagePublisherProvider.NO_OP);
       orphanage = new OrphanageImpl(kvStoreProvider);
 
       final Orphanage.Factory orphanageFactory =
@@ -304,7 +310,8 @@ public class TestDatasetCatalogServiceImpl {
                       ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES,
                       () -> optionManager),
               () -> new VersionedDatasetAdapterFactory(),
-              () -> new CatalogStatusEventsImpl());
+              () -> new CatalogStatusEventsImpl(),
+              () -> mock(ExecutorService.class));
       catalogService.start();
 
       mockUpPlugin = new TestCatalogServiceImpl.MockUpPlugin();

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { mount } from "enzyme";
-import { DataLoader } from "@app/components/DataLoader";
+import { DataLoader } from "#oss/components/DataLoader";
 
 describe("DataLoader", () => {
   const onChange = sinon.stub();
@@ -48,7 +48,7 @@ describe("DataLoader", () => {
 
   it("calls onChange if isInvalidated changed to true", () => {
     const wrapper = mount(
-      <DataLoader onChange={onChange} isInvalidated={false} />
+      <DataLoader onChange={onChange} isInvalidated={false} />,
     );
     onChange.resetHistory();
 

@@ -156,7 +156,8 @@ public class LocalExecutionConfig implements OptionProvider {
 
     if (internalSingleThreaded) {
       manager.setOption(createBoolean(QUERY, ExecConstants.SORT_FILE_BLOCKS.getOptionName(), true));
-      manager.setOption(createBoolean(QUERY, PlannerSettings.EXCHANGE.getOptionName(), true));
+      manager.setOption(
+          createBoolean(QUERY, PlannerSettings.DISABLE_EXCHANGES.getOptionName(), true));
     }
   }
 

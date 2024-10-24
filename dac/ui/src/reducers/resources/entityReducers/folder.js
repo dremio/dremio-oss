@@ -22,7 +22,7 @@ export default function folder(state, action) {
       if (state.getIn(["folder", action.meta.folderId])) {
         return state.setIn(
           ["folder", action.meta.folderId, "queryable"],
-          false
+          false,
         );
       }
       return state;

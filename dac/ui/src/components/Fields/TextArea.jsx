@@ -19,7 +19,7 @@ import clsx from "clsx";
 import PropTypes from "prop-types";
 
 import forms from "uiTheme/radium/forms";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
+import * as classes from "#oss/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 class TextArea extends PureComponent {
   static propTypes = {

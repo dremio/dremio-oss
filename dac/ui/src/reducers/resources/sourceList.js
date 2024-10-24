@@ -35,11 +35,11 @@ export default function sourceList(state = getInitialState(), action) {
     case AllSourcesActionTypes.GET_CREATED_SOURCE_START:
       return state.set(
         CREATED_SOURCE_NAME,
-        Immutable.Map({ isInProgress: true })
+        Immutable.Map({ isInProgress: true }),
       );
     case AllSourcesActionTypes.GET_CREATED_SOURCE_SUCCESS: {
       const decoratedSource = homeMapper.decorateSource(
-        Immutable.fromJS(action.payload)
+        Immutable.fromJS(action.payload),
       );
       const source = state?.get(CREATED_SOURCE_NAME)?.merge(decoratedSource);
       return state.set(CREATED_SOURCE_NAME, source);

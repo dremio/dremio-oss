@@ -35,14 +35,12 @@ public class TestHashJoinWithExtraCondition extends PlanTestBase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    setSystemOption(HashJoinOperator.ENABLE_SPILL, "false");
+    setSystemOption(HashJoinOperator.ENABLE_SPILL, false);
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    setSystemOption(
-        HashJoinOperator.ENABLE_SPILL,
-        HashJoinOperator.ENABLE_SPILL.getDefault().getBoolVal().toString());
+    resetSystemOption(HashJoinOperator.ENABLE_SPILL);
   }
 
   @Test

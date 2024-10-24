@@ -16,9 +16,9 @@
 
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 import { Tooltip } from "dremio-ui-lib/components";
-import { LIST, MAP, MIXED, STRUCT } from "@app/constants/DataTypes";
-import { StartDatasetDownloadParams } from "@app/exports/endpoints/Datasets/startDatasetDownload";
-import { JobDetails } from "@app/exports/types/JobDetails.type";
+import { LIST, MAP, MIXED, STRUCT } from "#oss/constants/DataTypes";
+import { StartDatasetDownloadParams } from "#oss/exports/endpoints/Datasets/startDatasetDownload";
+import { JobDetails } from "#oss/exports/types/JobDetails.type";
 import clsx from "clsx";
 import config from "dyn-load/utils/config";
 
@@ -74,7 +74,7 @@ function DownloadMenu({
   );
 
   return (
-    <div className="flex flex-col gap-05 py-05 bg-primary drop-shadow-lg">
+    <div className="flex flex-col gap-05 py-05 drop-shadow-lg bg-popover rounded">
       <span className="flex items-center gap-05 h-4 px-1 text-semibold">
         {menuHeader}
       </span>
@@ -95,7 +95,9 @@ function DownloadMenu({
               }}
               className={clsx(
                 "flex items-center h-4 px-1 border-none",
-                isDisabled ? "not-allowed" : "bg-primary hover",
+                isDisabled
+                  ? "not-allowed text-disabled bg-popover"
+                  : "bg-popover hover",
               )}
               disabled={isDisabled}
               key={format}

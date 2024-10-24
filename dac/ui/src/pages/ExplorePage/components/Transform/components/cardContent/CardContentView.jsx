@@ -154,7 +154,7 @@ const styles = {
   hightlight: {
     display: "inline-flex",
     alignItems: "center",
-    backgroundColor: "#f2e8d0",
+    backgroundColor: "var(--fill--warning)",
     height: 19,
   },
   line: {

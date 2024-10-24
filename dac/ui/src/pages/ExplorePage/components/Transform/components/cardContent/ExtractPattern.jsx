@@ -177,7 +177,7 @@ const styles = {
     width: 230,
     height: 28,
     fontSize: 13,
-    border: "1px solid #ccc",
+    border: "1px solid var(--border--neutral)",
     borderRadius: 3,
     outline: "none",
     padding: 2,

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { mount } from "enzyme";
-import { Tooltip } from "@app/components/Tooltip";
+import { Tooltip } from "#oss/components/Tooltip";
 import DurationCell from "./DurationCell";
 
 describe("DurationCell", () => {

@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 import { combineReducers } from "redux";
-import { wikiActions, WIKI_SAVED } from "@app/actions/home";
+import { wikiActions, WIKI_SAVED } from "#oss/actions/home";
 import {
   isLoading,
   isLoaded,
   errorMessageReducer,
   errorMessageId,
-} from "@app/reducers/reducerFactories";
+} from "#oss/reducers/reducerFactories";
 
 const entityIdReducer = (state = null, { type, entityId }) => {
   switch (type) {
@@ -39,7 +39,7 @@ const wikiValue = (
     text: "",
     version: null,
   },
-  { type, text = "", version = null }
+  { type, text = "", version = null },
 ) => {
   switch (type) {
     case wikiActions.start:

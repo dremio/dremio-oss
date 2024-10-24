@@ -17,18 +17,17 @@ package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.insertRows;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.Assert.assertEquals;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.Types;
 import com.dremio.exec.planner.sql.DmlQueryTestUtils;
+import com.dremio.exec.store.iceberg.IcebergTestTables.Table;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -37,9 +36,6 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.FileContent;
 import org.junit.Test;
 
@@ -336,10 +332,12 @@ public class TestIcebergTableFilesFunction extends IcebergMetadataTestTable {
 
   @Test
   public void testV2TableWithDeleteFiles() throws Exception {
-    String testRootPath = "/tmp/iceberg";
-    safeCopy("iceberg/table_with_delete", testRootPath);
+    Table testTable =
+        IcebergTestTables.getTable("iceberg/table_with_delete", "dfs_hadoop", "/tmp/iceberg");
+
     final String tableName = "dfs_hadoop.tmp.iceberg";
-    runSQL(String.format("alter table %s refresh metadata", tableName));
+    assertEquals(tableName, testTable.getTableName());
+    runSQL(String.format("alter table %s refresh metadata", testTable.getTableName()));
 
     testBuilder()
         .sqlQuery(
@@ -357,6 +355,8 @@ public class TestIcebergTableFilesFunction extends IcebergMetadataTestTable {
         .baselineRecords(v2TableFiles())
         .build()
         .run();
+
+    testTable.close();
   }
 
   private List<Map<String, Object>> v2TableFiles() throws FileNotFoundException {
@@ -380,18 +380,5 @@ public class TestIcebergTableFilesFunction extends IcebergMetadataTestTable {
       tableFileRecords.add(records);
     }
     return tableFileRecords;
-  }
-
-  private static void safeCopy(String src, String testRoot) throws IOException, URISyntaxException {
-    Configuration conf = new Configuration();
-    conf.set("fs.default.name", "local");
-    FileSystem fs = FileSystem.get(conf);
-    Path path = new Path(testRoot);
-    if (fs.exists(path)) {
-      fs.delete(path, true);
-    }
-    fs.mkdirs(path);
-
-    copyFromJar(src, Paths.get(testRoot));
   }
 }

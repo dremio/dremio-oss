@@ -32,6 +32,14 @@ enum RpcType {
   REQ_RECORD_BATCH = 3;
   REQ_RECEIVER_FINISHED = 4;
   REQ_OOB_MESSAGE = 5;
+  REQ_DLR_MESSAGE = 6;
+}
+
+enum DlrMessageType {
+  ACTIVATE_FRAGMENTS = 0;
+  RESERVE_RESOURCE = 1;
+  RELEASE_RESOURCE = 2;
+  CANCEL_FRAGMENTS = 3;
 }
 
 message FragmentRecordBatch {
@@ -73,4 +81,9 @@ message OOBMessage {
   optional int32 sending_operator_id = 10 [default = -1];
   optional bool shrink_memory_request = 11; // this is a shrink memory request to the operator
   repeated int32 original_buffer_length = 12; // length for each original data buffer
+}
+
+message DlrProtoMessage {
+  optional exec.shared.QueryId query_id = 1;
+  optional int32 command = 2;
 }

@@ -16,12 +16,12 @@
 
 import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { withRouter, WithRouterProps } from "react-router";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import clsx from "clsx";
 // @ts-ignore
 import DocumentTitle from "react-document-title";
 
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
+import { SonarSideNav } from "#oss/exports/components/SideNav/SonarSideNav";
 import NavCrumbs from "@inject/components/NavCrumbs/NavCrumbs";
 // @ts-ignore
 import { JobsTable } from "dremio-ui-common/sonar/components/JobsTable/JobsTable.js";
@@ -34,6 +34,7 @@ import { SQLCell } from "../JobsPage/components/SQLCell/SQLCell";
 import { ContainerSplash } from "dremio-ui-common/components/ContainerSplash.js";
 
 import classes from "./ReflctionJobsPage.module.less";
+import { PageTop } from "dremio-ui-common/components/PageTop.js";
 
 const loadingSkeletonRows = Array(10).fill(null);
 
@@ -68,7 +69,7 @@ export const ReflectionJobsPage = withRouter(
       return reflectionJobsPageTableColumns(
         (job: any) => renderJobLink(job, reflectionId),
         renderDataset,
-        renderSQL
+        renderSQL,
       );
     }, [reflectionId]);
 
@@ -80,7 +81,7 @@ export const ReflectionJobsPage = withRouter(
           data: data ? data : null,
         };
       },
-      [curJobs]
+      [curJobs],
     );
 
     useLayoutEffect(() => {
@@ -98,10 +99,12 @@ export const ReflectionJobsPage = withRouter(
         <div
           className={clsx(
             classes["reflection-jobs-page__content"],
-            "dremio-layout-container --vertical"
+            "dremio-layout-container --vertical",
           )}
         >
-          <NavCrumbs />
+          <PageTop>
+            <NavCrumbs />
+          </PageTop>
           <div className={classes["reflection-jobs-page__table"]}>
             {curJobs.length === 0 ? (
               <ContainerSplash title={"No jobs found"} />
@@ -117,5 +120,5 @@ export const ReflectionJobsPage = withRouter(
         </div>
       </div>
     );
-  }
+  },
 );

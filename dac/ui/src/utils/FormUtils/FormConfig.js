@@ -22,20 +22,20 @@ export default class FormConfig {
     this._config = formConfigJson || {};
     if (this._config.tabs) {
       this._config.tabs = this._config.tabs.map(
-        (tab) => new FormTabConfig(tab, functionalElements)
+        (tab) => new FormTabConfig(tab, functionalElements),
       );
     }
     if (this._config.sections) {
       this._config.sections = this._config.sections.map(
-        (section) => new FormSectionConfig(section, functionalElements)
+        (section) => new FormSectionConfig(section, functionalElements),
       );
     }
     if (this._config.elements) {
       this._config.elements = this._config.elements.map((element) =>
         SourceFormJsonPolicy.joinConfigsAndConvertElementToObj(
           element,
-          functionalElements
-        )
+          functionalElements,
+        ),
       );
     }
   }
@@ -70,44 +70,44 @@ export default class FormConfig {
       .concat(
         this.getDirectSections().reduce(
           (fields, section) => fields.concat(section.getFields()),
-          []
-        )
+          [],
+        ),
       )
       .concat(
         this.getTabs().reduce(
           (fields, tab) => fields.concat(tab.getFields()),
-          []
-        )
+          [],
+        ),
       );
   }
 
   addInitValues(initValues, state, props) {
     initValues = this.getDirectElements().reduce(
       (accum, element) => element.addInitValues(accum, state, props),
-      initValues
+      initValues,
     );
     initValues = this.getDirectSections().reduce(
       (accum, section) => section.addInitValues(accum, state, props),
-      initValues
+      initValues,
     );
     return this.getTabs().reduce(
       (accum, tab) => tab.addInitValues(accum, state, props),
-      initValues
+      initValues,
     );
   }
 
   addValidators(validations) {
     validations = this.getDirectElements().reduce(
       (accum, element) => element.addValidators(accum),
-      validations
+      validations,
     );
     validations = this.getDirectSections().reduce(
       (accum, section) => section.addValidators(accum),
-      validations
+      validations,
     );
     return this.getTabs().reduce(
       (accum, tab) => tab.addValidators(accum),
-      validations
+      validations,
     );
   }
 
@@ -138,11 +138,11 @@ export default class FormConfig {
   removeNotFoundElements() {
     if (this.getDirectElements().length) {
       this._config.elements = this.getDirectElements().filter((element) =>
-        element.foundInFunctionalConfig()
+        element.foundInFunctionalConfig(),
       );
     }
     this.getDirectSections().forEach((section) =>
-      section.removeNotFoundElements()
+      section.removeNotFoundElements(),
     );
     this.getTabs().forEach((tab) => tab.removeNotFoundElements());
   }

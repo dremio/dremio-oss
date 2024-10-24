@@ -17,9 +17,9 @@
 import * as React from "react";
 import { injectIntl } from "react-intl";
 import { connect } from "react-redux";
-import Modal from "@app/components/Modals/Modal";
+import Modal from "#oss/components/Modals/Modal";
 import ApiUtils from "utils/apiUtils/apiUtils";
-import { addNotification } from "@app/actions/notification";
+import { addNotification } from "#oss/actions/notification";
 import SQLScriptForm from "./SQLScriptForm";
 
 type SQLScriptDialogProps = {

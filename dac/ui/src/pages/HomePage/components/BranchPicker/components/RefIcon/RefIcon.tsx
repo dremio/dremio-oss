@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { COMMIT_TYPE } from "@app/constants/nessie";
-import { Reference } from "@app/types/nessie";
-import { getIconByType } from "@app/utils/nessieUtils";
+import { COMMIT_TYPE } from "#oss/constants/nessie";
+import { Reference } from "#oss/types/nessie";
+import { getIconByType } from "#oss/utils/nessieUtils";
 
 type RefIconProps = {
   reference: Reference;

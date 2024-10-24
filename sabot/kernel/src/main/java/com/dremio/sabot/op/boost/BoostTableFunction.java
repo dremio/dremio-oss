@@ -219,9 +219,4 @@ public class BoostTableFunction extends ParquetScanTableFunction {
     splitReaderCreatorIterator =
         new ParquetSplitReaderCreatorIterator(fec, context, props, functionConfig, true, true);
   }
-
-  @Override
-  protected void addBoostSplits() throws IOException {
-    return;
-  }
 }

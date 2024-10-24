@@ -29,11 +29,11 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators;
 import com.dremio.services.pubsub.ImmutableMessagePublisherOptions;
 import com.dremio.services.pubsub.ImmutableMessageSubscriberOptions;
-import com.dremio.services.pubsub.MessageConsumer;
 import com.dremio.services.pubsub.MessageContainerBase;
 import com.dremio.services.pubsub.MessagePublisher;
 import com.dremio.services.pubsub.MessageSubscriber;
 import com.dremio.services.pubsub.Subscription;
+import com.dremio.services.pubsub.TestMessageConsumer;
 import com.dremio.services.pubsub.Topic;
 import com.google.protobuf.Parser;
 import com.google.protobuf.Timestamp;
@@ -42,9 +42,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -56,7 +60,7 @@ public class TestInProcessPubSubClient {
   private InProcessPubSubClient client;
   private MessagePublisher<Timestamp> publisher;
   private MessageSubscriber<Timestamp> subscriber;
-  private final TestMessageConsumer messageConsumer = new TestMessageConsumer();
+  private final TestMessageConsumer<Timestamp> messageConsumer = new TestMessageConsumer<>();
 
   @AfterEach
   public void tearDown() {
@@ -212,6 +216,7 @@ public class TestInProcessPubSubClient {
     final long minDelaySeconds = 1;
     final long maxDelaySeconds = 2;
     final long maxMessagesInProcessing = 1;
+    final long maxMessagesToPoll = 1;
     doAnswer(
             (args) -> {
               TypeValidators.LongValidator validator = args.getArgument(0);
@@ -224,6 +229,8 @@ public class TestInProcessPubSubClient {
                 case "dremio.pubsub.inprocess.max_messages_in_queue":
                 case "dremio.pubsub.inprocess.max_messages_in_processing":
                   return maxMessagesInProcessing;
+                case "dremio.pubsub.inprocess.max_messages_to_poll":
+                  return maxMessagesToPoll;
                 default:
                   return validator.getDefault().getNumVal();
               }
@@ -237,7 +244,7 @@ public class TestInProcessPubSubClient {
     messageConsumer.setProcessingDelayMillis(delayMillis);
 
     // Publish messages:
-    //  - First message blocks for a second.
+    //  - First message processing blocks for a second.
     //  - Second message is put into the queue immediately but cannot get out of the queue because
     //    too many messages are being processed.
     //  - Third message cannot be put into the blocking queue as it's full, so the call to publish
@@ -255,18 +262,30 @@ public class TestInProcessPubSubClient {
 
   /**
    * This tests that delays in synchronization primitives waits don't add up to a large delay in
-   * processing.
+   * processing. The test runs with two parallelism options to test order of event processing.
    */
-  @Test
-  public void test_throughput() throws Exception {
-    mockOptionManager();
+  @ParameterizedTest
+  @ValueSource(ints = {1, 10})
+  public void test_throughput(long parallelism) throws Exception {
+    doAnswer(
+            (args) -> {
+              TypeValidators.LongValidator validator = args.getArgument(0);
+              if (validator.getOptionName().equals("dremio.pubsub.inprocess.parallelism")) {
+                return parallelism;
+              }
+              return validator.getDefault().getNumVal();
+            })
+        .when(optionManager)
+        .getOption(any(TypeValidators.LongValidator.class));
     startClient();
 
     // Publish and wait for all to arrive.
     int messagesToPublish = 10000;
     CountDownLatch latch = messageConsumer.initLatch(messagesToPublish);
-    Timestamp timestamp = Timestamp.newBuilder().setSeconds(1000L).build();
+    List<Long> expectedListOfSeconds = new ArrayList<>();
     for (int i = 0; i < messagesToPublish; i++) {
+      Timestamp timestamp = Timestamp.newBuilder().setSeconds(1000L + i).build();
+      expectedListOfSeconds.add(timestamp.getSeconds());
       publisher.publish(timestamp);
     }
 
@@ -274,6 +293,24 @@ public class TestInProcessPubSubClient {
     // The default delay in queue processing is 10ms, which for 10K items
     // would by far exceed 2s if excessive wait existed.
     assertTrue(latch.await(2000, TimeUnit.MILLISECONDS));
+
+    // Verify that the messages were processed in order.
+    List<Long> actualListOfSeconds =
+        messageConsumer.getMessages().stream()
+            .map(m -> m.getMessage().getSeconds())
+            .collect(Collectors.toList());
+    if (!actualListOfSeconds.equals(expectedListOfSeconds)) {
+      assertThat(actualListOfSeconds.size()).isEqualTo(expectedListOfSeconds.size());
+      for (int i = 0; i < actualListOfSeconds.size(); i++) {
+        if (!actualListOfSeconds.get(i).equals(expectedListOfSeconds.get(i))) {
+          Assertions.fail(
+              String.format(
+                  "Invalid order at %d: %d vs %d",
+                  i, actualListOfSeconds.get(i), expectedListOfSeconds.get(i)));
+          break;
+        }
+      }
+    }
   }
 
   public static final class TestTopic implements Topic<Timestamp> {
@@ -302,38 +339,6 @@ public class TestInProcessPubSubClient {
     @Override
     public Class<? extends Topic<Timestamp>> getTopicClass() {
       return TestTopic.class;
-    }
-  }
-
-  private static final class TestMessageConsumer implements MessageConsumer<Timestamp> {
-    private long messageProcessingDelayMillis;
-    private volatile CountDownLatch latch;
-    private final List<MessageContainerBase<Timestamp>> messages = new ArrayList<>();
-
-    @Override
-    public void process(MessageContainerBase<Timestamp> message) {
-      if (messageProcessingDelayMillis > 0) {
-        try {
-          Thread.sleep(messageProcessingDelayMillis);
-        } catch (InterruptedException e) {
-          throw new RuntimeException(e);
-        }
-      }
-      messages.add(message);
-      latch.countDown();
-    }
-
-    private void setProcessingDelayMillis(long millis) {
-      this.messageProcessingDelayMillis = millis;
-    }
-
-    private CountDownLatch initLatch(int count) {
-      latch = new CountDownLatch(count);
-      return latch;
-    }
-
-    private List<MessageContainerBase<Timestamp>> getMessages() {
-      return messages;
     }
   }
 }

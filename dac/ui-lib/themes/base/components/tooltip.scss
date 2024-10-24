@@ -61,3 +61,8 @@
   transition-property: opacity, transform;
   will-change: transform;
 }
+
+.echarts-tooltip {
+  background-color: var(--dremio-tooltip--background) !important;
+  border: var(--dremio-tooltip--border) !important;
+}

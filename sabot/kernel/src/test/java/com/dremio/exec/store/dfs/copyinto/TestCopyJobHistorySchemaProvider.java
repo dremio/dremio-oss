@@ -18,119 +18,117 @@ package com.dremio.exec.store.dfs.copyinto;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.system.evolution.step.SystemIcebergTablePartitionUpdateStep;
 import com.dremio.exec.store.dfs.system.evolution.step.SystemIcebergTableSchemaUpdateStep;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
-import org.junit.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class TestCopyJobHistorySchemaProvider {
 
-  @ParameterizedTest
-  @ValueSource(ints = {1, 2})
-  public void testGetSchema(int schemaVersion) {
-    Schema schema = CopyJobHistoryTableSchemaProvider.getSchema(schemaVersion);
-    if (schemaVersion == 1) {
-      // Test for schema version 1
-      assertThat(schema.columns().size()).isEqualTo(10);
-    } else if (schemaVersion == 2) {
-      // Test for schema version 2
-      assertThat(schema.columns().size()).isEqualTo(14);
+  @Test
+  public void testGetSchema() {
+    long schemaVersion =
+        ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal();
+    for (long i = 1; i <= schemaVersion; i++) {
+      Schema schema = new CopyJobHistoryTableSchemaProvider(i).getSchema();
+      if (i == 1) {
+        // Test for schema version 1
+        assertThat(schema.columns().size()).isEqualTo(10);
+      } else if (i == 2) {
+        // Test for schema version 2
+        assertThat(schema.columns().size()).isEqualTo(14);
+      } else if (i == 3) {
+        // Test for schema version 3
+        assertThat(schema.columns().size()).isEqualTo(15);
+      } else {
+        Assertions.fail("Unexpected schema version: " + schemaVersion);
+      }
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(ints = {1, 2})
-  public void testGetSchemaEvolutionStep(int schemaVersion) {
-    SystemIcebergTableSchemaUpdateStep schemaEvolutionStep =
-        CopyJobHistoryTableSchemaProvider.getSchemaEvolutionStep(schemaVersion);
-    if (schemaVersion == 1) {
-      assertThat(schemaEvolutionStep.getAddedColumns()).isEmpty();
-      assertThat(schemaEvolutionStep.getChangedColumns()).isEmpty();
-      assertThat(schemaEvolutionStep.getDeletedColumns()).isEmpty();
-      assertThat(schemaEvolutionStep.getRenamedColumns()).isEmpty();
-      assertThat(schemaEvolutionStep.getSchemaVersion()).isEqualTo(1);
-    } else if (schemaVersion == 2) {
-      assertThat(schemaEvolutionStep.getAddedColumns().size()).isEqualTo(4);
-      assertThat(schemaEvolutionStep.getChangedColumns()).isEmpty();
-      assertThat(schemaEvolutionStep.getDeletedColumns()).isEmpty();
-      assertThat(schemaEvolutionStep.getRenamedColumns()).isEmpty();
-      assertThat(schemaEvolutionStep.getSchemaVersion()).isEqualTo(2);
+  @Test
+  public void testGetSchemaEvolutionStep() {
+    long schemaVersion =
+        ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal();
+    for (long i = 1; i <= schemaVersion; i++) {
+      SystemIcebergTableSchemaUpdateStep schemaEvolutionStep =
+          new CopyJobHistoryTableSchemaProvider(i).getSchemaEvolutionStep();
+      if (i == 1) {
+        assertThat(schemaEvolutionStep.getAddedColumns()).isEmpty();
+        assertThat(schemaEvolutionStep.getChangedColumns()).isEmpty();
+        assertThat(schemaEvolutionStep.getDeletedColumns()).isEmpty();
+        assertThat(schemaEvolutionStep.getRenamedColumns()).isEmpty();
+        assertThat(schemaEvolutionStep.getSchemaVersion()).isEqualTo(i);
+      } else if (i == 2) {
+        assertThat(schemaEvolutionStep.getAddedColumns().size()).isEqualTo(4);
+        assertThat(schemaEvolutionStep.getChangedColumns()).isEmpty();
+        assertThat(schemaEvolutionStep.getDeletedColumns()).isEmpty();
+        assertThat(schemaEvolutionStep.getRenamedColumns()).isEmpty();
+        assertThat(schemaEvolutionStep.getSchemaVersion()).isEqualTo(i);
+      } else if (i == 3) {
+        assertThat(schemaEvolutionStep.getAddedColumns().size()).isEqualTo(1);
+        assertThat(schemaEvolutionStep.getChangedColumns()).isEmpty();
+        assertThat(schemaEvolutionStep.getDeletedColumns()).isEmpty();
+        assertThat(schemaEvolutionStep.getRenamedColumns()).isEmpty();
+        assertThat(schemaEvolutionStep.getSchemaVersion()).isEqualTo(i);
+      } else {
+        Assertions.fail("Unexpected schema version: " + schemaVersion);
+      }
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(ints = {1, 2})
-  public void testGetPartitionEvolutionStep(int schemaVersion) {
-    SystemIcebergTablePartitionUpdateStep partitionEvolutionStep =
-        CopyJobHistoryTableSchemaProvider.getPartitionEvolutionStep(schemaVersion);
-    if (schemaVersion == 1) {
-      assertThat(partitionEvolutionStep.getPartitionTransforms().size()).isEqualTo(0);
-    } else if (schemaVersion == 2) {
-      assertThat(partitionEvolutionStep.getPartitionTransforms().size()).isEqualTo(1);
+  @Test
+  public void testGetPartitionSpec() {
+    long schemaVersion =
+        ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal();
+    for (long i = 1; i <= schemaVersion; i++) {
+      PartitionSpec partitionSpec = new CopyJobHistoryTableSchemaProvider(i).getPartitionSpec();
+      if (i == 1) {
+        assertThat(partitionSpec.isUnpartitioned()).isTrue();
+      } else if (i == 2) {
+        assertThat(partitionSpec.fields().size()).isEqualTo(1);
+      } else if (i == 3) {
+        assertThat(partitionSpec.fields().size()).isEqualTo(1);
+      } else {
+        Assertions.fail("Unexpected schema version: " + schemaVersion);
+      }
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(ints = {3})
-  public void testGetUnsupportedVersion(int unsupportedSchemaVersion) {
-    assertThrows(
-        "Unsupported copy_job_history table schema version. Currently supported schema version are: 1, 2",
-        UnsupportedOperationException.class,
-        () -> CopyJobHistoryTableSchemaProvider.getSchema(unsupportedSchemaVersion));
-    assertThrows(
-        "Unsupported copy_job_history table schema version. Currently supported schema version are: 1, 2",
-        UnsupportedOperationException.class,
-        () ->
-            CopyJobHistoryTableSchemaProvider.getPartitionEvolutionStep(unsupportedSchemaVersion));
+  @Test
+  public void testGetPartitionEvolutionStep() {
+    long schemaVersion =
+        ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal();
+    for (long i = 1; i <= schemaVersion; i++) {
+      SystemIcebergTablePartitionUpdateStep partitionEvolutionStep =
+          new CopyJobHistoryTableSchemaProvider(i).getPartitionEvolutionStep();
+      if (i == 1) {
+        assertThat(partitionEvolutionStep.getPartitionTransforms().size()).isEqualTo(0);
+      } else if (i == 2) {
+        assertThat(partitionEvolutionStep.getPartitionTransforms().size()).isEqualTo(1);
+      } else if (i == 3) {
+        assertThat(partitionEvolutionStep.getPartitionTransforms().size()).isEqualTo(0);
+      } else {
+        Assertions.fail("Unexpected schema version: " + schemaVersion);
+      }
+    }
   }
 
   @Test
-  public void testGetUserNameCol() {
-    String userNameColName = CopyJobHistoryTableSchemaProvider.getUserNameColName();
-    assertThat(userNameColName).isEqualTo("user_name");
-  }
-
-  @Test
-  public void testGetJobIdCol() {
-    String jobIdColName = CopyJobHistoryTableSchemaProvider.getJobIdColName();
-    assertThat(jobIdColName).isEqualTo("job_id");
-  }
-
-  @Test
-  public void testGetTableNameCol() {
-    String tableNameColName = CopyJobHistoryTableSchemaProvider.getTableNameColName();
-    assertThat(tableNameColName).isEqualTo("table_name");
-  }
-
-  @Test
-  public void testGetCopyOptionsCol() {
-    String copyOptionsColName = CopyJobHistoryTableSchemaProvider.getCopyOptionsColName();
-    assertThat(copyOptionsColName).isEqualTo("copy_options");
-  }
-
-  @Test
-  public void testGetStorageLocationCol() {
-    String storageLocationColName = CopyJobHistoryTableSchemaProvider.getStorageLocationColName();
-    assertThat(storageLocationColName).isEqualTo("storage_location");
-  }
-
-  @Test
-  public void testGetFileFormatCol() {
-    String fileFormatColName = CopyJobHistoryTableSchemaProvider.getFileFormatColName();
-    assertThat(fileFormatColName).isEqualTo("file_format");
-  }
-
-  @Test
-  public void testGetBaseSnapshotCol() {
-    String baseSnapshotIdColName = CopyJobHistoryTableSchemaProvider.getBaseSnapshotIdColName();
-    assertThat(baseSnapshotIdColName).isEqualTo("base_snapshot_id");
-  }
-
-  @Test
-  public void testGetExecutedAtCol() {
-    String executedAtColName = CopyJobHistoryTableSchemaProvider.getExecutedAtColName();
-    assertThat(executedAtColName).isEqualTo("executed_at");
+  public void testGetUnsupportedVersion() {
+    long unsupportedSchemaVersion =
+        ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal() + 1;
+    UnsupportedOperationException exception =
+        assertThrows(
+            UnsupportedOperationException.class,
+            () -> new CopyJobHistoryTableSchemaProvider(unsupportedSchemaVersion));
+    assertThat(exception.getMessage())
+        .contains(
+            "Unsupported copy_job_history schema version: "
+                + unsupportedSchemaVersion
+                + ". Currently supported schema versions are: [1, 2, 3]");
   }
 }

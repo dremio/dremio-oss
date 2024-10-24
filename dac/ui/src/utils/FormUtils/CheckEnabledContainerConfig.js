@@ -28,13 +28,13 @@ export default class CheckEnabledContainerConfig extends FormElementConfig {
         config.container =
           SourceFormJsonPolicy.joinConfigsAndConvertElementToObj(
             config.container,
-            functionalElements
+            functionalElements,
           );
       } else {
         // container is a section
         config.container = new FormSectionConfig(
           config.container,
-          functionalElements
+          functionalElements,
         );
       }
     }
@@ -58,7 +58,7 @@ export default class CheckEnabledContainerConfig extends FormElementConfig {
     initValues = FormUtils.addInitValue(
       initValues,
       elementConfig.propName,
-      elementConfig.checkValue
+      elementConfig.checkValue,
     );
     return elementConfig.container.addInitValues(initValues);
   }

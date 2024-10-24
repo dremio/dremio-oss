@@ -29,7 +29,7 @@ const commonProps = {
 describe("#getInitialSpacesContent()", () => {
   it("have no spaces", () => {
     const instance = shallow(
-      <SpacesSection {...commonProps} spaces={Immutable.fromJS([])} />
+      <SpacesSection {...commonProps} spaces={Immutable.fromJS([])} />,
     ).instance();
     expect(instance.getInitialSpacesContent()).to.not.be.null;
   });

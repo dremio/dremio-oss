@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 //@ts-ignore
 import { IconButton } from "dremio-ui-lib";
-import Keys from "@app/constants/Keys.json";
+import Keys from "#oss/constants/Keys.json";
 import { DialogContent, ModalContainer } from "dremio-ui-lib/components";
 
 import * as classes from "./JobProfileModal.module.less";
@@ -65,7 +65,7 @@ export default function JobProfileModal({
       <DialogContent
         className={clsx(
           "dremio-dialog-content--no-overflow",
-          classes["job-profile-content"]
+          classes["job-profile-content"],
         )}
         title={formatMessage({ id: "TopPanel.Profile" })}
         toolbar={

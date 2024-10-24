@@ -19,11 +19,11 @@ import {
   MODIFY_CURRENT_SQL,
   SET_PREVIOUS_AND_CURRENT_SQL,
   SET_QUERY_CONTEXT,
-} from "@app/actions/explore/view";
-import { store } from "@app/store/store";
-import { selectActiveScript } from "@app/components/SQLScripts/sqlScriptsUtils";
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+} from "#oss/actions/explore/view";
+import { store } from "#oss/store/store";
+import { selectActiveScript } from "#oss/components/SQLScripts/sqlScriptsUtils";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { SQLRUNNER_TABS_UI } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 import { throttle, isEqual } from "lodash";
 
 export const scriptReplaceSideEffect = async (script) => {

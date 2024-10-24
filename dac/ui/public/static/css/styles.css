@@ -86,7 +86,7 @@ h3 {
 }
 
 .panel-heading .panel-title a.collapsed {
-  background: #f3f3f3;
+  background: var(--fill--secondary);
 }
 
 .panel-heading .panel-title a::before {

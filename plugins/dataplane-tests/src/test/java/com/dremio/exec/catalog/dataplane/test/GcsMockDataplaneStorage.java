@@ -49,7 +49,7 @@ import org.apache.iceberg.io.FileIO;
 
 public class GcsMockDataplaneStorage implements DataplaneStorage {
 
-  private static final String TESTING_PROJECT_ID = "gcsTestProjectId";
+  protected static final String TESTING_PROJECT_ID = "gcsTestProjectId";
 
   private static Storage gcsClient;
   private static FakeGcsServer gcsMockServer;
@@ -141,7 +141,7 @@ public class GcsMockDataplaneStorage implements DataplaneStorage {
   }
 
   @Override
-  public NessiePluginConfig preparePluginConfig(
+  public NessiePluginConfig prepareNessiePluginConfig(
       BucketSelection bucketSelection, String nessieEndpoint) {
     NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
     nessiePluginConfig.nessieEndpoint = nessieEndpoint;
@@ -198,7 +198,7 @@ public class GcsMockDataplaneStorage implements DataplaneStorage {
     return "gs://" + getBucketName(PRIMARY_BUCKET);
   }
 
-  private String getGcsMockServerUrl() {
+  protected String getGcsMockServerUrl() {
     return "http://localhost:" + getPort();
   }
 

@@ -41,8 +41,6 @@ import com.dremio.connector.metadata.options.MetadataVerifyRequest;
 import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.connector.metadata.options.VerifyAppendOnlyRequest;
 import com.dremio.connector.metadata.options.VerifyDataModifiedRequest;
-import com.dremio.context.RequestContext;
-import com.dremio.context.UserContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
@@ -388,13 +386,10 @@ public final class CatalogUtil {
         CatalogUtil.resolveVersionContext(catalog, source, versionContext);
     VersionedPlugin versionedPlugin = catalog.getSource(source);
     List<String> versionedTableKey = tableNamespaceKey.getPathWithoutRoot();
-    // Run as System User, and not as running User, to check that the table exists.
     String retrievedContentId;
+    // Run as System User, and not as running User, to check that the table exists.
     try {
-      retrievedContentId =
-          RequestContext.current()
-              .with(UserContext.CTX_KEY, UserContext.SYSTEM_USER_CONTEXT)
-              .call(() -> versionedPlugin.getContentId(versionedTableKey, resolvedVersionContext));
+      retrievedContentId = versionedPlugin.getContentId(versionedTableKey, resolvedVersionContext);
     } catch (Exception e) {
       LOGGER.warn("Failed to get content id for {}", id, e);
       // TODO: DX-68489: Investigate proper exception handling in CatalogUtil

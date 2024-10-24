@@ -704,7 +704,20 @@ public class EvaluationVisitor {
         ValueVectorWriteExpression e, ClassGenerator<?> generator) {
 
       final LogicalExpression child = e.getChild();
+
+      // track number of error contexts corresponding to this column's evaluation
+      int startErrorContextCount = functionContext.getFunctionErrorContextSize();
       final HoldingContainer inputContainer = child.accept(this, generator);
+      int endErrorContextCount = functionContext.getFunctionErrorContextSize();
+
+      // Traverse the error context objects created in the scope of the current
+      // ValueVectorWriteExpression (aka the current column's expression tree) and register the
+      // fieldID of this column to each error context instance
+      for (int i = startErrorContextCount; i < endErrorContextCount; ++i) {
+        functionContext
+            .getFunctionErrorContext(i)
+            .registerOutputFieldId(e.getFieldId().getFieldIds()[0]);
+      }
 
       JBlock block = generator.getEvalBlock();
       JExpression outIndex = generator.getMappingSet().getValueWriteIndex();

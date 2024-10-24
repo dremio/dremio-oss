@@ -48,7 +48,7 @@ describe("explore dataset reducer", () => {
       payload: "lallalallallalalla",
     });
     expect(result.getIn(["fullCell", "value"])).to.be.equal(
-      "lallalallallalalla"
+      "lallalallallalalla",
     );
   });
 });

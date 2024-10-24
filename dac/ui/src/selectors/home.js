@@ -16,18 +16,18 @@
 import { createSelector } from "reselect";
 import invariant from "invariant";
 import { getUserName } from "selectors/account";
-import * as fromWiki from "@app/reducers/home/wiki";
-import { isPinned } from "@app/reducers/home/pinnedEntities";
+import * as fromWiki from "#oss/reducers/home/wiki";
+import { isPinned } from "#oss/reducers/home/pinnedEntities";
 import { humanSorter } from "utils/sort";
-import * as fromContent from "@app/reducers/home/content";
-import { getLocation } from "@app/selectors/routing";
+import * as fromContent from "#oss/reducers/home/content";
+import { getLocation } from "#oss/selectors/routing";
 import {
   getEntityType as getEntityTypeFromPath,
   constructFullPath,
-} from "@app/utils/pathUtils";
-import { ENTITY_TYPES } from "@app/constants/Constants";
-import { generateEnumFromList } from "@app/utils/enumUtils";
-import { getEntity } from "@app/selectors/resources";
+} from "#oss/utils/pathUtils";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
+import { generateEnumFromList } from "#oss/utils/enumUtils";
+import { getEntity } from "#oss/selectors/resources";
 
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
@@ -62,7 +62,7 @@ export function getHomeForCurrentUser(state) {
 export const getNormalizedEntityPath = (state) =>
   getNormalizedEntityPathByUrl(
     rmProjectBase(getLocation(state).pathname) || "/",
-    getUserName(state)
+    getUserName(state),
   );
 
 export const getNormalizedEntityPathByUrl = (url, currentUserName) => {
@@ -83,7 +83,7 @@ const wikiSelector = (state) => homeSelector(state).wiki;
 export const isWikiPresent = (state) =>
   !!fromWiki.getWiki(
     wikiSelector(state),
-    fromContent.getEntityId(contentSelector(state))
+    fromContent.getEntityId(contentSelector(state)),
   );
 export const isWikiLoaded = (state, entityId) =>
   fromWiki.isWikiLoaded(wikiSelector(state), entityId);
@@ -131,7 +131,7 @@ export const getSortedResourceSelector = (resourceSelectorFn, isV3Api) =>
     [resourceSelectorFn, getPinnedEntitiesState],
     (spaces, pinnedEntitiesState) => {
       return getSortedResource(spaces, pinnedEntitiesState, isV3Api);
-    }
+    },
   );
 
 export const addPinStateToList = (listSelector) =>
@@ -141,7 +141,7 @@ export const addPinStateToList = (listSelector) =>
       invariant(
         listOrMap instanceof Immutable.List ||
           listOrMap instanceof Immutable.Map,
-        "list must be of type Immutable.List or Immutable.Map"
+        "list must be of type Immutable.List or Immutable.Map",
       );
       return listOrMap
         .map((item) => {
@@ -150,7 +150,7 @@ export const addPinStateToList = (listSelector) =>
           });
         })
         .toList();
-    }
+    },
   );
 
 function getSpacesImpl(state) {
@@ -160,8 +160,8 @@ function getSpacesImpl(state) {
 
 export const getSpaces = addPinStateToList(
   createSelector(getSpacesImpl, (spaceMap) =>
-    spaceMap.filter((space) => space.get("containerType") === "SPACE")
-  )
+    spaceMap.filter((space) => space.get("containerType") === "SPACE"),
+  ),
 );
 
 const getFromOptional = (obj, getterFn, defaultValue = null) => {
@@ -207,7 +207,7 @@ export const getSpaceNames = (state) =>
 export const getSortedSpaces = getSortedResourceSelector(getSpaces, true);
 
 export const getSources = addPinStateToList((state) =>
-  state.resources.entities.get("source")
+  state.resources.entities.get("source"),
 );
 
 export const getSourceMap = (state) => state.resources.entities.get("source");
@@ -283,7 +283,7 @@ export const getHomeContents = (state) =>
 const getRootType = (fullPathList) => {
   invariant(
     fullPathList.length > 0,
-    "fullPathList must contain at least one element"
+    "fullPathList must contain at least one element",
   );
   // home space path has a first element of following format '@{user_name}'. Sources could not start
   // from '@'.
@@ -307,11 +307,11 @@ const supportedOperations = generateEnumFromList([
 const buildOperationUrl = (fullPathList, operation) => {
   invariant(
     fullPathList.length > 1,
-    "fullPathList must contain at least 2 elements: root source or home space and file/folder name"
+    "fullPathList must contain at least 2 elements: root source or home space and file/folder name",
   );
   invariant(
     !!supportedOperations[operation],
-    `not supported operation: ${operation}`
+    `not supported operation: ${operation}`,
   );
   return (
     "/" +
@@ -334,7 +334,7 @@ const buildOperationUrl = (fullPathList, operation) => {
 export const getCurrentFormatUrl = (fullPathList, isFolder) => {
   return buildOperationUrl(
     fullPathList,
-    isFolder ? "folder_format" : "file_format"
+    isFolder ? "folder_format" : "file_format",
   );
 };
 
@@ -353,7 +353,7 @@ export const getSaveFormatUrl = getCurrentFormatUrl;
 export const getFormatPreviewUrl = (fullPathList, isFolder) => {
   return buildOperationUrl(
     fullPathList,
-    isFolder ? "folder_preview" : "file_preview"
+    isFolder ? "folder_preview" : "file_preview",
   );
 };
 
@@ -367,7 +367,7 @@ export const getFormatPreviewUrl = (fullPathList, isFolder) => {
 export const getQueryUrl = (fullPathList) => {
   invariant(
     fullPathList.length > 1,
-    "fullPathList must contain at least 2 elements: root source or home space and file/folder name"
+    "fullPathList must contain at least 2 elements: root source or home space and file/folder name",
   );
   return addProjectBase(
     "/" +
@@ -377,7 +377,7 @@ export const getQueryUrl = (fullPathList) => {
         constructFullPath(fullPathList.slice(1)),
       ]
         .map(encodeURIComponent)
-        .join("/")
+        .join("/"),
   );
 };
 
@@ -386,7 +386,7 @@ export const getQueryUrl = (fullPathList) => {
  * Evaluates entity type from redux store, by checking whether id is presented in space, source list
  * and return 'home' as a type if entity is not a space or source
  * @param {string} entityId
- * @returns {ENTITY_TYPES} - on of the following types: home, space, source
+ * @returns {keyof ENTITY_TYPES} - on of the following types: home, space, source
  */
 export const getRootEntityTypeByIdV3 = (state, entityId) => {
   if (entityId) {

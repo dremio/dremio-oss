@@ -17,7 +17,7 @@ import { RSAA } from "redux-api-middleware";
 
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import userSchema from "schemas/user";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 const USER_GET_START = "USER_GET_START";
 const USER_GET_SUCCESS = "USER_GET_SUCCESS";
@@ -36,7 +36,7 @@ function fetchUser(value, meta = {}) {
         schemaUtils.getSuccessActionTypeWithSchema(
           USER_GET_SUCCESS,
           userSchema,
-          meta
+          meta,
         ),
         { type: USER_GET_FAILURE, meta },
       ],

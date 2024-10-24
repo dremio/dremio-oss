@@ -71,21 +71,25 @@ public class TestSupportService extends BaseTestServer {
 
   @Test
   public void supportDownload() throws Exception {
-    InitialPreviewResponse preview = createDatasetFromParent("cp.\"tpch/supplier.parquet\"");
+    InitialPreviewResponse preview =
+        getHttpClient().getDatasetApi().createDatasetFromParent("cp.\"tpch/supplier.parquet\"");
     String url =
         preview.getPaginationUrl().replace("/job/", "/support/").replace("/data", "" + "/download");
 
-    Response response = getBuilder(url).post(null);
+    Response response = getHttpClient().request(c -> c.getAPIv2().path(url)).post(null);
     assertEquals(Status.OK.getStatusCode(), response.getStatus());
   }
 
   @Test
   public void successSupport() throws Exception {
-    InitialPreviewResponse preview = createDatasetFromParent("cp.\"tpch/supplier.parquet\"");
+    InitialPreviewResponse preview =
+        getHttpClient().getDatasetApi().createDatasetFromParent("cp.\"tpch/supplier.parquet\"");
     String url = preview.getPaginationUrl().replace("/job/", "/support/").replace("/data", "");
 
     SupportResponse response =
-        expectSuccess(getBuilder(url).buildPost(null), SupportResponse.class);
+        expectSuccess(
+            getHttpClient().request(c -> c.getAPIv2().path(url)).buildPost(null),
+            SupportResponse.class);
 
     // We really don't want to actually upload the S3 in tests, so it fails after creating the
     // bundle.
@@ -105,7 +109,10 @@ public class TestSupportService extends BaseTestServer {
     String badFileName = "fake_file_one";
     final Invocation invocation =
         getBuilder(
-                getAPIv2().path("datasets/new_untitled_sql").queryParam("newVersion", newVersion()))
+                getHttpClient()
+                    .getAPIv2()
+                    .path("datasets/new_untitled_sql")
+                    .queryParam("newVersion", newVersion()))
             .buildPost(
                 Entity.entity(
                     new CreateFromSQL("select * from " + badFileName, null),
@@ -123,7 +130,9 @@ public class TestSupportService extends BaseTestServer {
     JobSummary job = jobs.get(0);
     String url = "/support/" + job.getJobId().getId();
     SupportResponse response =
-        expectSuccess(getBuilder(url).buildPost(null), SupportResponse.class);
+        expectSuccess(
+            getHttpClient().request(c -> c.getAPIv2().path(url)).buildPost(null),
+            SupportResponse.class);
     assertTrue(response.getUrl().contains("Unable to upload diagnostics"));
     assertTrue("Failure including logs.", response.isIncludesLogs());
   }

@@ -28,7 +28,6 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableAddColumns;
-import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import java.util.Collections;
@@ -36,7 +35,7 @@ import java.util.List;
 import org.apache.calcite.sql.SqlNode;
 
 /** Adds columns to the table specified using {@link SqlAlterTableAddColumns} */
-public class AddColumnsHandler extends SimpleDirectHandler {
+public class AddColumnsHandler extends SimpleDirectHandlerWithValidator {
   private final Catalog catalog;
   private final SqlHandlerConfig config;
 
@@ -72,7 +71,7 @@ public class AddColumnsHandler extends SimpleDirectHandler {
             .tableVersionContext(TableVersionContext.of(sourceVersion))
             .build();
 
-    catalog.validatePrivilege(resolvedPath, SqlGrant.Privilege.ALTER);
+    validate(resolvedPath, sourceVersion);
 
     DremioTable table = catalog.getTableNoResolve(catalogEntityKey);
 

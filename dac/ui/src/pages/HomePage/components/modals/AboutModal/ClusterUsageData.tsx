@@ -24,13 +24,13 @@ import {
   useDailyJobStats,
   useJobsAndUsers,
   useUserStats,
-} from "@app/exports/providers/AboutModalProviders";
-import { isSmartFetchLoading } from "@app/utils/isSmartFetchLoading";
-import { USE_NEW_STATS_API } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { useSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { addNotification } from "@app/actions/notification";
-import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
-import moment from "@app/utils/dayjs";
+} from "#oss/exports/providers/AboutModalProviders";
+import { isSmartFetchLoading } from "#oss/utils/isSmartFetchLoading";
+import { USE_NEW_STATS_API } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import { useSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { addNotification } from "#oss/actions/notification";
+import { MSG_CLEAR_DELAY_SEC } from "#oss/constants/Constants";
+import moment from "#oss/utils/dayjs";
 
 import * as classes from "./AboutModal.module.less";
 
@@ -42,9 +42,8 @@ type ClusterUsageDataProps = {
 const { t } = getIntlContext();
 
 function ClusterUsageData({ state, dispatch }: ClusterUsageDataProps) {
-  const [usingNewStatsAPIs, isSupportFlagLoading] = useSupportFlag(
-    USE_NEW_STATS_API
-  );
+  const [usingNewStatsAPIs, isSupportFlagLoading] =
+    useSupportFlag(USE_NEW_STATS_API);
   const { value: dailyJobStats, status: dailyJobStatsStatus } =
     useDailyJobStats(!state.alreadyFetchedMetrics);
   const {
@@ -53,7 +52,7 @@ function ClusterUsageData({ state, dispatch }: ClusterUsageDataProps) {
     error: jobsAndUsersErrors,
   } = useJobsAndUsers(!state.alreadyFetchedMetrics);
   const { value: userStats, status: userStatsStatus } = useUserStats(
-    !state.alreadyFetchedMetrics
+    !state.alreadyFetchedMetrics,
   );
 
   const reduxDispatch = useDispatch();
@@ -95,7 +94,7 @@ function ClusterUsageData({ state, dispatch }: ClusterUsageDataProps) {
           Object.assign(obj, {
             [item.date]: { jobCount: item.total, uniqueUsersCount: 0 },
           }),
-        {} as Record<string, { jobCount: number; uniqueUsersCount: number }>
+        {} as Record<string, { jobCount: number; uniqueUsersCount: number }>,
       );
 
       // no reason to update the object if user stats don't exist
@@ -109,7 +108,7 @@ function ClusterUsageData({ state, dispatch }: ClusterUsageDataProps) {
                 uniqueUsersCount: item.total,
               },
             }),
-          { ...initialStats }
+          { ...initialStats },
         );
       } else {
         return initialStats;
@@ -123,7 +122,7 @@ function ClusterUsageData({ state, dispatch }: ClusterUsageDataProps) {
               uniqueUsersCount: item.uniqueUsersCount,
             },
           }),
-        {}
+        {},
       );
     }
   }, [
@@ -140,8 +139,8 @@ function ClusterUsageData({ state, dispatch }: ClusterUsageDataProps) {
         addNotification(
           jobsAndUsersErrors.responseBody.errorMessage,
           "error",
-          MSG_CLEAR_DELAY_SEC
-        )
+          MSG_CLEAR_DELAY_SEC,
+        ),
       );
     }
   }, [jobsAndUsersErrors?.responseBody, reduxDispatch]);

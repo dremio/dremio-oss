@@ -24,6 +24,7 @@ import com.dremio.exec.record.FragmentWritableBatch;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
+import com.dremio.sabot.exec.DynamicLoadRoutingMessage;
 import com.dremio.sabot.exec.FragmentExecutors;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.google.common.base.Preconditions;
@@ -161,6 +162,19 @@ public class InProcessExecTunnel implements ExecTunnel {
           buf.getReferenceManager().release();
         }
       }
+    }
+  }
+
+  @Override
+  public void sendDLRMessage(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, DynamicLoadRoutingMessage message) {
+    try {
+      Preconditions.checkNotNull(message);
+
+      fragmentExecutors.handle(message);
+      outcomeListener.success(Acks.OK, null);
+    } catch (Exception e) {
+      outcomeListener.failed(new RpcException(e));
     }
   }
 

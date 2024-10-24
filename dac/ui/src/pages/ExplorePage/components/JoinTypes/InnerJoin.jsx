@@ -29,7 +29,7 @@ import {
   MIXED,
   ANY,
   STRUCT,
-} from "@app/constants/DataTypes";
+} from "#oss/constants/DataTypes";
 import JoinColumnMenu from "./components/JoinColumnMenu";
 import JoinDragArea from "./components/JoinDragArea";
 import { ddList as ddListCls, ddItem as ddItemCls } from "./InnerJoin.less";
@@ -298,7 +298,7 @@ const styles = {
   },
   inner: {
     width: "100%",
-    backgroundColor: "#fff",
+    backgroundColor: "var(--fill--primary)",
     justifyContent: "space-between",
     display: "flex",
     margin: "3px 10px",
@@ -311,7 +311,7 @@ const styles = {
     display: "flex",
     margin: "0 10px",
     alignItems: "center",
-    borderBottom: `2px solid var(--color--neutral--50)`,
+    borderBottom: `2px solid var(--border--neutral)`,
     justifyContent: "center",
     backgroundColor: "var(--fill--brand)",
     padding: "0 10px",
@@ -322,7 +322,7 @@ const styles = {
     cursor: "pointer",
   },
   rightMenu: {
-    borderLeft: `2px solid var(--color--neutral--50)`,
+    borderLeft: `2px solid var(--border--neutral)`,
   },
   dragWrapStyles: {
     display: "flex",

@@ -17,7 +17,7 @@ import { PureComponent, Component } from "react";
 import PropTypes from "prop-types";
 import { IconButton } from "dremio-ui-lib/components";
 import { wikiButton } from "./WikiButton.less";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 export class WikiButtonView extends PureComponent {
   static propTypes = {

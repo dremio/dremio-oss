@@ -25,23 +25,23 @@ import EllipsedText from "components/EllipsedText";
 
 import { SearchField } from "components/Fields";
 import StatefulTableViewer from "components/StatefulTableViewer";
-import { SortDirection } from "@app/components/Table/TableUtils";
+import { SortDirection } from "#oss/components/Table/TableUtils";
 import {
   Row,
   GridColumn,
   SidebarColumn,
-} from "@app/pages/HomePage/components/Columns";
+} from "#oss/pages/HomePage/components/Columns";
 
-import { isVersionedSource } from "@app/utils/sourceUtils";
+import { isVersionedSource } from "@inject/utils/sourceUtils";
 import EmptyStateContainer from "./EmptyStateContainer";
 import { constructFullPath } from "utils/pathUtils";
 import { tableStyles } from "../tableStyles";
 import { IconButton } from "dremio-ui-lib/components";
-import { getIconType } from "@app/components/DatasetSummary/datasetSummaryUtils";
+import { getIconType } from "#oss/components/DatasetSummary/datasetSummaryUtils";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import { PureEntityIcon } from "./EntityIcon";
-import { ENTITY_TYPES } from "@app/constants/Constants";
-import { getEntityTypeFromObject } from "@app/utils/entity-utils";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
+import { getEntityTypeFromObject } from "#oss/utils/entity-utils";
 import { getExtraSummaryPanelIcon } from "dyn-load/utils/summary-utils";
 
 import {
@@ -144,12 +144,12 @@ export class BrowseTable extends Component {
       renderTitleExtraContent,
       item,
       rightSidebarIcon,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       panelItem,
       ...passAlongProps
     } = this.props;
     const versionContext = getVersionContextFromId(
-      panelItem?.get("entityId") || panelItem?.get("id")
+      panelItem?.get("entityId") || panelItem?.get("id"),
     );
     const panelName =
       panelItem?.get("name") || panelItem?.toJS()?.fullPath?.pop();
@@ -157,18 +157,18 @@ export class BrowseTable extends Component {
 
     invariant(
       !title || typeof title === "string" || title.props.fullPath,
-      "BrowseTable title must be string or BreadCrumbs."
+      "BrowseTable title must be string or BreadCrumbs.",
     );
 
     const resetScrollTop = Boolean(
       window.navigator.userAgent.toLowerCase().includes("firefox") &&
-        this.state.filter
+        this.state.filter,
     ); //it's needed for DX-7140
 
     if (tableData.size) {
       passAlongProps.noDataText = intl.formatMessage(
         { id: "Search.BrowseTable" },
-        { filter: this.state.filter }
+        { filter: this.state.filter },
       );
     }
 
@@ -202,7 +202,7 @@ export class BrowseTable extends Component {
                               LRE +
                                 constructFullPath(
                                   title.props.fullPath.toJS(),
-                                  true
+                                  true,
                                 )
                         }
                       >
@@ -272,7 +272,7 @@ export class BrowseTable extends Component {
                           entityType={panelItem.get("entityType")}
                           sourceStatus={panelItem?.getIn(
                             ["state", "status"],
-                            null
+                            null,
                           )}
                           sourceType={panelItem?.get("type")}
                           style={{ width: 26, height: 26 }}
@@ -281,7 +281,7 @@ export class BrowseTable extends Component {
                         <dremio-icon
                           name={`entities/${getIconType(
                             getEntityTypeFromObject(panelItem),
-                            !!versionContext
+                            !!versionContext,
                           )}`}
                           key={panelName} // <use> href doesn't always update
                           style={{ width: 26, height: 26 }}

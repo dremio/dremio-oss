@@ -40,7 +40,7 @@ describe("ModuleStateView", () => {
 
     expect(initState).have.been.calledWith(
       commonProps.moduleKey,
-      commonProps.reducer
+      commonProps.reducer,
     );
   });
 
@@ -59,7 +59,7 @@ describe("ModuleStateView", () => {
 
   it("renders children if isStateInitialized = false", () => {
     const wrapper = shallow(
-      <ModuleStateView {...commonProps} isStateInitialized={false} />
+      <ModuleStateView {...commonProps} isStateInitialized={false} />,
     );
     expect(wrapper.find(`#${childId}`)).have.length(0);
   });
@@ -76,7 +76,7 @@ describe("ModuleStateView", () => {
     expect(resetState.lastCall).have.been.calledWith(commonProps.moduleKey);
     expect(initState.lastCall).have.been.calledWith(
       newKey,
-      commonProps.reducer
+      commonProps.reducer,
     );
   });
 
@@ -92,7 +92,7 @@ describe("ModuleStateView", () => {
     expect(resetState.lastCall).have.been.calledWith(commonProps.moduleKey);
     expect(initState.lastCall).have.been.calledWith(
       commonProps.moduleKey,
-      newReducer
+      newReducer,
     );
   });
 });

@@ -86,7 +86,7 @@ export default class DragSourceWrap extends Component {
       // dataType must be 'text' for IE
       ev.dataTransfer.setData(
         "text",
-        JSON.stringify(this.props.nativeDragData)
+        JSON.stringify(this.props.nativeDragData),
       );
     }
   }

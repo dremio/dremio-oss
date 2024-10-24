@@ -32,6 +32,8 @@ import { css } from "./build-utils/plugins/css";
 import { copy } from "./build-utils/plugins/copy";
 import { tags } from "./build-utils/plugins/tags";
 import webpack from "webpack";
+import { dynLoadPath } from "./build-utils/dyn-load";
+import MonacoWebpackPlugin from "monaco-editor-webpack-plugin";
 
 const dcsPath = process.env.DREMIO_DCS_LOADER_PATH
   ? path.resolve(__dirname, process.env.DREMIO_DCS_LOADER_PATH)
@@ -56,10 +58,10 @@ const config = {
     app: [
       path.resolve(
         process.env.DREMIO_DCS_LOADER_PATH ||
-        process.env.DREMIO_INJECTION_PATH ||
-        process.env.DREMIO_DYN_LOADER_PATH ||
-        path.join(__dirname, "src"),
-        "index.tsx"
+          process.env.DREMIO_INJECTION_PATH ||
+          process.env.DREMIO_DYN_LOADER_PATH ||
+          path.join(__dirname, "src"),
+        "index.tsx",
       ),
     ],
   },
@@ -80,16 +82,20 @@ const config = {
     define,
     copy,
     sentryPlugin,
-    new webpack.ProgressPlugin()
+    new webpack.ProgressPlugin(),
+    new MonacoWebpackPlugin({
+      languages: [],
+    }),
   ].filter(Boolean),
 
   resolve: getResolve({
     additionalAliases: {
       ...(dcsPath
         ? {
-          "@dcs": dcsPath,
-        }
+            "#dc": dcsPath,
+          }
         : {}),
+      "#ee": dynLoadPath,
     },
   }),
 };

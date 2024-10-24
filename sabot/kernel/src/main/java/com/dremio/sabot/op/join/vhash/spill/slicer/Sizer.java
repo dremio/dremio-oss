@@ -16,6 +16,8 @@
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.util.RoundUtil;
 import java.util.List;
@@ -25,6 +27,7 @@ import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.ZeroVector;
 import org.apache.arrow.vector.complex.DenseUnionVector;
 import org.apache.arrow.vector.complex.FixedSizeListVector;
 import org.apache.arrow.vector.complex.ListVector;
@@ -62,6 +65,15 @@ public interface Sizer {
    * @return the size in bits.
    */
   int getEstimatedRecordSizeInBits();
+
+  /**
+   * Get data length of certain number of entries starting from a given index
+   *
+   * @param startIndex start offset from where caller wants the data length for
+   * @param numberOfEntries number of entries for which caller wants the length for
+   * @return
+   */
+  int getDataLengthFromIndex(int startIndex, int numberOfEntries);
 
   /**
    * Get a copier that will copy data to a new set of vectors. As part of the creation of this
@@ -148,11 +160,24 @@ public interface Sizer {
       return new DenseUnionSizer((DenseUnionVector) vector);
     } else if (vector instanceof UnionVector) {
       return new SparseUnionSizer((UnionVector) vector);
+    } else if (vector instanceof ZeroVector) {
+      return new ZeroSizer((ZeroVector) vector);
     } else {
       throw new UnsupportedOperationException(
           String.format(
               "Vectors for field %s of type %s not yet supported.",
               vector.getField().getName(), CompleteType.fromField(vector.getField()).toString()));
     }
+  }
+
+  static int getAverageRowSize(VectorAccessible vectorContainer, int recordCount) {
+    if (recordCount < 1) {
+      return 0;
+    }
+    int totalVectorSize = 0;
+    for (VectorWrapper<?> vectorWrapper : vectorContainer) {
+      totalVectorSize += (vectorWrapper.getValueVector().getBufferSize());
+    }
+    return totalVectorSize / recordCount;
   }
 }

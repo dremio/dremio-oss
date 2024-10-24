@@ -18,7 +18,7 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { Tooltip } from "dremio-ui-lib";
 import { formatMessage } from "utils/locale";
-import { getIconPath } from "@app/utils/getIconPath";
+import { getIconPath } from "#oss/utils/getIconPath";
 
 export default class ReflectionIcon extends Component {
   static propTypes = {

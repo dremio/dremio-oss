@@ -19,11 +19,11 @@ import ApiUtils from "utils/apiUtils/apiUtils";
 
 import folderSchema from "schemas/folder";
 import schemaUtils from "utils/apiUtils/schemaUtils";
-import actionUtils from "@app/utils/actionUtils/actionUtils";
-import { sidebarMinWidth } from "@app/pages/HomePage/components/Columns.less";
-import * as schemas from "@app/schemas";
-import { APIV2Call } from "@app/core/APICall";
-import { getSonarContentsResponse } from "@app/exports/endpoints/SonarContents/getSonarContents";
+import actionUtils from "#oss/utils/actionUtils/actionUtils";
+import { sidebarMinWidth } from "#oss/pages/HomePage/components/Columns.less";
+import * as schemas from "#oss/schemas";
+import { APIV2Call } from "#oss/core/APICall";
+import { getSonarContentsResponse } from "#oss/exports/endpoints/SonarContents/getSonarContents";
 import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
 import { ApiError } from "redux-api-middleware";
 
@@ -40,7 +40,7 @@ function fetchConvertFolder({ folder, values, viewId }) {
   const meta = { viewId, invalidateViewIds: ["HomeContents"] };
 
   const apiCall = new APIV2Call().fullpath(
-    `${folder.getIn(["links", "format"])}`
+    `${folder.getIn(["links", "format"])}`,
   );
 
   return {
@@ -50,7 +50,7 @@ function fetchConvertFolder({ folder, values, viewId }) {
         schemaUtils.getSuccessActionTypeWithSchema(
           CONVERT_FOLDER_TO_DATASET_SUCCESS,
           folderSchema,
-          meta
+          meta,
         ),
         { type: CONVERT_FOLDER_TO_DATASET_FAILURE, meta },
       ],
@@ -84,11 +84,11 @@ function fetchConvertDataset(entity, viewId) {
   };
   const successMeta = { ...meta, success: true }; // doesn't invalidateViewIds without `success: true`
   const errorMessage = laDeprecated(
-    "There was an error removing the format for the folder."
+    "There was an error removing the format for the folder.",
   );
 
   const apiCall = new APIV2Call().fullpath(
-    entity.getIn(["links", "delete_format"])
+    entity.getIn(["links", "delete_format"]),
   );
 
   return {
@@ -98,7 +98,7 @@ function fetchConvertDataset(entity, viewId) {
         schemaUtils.getSuccessActionTypeWithSchema(
           CONVERT_DATASET_TO_FOLDER_SUCCESS,
           folderSchema,
-          successMeta
+          successMeta,
         ),
         {
           type: CONVERT_DATASET_TO_FOLDER_FAILURE,
@@ -166,7 +166,7 @@ export const loadWiki = (dispatch) => (entityId) => {
           const errorInfo = {
             errorMessage: await ApiUtils.getErrorMessage(
               laDeprecated("Wiki API returned an error"),
-              response
+              response,
             ),
             errorId: "" + Math.random(),
           };
@@ -175,7 +175,7 @@ export const loadWiki = (dispatch) => (entityId) => {
             ...errorInfo,
             ...commonActionProps,
           });
-        }
+        },
       )
       .catch((error) => error);
   });
@@ -216,7 +216,7 @@ export const loadHomeContent = (
   entityType,
   viewId,
   params,
-  abortController
+  abortController,
 ) => {
   const entitySchema = schemas[entityType];
   const meta = { viewId };
@@ -266,7 +266,7 @@ export const loadHomeContent = (
             params,
             entityType,
           },
-          reqInit
+          reqInit,
         )
           .then((res) => res.clone())
           .catch((e) => {
@@ -292,7 +292,7 @@ export const loadHomeContentWithAbort = (
   getDataUrl,
   entityType,
   viewId,
-  params
+  params,
 ) => {
   const controller = new AbortController();
   const rsaa = loadHomeContent(
@@ -300,7 +300,7 @@ export const loadHomeContentWithAbort = (
     entityType,
     viewId,
     params,
-    controller
+    controller,
   );
 
   return [controller, rsaa];

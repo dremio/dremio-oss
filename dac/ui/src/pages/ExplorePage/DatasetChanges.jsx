@@ -23,10 +23,10 @@ import {
   getDataset,
   getHistoryFromLocation,
   getExploreState,
-} from "@app/selectors/explore";
-import { isSqlChanged } from "@app/sagas/utils";
-import { isNewQueryUrl } from "@app/utils/explorePageTypeUtils";
-import { store } from "@app/store/store.js";
+} from "#oss/selectors/explore";
+import { isSqlChanged } from "#oss/sagas/utils";
+import { isNewQueryUrl } from "#oss/utils/explorePageTypeUtils";
+import { store } from "#oss/store/store.js";
 
 const mapStateToProps = (state, ownProps) => {
   const { location } = ownProps; // withRouter is required for this

@@ -19,7 +19,7 @@ import Immutable from "immutable";
 import { getReflectionUiStatus } from "utils/accelerationUtils";
 import { Tooltip } from "dremio-ui-lib";
 
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import "#oss/uiTheme/less/Acceleration/Acceleration.less";
 
 export default class Status extends Component {
   static propTypes = {

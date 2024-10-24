@@ -21,8 +21,8 @@ import schemaUtils from "utils/apiUtils/schemaUtils";
 import exploreUtils from "utils/explore/exploreUtils";
 
 import previewTableSchema from "schemas/previewTable";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
-import { APIV2Call } from "@app/core/APICall";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const TRANSFORM_PEEK_START = "TRANSFORM_PEEK_START";
 export const TRANSFORM_PEEK_SUCCESS = "TRANSFORM_PEEK_SUCCESS";
@@ -31,7 +31,7 @@ export const TRANSFORM_PEEK_FAILURE = "TRANSFORM_PEEK_FAILURE";
 export const transformPeek =
   (dataset, values, detailType, viewId, submitType) => (dispatch) =>
     dispatch(
-      transformPeekFetch(dataset, values, detailType, viewId, submitType)
+      transformPeekFetch(dataset, values, detailType, viewId, submitType),
     );
 
 function transformPeekFetch(dataset, values, detailType, viewId, submitType) {
@@ -51,7 +51,7 @@ function transformPeekFetch(dataset, values, detailType, viewId, submitType) {
           TRANSFORM_PEEK_SUCCESS,
           previewTableSchema,
           meta,
-          uiPropsForEntity
+          uiPropsForEntity,
         ),
         { type: TRANSFORM_PEEK_FAILURE, meta },
       ],
@@ -71,6 +71,6 @@ export const navigateToTransformPeek = (peekId) => (dispatch, getState) => {
     replace({
       ...location,
       state: { ...location.state, previewVersion: peekId },
-    })
+    }),
   );
 };

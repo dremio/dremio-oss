@@ -167,7 +167,7 @@ describe("ProvisioningPage", () => {
   describe("#handleEditProvision", () => {
     it("should call openEditProvisionModal", () => {
       const instance = shallow(
-        <ProvisioningPage {...commonProps} />
+        <ProvisioningPage {...commonProps} />,
       ).instance();
       instance.handleEditProvision(commonProps.provisions.get(0));
       expect(commonProps.openEditProvisionModal).to.be.calledWith("1", "YARN");
@@ -178,7 +178,7 @@ describe("ProvisioningPage", () => {
   describe("#handleStopProvision", () => {
     it("should show confirmation dialog before stop cluster", () => {
       const instance = shallow(
-        <ProvisioningPage {...commonProps} />
+        <ProvisioningPage {...commonProps} />,
       ).instance();
       instance.handleStopProvision(sinon.stub());
       expect(commonProps.showConfirmationDialog).to.be.called;

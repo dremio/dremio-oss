@@ -22,9 +22,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.store.dfs.WorkspaceConfig;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.users.SystemUser;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 import java.util.Map;
@@ -75,11 +72,6 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
       return;
     }
 
-    SourceConfig config =
-        getSabotContext()
-            .getNamespaceService(SystemUser.SYSTEM_USERNAME)
-            .getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
-    getCatalogService().getSystemUserCatalog().deleteSource(config);
     stopMiniDfsCluster();
   }
 

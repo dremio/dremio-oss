@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 import Immutable from "immutable";
-import { TEXT, MAP, LIST } from "@app/constants/DataTypes";
+import { TEXT, MAP, LIST } from "#oss/constants/DataTypes";
 import TransformView from "pages/ExplorePage/components/Transform/TransformView";
 import * as transformUtils from "./utils";
 
@@ -241,8 +241,8 @@ describe("Transform", () => {
           },
           transform,
           "dataset",
-          "index"
-        )
+          "index",
+        ),
       );
     });
   });
@@ -267,8 +267,8 @@ describe("Transform", () => {
           },
           transform,
           "dataset",
-          "index"
-        )
+          "index",
+        ),
       );
     });
   });
@@ -277,29 +277,29 @@ describe("Transform", () => {
     it('should return transformType if transformType is "split"', () => {
       expect(
         transformUtils.transformTypeURLMapper(
-          Immutable.fromJS({ transformType: "split", columnType: MAP })
-        )
+          Immutable.fromJS({ transformType: "split", columnType: MAP }),
+        ),
       ).to.equal("split");
     });
     it("should return transformType when columnType is undefined", () => {
       expect(
         transformUtils.transformTypeURLMapper(
-          Immutable.fromJS({ transformType: "other type" })
-        )
+          Immutable.fromJS({ transformType: "other type" }),
+        ),
       ).to.equal("other type");
     });
     it('should return transformType concat "_map" if columnType is MAP', () => {
       expect(
         transformUtils.transformTypeURLMapper(
-          Immutable.fromJS({ transformType: "type", columnType: MAP })
-        )
+          Immutable.fromJS({ transformType: "type", columnType: MAP }),
+        ),
       ).to.equal("type_map");
     });
     it('should return transformType concat "_list"  if columnType is LIST', () => {
       expect(
         transformUtils.transformTypeURLMapper(
-          Immutable.fromJS({ transformType: "type", columnType: LIST })
-        )
+          Immutable.fromJS({ transformType: "type", columnType: LIST }),
+        ),
       ).to.equal("type_list");
     });
   });

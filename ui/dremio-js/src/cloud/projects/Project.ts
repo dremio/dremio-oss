@@ -59,4 +59,12 @@ export class Project implements ProjectInterface {
   async delete() {
     return this.#apiMethods.delete(this.id);
   }
+
+  get settled() {
+    return (
+      this.state === "ACTIVE" ||
+      this.state === "ARCHIVED" ||
+      this.state === "INACTIVE"
+    );
+  }
 }

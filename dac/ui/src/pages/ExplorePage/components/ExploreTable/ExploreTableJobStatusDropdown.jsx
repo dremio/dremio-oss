@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import DropdownMenu from "@app/components/Menus/DropdownMenu";
-import { JobStatusMenu } from "@app/components/Menus/ExplorePage/JobStatusMenu";
+import DropdownMenu from "#oss/components/Menus/DropdownMenu";
+import { JobStatusMenu } from "#oss/components/Menus/ExplorePage/JobStatusMenu";
 import PropTypes from "prop-types";
 
 const ExploreTableJobStatusDropdown = ({

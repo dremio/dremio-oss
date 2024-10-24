@@ -1,0 +1,21 @@
+<svg id="interface/recenter-zoom" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
+    <title>Icon/Recenter</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="Icon/Recenter" sketch:type="MSArtboardGroup">
+            <g sketch:type="MSLayerGroup">
+                <g id="icon-box-24-copy-14" sketch:type="MSShapeGroup">
+                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                </g>
+                <g id="Group" transform="translate(3.500000, 2.500000)" sketch:type="MSShapeGroup">
+                    <path d="M12.3685826,9 C12.3685826,10.8602609 10.8604957,12.3683478 9.00023478,12.3683478 C7.1391913,12.3683478 5.63110435,10.8602609 5.63110435,9 C5.63110435,7.13973913 7.1391913,5.63165217 9.00023478,5.63165217 C10.8604957,5.63165217 12.3685826,7.13973913 12.3685826,9 L12.3685826,9 Z" id="Stroke-175" fill="#77818F"></path>
+                    <path d="M16.111487,9 C16.111487,12.927913 12.9278348,16.1115652 8.99992174,16.1115652 C5.0727913,16.1115652 1.88835652,12.927913 1.88835652,9 C1.88835652,5.07208696 5.0727913,1.88843478 8.99992174,1.88843478 C12.9278348,1.88843478 16.111487,5.07208696 16.111487,9 L16.111487,9 Z" id="Stroke-174" stroke="#77818F" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M9,0.391304348 L9,17.6086957" id="Stroke-176" stroke="#77818F" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M17.6086957,9 L0.391304348,9" id="Stroke-177" stroke="#77818F" stroke-linecap="round" stroke-linejoin="round"></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

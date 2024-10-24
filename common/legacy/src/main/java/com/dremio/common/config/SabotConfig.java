@@ -308,12 +308,11 @@ public class SabotConfig extends NestedConfig {
 
     // 2. Load per-module configuration files.
     final Collection<URL> urls = ClassPathScanner.getConfigURLs();
-    logString.append("\nIntermediate Configuration and Plugin files, in order of precedence:\n");
+    logString.append("Intermediate Configuration and Plugin files, in order of precedence:");
     for (URL url : urls) {
-      logString.append("\t- ").append(url).append("\n");
+      logString.append("\n\t- ").append(url);
       fallback = ConfigFactory.parseURL(url).withFallback(fallback);
     }
-    logString.append("\n");
 
     // 3. Load any specified overrides configuration file along with any
     //    overrides from JVM system properties (e.g., {-Dname=value").
@@ -322,23 +321,17 @@ public class SabotConfig extends NestedConfig {
     final URL overrideFileUrl =
         Thread.currentThread().getContextClassLoader().getResource(overrideFileResourcePathname);
     if (null != overrideFileUrl) {
-      logString.append("Override File: ").append(overrideFileUrl).append("\n");
+      logString.append("\nOverride File: ").append(overrideFileUrl);
     }
     Config effectiveConfig =
         ConfigFactory.load(overrideFileResourcePathname).withFallback(fallback);
 
     // 4. Apply any overriding properties.
     if (overriderProps != null) {
-      logString.append("Overridden Properties:\n");
+      logString.append("\nOverridden Properties:");
       for (Entry<Object, Object> entry : overriderProps.entrySet()) {
-        logString
-            .append("\t-")
-            .append(entry.getKey())
-            .append(" = ")
-            .append(entry.getValue())
-            .append("\n");
+        logString.append("\n\t- ").append(entry.getKey()).append(" = ").append(entry.getValue());
       }
-      logString.append("\n");
       effectiveConfig = ConfigFactory.parseProperties(overriderProps).withFallback(effectiveConfig);
     }
 
@@ -399,8 +392,7 @@ public class SabotConfig extends NestedConfig {
   public <T> T getInstanceOf(String location, Class<T> clazz) throws SabotConfigurationException {
     final Class<? extends T> c = getClassAt(location, clazz);
     try {
-      final T t = c.getDeclaredConstructor().newInstance();
-      return t;
+      return c.getDeclaredConstructor().newInstance();
     } catch (Exception ex) {
       throw new SabotConfigurationException(
           String.format(

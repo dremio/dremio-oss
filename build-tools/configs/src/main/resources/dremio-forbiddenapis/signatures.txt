@@ -1,0 +1,108 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#SecretRefUnsafe
+com.dremio.exec.catalog.conf.SecretRefUnsafe @ Use com.dremio.exec.catalog.conf.SecretRefImpl instead
+
+# Protostuff
+io.protostuff.JsonIOUtil @ Use io.protostuff.JsonIOUtils instead
+
+# Nessie relocated jars
+org.projectnessie.nessie.relocated.** @ Use the original library instead
+
+# JUnit
+junit.framework.TestCase @ Use org.junit.Test or org.junit.Assert instead
+junit.framework.Assert @ Use org.junit.Assert instead
+junit.framework.AssertionFailedError @ Use java.lang.AssertionError instead
+org.hamcrest.** @ Use org.assertj package instead (for example org.assertj.core.api.Assertions)
+org.junit.rules.ExpectedException @ Use org.assertj.core.api.Assertions.assertThatThrownBy instead
+
+# Guava copies
+org.apache.iceberg.relocated.com.google.common.** @ Use com.google.common directly instead
+org.testcontainers.shaded.** @ Use com.google.common directly instead
+org.apache.arrow.util.Preconditions @ Use com.google.common.base.Preconditions instead
+org.apache.arrow.util.VisibleForTesting @ Use com.google.common.annotations.VisibleForTesting instead
+org.apache.parquet.Preconditions @ Use com.google.common.base.Preconditions instead
+org.apache.parquet.Strings @ Use com.google.common.base.Strings instead
+org.apache.hadoop.util.Preconditions @ Use com.google.common.base.Preconditions instead
+org.apache.hadoop.thirdparty.** @ Use com.google.common directly instead
+org.glassfish.jersey.internal.guava.** @ Use com.google.common directly instead
+
+# Mockito
+org.mockito.MockitoAnnotations#initMocks(**) @ For JUnit5 use ExtendWith(MockitoExtension.class). For JUnit4 use RunWith(MockitoJUnitRunner.class), MockitoJUnit.rule() or MockitoAnnotations.openMocks
+
+# Internal helpers from other libraries
+com.amazonaws.util.CollectionUtils @ Use plain java or com.google.common.collect instead
+com.amazonaws.util.IOUtils @ Use com.google.common.io instead
+com.amazonaws.util.StringUtils @ Use com.google.common.base.Strings instead
+com.amazonaws.util.Throwables @ Use com.google.common.base.Throwables instead
+software.amazon.awssdk.utils.CollectionUtils @ Use Standard-Library or Guava (com.google.common) instead
+software.amazon.awssdk.utils.ImmutableMap @ Use com.google.common.collect.ImmutableMap instead
+software.amazon.awssdk.utils.Pair @ Use org.apache.commons.lang3.tuple.(Immutable)Pair instead
+software.amazon.awssdk.utils.StringUtils @ Use com.google.common.base.Strings instead
+org.glassfish.grizzly.utils.** @ Use Standard-Library or Guava (com.google.common) instead
+org.apache.commons.compress.utils.** @ Use Standard-Library or Guava (com.google.common) instead
+org.mockito.internal.** @ Use org.mockito.Mockito instead (or com.google.common for collections)
+com.google.api.client.util.** @ Use Guava (com.google.common) instead
+org.apache.logging.log4j.util.** @ Use Guava (com.google.common) instead
+org.modelmapper.internal.** @ Use org.junit.Assert or Guava (com.google.common) instead
+io.micrometer.core.instrument.util.** @ Use Guava (com.google.common) instead
+org.eclipse.jetty.util.StringUtil @ Use com.google.common.base.Strings instead
+org.apache.commons.math.exception.NullArgumentException @ Use com.google.common.base.Preconditions.checkNotNull instead
+org.apache.commons.math3.exception.NullArgumentException @ Use com.google.common.base.Preconditions.checkNotNull instead
+com.mongodb.internal.** @ Use Standard-Library or Guava (com.google.common) instead
+org.apache.arrow.util.AutoCloseables @ Use com.dremio.common.AutoCloseables instead
+de.flapdoodle.embed.mongo.util.** @ Use Guava (com.google.common) or org.apache.commons.io instead
+autovalue.shaded.** @ Use original library instead (i.e. use com.google.common instead)
+org.apache.curator.utils.CloseableExecutorService @ Use com.dremio.common.concurrent.CloseableThreadPool instead
+org.assertj.core.util.** @ Use Guava (com.google.common) instead
+
+# Deprecated
+org.apache.commons.collections.map.HashedMap @ Use java.util.HashMap instead
+org.apache.commons.collections4.map.HashedMap @ Use java.util.HashMap instead
+org.apache.commons.io.Charsets @ Use java.nio.charset.StandardCharsets instead
+com.google.common.base.Charsets @ Use java.nio.charset.StandardCharsets instead
+com.google.common.base.Optional @ Use java.util.Optional instead
+io.opentelemetry.extension.annotations.WithSpan @ Use io.opentelemetry.instrumentation.annotations.WithSpan instead
+org.codehaus.jackson.** @ Use com.fasterxml.jackson instead
+
+# XML Factories
+@defaultMessage Use SafeXMLFactories methods instead
+javax.xml.parsers.DocumentBuilderFactory#newInstance(**)
+javax.xml.parsers.SAXParserFactory#newInstance(**)
+javax.xml.stream.XMLInputFactory#newFactory(**)
+javax.xml.stream.XMLInputFactory#newInstance(**)
+javax.xml.transform.TransformerFactory#newInstance(**)
+javax.xml.parsers.DocumentBuilderFactory#newDefaultInstance(**)
+javax.xml.parsers.SAXParserFactory#newDefaultInstance(**)
+javax.xml.stream.XMLInputFactory#newDefaultFactory(**)
+javax.xml.transform.TransformerFactory#newDefaultInstance(**)
+
+# EC2MetadataUtil
+com.amazonaws.util.EC2MetadataUtils @ Do not use Amazon's EC2MetadataUtils, use Dremio's internal EC2MetadataUtils instead
+software.amazon.awssdk.regions.internal.** @ Forbidden AWS SDK's internal package. Use Dremio's internal EC2MetadataUtils instead
+
+# Micrometer
+io.micrometer.core.instrument.MeterRegistry#more(**) @ Use builders and MeterProvider<Counter>
+io.micrometer.core.instrument.Metrics#counter(**) @ Use builders and MeterProvider<Counter>
+io.micrometer.core.instrument.MeterRegistry#counter(**) @ Use builders and MeterProvider<Counter>
+io.micrometer.core.instrument.Counter$Builder#register(**) @ Use builders and MeterProvider<Counter>
+io.micrometer.core.instrument.Metrics#timer(**) @ Use builders and MeterProvider<Timer>
+io.micrometer.core.instrument.MeterRegistry#timer(**) @ Use builders and MeterProvider<Timer>
+io.micrometer.core.instrument.Timer$Builder#register(**) @ Use builders and MeterProvider<Timer>
+io.micrometer.core.instrument.Metrics#summary(**) @ Use builders and MeterProvider<DistributionSummary>
+io.micrometer.core.instrument.MeterRegistry#summary(**) @ Use builders and MeterProvider<DistributionSummary>
+io.micrometer.core.instrument.DistributionSummary$Builder#register(**) @ Use builders and MeterProvider<DistributionSummary>

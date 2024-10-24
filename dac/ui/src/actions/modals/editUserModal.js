@@ -15,8 +15,8 @@
  */
 import { RSAA } from "redux-api-middleware";
 
-import { USERS_VIEW_ID } from "@app/actions/admin";
-import APICall from "@app/core/APICall";
+import { USERS_VIEW_ID } from "#oss/actions/admin";
+import APICall from "#oss/core/APICall";
 
 const v3ApiMigrationSuffix = "_API_V3"; // todo get rid of that suffix, when all UI would be migrated to v3 api
 export const USER_GET_START = "USER_GET_START" + v3ApiMigrationSuffix;

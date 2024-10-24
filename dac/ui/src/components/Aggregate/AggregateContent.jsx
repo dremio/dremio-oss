@@ -27,7 +27,7 @@ import {
   leftBorder,
   fullHeight,
   contentPadding,
-} from "@app/uiTheme/less/Aggregate/AggregateContent.less";
+} from "#oss/uiTheme/less/Aggregate/AggregateContent.less";
 import ColumnDragArea from "./components/ColumnDragArea";
 import MeasureDragArea, {
   MEASURE_DRAG_AREA_TEXT,
@@ -92,10 +92,10 @@ class AggregateContent extends Component {
       canUseFieldAsBothDimensionAndMeasure,
     } = props;
     const dimensionColumnNames = Immutable.Set(
-      fields.columnsDimensions.map((col) => col.column.value)
+      fields.columnsDimensions.map((col) => col.column.value),
     );
     const measuresColumnNames = Immutable.Set(
-      fields.columnsMeasures.map((col) => col.column.value)
+      fields.columnsMeasures.map((col) => col.column.value),
     );
     const columnsInEither = dimensionColumnNames.concat(measuresColumnNames);
     const columnsInBoth = dimensionColumnNames.intersect(measuresColumnNames);
@@ -105,7 +105,7 @@ class AggregateContent extends Component {
         NOT_SUPPORTED_TYPES.has(column.get("type")) ||
         (!canSelectMeasure && columnsInBoth.has(column.get("name"))) ||
         (!canUseFieldAsBothDimensionAndMeasure &&
-          columnsInEither.has(column.get("name")))
+          columnsInEither.has(column.get("name"))),
     );
     return Immutable.Set(disabledColumns.map((column) => column.get("name")));
   }

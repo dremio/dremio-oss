@@ -1,0 +1,15 @@
+<svg id="job-state/pending-diamond" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g id="Jobs" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+    <g id="Jobs-/-Icons" transform="translate(-25.000000, -201.000000)">
+      <g id="_Icon/Job/Job-Pending" transform="translate(24.000000, 200.000000)">
+        <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+        <g id="Rectangle-2" stroke-width="1" fill-rule="evenodd" fill="#4199FF">
+          <rect id="Rectangle" transform="translate(12.000000, 12.000000) rotate(45.000000) translate(-12.000000, -12.000000) " x="4" y="4" width="16" height="16" rx="2"></rect>
+        </g>
+        <rect id="Rectangle" fill="#FFFFFF" fill-rule="evenodd" transform="translate(9.000000, 12.000000) rotate(45.000000) translate(-9.000000, -12.000000) " x="8" y="11" width="2" height="2" rx="1"></rect>
+        <rect id="Rectangle-Copy" fill="#FFFFFF" fill-rule="evenodd" transform="translate(12.000000, 12.000000) rotate(45.000000) translate(-12.000000, -12.000000) " x="11" y="11" width="2" height="2" rx="1"></rect>
+        <rect id="Rectangle-Copy-2" fill="#FFFFFF" fill-rule="evenodd" transform="translate(15.000000, 12.000000) rotate(45.000000) translate(-15.000000, -12.000000) " x="14" y="11" width="2" height="2" rx="1"></rect>
+      </g>
+    </g>
+  </g>
+</svg>

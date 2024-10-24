@@ -16,16 +16,16 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
-import { addNotification } from "@app/actions/notification";
-import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
-import { downloadDataset } from "@app/exports/endpoints/Datasets/downloadDataset";
+import { addNotification } from "#oss/actions/notification";
+import { MSG_CLEAR_DELAY_SEC } from "#oss/constants/Constants";
+import { downloadDataset } from "#oss/exports/endpoints/Datasets/downloadDataset";
 import {
   StartDatasetDownloadParams,
   startDatasetDownload,
-} from "@app/exports/endpoints/Datasets/startDatasetDownload";
-import { DownloadStatusResource } from "@app/exports/resources/AsyncDownloadResource";
-import { useResourceSnapshotDeep } from "@app/exports/utilities/useDeepResourceSnapshot";
-import { store } from "@app/store/store";
+} from "#oss/exports/endpoints/Datasets/startDatasetDownload";
+import { DownloadStatusResource } from "#oss/exports/resources/AsyncDownloadResource";
+import { useResourceSnapshotDeep } from "#oss/exports/utilities/useDeepResourceSnapshot";
+import { store } from "#oss/store/store";
 
 const { t } = getIntlContext();
 

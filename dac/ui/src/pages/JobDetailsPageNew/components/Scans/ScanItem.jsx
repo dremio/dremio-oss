@@ -18,8 +18,8 @@ import { injectIntl } from "react-intl";
 import PropTypes from "prop-types";
 import { Label, Tooltip } from "dremio-ui-lib";
 import jobsUtils from "utils/jobsUtils";
-import { getIconPath } from "@app/utils/getIconPath";
-import TextWithHelp from "@app/components/TextWithHelp";
+import { getIconPath } from "#oss/utils/getIconPath";
+import TextWithHelp from "#oss/components/TextWithHelp";
 import { getIconByEntityType } from "utils/iconUtils";
 
 import "./Scans.less";

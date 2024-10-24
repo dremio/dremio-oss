@@ -59,7 +59,6 @@ import io.protostuff.ByteString;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.calcite.sql.SqlNodeList;
@@ -169,10 +168,7 @@ public class TestCreateTableQueryCleanup {
   @Test
   public void testTableCleanupInCreateEmptyTableHandlerOnFailureInBranch() throws Exception {
     Catalog catalog = mock(Catalog.class);
-    CatalogEntityKey catalogEntityKey =
-        CatalogEntityKey.newBuilder()
-            .keyComponents(Arrays.asList("versionedSource", "table1"))
-            .build();
+    CatalogEntityKey catalogEntityKey = CatalogEntityKey.of("versionedSource", "table1");
     String sql = "CREATE TABLE table1(c int)";
     String versionedSource = "versionedSource";
     String branchName = "dev";

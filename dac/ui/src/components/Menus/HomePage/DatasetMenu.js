@@ -141,7 +141,7 @@ export class DatasetMenu extends Component {
 
   copyPath = () => {
     const fullPath = constructFullPath(
-      getFullPathListFromEntity(this.props.entity)
+      getFullPathListFromEntity(this.props.entity),
     );
     copy(fullPath);
     this.props.closeMenu();
@@ -155,5 +155,5 @@ export default compose(
     removeFile,
     showConfirmationDialog,
   }),
-  injectIntl
+  injectIntl,
 )(DatasetMenu);

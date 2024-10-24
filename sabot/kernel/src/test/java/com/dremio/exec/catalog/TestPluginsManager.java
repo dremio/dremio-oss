@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -46,6 +47,7 @@ import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.catalog.conf.SecretRefImpl;
 import com.dremio.exec.catalog.conf.SourceType;
@@ -179,6 +181,7 @@ public class TestPluginsManager {
         .thenThrow(new RuntimeException("Double encryption should not occur."));
     when(secretsCreator.isEncrypted(anyString())).thenReturn(false);
     when(secretsCreator.isEncrypted(eq("encryptedSecret"))).thenReturn(true);
+    when(secretsCreator.cleanup(any())).thenReturn(true);
     when(sabotContext.getSecretsCreator()).thenReturn(() -> secretsCreator);
     // Set up a CredentialsService to always return the secret.
     // This is to verify the secret string stored in the SecretRef is a plain-text or not.
@@ -216,7 +219,9 @@ public class TestPluginsManager {
             dremioConfig,
             sourceDataStore,
             schedulerService,
-            ConnectionReader.of(sabotContext.getClasspathScan(), ConnectionReaderImpl.class),
+            new ConnectionReaderDecorator(
+                ConnectionReader.of(sabotContext.getClasspathScan(), ConnectionReaderImpl.class),
+                () -> revealSecretService),
             CatalogServiceMonitor.DEFAULT,
             () -> broadcaster,
             null,
@@ -271,9 +276,9 @@ public class TestPluginsManager {
   @SourceType(value = INSPECTOR, configurable = false)
   public static class Inspector extends ConnectionConf<Inspector, StoragePlugin> {
     private final boolean hasAccessPermission;
-    public SecretRef secret1 = null;
-    public SecretRef secret2 = null;
-    public SecretRef secret3 = null;
+    @Secret public SecretRef secret1 = null;
+    @Secret public SecretRef secret2 = null;
+    @Secret public SecretRef secret3 = null;
 
     Inspector() {
       this(true);
@@ -380,7 +385,9 @@ public class TestPluginsManager {
         dremioConfig,
         sourceDataStore,
         schedulerService,
-        ConnectionReader.of(sabotContext.getClasspathScan(), ConnectionReaderImpl.class),
+        new ConnectionReaderDecorator(
+            ConnectionReader.of(sabotContext.getClasspathScan(), ConnectionReaderImpl.class),
+            () -> revealSecretService),
         CatalogServiceMonitor.DEFAULT,
         () -> broadcaster,
         null,
@@ -952,6 +959,40 @@ public class TestPluginsManager {
   }
 
   @Test
+  public void testCreateSourceFailedWithSecrets() throws Exception {
+    // Configure the secrets services to return a URI for each incoming secret
+    // and to recognize a prefix when determining whether something is encrypted.
+    when(secretsCreator.encrypt(any()))
+        .thenAnswer(input -> Optional.of(new URI("secret:///" + input.getArgument(0))));
+    when(secretsCreator.isEncrypted(startsWith("secret:///"))).thenReturn(true);
+    when(revealSecretService.isSupported(any()))
+        .thenAnswer(input -> input.getArgument(0).toString().startsWith("secret:///"));
+
+    final SourceConfig newConfig =
+        new SourceConfig()
+            .setType(INSPECTOR)
+            .setName("TEST")
+            .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+            .setConfig(new Inspector(false).setSecret1("some-secret").toBytesString());
+
+    doThrow(
+            UserException.validationError()
+                .message("Failed to create for some reason")
+                .buildSilently())
+        .when(mockNamespaceService)
+        .addOrUpdateSource(newConfig.getKey(), newConfig);
+    scheduledTasks.clear();
+
+    assertThrows(UserException.class, () -> plugins.create(newConfig, "testuser"));
+    assertEquals(scheduledTasks.size(), 1);
+    assertTrue(scheduledTasks.get(0).isCancelled());
+
+    // Check that the secret was encrypted (happens before failure) and deleted
+    verify(secretsCreator, times(1)).encrypt(eq("some-secret"));
+    verify(secretsCreator, times(1)).cleanup(eq(URI.create("secret:///some-secret")));
+  }
+
+  @Test
   public void disableMetadataValidityCheck() throws Exception {
 
     final SourceConfig sourceConfigWithValidityCheck =
@@ -1055,7 +1096,9 @@ public class TestPluginsManager {
         .getOptionManager()
         .setOption(
             OptionValue.createBoolean(
-                OptionValue.OptionType.SYSTEM, "source.creation.async.enable", true));
+                OptionValue.OptionType.SYSTEM,
+                ExecConstants.SOURCE_ASYNC_MODIFICATION_ENABLED.getOptionName(),
+                true));
     SourceConfig inspectorConfig =
         new SourceConfig()
             .setType(INSPECTOR)
@@ -1075,6 +1118,8 @@ public class TestPluginsManager {
         .getOptionManager()
         .setOption(
             OptionValue.createBoolean(
-                OptionValue.OptionType.SYSTEM, "source.creation.async.enable", false));
+                OptionValue.OptionType.SYSTEM,
+                ExecConstants.SOURCE_ASYNC_MODIFICATION_ENABLED.getOptionName(),
+                false));
   }
 }

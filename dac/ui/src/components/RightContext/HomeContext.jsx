@@ -18,7 +18,7 @@ import Immutable from "immutable";
 
 import PropTypes from "prop-types";
 
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
+import * as classes from "#oss/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 import { title, contextCard, cardTitle } from "uiTheme/radium/rightContext";
 
 class HomeContext extends PureComponent {

@@ -98,7 +98,7 @@ const styles = {
     width: 180,
     height: 28,
     fontSize: 13,
-    border: "1px solid #ccc",
+    border: "1px solid var(--border--neutral)",
     borderRadius: 3,
     marginRight: 0,
     outline: "none",

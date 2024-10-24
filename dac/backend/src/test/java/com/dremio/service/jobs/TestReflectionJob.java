@@ -187,14 +187,21 @@ public class TestReflectionJob extends BaseTestReflection {
   private void prepareWebSocket() throws Exception {
     client.start();
     URI socketUri =
-        new URI(getAPIv2().path("socket").getUri().toString().replace("http://", "ws://"));
+        new URI(
+            getHttpClient()
+                .getAPIv2()
+                .path("socket")
+                .getUri()
+                .toString()
+                .replace("http://", "ws://"));
     ClientUpgradeRequest request = new ClientUpgradeRequest();
-    request.setSubProtocols(Lists.newArrayList(getAuthHeaderValue()));
+    request.setSubProtocols(Lists.newArrayList(getHttpClient().getAuthHeaderValue()));
     this.socket = new TestWebSocket.TestSocket();
     client.connect(socket, socketUri, request);
     socket.awaitConnection(2);
     assertEquals(
-        getAuthHeaderValue(), socket.getSession().getUpgradeResponse().getAcceptedSubProtocol());
+        getHttpClient().getAuthHeaderValue(),
+        socket.getSession().getUpgradeResponse().getAcceptedSubProtocol());
     OptionValue option = OptionValue.createBoolean(SYSTEM, JOBS_UI_CHECK.getOptionName(), false);
     getOptionManager().setOption(option);
   }
@@ -404,7 +411,8 @@ public class TestReflectionJob extends BaseTestReflection {
 
     expectSuccess(
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path(JOB_PATH)
                     .path(reflectionEntry.getRefreshJobId().getId())
                     .path("reflection")
@@ -424,7 +432,8 @@ public class TestReflectionJob extends BaseTestReflection {
     expectError(
         FamilyExpectation.CLIENT_ERROR,
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path(JOB_PATH)
                     .path(reflectionEntry.getRefreshJobId().getId())
                     .path("reflection")
@@ -440,7 +449,12 @@ public class TestReflectionJob extends BaseTestReflection {
     ReflectionId reflectionId = reflectionEntry.getId();
 
     expectSuccess(
-        getBuilder(getAPIv2().path("/jobs/").path("reflection").path(reflectionId.getId()))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv2()
+                    .path("/jobs/")
+                    .path("reflection")
+                    .path(reflectionId.getId()))
             .buildGet());
   }
 
@@ -451,7 +465,8 @@ public class TestReflectionJob extends BaseTestReflection {
 
     expectSuccess(
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("/profiles/")
                     .path("reflection")
                     .path(reflectionId.getId())
@@ -471,7 +486,8 @@ public class TestReflectionJob extends BaseTestReflection {
     expectError(
         FamilyExpectation.CLIENT_ERROR,
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("/profiles/")
                     .path("reflection")
                     .path(reflectionId1.getId())

@@ -54,7 +54,7 @@ describe("APICall", () => {
       .params({ a: 1, b: "a/?.b" });
 
     expect(apiCall.toString()).to.eql(
-      "//localhost/api/v3/foo/bar/?a=1&b=a%2F%3F.b"
+      "//localhost/api/v3/foo/bar/?a=1&b=a%2F%3F.b",
     );
   });
 
@@ -65,7 +65,7 @@ describe("APICall", () => {
       .params({ a: [1, 2, 3] });
 
     expect(apiCall.toString()).to.eql(
-      "//localhost/api/v3/foo/bar/?a=1&a=2&a=3"
+      "//localhost/api/v3/foo/bar/?a=1&a=2&a=3",
     );
   });
 
@@ -75,7 +75,7 @@ describe("APICall", () => {
       .params({ a: 1, b: "a/?.b" });
 
     expect(apiCall.toString()).to.eql(
-      "//localhost/apiv2/foo/bar/?a=1&b=a%2F%3F.b"
+      "//localhost/apiv2/foo/bar/?a=1&b=a%2F%3F.b",
     );
   });
 

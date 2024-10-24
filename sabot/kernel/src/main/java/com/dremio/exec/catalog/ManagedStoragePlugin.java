@@ -15,7 +15,10 @@
  */
 package com.dremio.exec.catalog;
 
-import static com.dremio.exec.ExecConstants.SOURCE_CREATION_ASYNC_ENABLED;
+import static com.dremio.exec.ExecConstants.SOURCE_ASYNC_MODIFICATION_ENABLED;
+import static com.dremio.service.namespace.source.proto.SourceChangeState.SOURCE_CHANGE_STATE_CREATING;
+import static com.dremio.service.namespace.source.proto.SourceChangeState.SOURCE_CHANGE_STATE_NONE;
+import static com.dremio.service.namespace.source.proto.SourceChangeState.SOURCE_CHANGE_STATE_UPDATING;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
@@ -34,7 +37,6 @@ import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.EntityPath;
-import com.dremio.connector.metadata.EntityPathWithOptions;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.connector.metadata.extensions.SupportsAlteringDatasetMetadata;
 import com.dremio.connector.metadata.options.AlterMetadataOption;
@@ -49,7 +51,6 @@ import com.dremio.exec.catalog.conf.SupportsGlobalKeys;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.BulkSourceMetadata;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.MissingPluginConf;
@@ -72,6 +73,7 @@ import com.dremio.service.namespace.SourceState.SourceStatus;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.SourceNamespaceService;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
+import com.dremio.service.namespace.source.proto.SourceChangeState;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.orphanage.Orphanage;
@@ -80,11 +82,15 @@ import com.dremio.service.users.SystemUser;
 import com.dremio.services.credentials.CredentialsServiceUtils;
 import com.dremio.services.credentials.NoopSecretsCreator;
 import com.dremio.services.credentials.SecretsCreator;
+import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.SimpleCounter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Tags;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.LinkedBuffer;
@@ -385,6 +391,14 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
+  private void setSourceChangeState(SourceConfig config, boolean create) {
+    if (create) {
+      config.setSourceChangeState(SOURCE_CHANGE_STATE_CREATING);
+    } else {
+      config.setSourceChangeState(SOURCE_CHANGE_STATE_UPDATING);
+    }
+  }
+
   private void addDefaults(SourceConfig config) {
     if (config.getCtime() == null) {
       config.setCtime(System.currentTimeMillis());
@@ -444,6 +458,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
       final boolean create, SourceConfig config, String userName, NamespaceAttribute... attributes)
       throws ConcurrentModificationException, NamespaceException {
     final NamespaceService userNamespace = context.getNamespaceService(userName);
+    boolean createOrUpdateSucceeded = false;
 
     if (logger.isTraceEnabled()) {
       logger.trace(
@@ -460,13 +475,14 @@ public class ManagedStoragePlugin implements AutoCloseable {
       config.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     }
 
-    SourceConfig originalConfigCopy = ProtostuffUtil.copy(sourceConfig);
+    final SourceConfig originalConfigCopy = ProtostuffUtil.copy(sourceConfig);
 
     // Preprocessing on the config before creation
     addDefaults(config);
     addGlobalKeys(config);
     encryptSecrets(config);
     validateAccelerationSettings(config);
+    setSourceChangeState(config, create);
 
     if (!create) {
       updateConfig(userNamespace, config, attributes);
@@ -520,6 +536,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
         // This increments the version in the config object as well.
         try {
           userNamespace.addOrUpdateSource(config.getKey(), config, attributes);
+
         } catch (AccessControlException | ConcurrentModificationException | DatastoreException e) {
           logger.trace(
               "Saving to namespace store failed, reverting the in-memory source config to the original version...");
@@ -529,17 +546,31 @@ public class ManagedStoragePlugin implements AutoCloseable {
       }
 
       // ***** Complete Local Update **** //
+      createOrUpdateSucceeded = true;
 
       // now that we're outside the plugin lock, we should refresh the dataset names. Note that this
       // could possibly get
       // run on a different config if two source updates are racing to this lock.
-      if (options.getOption(SOURCE_CREATION_ASYNC_ENABLED)) {
+      if (options.getOption(SOURCE_ASYNC_MODIFICATION_ENABLED)) {
         CompletableFuture.runAsync(
                 () -> refreshNames(config.getName(), refreshDatasetNames), executor)
-            .whenComplete((res, ex) -> logCompletion(config.getName(), stopwatchForPlugin));
+            .whenComplete(
+                (res, ex) -> {
+                  try {
+                    userNamespace.addOrUpdateSource(
+                        config.getKey(),
+                        config.setSourceChangeState(SOURCE_CHANGE_STATE_NONE),
+                        attributes);
+                  } catch (NamespaceException e) {
+                    throw new RuntimeException(e);
+                  }
+                  logCompletion(config.getName(), stopwatchForPlugin);
+                });
       } else {
         refreshNames(config.getName(), refreshDatasetNames);
         logCompletion(config.getName(), stopwatchForPlugin);
+        userNamespace.addOrUpdateSource(
+            config.getKey(), config.setSourceChangeState(SOURCE_CHANGE_STATE_NONE), attributes);
       }
 
     } catch (ConcurrentModificationException ex) {
@@ -564,10 +595,35 @@ public class ManagedStoragePlugin implements AutoCloseable {
       if (suggestedUserAction == null || suggestedUserAction.isEmpty()) {
         // If no user action was suggested, fall back to a basic message.
         suggestedUserAction =
-            String.format("Failure creating/updating this source [%s].", config.getName());
+            String.format(
+                "Failure creating/updating this source [%s]: %s.",
+                config.getName(), ex.getMessage());
       }
       throw UserException.validationError(ex).message(suggestedUserAction).build(logger);
+    } finally {
+      if (create) {
+        // Cleanup any secrets if the source creation fails
+        if (!createOrUpdateSucceeded) {
+          cleanupSecrets(config);
+        }
+      } else {
+        // Cleanup stale secrets after source update.
+        if (createOrUpdateSucceeded) {
+          cleanupSecretsAfterUpdate(config, originalConfigCopy);
+        } else {
+          cleanupSecretsAfterUpdate(originalConfigCopy, config);
+        }
+      }
     }
+  }
+
+  private void updateCreatedSourceCount() {
+    SimpleCounter createdSourcesCounter =
+        SimpleCounter.of(
+            Metrics.join("sources", "created"),
+            "Total sources created",
+            Tags.of(Tag.of("source_type", this.getConfig().getType())));
+    createdSourcesCounter.increment();
   }
 
   private void refreshNames(String name, boolean refreshDatasetNames) {
@@ -595,6 +651,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     // this above
     // the inline plugin.refresh() call.)
     stopwatch.stop();
+    updateCreatedSourceCount();
     logger.debug(
         "Source added [{}], took {} milliseconds", name, stopwatch.elapsed(TimeUnit.MILLISECONDS));
   }
@@ -634,6 +691,33 @@ public class ManagedStoragePlugin implements AutoCloseable {
     final ConnectionConf<?, ?> connectionConf = config.getConnectionConf(reader);
     connectionConf.encryptSecrets(secretsCreator);
     config.setConnectionConf(connectionConf);
+  }
+
+  /** Delete encrypted secrets found in the old config but not in the new config. */
+  private void cleanupSecrets(SourceConfig config) {
+    final SecretsCreator secretsCreator = context.getSecretsCreator().get();
+    // Short-circuit early if encryption is disabled via binding
+    if (secretsCreator instanceof NoopSecretsCreator) {
+      return;
+    }
+
+    // Get Conf from Decorated Connection Reader
+    final ConnectionConf<?, ?> connectionConf = config.getConnectionConf(reader);
+    connectionConf.deleteSecrets(secretsCreator);
+  }
+
+  /** Delete encrypted secrets found in the old config but not in the new config. */
+  private void cleanupSecretsAfterUpdate(SourceConfig newConfig, SourceConfig oldConfig) {
+    final SecretsCreator secretsCreator = context.getSecretsCreator().get();
+    // Short-circuit early if encryption is disabled via binding
+    if (secretsCreator instanceof NoopSecretsCreator) {
+      return;
+    }
+
+    // Get Conf from Decorated Connection Reader
+    final ConnectionConf<?, ?> newConf = newConfig.getConnectionConf(reader);
+    final ConnectionConf<?, ?> oldConf = oldConfig.getConnectionConf(reader);
+    oldConf.deleteSecretsExcept(secretsCreator, newConf);
   }
 
   /**
@@ -695,6 +779,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
     // not read under a read lock since it is updated via volatile. Allows us to avoid locking in
     // read paths.
     return state;
+  }
+
+  public SourceChangeState sourceChangeState() {
+    return sourceConfig.getSourceChangeState();
   }
 
   public boolean matches(SourceConfig config) {
@@ -1342,28 +1430,6 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
-  public BulkResponse<EntityPathWithOptions, Optional<DatasetHandle>> bulkGetDatasetHandles(
-      BulkRequest<EntityPathWithOptions> requestedDatasets) {
-    try (AutoCloseableLock ignored = readLock()) {
-      checkState();
-      if (plugin instanceof BulkSourceMetadata) {
-        return ((BulkSourceMetadata) plugin).bulkGetDatasetHandles(requestedDatasets);
-      } else {
-        // for plugins which don't support bulk retrieval, we want to process getDatasetHandle
-        // synchronously on the calling thread
-        return requestedDatasets.handleRequests(
-            dataset -> {
-              try {
-                return CompletableFuture.completedFuture(
-                    plugin.getDatasetHandle(dataset.entityPath(), dataset.options()));
-              } catch (ConnectorException ex) {
-                throw new RuntimeException(ex);
-              }
-            });
-      }
-    }
-  }
-
   /**
    * Call after plugin start to register local variables.
    *
@@ -1421,7 +1487,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
         this.state =
             SourceState.badState(
                 SourceState.NOT_AVAILABLE.getSuggestedUserAction(), e.getCause().getMessage());
-        logger.error("Failed to obtain plugin's state in {}s: {}", name, timeoutSeconds, e);
+        logger.error("Failed to obtain plugin's state in {}s: {}", timeoutSeconds, name, e);
         throw new RuntimeException(e);
       }
     } else {
@@ -1621,6 +1687,13 @@ public class ManagedStoragePlugin implements AutoCloseable {
         if (!matches(config)) {
           return false;
         }
+
+        // Also delete any associated secrets
+        try {
+          cleanupSecrets(config);
+        } catch (Exception ex) {
+          logger.warn("Failed to cleanup secrets within source " + config.getName(), ex);
+        }
       }
 
       try {
@@ -1645,8 +1718,16 @@ public class ManagedStoragePlugin implements AutoCloseable {
 
   @SuppressWarnings("unchecked")
   public <T extends StoragePlugin> T unwrap(Class<T> clazz) {
+    return unwrap(clazz, false);
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T extends StoragePlugin> T unwrap(Class<T> clazz, boolean skipStateCheck) {
     try (AutoCloseableLock l = readLock()) {
-      checkState();
+      if (!skipStateCheck) {
+        checkState();
+      }
+
       if (clazz.isAssignableFrom(plugin.getClass())) {
         return (T) plugin;
       }

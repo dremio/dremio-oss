@@ -28,6 +28,8 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.logical.ViewTable;
@@ -95,10 +97,11 @@ public class TestVersionedDatasetAdapter {
     when(datasetMetadata.getDatasetStats()).thenReturn(DatasetStats.of(0.1d));
 
     StoragePlugin storagePlugin = mock(StoragePlugin.class);
-    when(storagePlugin.listPartitionChunks(any(), any()))
+    when(storagePlugin.listPartitionChunks(any(), any(ListPartitionChunkOption[].class)))
         .thenReturn(
             () -> Collections.singleton(PartitionChunk.of(DatasetSplit.of(0, 0))).iterator());
-    when(storagePlugin.getDatasetMetadata(any(), any(), any())).thenReturn(datasetMetadata);
+    when(storagePlugin.getDatasetMetadata(any(), any(), any(GetMetadataOption[].class)))
+        .thenReturn(datasetMetadata);
 
     DatasetHandle datasetHandle = mock(DatasetHandle.class);
     when(datasetHandle.unwrap(any())).thenReturn(versionedDatasetHandle);

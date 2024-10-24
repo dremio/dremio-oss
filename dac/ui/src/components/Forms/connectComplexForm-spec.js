@@ -32,7 +32,7 @@ describe("mergeFormSectionFunc", () => {
       .map(() => sinon.stub());
     mergeFormSectionFunc(
       generateSections(...functions),
-      testFnPropName
+      testFnPropName,
     )(...args);
     for (let i = 0; i < n; i++) {
       expect(functions[i]).to.be.calledWith(...args);
@@ -45,7 +45,7 @@ describe("mergeFormSectionFunc", () => {
     const fn3 = sinon.stub().returns({ c: 3 });
     const result = mergeFormSectionFunc(
       generateSections(fn1, fn2, fn3),
-      testFnPropName
+      testFnPropName,
     )();
     expect(result).to.be.eql({
       a: 1,
@@ -60,7 +60,7 @@ describe("mergeFormSectionFunc", () => {
     const fn3 = sinon.stub().returns({ c: 3 });
     const result = mergeFormSectionFunc(
       [{}, ...generateSections(fn1, fn2, fn3)],
-      testFnPropName
+      testFnPropName,
     )();
     expect(result).to.be.eql({
       a: 1,
@@ -75,7 +75,7 @@ describe("mergeFormSectionFunc", () => {
     const fn3 = sinon.stub().returns({ a: 3 });
     const result = mergeFormSectionFunc(
       generateSections(fn1, fn2, fn3),
-      testFnPropName
+      testFnPropName,
     )();
     expect(result).to.be.eql({
       a: 3,
@@ -100,7 +100,7 @@ describe("mergeFormSectionFunc", () => {
     });
     const result = mergeFormSectionFunc(
       generateSections(fn1, fn2),
-      testFnPropName
+      testFnPropName,
     )();
     expect(result).to.be.eql({
       a: {
@@ -136,7 +136,7 @@ describe("sectionsContainer", () => {
       const section1 = { [methodName]: () => ({ b: 2 }) };
       const section2 = { [methodName]: () => ({ c: 3 }) };
       expect(
-        sectionsContainer(section1, section2)(comp)[methodName]()
+        sectionsContainer(section1, section2)(comp)[methodName](),
       ).to.be.eql({
         a: 1,
         b: 2,

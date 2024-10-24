@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCallFactory;
 import com.dremio.common.expression.LogicalExpression;
@@ -67,7 +68,7 @@ public class TestUnifiedParquetReaderWithEqualityDeletes extends BaseTestUnified
 
   @AfterClass
   public static void cleanupTestData() throws Exception {
-    table.close();
+    AutoCloseables.close(table);
   }
 
   @Test

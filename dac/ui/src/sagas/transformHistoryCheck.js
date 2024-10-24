@@ -59,7 +59,7 @@ export function* transformHistoryCheck(dataset) {
 
 export const shouldShowWarningModal = (historyItems, dataset) => {
   const index = historyItems.findIndex(
-    (item) => item.get("datasetVersion") === dataset.get("datasetVersion")
+    (item) => item.get("datasetVersion") === dataset.get("datasetVersion"),
   );
   return index !== 0 && index !== -1;
 };

@@ -15,23 +15,39 @@
  */
 package com.dremio.services.credentials;
 
+import static com.dremio.config.DremioConfig.CREDENTIALS_KEYSTORE_PASSWORD;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.dremio.config.DremioConfig;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utility methods for credentials service. */
 @Options
 public final class CredentialsServiceUtils {
+  private static final Logger logger = LoggerFactory.getLogger(CredentialsServiceUtils.class);
 
   public static final TypeValidators.BooleanValidator REMOTE_LOOKUP_ENABLED =
       new TypeValidators.BooleanValidator("services.credentials.exec.remote_lookup.enabled", false);
+
+  /**
+   * Another secret scheme that is reserved for future use, similar to the local and system secret
+   * types.
+   */
+  public static final String RESERVED_SECRET_PROVIDER_SCHEME = "dcsecret";
+
+  // This is the default Dremio keystore password. An external password should be used to provide
+  // more security.
+  private static final String DEFAULT_KEYSTORE_PASSWORD = "unsecurepassword";
 
   /**
    * Create a URI from a String. If the String is not a valid URI, the exception thrown will not
@@ -71,7 +87,8 @@ public final class CredentialsServiceUtils {
   /** Overload for URI formats, see other for description. */
   public static boolean isEncryptedCredentials(URI uri) {
     return SystemSecretCredentialsProvider.isSystemEncrypted(uri)
-        || LocalSecretCredentialsProvider.isLocalEncrypted(uri);
+        || LocalSecretCredentialsProvider.isLocalEncrypted(uri)
+        || RESERVED_SECRET_PROVIDER_SCHEME.equalsIgnoreCase(uri.getScheme());
   }
 
   /** Check if URI matches the pattern of data credentials. */
@@ -119,6 +136,33 @@ public final class CredentialsServiceUtils {
     } catch (URISyntaxException e) {
       throw new CredentialsException("Cannot encode secret into an URI");
     }
+  }
+
+  /** Look up the credentials service keystore's password. */
+  public static char[] getKeystorePassword(
+      DremioConfig config, CredentialsService credentialsService) throws CredentialsException {
+    final String keystorePasswordUri = config.getString(CREDENTIALS_KEYSTORE_PASSWORD);
+    if (Strings.isNullOrEmpty(keystorePasswordUri)) {
+      return DEFAULT_KEYSTORE_PASSWORD.toCharArray();
+    }
+
+    URI uri;
+    try {
+      uri = safeURICreate(keystorePasswordUri);
+    } catch (IllegalArgumentException e) {
+      logger.debug("The string used to locate secret is not a valid URI.");
+      return keystorePasswordUri.toCharArray();
+    }
+
+    final String scheme = uri.getScheme();
+    if (scheme == null) {
+      return keystorePasswordUri.toCharArray();
+    }
+
+    if (isEncryptedCredentials(uri)) {
+      throw new SecretCredentialsException("Cannot use secret URI for Dremio keystore password.");
+    }
+    return credentialsService.lookup(keystorePasswordUri).toCharArray();
   }
 
   // prevent instantiation

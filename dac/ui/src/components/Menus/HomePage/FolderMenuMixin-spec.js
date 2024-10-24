@@ -46,10 +46,10 @@ describe("FolderMenuMixin", () => {
   it("should render menu items", () => {
     const wrapper = shallow(<FolderMenu {...commonProps} />, context);
     expect(
-      findMenuItemLinkByText(wrapper, "Common.Actions.BrowseContents")
+      findMenuItemLinkByText(wrapper, "Common.Actions.BrowseContents"),
     ).to.have.length(1);
     expect(findMenuItemByText(wrapper, "Common.Actions.Delete")).to.have.length(
-      1
+      1,
     );
   });
 });

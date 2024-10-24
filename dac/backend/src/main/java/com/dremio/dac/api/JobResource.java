@@ -90,6 +90,7 @@ public class JobResource extends BaseResourceWithAllocator {
                 .setJobId(
                     com.dremio.service.job.proto.JobProtobuf.JobId.newBuilder().setId(id).build())
                 .setUserName(securityContext.getUserPrincipal().getName())
+                .setSkipProfileInfo(true)
                 .build();
         JobDetails jobDetails = jobs.getJobDetails(request);
         Span.current().setAttribute("retries", (i - 1));

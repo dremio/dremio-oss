@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { initialState } from "../nessie";
-import { NessieRootState } from "@app/types/nessie";
+import { NessieRootState } from "#oss/types/nessie";
 
 export const empty = { ...initialState };
 

@@ -21,7 +21,6 @@ import { shouldDisableDownload } from "@inject/pages/JobDetailsPageNew/utils";
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     getButtons() {
       const isDownloadDisabled = shouldDisableDownload(this.props.jobDetails);
       const DownloadButton = (

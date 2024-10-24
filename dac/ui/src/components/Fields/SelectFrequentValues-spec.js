@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from "enzyme";
-import ExploreCellLargeOverlay from "@app/pages/ExplorePage/components/ExploreTable/ExploreCellLargeOverlay";
+import ExploreCellLargeOverlay from "#oss/pages/ExplorePage/components/ExploreTable/ExploreCellLargeOverlay";
 import SelectFrequentValues from "./SelectFrequentValues";
 
 describe("SelectFrequentValues", () => {
@@ -44,7 +44,7 @@ describe("SelectFrequentValues", () => {
   it("should render SelectFrequentValuesOption component for each props.options", () => {
     const wrapper = shallow(<SelectFrequentValues {...commonProps} />);
     expect(wrapper.find("SelectFrequentValuesOption")).to.have.length(
-      commonProps.options.length
+      commonProps.options.length,
     );
   });
   it("should render ExploreCellLargeOverlay if activeCell is defined", () => {
@@ -57,7 +57,7 @@ describe("SelectFrequentValues", () => {
   describe("#handleCheck", () => {
     it("should return call onChange with checked values", () => {
       const instance = shallow(
-        <SelectFrequentValues {...commonProps} />
+        <SelectFrequentValues {...commonProps} />,
       ).instance();
       instance.handleCheck("foo", true);
       expect(commonProps.field.onChange).to.be.calledWith(["foo"]);

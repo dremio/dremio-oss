@@ -24,8 +24,8 @@ import {
   modalFormBody,
   modalFormWrapper,
 } from "uiTheme/radium/forms";
-import Keys from "@app/constants/Keys.json";
-import { FLEX_WRAP_COL_START } from "@app/uiTheme/radium/flexStyle";
+import Keys from "#oss/constants/Keys.json";
+import { FLEX_WRAP_COL_START } from "#oss/uiTheme/radium/flexStyle";
 
 export function modalFormProps(props) {
   return {

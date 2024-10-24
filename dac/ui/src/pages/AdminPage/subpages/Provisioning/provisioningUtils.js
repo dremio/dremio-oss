@@ -17,7 +17,7 @@
 import {
   ENGINE_SIZE,
   CLUSTER_STATE,
-} from "@app/constants/provisioningPage/provisioningConstants";
+} from "#oss/constants/provisioningPage/provisioningConstants";
 
 export function isYarn(entity) {
   return entity.get("clusterType") === "YARN";
@@ -81,7 +81,7 @@ export function getContainerListItemProperty(listItem, property) {
   const containerPropertyList = listItem.get("containerPropertyList");
   if (containerPropertyList && containerPropertyList.size) {
     const propertyItem = containerPropertyList.find(
-      (item) => item.get("key") === property
+      (item) => item.get("key") === property,
     );
     return (propertyItem && propertyItem.get("value")) || "";
   } else {

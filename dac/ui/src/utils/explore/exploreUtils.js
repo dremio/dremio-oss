@@ -21,7 +21,7 @@ import transformModelMapper from "utils/mappers/ExplorePage/Transform/transformM
 import simpleTransformMappers from "utils/mappers/ExplorePage/simpleTransformMappers";
 import mapConvertDataType from "utils/mappers/ExplorePage/convertDataType";
 import dataStoreUtils from "utils/dataStoreUtils";
-import { copyTextToClipboard } from "@app/utils/clipboard/clipboardUtils";
+import { copyTextToClipboard } from "#oss/utils/clipboard/clipboardUtils";
 import {
   BOOLEAN,
   DATE,
@@ -34,17 +34,17 @@ import {
   STRUCT,
   TEXT,
   TIME,
-} from "@app/constants/DataTypes";
-import { APIV2Call } from "@app/core/APICall";
-import { JOB_STATUS } from "@app/pages/ExplorePage/components/ExploreTable/constants";
-import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
+} from "#oss/constants/DataTypes";
+import { APIV2Call } from "#oss/core/APICall";
+import { JOB_STATUS } from "#oss/pages/ExplorePage/components/ExploreTable/constants";
+import { PHYSICAL_DATASET_TYPES } from "#oss/constants/datasetTypes";
 import { getRefQueryParamsFromDataset } from "../nessieUtils";
-import { newQuery } from "@app/exports/paths";
+import { newQuery } from "#oss/exports/paths";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { SQLRUNNER_TABS_UI } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 import { filter, firstValueFrom } from "rxjs";
 import { $SqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
 import { $Scripts } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";

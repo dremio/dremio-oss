@@ -17,7 +17,7 @@ import { get } from "lodash/object";
 import {
   ADD_MODULE_STATE,
   RESET_MODULE_STATE,
-} from "@app/actions/modulesState";
+} from "#oss/actions/modulesState";
 
 // dynamic state storage. Primary usage is storing of page data. We need to store data only for
 // current page and remove state for other pages

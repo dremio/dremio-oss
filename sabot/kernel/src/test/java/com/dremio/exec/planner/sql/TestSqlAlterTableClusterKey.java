@@ -1,0 +1,122 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.exec.planner.sql;
+
+import static org.junit.Assert.assertEquals;
+
+import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.SqlUtils;
+import com.dremio.exec.proto.UserBitShared;
+import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.calcite.config.NullCollation;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.pretty.SqlPrettyWriter;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class TestSqlAlterTableClusterKey extends BaseTestQuery {
+  private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100);
+
+  @Test
+  public void testParseMalformedQueries() throws Exception {
+    List<String> malformedQueries =
+        new ArrayList<String>() {
+          {
+            add("ALTER TABLE t1 CLUSTER BY ()");
+            add("ALTER TABLE t1 CLUSTER BY");
+            add("ALTER TABLE t1 CLUSTER BY (,C1)");
+            add("ALTER TABLE t1 CLUSTER BY (C1,)");
+            add("ALTER TABLE t1 CLUSTER BY C1");
+            add("ALTER TABLE t1 CLUSTER BY C1,C2");
+            add("ALTER TABLE t1 CLUSTER BY NONE");
+          }
+        };
+
+    for (String malformedQuery : malformedQueries) {
+      parseAndVerifyMalFormat(malformedQuery);
+    }
+  }
+
+  @Test
+  public void testParseWellformedQueries() throws Exception {
+    List<String> wellformedQueries =
+        new ArrayList<String>() {
+          {
+            add("ALTER TABLE t1 CLUSTER BY (C1)");
+            add("ALTER TABLE t1 CLUSTER BY (C1,C2)");
+            add("ALTER TABLE t1 DROP CLUSTERING KEY");
+          }
+        };
+
+    for (String wellformedQuery : wellformedQueries) {
+      parseAndVerifyWellFormat(wellformedQuery);
+    }
+  }
+
+  @Test
+  public void testParseAndUnparse() throws Exception {
+    Map<String, String> queryExpectedStrings =
+        new HashMap<String, String>() {
+          {
+            put("ALTER TABLE t1 CLUSTER BY (c1)", "ALTER TABLE \"t1\" CLUSTER BY (\"c1\")");
+            put(
+                "ALTER TABLE t1 CLUSTER BY (c1,c2)",
+                "ALTER TABLE \"t1\" CLUSTER BY (\"c1\", \"c2\")");
+            put("ALTER TABLE t1 DROP CLUSTERING KEY", "ALTER TABLE \"t1\" DROP CLUSTERING KEY");
+          }
+        };
+
+    for (Map.Entry<String, String> entry : queryExpectedStrings.entrySet()) {
+      parseAndVerifyUnparse(entry.getKey(), entry.getValue());
+    }
+  }
+
+  private void parseAndVerifyWellFormat(String sql) {
+    SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    Assert.assertTrue(sqlNode.isA(Sets.immutableEnumSet(SqlKind.ALTER_TABLE)));
+  }
+
+  private void parseAndVerifyUnparse(String sql, String expectedString) {
+    SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+
+    // verify unParse
+    SqlDialect DREMIO_DIALECT =
+        new SqlDialect(
+            SqlDialect.DatabaseProduct.UNKNOWN,
+            "Dremio",
+            Character.toString(SqlUtils.QUOTE),
+            NullCollation.FIRST);
+    SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
+    sqlNode.unparse(writer, 0, 0);
+    String actual = writer.toString();
+    Assert.assertEquals(expectedString.toLowerCase(), actual.toLowerCase());
+  }
+
+  private void parseAndVerifyMalFormat(String sql) {
+    try {
+      SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    } catch (UserException ue) {
+      assertEquals(ue.getErrorType(), UserBitShared.DremioPBError.ErrorType.PARSE);
+    }
+  }
+}

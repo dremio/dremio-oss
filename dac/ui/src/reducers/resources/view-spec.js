@@ -107,7 +107,7 @@ describe("reducers.resources.view", () => {
       expect(
         getErrorMessage({
           payload: error,
-        })
+        }),
       ).to.eql({
         errorMessage: "InternalError: message.",
       });
@@ -119,7 +119,7 @@ describe("reducers.resources.view", () => {
           payload: new ApiError("status", 500, {
             errorMessage: "apiError",
           }),
-        })
+        }),
       ).to.eql({
         errorMessage: "apiError",
       });
@@ -130,7 +130,7 @@ describe("reducers.resources.view", () => {
       expect(
         getErrorMessage({
           payload: error,
-        })
+        }),
       ).to.eql({
         errorMessage: error.message,
       });
@@ -140,7 +140,7 @@ describe("reducers.resources.view", () => {
       expect(
         getErrorMessage({
           payload: new RequestError(),
-        })
+        }),
       ).to.eql({
         errorMessage: NO_INTERNET_MESSAGE,
       });
@@ -151,7 +151,7 @@ describe("reducers.resources.view", () => {
         getErrorMessage({
           meta: { errorMessage: "different" },
           payload: new RequestError(),
-        })
+        }),
       ).to.eql({
         errorMessage: "different",
       });

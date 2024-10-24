@@ -19,7 +19,7 @@ import { customAlphabet } from "nanoid";
 // At 100 ids/sec, 1% chance of collision in ~3 years
 const generateId = customAlphabet(
   "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-  12
+  12,
 );
 
 export const generateRequestId = () => generateId();

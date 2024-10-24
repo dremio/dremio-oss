@@ -20,12 +20,8 @@ import com.google.errorprone.annotations.FormatMethod;
 public class SemanticVersionParserException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 
-  public SemanticVersionParserException() {
-    super();
-  }
-
-  public SemanticVersionParserException(Throwable cause) {
-    super(cause);
+  public SemanticVersionParserException(String errorMessage) {
+    super(errorMessage);
   }
 
   @FormatMethod

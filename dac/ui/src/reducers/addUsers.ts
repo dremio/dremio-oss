@@ -18,7 +18,7 @@ import * as ActionTypes from "actions/addUsers";
 
 export default function addUsers(
   state = { isOpen: false },
-  action: { type: string }
+  action: { type: string },
 ) {
   switch (action.type) {
     case ActionTypes.SHOW_ADD_USERS:

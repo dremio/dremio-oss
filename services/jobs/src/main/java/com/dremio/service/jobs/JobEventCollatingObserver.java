@@ -15,6 +15,12 @@
  */
 package com.dremio.service.jobs;
 
+import static com.dremio.service.jobs.JobEventCollatingObserver.EventType.DATA;
+import static com.dremio.service.jobs.JobEventCollatingObserver.EventType.FINAL_JOB_SUMMARY;
+import static com.dremio.service.jobs.JobEventCollatingObserver.EventType.JOB_SUBMISSION;
+import static com.dremio.service.jobs.JobEventCollatingObserver.EventType.JOB_SUBMITTED;
+import static com.dremio.service.jobs.JobEventCollatingObserver.EventType.METADATA;
+
 import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.CloseableExecutorService;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
@@ -48,7 +54,29 @@ class JobEventCollatingObserver implements AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(JobEventCollatingObserver.class);
 
   private static final QueuedEvent SENT = new QueuedEvent();
-  private static final int DATA_ORDER_INDEX = 3;
+
+  enum EventType {
+    JOB_SUBMISSION(0),
+    JOB_SUBMITTED(1),
+    METADATA(2),
+    DATA(3),
+    FINAL_JOB_SUMMARY(4);
+
+    private final int index;
+
+    EventType(final int index) {
+      this.index = index;
+    }
+
+    @Override
+    public String toString() {
+      return super.toString() + "(" + index + ")";
+    }
+
+    public int getIndex() {
+      return index;
+    }
+  }
 
   private final QueuedEvent[] checkpointEvents = new QueuedEvent[5];
   private final LinkedList<QueuedEvent> otherEvents = new LinkedList<>();
@@ -69,7 +97,7 @@ class JobEventCollatingObserver implements AutoCloseable {
     this.delegate = delegate;
 
     if (!streamResultsMode) {
-      checkpointEvents[DATA_ORDER_INDEX] = SENT;
+      checkpointEvents[DATA.getIndex()] = SENT;
     }
 
     // backpressure is supported only if delegate is instance of ServerCallStreamObserver,
@@ -79,9 +107,9 @@ class JobEventCollatingObserver implements AutoCloseable {
       logger.debug("Flow control is enabled for job {}.", jobId);
       this.scso = (ServerCallStreamObserver<JobEvent>) delegate;
 
-      OnReadyRunnableHandler eventHandler =
-          new OnReadyRunnableHandler(
-              "job-events", executorService, scso, () -> processEvents(), () -> closed = true);
+      OnReadyRunnableHandler<JobEvent> eventHandler =
+          new OnReadyRunnableHandler<>(
+              "job-events", executorService, scso, this::processEvents, () -> closed = true);
       this.scso.setOnReadyHandler(eventHandler);
       this.scso.setOnCancelHandler(eventHandler::cancel);
     } else {
@@ -95,39 +123,39 @@ class JobEventCollatingObserver implements AutoCloseable {
    * @param jobSubmissionEvent the first event to process
    */
   synchronized void start(JobEvent jobSubmissionEvent) {
-    checkpointEvents[0] = new QueuedEvent(jobSubmissionEvent);
+    checkpointEvents[JOB_SUBMISSION.getIndex()] = new QueuedEvent(jobSubmissionEvent);
     started = true;
 
     processEvents();
   }
 
   void onSubmitted(JobEvent event) {
-    checkpoint(new QueuedEvent(event), 1);
+    checkpoint(new QueuedEvent(event), JOB_SUBMITTED);
   }
 
   void onQueryMetadata(JobEvent event) {
-    checkpoint(new QueuedEvent(event), 2);
+    checkpoint(new QueuedEvent(event), METADATA);
   }
 
   void onData(JobEvent event, RpcOutcomeListener<Ack> outcomeListener) {
-    if (checkpointEvents[DATA_ORDER_INDEX] == null) {
+    if (checkpointEvents[DATA.getIndex()] == null) {
       synchronized (this) {
-        if (checkpointEvents[DATA_ORDER_INDEX] == null) {
+        if (checkpointEvents[DATA.getIndex()] == null) {
           QueuedEvent dataEvent = new QueuedEvent();
           dataEvent.addData(event, outcomeListener);
-          checkpoint(dataEvent, DATA_ORDER_INDEX);
+          checkpoint(dataEvent, DATA);
         }
       }
     } else {
-      checkpointEvents[DATA_ORDER_INDEX].addData(event, outcomeListener);
-      if (started && mayProcess(DATA_ORDER_INDEX)) {
+      checkpointEvents[DATA.getIndex()].addData(event, outcomeListener);
+      if (started && mayProcess(DATA)) {
         processEvents();
       }
     }
   }
 
   void onFinalJobSummary(JobEvent event) {
-    checkpoint(new QueuedEvent(event), 4);
+    checkpoint(new QueuedEvent(event), FINAL_JOB_SUMMARY);
   }
 
   void onProgressJobSummary(JobEvent event) {
@@ -142,10 +170,13 @@ class JobEventCollatingObserver implements AutoCloseable {
     submit(new QueuedEvent());
   }
 
-  private synchronized void checkpoint(QueuedEvent event, int index) {
-    assert checkpointEvents[index] == null;
-    checkpointEvents[index] = event;
-    if (!mayProcess(index) || !started) {
+  private synchronized void checkpoint(QueuedEvent event, EventType type) {
+    assert checkpointEvents[type.getIndex()] == null;
+    checkpointEvents[type.getIndex()] = event;
+    if (!mayProcess(type)) {
+      return;
+    }
+    if (!started) {
       logger.debug("{}: deferring checkpoint processing since the stream is not ready", jobId);
       return;
     }
@@ -153,12 +184,20 @@ class JobEventCollatingObserver implements AutoCloseable {
     processEvents();
   }
 
-  private boolean mayProcess(final int index) {
+  private boolean mayProcess(EventType type) {
     boolean mayProcess = true;
-    for (int i = 0; i < index; i++) {
-      if (checkpointEvents[i] == null) {
-        logger.debug("{}: cannot process {} since preceding {} is null", jobId, index, i);
+    for (EventType t : EventType.values()) {
+      if (t == type) {
+        break;
+      }
+      if (checkpointEvents[t.getIndex()] == null) {
+        if (type == DATA || type == FINAL_JOB_SUMMARY) {
+          logger.warn("{}: cannot process {} since preceding {} is null", jobId, type, t);
+        } else {
+          logger.debug("{}: cannot process {} since preceding {} is null", jobId, type, t);
+        }
         mayProcess = false;
+        break;
       }
     }
     return mayProcess;
@@ -183,8 +222,8 @@ class JobEventCollatingObserver implements AutoCloseable {
     @SuppressWarnings("resource")
     final DeferredException deferredException = new DeferredException();
     // (1) pass through and handle all the checkpoint events, if possible
-    for (int i = 0; i < checkpointEvents.length; i++) {
-      final QueuedEvent event = checkpointEvents[i];
+    for (EventType t : EventType.values()) {
+      final QueuedEvent event = checkpointEvents[t.getIndex()];
       if (event == null) {
         break;
       }
@@ -194,10 +233,10 @@ class JobEventCollatingObserver implements AutoCloseable {
       }
 
       try {
-        if (i == DATA_ORDER_INDEX) {
-          while (isClientReady() && !checkpointEvents[DATA_ORDER_INDEX].getDataQueue().isEmpty()) {
+        if (t == DATA) {
+          while (isClientReady() && !checkpointEvents[DATA.getIndex()].getDataQueue().isEmpty()) {
             Pair<JobEvent, RpcOutcomeListener<Ack>> data =
-                checkpointEvents[DATA_ORDER_INDEX].getDataQueue().poll();
+                checkpointEvents[DATA.getIndex()].getDataQueue().poll();
             if (data != null) {
               delegate.onNext(data.getLeft());
 
@@ -209,7 +248,7 @@ class JobEventCollatingObserver implements AutoCloseable {
               data.getRight().success(Acks.OK, null);
             }
           }
-          if (!checkpointEvents[DATA_ORDER_INDEX].getDataQueue().isEmpty()) {
+          if (!checkpointEvents[DATA.getIndex()].getDataQueue().isEmpty()) {
             break;
           }
         } else {
@@ -219,13 +258,13 @@ class JobEventCollatingObserver implements AutoCloseable {
         deferredException.addException(e);
       }
 
-      if (i != DATA_ORDER_INDEX) {
-        checkpointEvents[i] = SENT;
+      if (t != DATA) {
+        checkpointEvents[t.getIndex()] = SENT;
 
         // there can be multiple data events, so set data as SENT only when next event to it was
         // sent.
-        if (i == (DATA_ORDER_INDEX + 1)) {
-          checkpointEvents[DATA_ORDER_INDEX] = SENT;
+        if (t.getIndex() == (DATA.getIndex() + 1)) {
+          checkpointEvents[DATA.getIndex()] = SENT;
         }
       }
     }

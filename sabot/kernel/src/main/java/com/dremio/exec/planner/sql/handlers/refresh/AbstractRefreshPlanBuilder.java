@@ -379,6 +379,7 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     final CreateTableEntry fsCreateTableEntry =
         new CreateParquetTableEntry(
             userName,
+            null,
             metaStoragePlugin,
             icebergTableProps.getTableLocation(),
             icebergTableProps,

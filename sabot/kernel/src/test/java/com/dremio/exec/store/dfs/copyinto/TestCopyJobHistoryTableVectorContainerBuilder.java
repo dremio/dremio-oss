@@ -49,7 +49,7 @@ public class TestCopyJobHistoryTableVectorContainerBuilder
       long numSuccess,
       long numErrors,
       long timeMillis) {
-    Schema schema = CopyJobHistoryTableSchemaProvider.getSchema(schemaVersion);
+    Schema schema = new CopyJobHistoryTableSchemaProvider(schemaVersion).getSchema();
     try (VectorContainer container = buildVector(schema, info, numSuccess, numErrors, timeMillis)) {
       assertThat(container.getSchema().getFieldCount()).isEqualTo(schema.columns().size());
       for (int i = 1; i <= container.getSchema().getFieldCount(); i++) {
@@ -116,6 +116,11 @@ public class TestCopyJobHistoryTableVectorContainerBuilder
               // time_elapsed
               assertThat(((BigIntVector) vector).get(0)).isEqualTo(info.getProcessingStartTime());
               break;
+            case 15:
+              // transformation_properties
+              assertThat(((VarCharVector) vector).get(0))
+                  .isEqualTo(info.getTransformationProperties().getBytes());
+              break;
             default:
               fail("Unrecognized vector column");
           }
@@ -131,7 +136,7 @@ public class TestCopyJobHistoryTableVectorContainerBuilder
   }
 
   private void assertContainerSchema(int schemaVersion) {
-    Schema schema = CopyJobHistoryTableSchemaProvider.getSchema(schemaVersion);
+    Schema schema = new CopyJobHistoryTableSchemaProvider(schemaVersion).getSchema();
     try (VectorContainer container =
         CopyJobHistoryTableVectorContainerBuilder.initializeContainer(getAllocator(), schema)) {
       assertThat(container.getSchema().getFieldCount()).isEqualTo(schema.columns().size());

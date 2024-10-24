@@ -15,11 +15,11 @@
  */
 import { Component } from "react";
 import Immutable from "immutable";
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 import { injectIntl } from "react-intl";
 import PropTypes from "prop-types";
 import clsx from "clsx";
-import { SelectView } from "@app/components/Fields/SelectView";
+import { SelectView } from "#oss/components/Fields/SelectView";
 import EllipsedText from "components/EllipsedText";
 import * as IntervalTypes from "./IntervalTypes";
 import LeftPanel from "./LeftPanel";

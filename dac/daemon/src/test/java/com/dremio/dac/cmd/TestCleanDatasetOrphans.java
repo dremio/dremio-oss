@@ -24,11 +24,12 @@ import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.Document;
-import com.dremio.datastore.api.IndexedStore;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.NamespaceStore;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
@@ -62,7 +63,8 @@ public class TestCleanDatasetOrphans extends CleanBaseTest {
     try (LocalKVStoreProvider provider = providerOptional.get()) {
       provider.start();
       NamespaceService namespaceService =
-          new NamespaceServiceImpl(provider, new CatalogStatusEventsImpl());
+          new NamespaceServiceImpl(
+              provider, new CatalogStatusEventsImpl(), CatalogEventMessagePublisherProvider.NO_OP);
 
       // Add a dataset to home space
       final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath("user1")).toNamespaceKey();
@@ -141,8 +143,7 @@ public class TestCleanDatasetOrphans extends CleanBaseTest {
   }
 
   private static int getDatasetCount(LocalKVStoreProvider kvStoreProvider) {
-    IndexedStore<String, NameSpaceContainer> namespace =
-        kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+    NamespaceStore namespace = new NamespaceStore(() -> kvStoreProvider);
     Iterable<Document<String, NameSpaceContainer>> containerEntries = namespace.find();
 
     int count = 0;

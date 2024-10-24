@@ -97,9 +97,8 @@ public class TestAntiJoinPositionalDeletePlan extends BaseTestQuery {
 
     config = new SqlHandlerConfig(queryContext, converter, observer, null);
 
-    setSystemOption(
-        ExecConstants.ENABLE_READING_POSITIONAL_DELETE_WITH_ANTI_JOIN.getOptionName(), "true");
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER.getOptionName(), "true");
+    setSystemOption(ExecConstants.ENABLE_READING_POSITIONAL_DELETE_WITH_ANTI_JOIN, true);
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER, true);
   }
 
   @Before
@@ -107,9 +106,8 @@ public class TestAntiJoinPositionalDeletePlan extends BaseTestQuery {
 
   @After
   public void tearDownTest() throws Exception {
-    resetSystemOption(
-        ExecConstants.ENABLE_READING_POSITIONAL_DELETE_WITH_ANTI_JOIN.getOptionName());
-    resetSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER.getOptionName());
+    resetSystemOption(ExecConstants.ENABLE_READING_POSITIONAL_DELETE_WITH_ANTI_JOIN);
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER);
   }
 
   @Test

@@ -1,5 +1,5 @@
-import { currentRouteState } from "@app/reducers/explore";
-import { explorePageLocationChanged } from "@app/actions/explore/dataset/data";
+import { currentRouteState } from "#oss/reducers/explore";
+import { explorePageLocationChanged } from "#oss/actions/explore/dataset/data";
 
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
@@ -21,7 +21,7 @@ describe("currentRouteState should be consistent with explorePageLocationChanged
   [1, {}, "test"].forEach((newStateValue) => {
     it(`for value: ${JSON.stringify(newStateValue)}`, () => {
       expect(
-        currentRouteState(null, explorePageLocationChanged(newStateValue))
+        currentRouteState(null, explorePageLocationChanged(newStateValue)),
       ).to.be.equal(newStateValue);
     });
   });

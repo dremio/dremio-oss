@@ -29,7 +29,7 @@ import {
 import { formRow } from "uiTheme/radium/forms";
 import { EDITION } from "dyn-load/constants/serverStatus";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
-import * as VersionUtils from "@app/utils/versionUtils";
+import * as VersionUtils from "#oss/utils/versionUtils";
 
 //export for testing only
 export const FIELDS = [
@@ -83,7 +83,7 @@ class UserForm extends Component {
       // only require password for a new user
       validators.push(
         isRequired("password"),
-        isRequired("passwordVerify", laDeprecated("Confirm Password"))
+        isRequired("passwordVerify", laDeprecated("Confirm Password")),
       );
     }
     validators.push(confirmPassword("password", "passwordVerify"));

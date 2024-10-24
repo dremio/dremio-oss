@@ -96,7 +96,8 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
 
   @Override
   public Footer getFooter(String path, long fileSize) throws IOException {
-    MutableParquetMetadata parquetMetadata = this.readFooter ? readFooter(path, fileSize) : null;
+    MutableParquetMetadata parquetMetadata =
+        this.readFooter ? readParquetMetadata(path, fileSize) : null;
     if (readFooter) {
       return new ParquetFooter(
           createBatchSchemaIfNeeded(parquetMetadata, path, fileSize),
@@ -133,7 +134,7 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
     return (long) Math.ceil(fileSize * (compressionFactor / estimatedRecordSize));
   }
 
-  private BatchSchema createBatchSchemaIfNeeded(
+  public BatchSchema createBatchSchemaIfNeeded(
       MutableParquetMetadata parquetMetadata, String path, long fileSize) throws IOException {
     if (tableSchema == null) {
       tableSchema = batchSchemaFromParquetFooter(parquetMetadata, path, fileSize);
@@ -295,7 +296,7 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
     }
   }
 
-  private MutableParquetMetadata readFooter(String path, long fileSize) throws IOException {
+  public MutableParquetMetadata readParquetMetadata(String path, long fileSize) throws IOException {
     logger.debug("Reading footer of file [{}]", path);
     try (SingleStreamProvider singleStreamProvider =
         new SingleStreamProvider(

@@ -28,7 +28,7 @@
     }
     &.--disabled {
       pointer-events: none;
-      background-color: var(--color--neutral--75) !important;
+      background-color: var(--fill--disabled) !important;
       border-color: var(--border--neutral--solid);
       input::placeholder {
         color: var(--text--disabled) !important;
@@ -43,14 +43,12 @@
       background-color: var(--fill--primary--selected) !important;
 
       &:hover {
-        background-color: var(--fill--primary--hover) !important;
+        background-color: var(--fill--primary--selected--hover) !important;
       }
     }
   }
 
   &__optionCheckbox {
-    width: 24px;
-    height: 24px;
     svg {
       width: 20px;
       height: 20px;

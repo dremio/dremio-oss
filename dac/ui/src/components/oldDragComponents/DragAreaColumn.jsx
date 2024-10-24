@@ -16,11 +16,11 @@
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import { Popover } from "@app/components/Popover";
-import { intl } from "@app/utils/intl";
+import { Popover } from "#oss/components/Popover";
+import { intl } from "#oss/utils/intl";
 
 import { formDefault, formPlaceholder } from "uiTheme/radium/typography";
-import { typeToIconType } from "@app/constants/DataTypes";
+import { typeToIconType } from "#oss/constants/DataTypes";
 import { FLEX_ROW_START_CENTER } from "uiTheme/radium/flexStyle";
 import DragSource from "components/DragComponents/DragSource";
 import DragTarget from "components/DragComponents/DragTarget";
@@ -192,6 +192,7 @@ class DragAreaColumn extends PureComponent {
             onClick={this.selectItemOnDrag.bind(this, selectedItem)}
           >
             <dremio-icon
+              class="icon-primary"
               name={`data-types/${typeToIconType[columnType]}`}
             ></dremio-icon>
             <span style={{ marginLeft: 5, ...disabledStyle }}>
@@ -234,7 +235,10 @@ class DragAreaColumn extends PureComponent {
               onChange={this.handlePatternChange.bind(this)}
               placeholder={intl.formatMessage({ id: "Dataset.ChooseColumn" })}
             />
-            <dremio-icon name="interface/search"></dremio-icon>
+            <dremio-icon
+              name="interface/search"
+              class="icon-primary"
+            ></dremio-icon>
           </div>
           <Popover
             useLayerForClickAway={false}
@@ -272,7 +276,9 @@ class DragAreaColumn extends PureComponent {
     const columnStyle = this.shouldHideField()
       ? { visibility: "hidden" }
       : null;
-    const color = this.state.isNotEmptyDragArea ? "#EBF9F6" : "#fff";
+    const color = this.state.isNotEmptyDragArea
+      ? "var(--fill--primary--selected)"
+      : "var(--fill--primary)";
     const dragStyle = this.checkDropPosibility()
       ? { ...styles.dragStyle, backgroundColor: color }
       : {};
@@ -386,8 +392,8 @@ const styles = {
   largeColumn: {
     width: "100%",
     marginTop: 0,
-    backgroundColor: "#EBF9F6",
-    border: `1px solid #92E2D0`,
+    backgroundColor: "var(--fill--primary--selected)",
+    border: "1px solid var(--fill--primary--selected)",
   },
   content: {
     display: "flex",
@@ -404,7 +410,7 @@ const styles = {
     alignItems: "center",
     width: 179,
     minHeight: 28,
-    backgroundColor: "#f3f3f3",
+    backgroundColor: "var(--fill--secondary)",
     borderRadius: 1,
     marginLeft: 5,
   },
@@ -417,10 +423,10 @@ const styles = {
     minWidth: 100,
   },
   dragStyle: {
-    borderBottom: "1px dotted gray",
-    borderTop: "1px dotted gray",
-    borderLeft: "1px dotted gray",
-    borderRight: "1px dotted gray",
+    borderBottom: "1px dotted var(--border--neutral)",
+    borderTop: "1px dotted var(--border--neutral)",
+    borderLeft: "1px dotted var(--border--neutral)",
+    borderRight: "1px dotted var(--border--neutral)",
     backgroundColor: "white",
     height: 26,
   },
@@ -435,7 +441,7 @@ const styles = {
     position: "relative",
     display: "flex",
     flexWrap: "nowrap",
-    background: "#f3f3f3",
+    background: "var(--fill--secondary)",
     padding: "4px 4px 3px 4px",
   },
   search: {

@@ -16,8 +16,8 @@
 package com.dremio.sabot.exec.heap;
 
 import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongConsumer;
@@ -52,22 +52,51 @@ final class SpillOnLowMemoryTracker {
     if (participantMap.isEmpty()) {
       return 0;
     }
+    if (logger.isDebugEnabled()) {
+      logger.debug(
+          "Tracker details: Overhead {}, Size Factor {}, Overhead Factor {}, Individual Overhead {}",
+          totalOverhead.get(),
+          sizeFactor,
+          memoryState.getTotalOverheadFactor(sizeFactor),
+          memoryState.getIndividualOverhead());
+    }
     int numVictims = 0;
     if (totalOverhead.get() >= memoryState.getTotalOverheadFactor(sizeFactor)) {
-      List<Participant> participants =
+      // copy into a local priority queue all the overheads of filtered participants and then
+      // traverse the q in max heap order of overhead at the time of insertion..If the overhead
+      // values change post insertion, we can live with it as we are interested only in taking
+      // top N at given instant in time and slight variations to the order between now and
+      // q traversal will not cause issues to the correctness of the algorithm as long as we
+      // mask the priority q comparator from these changes by duplicating the overhead value.
+      PriorityQueue<Map.Entry<Long, Participant>> participants =
           participantMap.values().stream()
               .filter(Participant::isNotVictim)
-              .filter((p) -> p.getOverhead() >= memoryState.getIndividualOverhead())
-              .sorted(Comparator.comparingLong(Participant::getOverhead).reversed())
-              .limit(maxVictims)
-              .collect(Collectors.toList());
-      logger.debug(
-          "Found {} victims with overhead greater than {}",
-          participants.size(),
-          memoryState.getIndividualOverhead());
-      for (Participant p : participants) {
-        p.setAsVictim();
+              .filter(
+                  participant -> participant.getOverhead() >= memoryState.getIndividualOverhead())
+              .map(participant -> Map.entry(participant.getOverhead(), participant))
+              .collect(
+                  Collectors.toCollection(
+                      () ->
+                          new PriorityQueue<>(
+                              Comparator.comparingLong(
+                                      (Map.Entry<Long, Participant> p) -> p.getKey())
+                                  .reversed())));
+      if (logger.isDebugEnabled()) {
+        logger.debug(
+            "Num Participants = {}, Participant List with overhead greater than {} = `{}`",
+            participants.size(),
+            memoryState.getIndividualOverhead(),
+            participants.stream()
+                .map(p -> p.getValue().toString())
+                .collect(Collectors.joining(",")));
+      }
+      while (!participants.isEmpty()) {
+        var p = participants.poll();
+        p.getValue().setAsVictim();
         numVictims++;
+        if (numVictims >= maxVictims) {
+          break;
+        }
       }
     }
     if (logger.isDebugEnabled()) {
@@ -149,6 +178,19 @@ final class SpillOnLowMemoryTracker {
     long getOverhead() {
       // prevents word tearing as this is unprotected read
       return (long) this.batches * (long) this.perBatchOverhead;
+    }
+
+    @Override
+    public String toString() {
+      return "{Per Batch Overhead :"
+          + perBatchOverhead
+          + ", Batches :"
+          + batches
+          + ", Synced Batches :"
+          + syncedBatches
+          + ", Victim :"
+          + victim
+          + "}";
     }
   }
 }

@@ -17,7 +17,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import classNames from "clsx";
 
-import LoginTitle from "@app/pages/AuthenticationPage/components/LoginTitle";
+import LoginTitle from "#oss/pages/AuthenticationPage/components/LoginTitle";
 import { welcomePage, contentWrapper } from "./WelcomePage.less";
 
 export class WelcomePage extends Component {

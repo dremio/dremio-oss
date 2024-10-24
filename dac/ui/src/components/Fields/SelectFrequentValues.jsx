@@ -29,7 +29,7 @@ class SelectFrequentValues extends Component {
       PropTypes.shape({
         percent: PropTypes.any,
         value: PropTypes.any,
-      })
+      }),
     ),
   };
 
@@ -90,7 +90,7 @@ class SelectFrequentValues extends Component {
     const { options, style, field } = this.props;
     const maxPercent = options.reduce(
       (prev, cur) => Math.max(prev, cur.percent),
-      0
+      0,
     );
 
     const valueSet = new Set(field.value);
@@ -100,7 +100,7 @@ class SelectFrequentValues extends Component {
           <tbody>
             {options &&
               options.map((option) =>
-                this.renderOption(option, maxPercent, valueSet)
+                this.renderOption(option, maxPercent, valueSet),
               )}
           </tbody>
         </table>

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>25.1.1-202409260159070462-716c0676</version>
+    <version>${revision}</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -504,11 +504,6 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-inline</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-sqlrunner</artifactId>
       <version>${project.version}</version>
@@ -613,7 +608,7 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>com.dremio.tools</groupId>
+        <groupId>com.dremio.build-tools</groupId>
         <artifactId>dremio-protostuff-maven-plugin</artifactId>
         <executions>
           <execution>
@@ -650,7 +645,7 @@
       </plugin>
       <plugin>
         <!-- generate sources from fmpp -->
-        <groupId>com.dremio.tools</groupId>
+        <groupId>com.dremio.build-tools</groupId>
         <artifactId>dremio-fmpp-maven-plugin</artifactId>
         <executions>
           <execution>

@@ -18,7 +18,7 @@ import { push } from "react-router-redux";
 
 import provisionSchema from "schemas/provision";
 import schemaUtils from "utils/apiUtils/schemaUtils";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const LOAD_AWS_DEFAULTS_START = "LOAD_AWS_DEFAULTS_START";
 export const LOAD_AWS_DEFAULTS_SUCCESS = "LOAD_AWS_DEFAULTS_SUCCESS";
@@ -80,7 +80,7 @@ function fetchUpdateWorkersSize(form, provisionId, viewId) {
   const meta = { viewId };
 
   const apiCall = new APIV2Call().paths(
-    `provision/cluster/${provisionId}/dynamicConfig`
+    `provision/cluster/${provisionId}/dynamicConfig`,
   );
 
   return {
@@ -90,7 +90,7 @@ function fetchUpdateWorkersSize(form, provisionId, viewId) {
         schemaUtils.getSuccessActionTypeWithSchema(
           UPDATE_WORKERS_SIZE_SUCCESS,
           provisionSchema,
-          meta
+          meta,
         ),
         { type: UPDATE_WORKERS_SIZE_FAILURE, meta },
       ],
@@ -153,7 +153,7 @@ function fetchCreateProvision(form, viewId) {
         schemaUtils.getSuccessActionTypeWithSchema(
           CREATE_PROVISION_SUCCESS,
           provisionSchema,
-          meta
+          meta,
         ),
         { type: CREATE_PROVISION_FAILURE, meta },
       ],
@@ -187,7 +187,7 @@ function fetchEditProvision(data, viewId) {
         schemaUtils.getSuccessActionTypeWithSchema(
           EDIT_PROVISION_SUCCESS,
           provisionSchema,
-          meta
+          meta,
         ),
         { type: EDIT_PROVISION_FAILURE, meta },
       ],
@@ -212,7 +212,7 @@ export function openAddProvisionModal(clusterType) {
       push({
         ...location,
         state: { modal: "AddProvisionModal", clusterType },
-      })
+      }),
     );
   };
 }
@@ -224,7 +224,7 @@ export function openEditProvisionModal(provisionId, clusterType) {
       push({
         ...location,
         state: { modal: "AddProvisionModal", provisionId, clusterType },
-      })
+      }),
     );
   };
 }
@@ -236,7 +236,7 @@ export function openMoreInfoProvisionModal(entityId) {
       push({
         ...location,
         state: { modal: "MoreInfoProvisionModal", entityId },
-      })
+      }),
     );
   };
 }
@@ -248,7 +248,7 @@ export function openAdjustWorkersModal(entityId) {
       push({
         ...location,
         state: { modal: "AdjustWorkersModal", entityId },
-      })
+      }),
     );
   };
 }

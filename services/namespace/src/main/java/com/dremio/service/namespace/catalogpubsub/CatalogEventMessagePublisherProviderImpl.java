@@ -15,6 +15,8 @@
  */
 package com.dremio.service.namespace.catalogpubsub;
 
+import com.dremio.options.OptionManager;
+import com.dremio.search.SearchOptions;
 import com.dremio.service.namespace.CatalogEventProto;
 import com.dremio.services.pubsub.ImmutableMessagePublisherOptions;
 import com.dremio.services.pubsub.MessagePublisher;
@@ -22,24 +24,68 @@ import com.dremio.services.pubsub.inprocess.InProcessPubSubClientProvider;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 public final class CatalogEventMessagePublisherProviderImpl
     implements CatalogEventMessagePublisherProvider {
-  private final Provider<InProcessPubSubClientProvider> pubSubClientProviderProvider;
+  private static final Logger logger =
+      LoggerFactory.getLogger(CatalogEventMessagePublisherProviderImpl.class);
+
+  private final InProcessPubSubClientProvider pubSubClientProvider;
+  private final Provider<OptionManager> optionManagerProvider;
+
+  private MessagePublisher<CatalogEventProto.CatalogEventMessage> messagePublisher;
+  private boolean isEnabled;
 
   @Inject
   public CatalogEventMessagePublisherProviderImpl(
-      Provider<InProcessPubSubClientProvider> pubSubClientProviderProvider) {
-    this.pubSubClientProviderProvider = pubSubClientProviderProvider;
+      InProcessPubSubClientProvider pubSubClientProvider,
+      Provider<OptionManager> optionManagerProvider) {
+    this.pubSubClientProvider = pubSubClientProvider;
+    this.optionManagerProvider = optionManagerProvider;
   }
 
   @Override
-  public MessagePublisher<CatalogEventProto.CatalogEventMessage> get() {
-    return pubSubClientProviderProvider
-        .get()
-        .get()
-        .getPublisher(
-            CatalogEventsTopic.class, new ImmutableMessagePublisherOptions.Builder().build());
+  public synchronized MessagePublisher<CatalogEventProto.CatalogEventMessage> get() {
+    if (messagePublisher == null) {
+      // Perform one-time setup
+      initMessagePublisher();
+      optionManagerProvider
+          .get()
+          .addOptionChangeListener(
+              () -> {
+                // If the option value has changed, re-initialize the message publisher
+                if (isEnabled ^ isFeatureEnabled()) {
+                  logger.info("Support key value has changed.");
+                  initMessagePublisher();
+                }
+              });
+    }
+    return messagePublisher;
+  }
+
+  private void initMessagePublisher() {
+    boolean featureEnabled = isFeatureEnabled();
+    logger.info("{} CatalogEventMessagePublisher.", featureEnabled ? "Enabling" : "Disabling");
+    isEnabled = featureEnabled;
+    if (messagePublisher != null) {
+      // Unsubscribe the existing one we will be replacing
+      logger.debug("Closing existing message publisher.");
+      messagePublisher.close();
+    }
+    messagePublisher =
+        isEnabled
+            ? pubSubClientProvider
+                .get()
+                .getPublisher(
+                    CatalogEventsTopic.class,
+                    new ImmutableMessagePublisherOptions.Builder().build())
+            : NO_OP.get();
+  }
+
+  private boolean isFeatureEnabled() {
+    return optionManagerProvider.get().getOption(SearchOptions.SEARCH_V2);
   }
 }

@@ -64,6 +64,7 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
   // stats related
   private final Stopwatch buildHashComputationWatch = Stopwatch.createUnstarted();
   private final Stopwatch probeHashComputationWatch = Stopwatch.createUnstarted();
+  private final Stopwatch spillWatch = Stopwatch.createUnstarted();
   Partition.Stats statsFromPrevGen;
 
   private static final boolean DEBUG = VM.areAssertsEnabled();
@@ -144,6 +145,7 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
 
       recordsDone += recordsInsertedInIteration;
       if (recordsInsertedInIteration < recordsRequestedInIteration) {
+        spillWatch.start();
         boolean memReleased = tryAndReleaseMemory();
         if (memReleased || recordsInsertedInIteration > 0) {
           logger.debug("short insert during build, release some memory and retry");
@@ -154,6 +156,7 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
               "zero records inserted during build, even after all partitions switched to spill");
           throw new OutOfMemoryException("unable to insert batch even after switching to spill");
         }
+        spillWatch.stop();
       }
     }
   }

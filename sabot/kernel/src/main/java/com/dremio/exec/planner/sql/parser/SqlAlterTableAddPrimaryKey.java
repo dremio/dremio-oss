@@ -100,7 +100,7 @@ public class SqlAlterTableAddPrimaryKey extends SqlAlterTable
 
   @Override
   public SqlDirectHandler<SimpleCommandResult> toDirectHandler(QueryContext context) {
-    return new AddPrimaryKeyHandler(context.getCatalog());
+    return new AddPrimaryKeyHandler(context.getCatalog(), context.getSession());
   }
 
   public SqlTableVersionSpec getSqlTableVersionSpec() {

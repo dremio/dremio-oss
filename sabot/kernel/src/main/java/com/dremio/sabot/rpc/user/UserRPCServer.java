@@ -68,6 +68,7 @@ import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.server.options.SessionOptionManagerFactory;
 import com.dremio.exec.server.options.SessionOptionManagerFactoryImpl;
 import com.dremio.exec.work.foreman.TerminationListenerRegistry;
+import com.dremio.exec.work.protector.InstrumentedUserResponseHandler;
 import com.dremio.exec.work.protector.UserConnectionResponseHandler;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserWorker;
@@ -431,7 +432,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
             worker.submitWork(
                 externalId,
                 connection.getSession(),
-                new UserConnectionResponseHandler(connection),
+                new InstrumentedUserResponseHandler(new UserConnectionResponseHandler(connection)),
                 request,
                 registry);
             responseSender.send(

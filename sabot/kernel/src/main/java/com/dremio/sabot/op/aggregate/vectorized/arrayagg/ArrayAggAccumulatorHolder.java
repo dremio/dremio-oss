@@ -30,7 +30,6 @@ import org.apache.arrow.vector.SmallIntVector;
  * @param <ElementType> Type of individual accumulated element
  */
 public abstract class ArrayAggAccumulatorHolder<ElementType> {
-  protected int numItems;
   private int maxGroupIdentifier;
   private final SmallIntVector groupIndexVector;
 
@@ -47,13 +46,13 @@ public abstract class ArrayAggAccumulatorHolder<ElementType> {
 
     @Override
     public boolean hasNext() {
-      for (next = current + 1; next < numItems; next++) {
+      for (next = current + 1; next < getValueCount(); next++) {
         if (groupIndexVector.get(next) == elementsGroupIndex) {
           break;
         }
       }
       current = next;
-      return next < numItems;
+      return next < getValueCount();
     }
 
     @Override
@@ -63,22 +62,26 @@ public abstract class ArrayAggAccumulatorHolder<ElementType> {
   }
 
   protected ArrayAggAccumulatorHolder(BufferAllocator allocator, int initialCapacity) {
-    this.numItems = 0;
     this.maxGroupIdentifier = 0;
     this.groupIndexVector = new SmallIntVector("ArrayAggAccumulatorHolder indexVector", allocator);
     this.groupIndexVector.allocateNew(initialCapacity);
   }
 
   public void addItem(ElementType data, int chunkOffset) {
+    int lastIndex = getValueCount();
     maxGroupIdentifier = Math.max(maxGroupIdentifier, chunkOffset);
     reAllocIfNeeded(data);
-    addItemToVector(data, numItems);
-    groupIndexVector.set(numItems, chunkOffset);
-    numItems++;
+    addItemToVector(data, lastIndex);
+    groupIndexVector.set(lastIndex, chunkOffset);
+    groupIndexVector.setValueCount(lastIndex + 1);
+  }
+
+  public int getValueCount() {
+    return groupIndexVector.getValueCount();
   }
 
   public void reAllocIfNeeded(ElementType data) {
-    if (numItems + 1 >= groupIndexVector.getValueCapacity()) {
+    if (getValueCount() + 1 >= groupIndexVector.getValueCapacity()) {
       groupIndexVector.reAlloc();
     }
   }

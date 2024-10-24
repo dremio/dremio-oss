@@ -18,15 +18,15 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { injectIntl } from "react-intl";
 
-import { LIST, MAP, MIXED, STRUCT } from "@app/constants/DataTypes";
-import { getExploreState } from "@app/selectors/explore";
-import { isSqlChanged } from "@app/sagas/utils";
+import { LIST, MAP, MIXED, STRUCT } from "#oss/constants/DataTypes";
+import { getExploreState } from "#oss/selectors/explore";
+import { isSqlChanged } from "#oss/sagas/utils";
 import { addNotification } from "actions/notification";
-import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
-import { APIV2Call } from "@app/core/APICall";
+import { MSG_CLEAR_DELAY_SEC } from "#oss/constants/Constants";
+import { APIV2Call } from "#oss/core/APICall";
 import tokenUtils from "@inject/utils/tokenUtils";
 import config from "dyn-load/utils/config";
-import { Cancel } from "@app/utils/CancelablePromise";
+import { Cancel } from "#oss/utils/CancelablePromise";
 import MenuItem from "./MenuItem";
 import Menu from "./Menu";
 
@@ -172,7 +172,7 @@ export class ExportMenu extends PureComponent {
     const { intl } = this.props;
     const notificationMessage = intl.formatMessage(
       { id: "Download.Completed" },
-      { type }
+      { type },
     );
     const message = `${this.props.jobId} ${notificationMessage}`;
     this.props.addNotification(message, "success", MSG_CLEAR_DELAY_SEC);

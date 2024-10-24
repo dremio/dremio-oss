@@ -1,9 +1,0 @@
-__bundled_tests__
-coverage
-node_modules
-public
-build
-vendor
-target
-test/templates
-example

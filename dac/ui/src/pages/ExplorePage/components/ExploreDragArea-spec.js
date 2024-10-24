@@ -43,7 +43,7 @@ describe("ExploreDragArea", () => {
   it("should render emptyDragAreaText if no children", () => {
     const wrapper = shallow(<ExploreDragArea {...minimalProps} />);
     expect(wrapper.find(".empty-text").text()).to.eql(
-      minimalProps.emptyDragAreaText
+      minimalProps.emptyDragAreaText,
     );
   });
   it("should not render emptyDragAreaText if there are children", () => {

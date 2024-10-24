@@ -36,7 +36,7 @@ const SearchDatasetsComponent = (props) => {
 
   return (
     <div className="searchDatasetsPopover" ref={onFocusRef}>
-      <dremio-icon name="interface/search"></dremio-icon>
+      <dremio-icon name="interface/search" class="icon-primary"></dremio-icon>
       <input
         key="textInput"
         type="text"

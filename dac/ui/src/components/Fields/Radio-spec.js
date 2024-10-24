@@ -43,10 +43,10 @@ describe("Radio", () => {
   describe("#renderDummyRadio", () => {
     it("should render dot only if isChecked", () => {
       expect(
-        shallow(instance.renderDummyRadio(false)).find("div")
+        shallow(instance.renderDummyRadio(false)).find("div"),
       ).to.have.length(1);
       expect(
-        shallow(instance.renderDummyRadio(true)).find("div")
+        shallow(instance.renderDummyRadio(true)).find("div"),
       ).to.have.length(2);
     });
   });

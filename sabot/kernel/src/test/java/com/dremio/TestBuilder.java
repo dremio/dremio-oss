@@ -24,6 +24,7 @@ import com.dremio.common.expression.parser.ExprParser;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.proto.UserProtos.PreparedStatementHandle;
@@ -98,6 +99,7 @@ public class TestBuilder {
   private Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineValuesForTDigestMap;
   private Map<String, DremioTestWrapper.BaselineValuesForItemsSketch>
       baselineValuesForItemsSketchMap;
+  private boolean ignoreColumnTypes = false;
 
   public TestBuilder(BufferAllocator allocator) {
     this.allocator = allocator;
@@ -179,7 +181,7 @@ public class TestBuilder {
   }
 
   public TestBuilder sqlQuery(String query) {
-    this.query = QueryTestUtil.normalizeQuery(query);
+    this.query = TestTools.replaceWorkingPathPlaceholders(query);
     this.queryType = UserBitShared.QueryType.SQL;
     return this;
   }
@@ -214,6 +216,15 @@ public class TestBuilder {
   public TestBuilder unOrdered() {
     this.ordered = false;
     return this;
+  }
+
+  public TestBuilder ignoreColumnTypes() {
+    this.ignoreColumnTypes = true;
+    return this;
+  }
+
+  public boolean isIgnoreColumnTypes() {
+    return ignoreColumnTypes;
   }
 
   // this can only be used with ordered verifications, it does run faster and use less memory but

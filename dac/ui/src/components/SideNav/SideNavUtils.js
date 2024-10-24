@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { versionedPageTabs } from "@app/exports/pages/VersionedHomePage/VersionedHomePage";
+import { versionedPageTabs } from "#oss/exports/pages/VersionedHomePage/VersionedHomePage";
 
 export const isActive = ({
   name,

@@ -17,14 +17,14 @@ package com.dremio.exec.store.dfs.system;
 
 import static com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFileState.FULLY_LOADED;
 import static com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFileState.IN_PROGRESS;
-import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME;
-import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME;
-import static com.dremio.exec.store.dfs.system.SystemIcebergViewMetadataFactory.COPY_ERRORS_HISTORY_VIEW_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.copyinto.CopyFileHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
+import com.dremio.exec.store.dfs.system.SystemIcebergViewMetadataFactory.SupportedSystemIcebergView;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 import org.junit.Test;
@@ -34,66 +34,77 @@ public class TestSystemIcebergViewQueryBuilder {
   @Test
   public void testGetViewQueryForCopyErrorsHistoryView() {
     String userName = "sampleUserName";
-    long schemaVersion = 1L;
+    long schemaVersion =
+        ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal();
+    CopyJobHistoryTableSchemaProvider copyJobHistoryTableSchemaProvider =
+        new CopyJobHistoryTableSchemaProvider(schemaVersion);
+    CopyFileHistoryTableSchemaProvider copyFileHistoryTableSchemaProvider =
+        new CopyFileHistoryTableSchemaProvider(schemaVersion);
     SystemIcebergViewQueryBuilder queryBuilder =
         new SystemIcebergViewQueryBuilder(
             schemaVersion,
-            COPY_ERRORS_HISTORY_VIEW_NAME,
-            new NamespaceKey(ImmutableList.of(COPY_ERRORS_HISTORY_VIEW_NAME)),
+            SupportedSystemIcebergView.COPY_ERRORS_HISTORY.getViewName(),
+            new NamespaceKey(
+                ImmutableList.of(SupportedSystemIcebergView.COPY_ERRORS_HISTORY.getViewName())),
             userName,
             false);
 
     String query = queryBuilder.getViewQuery();
 
-    assertThat(query.contains("SELECT")).isTrue();
-    assertThat(query.contains("FROM sys.\"" + COPY_JOB_HISTORY_TABLE_NAME + "\" AS jh")).isTrue();
-    assertThat(query.contains("INNER JOIN sys.\"" + COPY_FILE_HISTORY_TABLE_NAME + "\" AS fh"))
-        .isTrue();
-    assertThat(
-            query.contains(
-                "WHERE fh.\""
-                    + CopyFileHistoryTableSchemaProvider.getFileStateColName()
-                    + "\" != \'"
-                    + FULLY_LOADED.name()
-                    + "\' AND fh.\""
-                    + CopyFileHistoryTableSchemaProvider.getFileStateColName()
-                    + "\" != \'"
-                    + IN_PROGRESS.name()
-                    + "\'"))
-        .isTrue();
-    assertThat(
-            query.contains(
-                "AND jh.\""
-                    + CopyJobHistoryTableSchemaProvider.getUserNameColName()
-                    + "\" = '"
-                    + userName
-                    + "'"))
-        .isTrue();
+    assertThat(query).contains("SELECT");
+    assertThat(query)
+        .contains(
+            "FROM sys.\""
+                + SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName()
+                + "\" AS jh");
+    assertThat(query)
+        .contains(
+            "INNER JOIN sys.\""
+                + SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName()
+                + "\" AS fh");
+    assertThat(query)
+        .contains(
+            "WHERE fh.\""
+                + copyFileHistoryTableSchemaProvider.getFileStateColName()
+                + "\" != '"
+                + FULLY_LOADED.name()
+                + "' AND fh.\""
+                + copyFileHistoryTableSchemaProvider.getFileStateColName()
+                + "\" != '"
+                + IN_PROGRESS.name()
+                + "'");
+    assertThat(query)
+        .contains(
+            "AND jh.\""
+                + copyJobHistoryTableSchemaProvider.getUserNameColName()
+                + "\" = '"
+                + userName
+                + "'");
 
     queryBuilder =
         new SystemIcebergViewQueryBuilder(
             schemaVersion,
-            COPY_ERRORS_HISTORY_VIEW_NAME,
-            new NamespaceKey(ImmutableList.of(COPY_ERRORS_HISTORY_VIEW_NAME)),
+            SupportedSystemIcebergView.COPY_ERRORS_HISTORY.getViewName(),
+            new NamespaceKey(
+                ImmutableList.of(SupportedSystemIcebergView.COPY_ERRORS_HISTORY.getViewName())),
             userName,
             true);
     query = queryBuilder.getViewQuery();
-    assertThat(
-            query.contains(
-                "WHERE fh.\""
-                    + CopyFileHistoryTableSchemaProvider.getFileStateColName()
-                    + "\" != \'"
-                    + FULLY_LOADED.name()
-                    + "\' AND fh.\""
-                    + CopyFileHistoryTableSchemaProvider.getFileStateColName()
-                    + "\" != \'"
-                    + IN_PROGRESS.name()
-                    + "\'"))
-        .isTrue();
+    assertThat(query)
+        .contains(
+            "WHERE fh.\""
+                + copyFileHistoryTableSchemaProvider.getFileStateColName()
+                + "\" != '"
+                + FULLY_LOADED.name()
+                + "' AND fh.\""
+                + copyFileHistoryTableSchemaProvider.getFileStateColName()
+                + "\" != '"
+                + IN_PROGRESS.name()
+                + "'");
     assertThat(
             query.contains(
                 "AND jh.\""
-                    + CopyJobHistoryTableSchemaProvider.getUserNameColName()
+                    + copyJobHistoryTableSchemaProvider.getUserNameColName()
                     + "\" = '"
                     + userName
                     + "'"))
@@ -103,12 +114,43 @@ public class TestSystemIcebergViewQueryBuilder {
   @Test
   public void testGetViewQueryForCopyJobHistoryTable() {
     NamespaceKey namespaceKey = new NamespaceKey(ImmutableList.of("path", "to", "namespace"));
+    long schemaVersion =
+        ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal();
     SystemIcebergViewQueryBuilder queryBuilder =
         new SystemIcebergViewQueryBuilder(
-            1L, COPY_JOB_HISTORY_TABLE_NAME, namespaceKey, "sampleUserName", true);
+            schemaVersion,
+            SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName(),
+            namespaceKey,
+            "sampleUserName",
+            true);
 
     String query = queryBuilder.getViewQuery();
-    assertThat("SELECT * FROM path.\"to\".namespace".equals(query)).isTrue();
+    CopyJobHistoryTableSchemaProvider schemaProvider =
+        new CopyJobHistoryTableSchemaProvider(schemaVersion);
+    schemaProvider.getColumns().stream()
+        .filter(c -> !c.isHidden())
+        .forEach(c -> assertThat(query).contains(c.getName()));
+  }
+
+  @Test
+  public void testGetViewQueryForCopyFileHistoryTable() {
+    NamespaceKey namespaceKey = new NamespaceKey(ImmutableList.of("path", "to", "namespace"));
+    long schemaVersion =
+        ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal();
+    SystemIcebergViewQueryBuilder queryBuilder =
+        new SystemIcebergViewQueryBuilder(
+            schemaVersion,
+            SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName(),
+            namespaceKey,
+            "sampleUserName",
+            true);
+
+    String query = queryBuilder.getViewQuery();
+    CopyFileHistoryTableSchemaProvider schemaProvider =
+        new CopyFileHistoryTableSchemaProvider(schemaVersion);
+    schemaProvider.getColumns().stream()
+        .filter(c -> !c.isHidden())
+        .forEach(c -> assertThat(query).contains(c.getName()));
   }
 
   @Test
@@ -126,7 +168,8 @@ public class TestSystemIcebergViewQueryBuilder {
 
   @Test
   public void testGetViewQueryForUnsupportedSchemaVersion() {
-    long unsupportedSchemaVersion = 2;
+    long unsupportedSchemaVersion =
+        ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal() + 1;
     SystemIcebergViewQueryBuilder queryBuilder =
         new SystemIcebergViewQueryBuilder(
             unsupportedSchemaVersion,

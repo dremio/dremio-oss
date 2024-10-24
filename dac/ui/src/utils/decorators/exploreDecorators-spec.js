@@ -29,7 +29,7 @@ describe("exploreDecorators", () => {
         name: "col1",
       });
       expect(exploreDecorators.getColumnStatus(response, column)).to.be.equal(
-        "DELETION_MARKER"
+        "DELETION_MARKER",
       );
     });
 
@@ -43,7 +43,7 @@ describe("exploreDecorators", () => {
         name: "col1",
       });
       expect(exploreDecorators.getColumnStatus(response, column)).to.be.equal(
-        "HIGHLIGHTED"
+        "HIGHLIGHTED",
       );
     });
 
@@ -57,7 +57,7 @@ describe("exploreDecorators", () => {
         name: "col1",
       });
       expect(exploreDecorators.getColumnStatus(response, column)).to.be.equal(
-        "DELETED"
+        "DELETED",
       );
     });
 
@@ -71,7 +71,7 @@ describe("exploreDecorators", () => {
         name: "col1",
       });
       expect(exploreDecorators.getColumnStatus(response, column)).to.be.equal(
-        "ORIGINAL"
+        "ORIGINAL",
       );
     });
   });

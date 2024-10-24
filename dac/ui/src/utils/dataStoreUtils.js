@@ -31,34 +31,36 @@ if (config.useRunTimeLanguage) {
   languages = require("./dataAll");
 } else {
   languages[defaultLanguage] = {
-    dropdownItemsForTransformControls: require("./" +
-      defaultLanguage +
-      "/explore/dropdownItemsForTransformControls.json"),
+    dropdownItemsForTransformControls: require(
+      "./" +
+        defaultLanguage +
+        "/explore/dropdownItemsForTransformControls.json",
+    ),
     datasetModel: require("./" + defaultLanguage + "/home/datasetModel.json"),
-    radioButtonsForAddResource: require("./" +
-      defaultLanguage +
-      "/home/radioButtonsForAddResource.json"),
-    exploreInfoBlock: require("./" +
-      defaultLanguage +
-      "/explore/exploreInfoBlock.json"),
-    btnsHeaderForGrid: require("./" +
-      defaultLanguage +
-      "/explore/btnsHeaderForGrid.json"),
-    btnsHeaderForPhysicalDataset: require("./" +
-      defaultLanguage +
-      "/explore/btnsHeaderForPhysicalDataset.json"),
-    sectionsForSources: require("./" +
-      defaultLanguage +
-      "/home/sectionsForSources.json"),
-    subtypeForTransformTab: require("./" +
-      defaultLanguage +
-      "/explore/subtypeForTransformTab.json"),
-    dataForAccelerationFrequency: require("./" +
-      defaultLanguage +
-      "/home/dataForAccelerationFrequency.json"),
-    dataTypeForConverter: require("./" +
-      defaultLanguage +
-      "/explore/dataTypeForConverter.json"),
+    radioButtonsForAddResource: require(
+      "./" + defaultLanguage + "/home/radioButtonsForAddResource.json",
+    ),
+    exploreInfoBlock: require(
+      "./" + defaultLanguage + "/explore/exploreInfoBlock.json",
+    ),
+    btnsHeaderForGrid: require(
+      "./" + defaultLanguage + "/explore/btnsHeaderForGrid.json",
+    ),
+    btnsHeaderForPhysicalDataset: require(
+      "./" + defaultLanguage + "/explore/btnsHeaderForPhysicalDataset.json",
+    ),
+    sectionsForSources: require(
+      "./" + defaultLanguage + "/home/sectionsForSources.json",
+    ),
+    subtypeForTransformTab: require(
+      "./" + defaultLanguage + "/explore/subtypeForTransformTab.json",
+    ),
+    dataForAccelerationFrequency: require(
+      "./" + defaultLanguage + "/home/dataForAccelerationFrequency.json",
+    ),
+    dataTypeForConverter: require(
+      "./" + defaultLanguage + "/explore/dataTypeForConverter.json",
+    ),
   };
 }
 

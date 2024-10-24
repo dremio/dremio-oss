@@ -17,13 +17,11 @@
 import type { FC, HTMLProps } from "react";
 import clsx from "clsx";
 import { SqlViewer as Viewer } from "dremio-ui-common/sonar/components/Monaco/components/SqlViewer/SqlViewer.js";
-import type { SQL_DARK_THEME, SQL_LIGHT_THEME } from "@app/utils/sql-editor";
 import * as classes from "./SqlViewer.module.less";
 
 // should match the props from ui-common
 type SqlViewerProps = HTMLProps<HTMLDivElement> & {
   fitHeightToContent?: boolean;
-  theme?: typeof SQL_LIGHT_THEME | typeof SQL_DARK_THEME;
   value: string;
 };
 

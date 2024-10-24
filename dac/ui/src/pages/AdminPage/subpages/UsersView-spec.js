@@ -16,7 +16,7 @@
 import { shallow } from "enzyme";
 import Immutable from "immutable";
 
-import { DeleteButton } from "@app/components/tableRowButtons/DeleteButton";
+import { DeleteButton } from "#oss/components/tableRowButtons/DeleteButton";
 import UsersView from "./UsersView";
 
 describe("UsersView", () => {

@@ -17,10 +17,12 @@ package com.dremio.exec.catalog.dataplane;
 
 import static com.dremio.exec.catalog.dataplane.test.DataplaneStorage.BucketSelection.PRIMARY_BUCKET;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_BRANCH_NAME;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.getSubPathFromNessieTableContent;
 import static com.dremio.exec.planner.VacuumOutputSchema.DELETED_FILES_COUNT;
 import static com.dremio.exec.planner.VacuumOutputSchema.DELETED_FILES_SIZE_MB;
 import static com.dremio.services.nessie.validation.GarbageCollectorConfValidator.NEW_FILES_GRACE_PERIOD;
-import static org.apache.iceberg.TableProperties.GC_ENABLED;
+import static org.apache.iceberg.DremioTableProperties.NESSIE_GC_ENABLED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -63,7 +65,9 @@ public class ITDataplanePluginVacuum extends ITDataplanePluginVacuumTestSetup {
   @Test
   public void testRemoveOrphan() throws Exception {
     final List<String> tablePath = createTable(); // 1 Snapshot
-    String orphanPath = placeOrphanFile(tablePath);
+    List<String> tableSubPath =
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this);
+    String orphanPath = placeOrphanFile(tableSubPath);
 
     runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);
 
@@ -71,18 +75,18 @@ public class ITDataplanePluginVacuum extends ITDataplanePluginVacuumTestSetup {
     setNessieGCDefaultCutOffPolicy("PT100M"); // only live snapshots will be retained
 
     // Ensure orphan is retained if creation time is recent to cut-off
-    String retainedOrphanPath = placeOrphanFile(tablePath);
+    String retainedOrphanPath = placeOrphanFile(tableSubPath);
     runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);
 
     assertThat(getDataplaneStorage().doesObjectExist(PRIMARY_BUCKET, retainedOrphanPath)).isTrue();
     setNessieGCDefaultCutOffPolicy("PT0S");
 
-    cleanupSilently(tablePath);
+    cleanupSilently(tableSubPath);
   }
 
   @Test
   public void testGCDisabled() throws Exception {
-    Branch defaultBranch = getNessieClient().getDefaultBranch();
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
 
     final List<String> table1 = createTable(); // 1 Snapshot
     final List<String> table2 = createTable(); // 1 Snapshot
@@ -90,20 +94,80 @@ public class ITDataplanePluginVacuum extends ITDataplanePluginVacuumTestSetup {
     String table1s1 = newSnapshot(table1);
     String table2s1 = newSnapshot(table2);
 
-    Reference commitPoint1 = getNessieClient().getReference().refName("main").get();
+    Reference commitPoint1 = getNessieApi().getReference().refName("main").get();
 
     String table1s2 = newSnapshot(table1);
     String table2s2 = newSnapshot(table2);
 
-    String table1OrphanPath = placeOrphanFile(table1);
-    String table2OrphanPath = placeOrphanFile(table2);
+    String table1OrphanPath =
+        placeOrphanFile(getSubPathFromNessieTableContent(table1, DEFAULT_BRANCH_NAME, this));
+    String table2OrphanPath =
+        placeOrphanFile(getSubPathFromNessieTableContent(table2, DEFAULT_BRANCH_NAME, this));
 
     String table1QualifiedName =
         String.format("%s@%s", String.join(".", table1), defaultBranch.getName());
     Table icebergTable1 = loadTable(table1QualifiedName);
     icebergTable1
         .updateProperties()
-        .set(GC_ENABLED, Boolean.FALSE.toString())
+        .set(NESSIE_GC_ENABLED, Boolean.FALSE.toString())
+        .set(
+            TableProperties.COMMIT_NUM_RETRIES,
+            "5") // Set an additional property for the change to reach table metadata.
+        .commit();
+
+    wait1MS();
+    runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);
+
+    // Select queries work on branch head
+    assertDoesNotThrow(() -> selectQuery(table1, "BRANCH " + defaultBranch.getName()));
+    assertDoesNotThrow(() -> selectQuery(table2, "BRANCH " + defaultBranch.getName()));
+
+    // Table 1 has all snapshots retained
+    assertThat(snapshots(table1, defaultBranch.getName())).contains(table1s1, table1s2);
+    assertThat(snapshots(table2, defaultBranch.getName())).containsExactly(table2s2);
+
+    // Query on older snapshot works for table1
+    assertDoesNotThrow(
+        () -> selectOnSnapshotAtRef(table1, table1s1, commitPoint1.getHash())); // not collected
+    assertThatThrownBy(
+        () -> selectOnSnapshotAtRef(table2, table2s1, commitPoint1.getHash())); // collected
+
+    // Orphans cleaned for table 2 but survives for table1
+    assertThat(getDataplaneStorage().doesObjectExist(PRIMARY_BUCKET, table1OrphanPath)).isTrue();
+    assertThat(getDataplaneStorage().doesObjectExist(PRIMARY_BUCKET, table2OrphanPath)).isFalse();
+
+    cleanupSilently(getSubPathFromNessieTableContent(table1, DEFAULT_BRANCH_NAME, this));
+    cleanupSilently(getSubPathFromNessieTableContent(table1, DEFAULT_BRANCH_NAME, this));
+  }
+
+  @Test
+  public void testNessieGCDisabled() throws Exception {
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
+
+    final List<String> table1 = createTable(); // 1 Snapshot
+    final List<String> table2 = createTable(); // 1 Snapshot
+
+    String table1s1 = newSnapshot(table1);
+    String table2s1 = newSnapshot(table2);
+
+    Reference commitPoint1 = getNessieApi().getReference().refName("main").get();
+
+    String table1s2 = newSnapshot(table1);
+    String table2s2 = newSnapshot(table2);
+
+    List<String> table1SubPath =
+        getSubPathFromNessieTableContent(table1, DEFAULT_BRANCH_NAME, this);
+    List<String> table2SubPath =
+        getSubPathFromNessieTableContent(table2, DEFAULT_BRANCH_NAME, this);
+    String table1OrphanPath = placeOrphanFile(table1SubPath);
+    String table2OrphanPath = placeOrphanFile(table2SubPath);
+
+    String table1QualifiedName =
+        String.format("%s@%s", String.join(".", table1), defaultBranch.getName());
+    Table icebergTable1 = loadTable(table1QualifiedName);
+    icebergTable1
+        .updateProperties()
+        .set(NESSIE_GC_ENABLED, Boolean.FALSE.toString())
         .set(
             TableProperties.COMMIT_NUM_RETRIES,
             "5") // Set an additional property for the change to reach table metadata.
@@ -136,7 +200,7 @@ public class ITDataplanePluginVacuum extends ITDataplanePluginVacuumTestSetup {
 
   @Test
   public void testExchangesInPlan() throws Exception {
-    setSliceTarget("1"); // force early slicing
+    setSliceTarget(1); // force early slicing
 
     final int numOfTables = 10;
     final int numOfSnapshots = 5;
@@ -156,7 +220,9 @@ public class ITDataplanePluginVacuum extends ITDataplanePluginVacuumTestSetup {
   @Test
   public void testRemoveOrphanWithGracePeriod() throws Exception {
     final List<String> tablePath = createTable(); // 1 Snapshot
-    String orphanPath = placeOrphanFile(tablePath);
+    List<String> tableSubPath =
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this);
+    String orphanPath = placeOrphanFile(tableSubPath);
 
     runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);
 
@@ -166,10 +232,10 @@ public class ITDataplanePluginVacuum extends ITDataplanePluginVacuumTestSetup {
             .defaultCutoffPolicy("PT0S")
             .newFilesGracePeriod(Duration.ofDays(1))
             .build();
-    getNessieClient().updateRepositoryConfig().repositoryConfig(gcConfig).update();
+    getNessieApi().updateRepositoryConfig().repositoryConfig(gcConfig).update();
 
     // Ensure orphan is retained if creation time is recent to cut-off
-    String retainedOrphanPath = placeOrphanFile(tablePath);
+    String retainedOrphanPath = placeOrphanFile(tableSubPath);
     runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);
 
     assertThat(getDataplaneStorage().doesObjectExist(PRIMARY_BUCKET, retainedOrphanPath)).isTrue();
@@ -185,7 +251,7 @@ public class ITDataplanePluginVacuum extends ITDataplanePluginVacuumTestSetup {
             .defaultCutoffPolicy("PT0S")
             .newFilesGracePeriod(Duration.ofMinutes(1))
             .build();
-    getNessieClient().updateRepositoryConfig().repositoryConfig(gcConfig).update();
+    getNessieApi().updateRepositoryConfig().repositoryConfig(gcConfig).update();
 
     assertThatThrownBy(() -> runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME))
         .isInstanceOf(UserException.class)
@@ -216,7 +282,7 @@ public class ITDataplanePluginVacuum extends ITDataplanePluginVacuumTestSetup {
         IntStream.range(0, numOfTables).mapToObj(i -> createTable()).collect(Collectors.toList());
     IntStream.range(0, numOfSnapshots).forEach(i -> tables.forEach(this::newSnapshot));
 
-    setTargetBatchSize("2");
+    setTargetBatchSize(2);
     runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);
     resetTargetBatchSize();
 

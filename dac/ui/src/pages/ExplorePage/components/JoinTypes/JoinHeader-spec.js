@@ -18,7 +18,7 @@ import { shallow } from "enzyme";
 import {
   RECOMMENDED_JOIN,
   CUSTOM_JOIN,
-} from "@app/constants/explorePage/joinTabs";
+} from "#oss/constants/explorePage/joinTabs";
 import { JoinHeader } from "./JoinHeader";
 
 describe("JoinHeader", () => {

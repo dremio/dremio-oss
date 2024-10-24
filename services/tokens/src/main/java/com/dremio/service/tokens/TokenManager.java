@@ -39,6 +39,42 @@ public interface TokenManager extends Service {
   TokenDetails createToken(String username, String clientAddress);
 
   /**
+   * Create a token for the session, and return details about the token.
+   *
+   * @param username user name
+   * @param clientAddress client address
+   * @param expiresAtEpochMs the expiration timestamp in milliseconds since the epoch of
+   *     1970-01-01T00:00:00Z
+   * @return token details
+   */
+  TokenDetails createToken(
+      String username, String clientAddress, long expiresAtEpochMs, List<String> scopes);
+
+  /**
+   * Create a JWT access token and return details about the token. Note that this method is
+   * temporary while we are in the process of migrating to using JWT access tokens everywhere to
+   * allow callers to decide whether to create a legacy opaque token with <code>createToken</code>
+   * or call this method to create a JWT.
+   *
+   * @param username user name
+   * @param clientAddress client address
+   * @return details about the created token
+   */
+  TokenDetails createJwt(String username, String clientAddress);
+
+  /**
+   * Create a JWT access token with custom expiry. The actual expiry will be the minimum of the
+   * input value and the system option.
+   *
+   * @param username user name
+   * @param clientAddress client address
+   * @param expiresAtEpochMs the expiration timestamp in milliseconds since the epoch of
+   *     1970-01-01T00:00:00Z
+   * @return details about the created token
+   */
+  TokenDetails createJwt(String username, String clientAddress, long expiresAtEpochMs);
+
+  /**
    * Create access tokens for third party application. TODO DX-48722: Create Token type.
    *
    * @param username username of the user that grants access to the third party application.

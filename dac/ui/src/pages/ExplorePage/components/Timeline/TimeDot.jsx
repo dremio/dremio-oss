@@ -16,21 +16,21 @@
 import { Component, createRef } from "react";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import LinkWithRef from "#oss/components/LinkWithRef/LinkWithRef";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import classNames from "clsx";
 import { injectIntl } from "react-intl";
 
-import { setUpdateSqlFromHistory } from "@app/actions/explore/view";
-import { Tooltip } from "@app/components/Tooltip";
+import { setUpdateSqlFromHistory } from "#oss/actions/explore/view";
+import { Tooltip } from "#oss/components/Tooltip";
 import { TIME_DOT_DIAMETER } from "uiTheme/radium/sizes";
 import { Button, IconButton } from "dremio-ui-lib/components";
 import EllipsedText from "components/EllipsedText";
 
 import "./TimeDot.less";
-import { getSupportFlags } from "@app/selectors/supportFlags";
-import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getSupportFlags } from "#oss/selectors/supportFlags";
+import { SQLRUNNER_TABS_UI } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 
 export class TimeDot extends Component {
   static propTypes = {

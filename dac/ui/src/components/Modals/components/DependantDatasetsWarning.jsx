@@ -18,7 +18,7 @@ import { PureComponent, createRef } from "react";
 
 import PropTypes from "prop-types";
 
-import { Tooltip } from "@app/components/Tooltip";
+import { Tooltip } from "#oss/components/Tooltip";
 import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
 
 const MAX_DATASETS = 3;

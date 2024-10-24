@@ -140,6 +140,10 @@ public class DremioConfig extends NestedConfig {
   public static final String NESSIE_SERVICE_ENABLED_BOOLEAN = "services.nessie.enabled";
   public static final String NESSIE_SERVICE_IN_MEMORY_BOOLEAN = "services.nessie.backend.in-memory";
   public static final String NESSIE_SERVICE_REMOTE_URI = "services.nessie.remote-uri";
+  public static final String NESSIE_SERVICE_LAKEHOUSE_CATALOG_URI =
+      "services.lakehouse.catalog.nessie-uri";
+  public static final String NESSIE_SERVICE_LAKEHOUSE_CATALOG_PORT =
+      "services.lakehouse.catalog.nessie-port";
 
   public static final String AUTOUPGRADE = "services.coordinator.auto-upgrade";
 

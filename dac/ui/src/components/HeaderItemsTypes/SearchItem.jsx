@@ -18,13 +18,13 @@ import { compose } from "redux";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import { Popover } from "@app/components/Popover";
+import { Popover } from "#oss/components/Popover";
 import { injectIntl } from "react-intl";
 
 import DatasetsSearch from "components/DatasetsSearch";
 import { loadSearchData } from "actions/search";
 import { getSearchResult, getViewState } from "selectors/resources";
-import { getSearchText } from "@app/selectors/search";
+import { getSearchText } from "#oss/selectors/search";
 
 import * as classes from "./SearchItem.less";
 
@@ -92,7 +92,7 @@ export class SearchItem extends Component {
       <div className="searchItem search-item">
         <dremio-icon
           name="interface/search"
-          class={classes["searchIcon"]}
+          class={`${classes["searchIcon"]} icon-primary`}
         ></dremio-icon>
         <input
           key="textInput"
@@ -169,7 +169,7 @@ function mapStateToProps(state) {
 
 export default compose(
   connect(mapStateToProps, { loadSearchData }),
-  injectIntl
+  injectIntl,
 )(SearchItem);
 
 const styles = {

@@ -4,7 +4,6 @@
 |------------------------------------------------------------|--------------------|--------------------|
 |3.6.0                                                       |1.38.0              |Apache 2.0          |
 |@ampproject/remapping                                       |2.2.0               |Apache-2.0          |
-|@babel/code-frame                                           |7.16.7              |MIT                 |
 |@babel/code-frame                                           |7.22.13             |MIT                 |
 |@babel/compat-data                                          |7.22.9              |MIT                 |
 |@babel/core                                                 |7.22.11             |MIT                 |
@@ -16,15 +15,13 @@
 |@babel/helper-module-imports                                |7.16.7              |MIT                 |
 |@babel/helper-module-imports                                |7.22.5              |MIT                 |
 |@babel/helper-module-transforms                             |7.22.9              |MIT                 |
-|@babel/helper-plugin-utils                                  |7.17.12             |MIT                 |
+|@babel/helper-plugin-utils                                  |7.22.5              |MIT                 |
 |@babel/helper-simple-access                                 |7.22.5              |MIT                 |
 |@babel/helper-split-export-declaration                      |7.22.6              |MIT                 |
 |@babel/helper-string-parser                                 |7.22.5              |MIT                 |
-|@babel/helper-validator-identifier                          |7.16.7              |MIT                 |
 |@babel/helper-validator-identifier                          |7.22.5              |MIT                 |
 |@babel/helper-validator-option                              |7.22.5              |MIT                 |
 |@babel/helpers                                              |7.22.11             |MIT                 |
-|@babel/highlight                                            |7.16.10             |MIT                 |
 |@babel/highlight                                            |7.22.13             |MIT                 |
 |@babel/parser                                               |7.22.14             |MIT                 |
 |@babel/plugin-syntax-jsx                                    |7.17.12             |MIT                 |
@@ -32,14 +29,12 @@
 |@babel/runtime                                              |7.22.15             |MIT                 |
 |@babel/template                                             |7.22.5              |MIT                 |
 |@babel/traverse                                             |7.22.11             |MIT                 |
-|@babel/types                                                |7.18.4              |MIT                 |
 |@babel/types                                                |7.22.11             |MIT                 |
 |@dotlottie/player-component                                 |2.7.0               |MIT                 |
-|@dremio/dremio-js                                           |0.0.1               |Unlicense           |
+|@dremio/dremio-js                                           |0.0.1               |Apache-2.0          |
 |@e3m-io/batch-fn-calls                                      |1.0.5               |Apache-2.0          |
 |@emotion/babel-plugin                                       |11.9.2              |MIT                 |
 |@emotion/cache                                              |11.9.3              |MIT                 |
-|@emotion/css                                                |11.11.2             |MIT                 |
 |@emotion/hash                                               |0.8.0               |MIT                 |
 |@emotion/is-prop-valid                                      |1.1.3               |MIT                 |
 |@emotion/memoize                                            |0.7.5               |MIT                 |
@@ -52,10 +47,7 @@
 |@emotion/weak-memoize                                       |0.2.5               |MIT                 |
 |@floating-ui/core                                           |0.7.3               |MIT                 |
 |@floating-ui/dom                                            |0.5.4               |MIT                 |
-|@floating-ui/react                                          |0.26.12             |MIT                 |
 |@floating-ui/react-dom                                      |0.7.2               |MIT                 |
-|@floating-ui/react-dom                                      |1.3.0               |MIT                 |
-|@floating-ui/react-dom                                      |2.0.1               |MIT                 |
 |@floating-ui/react-dom-interactions                         |0.6.6               |MIT                 |
 |@formatjs/ecma402-abstract                                  |1.9.8               |MIT                 |
 |@formatjs/fast-memoize                                      |1.2.0               |ISC                 |
@@ -73,6 +65,7 @@
 |@jridgewell/set-array                                       |1.1.1               |MIT                 |
 |@jridgewell/sourcemap-codec                                 |1.4.15              |MIT                 |
 |@jridgewell/trace-mapping                                   |0.3.19              |MIT                 |
+|@jridgewell/trace-mapping                                   |0.3.25              |MIT                 |
 |@lit-labs/ssr-dom-shim                                      |1.1.1               |BSD-3-Clause        |
 |@lit/reactive-element                                       |1.6.3               |BSD-3-Clause        |
 |@mantine/core                                               |5.0.2               |MIT                 |
@@ -82,7 +75,6 @@
 |@mantine/utils                                              |5.0.2               |MIT                 |
 |@mantine/utils                                              |5.9.3               |MIT                 |
 |@mui/base                                                   |5.0.0-alpha.91      |MIT                 |
-|@mui/material                                               |5.9.0               |MIT                 |
 |@mui/material                                               |5.9.2               |MIT                 |
 |@mui/private-theming                                        |5.9.1               |MIT                 |
 |@mui/styled-engine                                          |5.8.7               |MIT                 |
@@ -107,6 +99,8 @@
 |@opentelemetry/semantic-conventions                         |1.20.0              |Apache-2.0          |
 |@popperjs/core                                              |2.11.2              |MIT                 |
 |@popperjs/core                                              |2.11.5              |MIT                 |
+|@preact/signals-core                                        |1.8.0               |MIT                 |
+|@preact/signals-react                                       |2.2.0               |MIT                 |
 |@radix-ui/number                                            |1.0.0               |MIT                 |
 |@radix-ui/primitive                                         |1.0.0               |MIT                 |
 |@radix-ui/react-compose-refs                                |1.0.0               |MIT                 |
@@ -130,16 +124,13 @@
 |@types/hast                                                 |2.3.4               |MIT                 |
 |@types/hoist-non-react-statics                              |3.3.1               |MIT                 |
 |@types/lodash                                               |4.14.168            |MIT                 |
-|@types/lodash                                               |4.14.191            |MIT                 |
-|@types/node                                                 |16.7.1              |MIT                 |
+|@types/node                                                 |22.5.1              |MIT                 |
 |@types/parse-json                                           |4.0.0               |MIT                 |
-|@types/prop-types                                           |15.7.3              |MIT                 |
 |@types/prop-types                                           |15.7.5              |MIT                 |
+|@types/react                                                |16.14.23            |MIT                 |
 |@types/react                                                |17.0.44             |MIT                 |
-|@types/react                                                |18.0.14             |MIT                 |
-|@types/react                                                |18.0.24             |MIT                 |
-|@types/react                                                |18.0.25             |MIT                 |
-|@types/react-dom                                            |18.0.5              |MIT                 |
+|@types/react                                                |18.3.5              |MIT                 |
+|@types/react-dom                                            |18.3.0              |MIT                 |
 |@types/react-is                                             |17.0.3              |MIT                 |
 |@types/react-transition-group                               |4.4.5               |MIT                 |
 |@types/scheduler                                            |0.16.1              |MIT                 |
@@ -149,37 +140,34 @@
 |@types/use-sync-external-store                              |0.0.3               |MIT                 |
 |accessors-smart                                             |2.4.9               |Apache 2.0          |
 |acorn                                                       |8.10.0              |MIT                 |
-|acorn                                                       |8.8.2               |MIT                 |
 |acorn-import-assertions                                     |1.9.0               |MIT                 |
 |activation framework                                        |1.1                 |CDDL + GPLv2        |
 |Aggregate Designer Algorithm                                |6.0                 |Apache 2.0          |
-|agrona                                                      |1.20.0              |Apache 2.0          |
+|agrona                                                      |1.18.0              |Apache 2.0          |
 |aircompressor                                               |0.27                |Apache 2.0          |
 |almost-equal                                                |1.1.0               |MIT                 |
 |Amazon Redshift JDBC Driver                                 |2.1.0.28            |Apache 2.0          |
-|Animal Sniffer Annotations                                  |1.23                |MIT                 |
+|Animal Sniffer Annotations                                  |1.22                |MIT                 |
 |ansi-styles                                                 |3.2.1               |MIT                 |
 |Antlr 3.4 Runtime                                           |3.4                 |BSD 3-clause        |
 |AntLR Parser Generator                                      |2.7.7               |Public Domain       |
 |ANTLR StringTemplate                                        |3.2.1               |BSD 3-clause        |
-|antlr4-c3                                                   |3.1.1               |MIT                 |
-|antlr4ts                                                    |0.5.0-alpha.4       |BSD-3-Clause        |
 |aopalliance version 1.0 repackaged as a module              |2.6.1               |CDDL 1.1            |
-|Apache Avro                                                 |1.11.3              |Apache 2.0          |
+|Apache Avro                                                 |1.11.4              |Apache 2.0          |
 |Apache Calcite Avatica                                      |1.23.0              |Apache 2.0          |
 |Apache Calcite Avatica Metrics                              |1.23.0              |Apache 2.0          |
 |Apache Commons BeanUtils                                    |1.9.4               |Apache 2.0          |
 |Apache Commons Collections                                  |4.4                 |Apache 2.0          |
-|Apache Commons Compress                                     |1.26.2              |Apache 2.0          |
+|Apache Commons Compress                                     |1.27.1              |Apache 2.0          |
 |Apache Commons DBCP                                         |2.2.0               |Apache 2.0          |
 |Apache Commons IO                                           |2.16.1              |Apache 2.0          |
-|Apache Commons IO                                           |2.5                 |Apache 2.0          |
-|Apache Commons Lang                                         |3.14.0              |Apache 2.0          |
+|Apache Commons IO                                           |2.16.1              |Apache 2.0          |
+|Apache Commons Lang                                         |3.17.0              |Apache 2.0          |
 |Apache Commons Math                                         |3.6.1               |Apache 2.0          |
 |Apache Commons Pool                                         |2.5.0               |Apache 2.0          |
 |Apache Commons Text                                         |1.12.0              |Apache 2.0          |
 |Apache Drill                                                |                    |Apache 2.0          |
-|Apache Hadoop Amazon Web Services support                   |3.3.2-dremio-202310112100510489-6e65eff|Apache 2.0          |
+|Apache Hadoop Amazon Web Services support                   |3.3.6-dremio-202405222026020750-207d8db4|Apache 2.0          |
 |Apache Hadoop Amazon Web Services support                   |3.3.6-dremio-202405222026020750-207d8db4|Apache 2.0          |
 |Apache Hadoop Annotations                                   |2.10.2              |Apache 2.0          |
 |Apache Hadoop Annotations                                   |3.3.6-dremio-202405222026020750-207d8db4|Apache 2.0          |
@@ -192,14 +180,14 @@
 |Apache Hadoop Client                                        |3.3.6-dremio-202405222026020750-207d8db4|Apache 2.0          |
 |Apache Hadoop Common                                        |2.8.5               |Apache 2.0          |
 |Apache Hadoop Common                                        |3.3.6-dremio-202405222026020750-207d8db4|Apache 2.0          |
-|Apache Hadoop HDFS                                          |3.3.6-dremio-202405222026020750-207d8db4|Apache 2.0          |
+|Apache Hadoop HDFS                                          |3.3.2-dremio-202310112100510489-6e65eff|Apache 2.0          |
 |Apache Hadoop HDFS Client                                   |2.8.5               |Apache 2.0          |
 |Apache Hadoop HDFS Client                                   |3.3.6-dremio-202405222026020750-207d8db4|Apache 2.0          |
 |Apache Hadoop MapReduce App                                 |2.8.5               |Apache 2.0          |
 |Apache Hadoop MapReduce Common                              |2.8.5               |Apache 2.0          |
 |Apache Hadoop MapReduce Common                              |3.3.6-dremio-202405222026020750-207d8db4|Apache 2.0          |
 |Apache Hadoop MapReduce Core                                |2.8.5               |Apache 2.0          |
-|Apache Hadoop MapReduce Core                                |3.3.6-dremio-202405222026020750-207d8db4|Apache 2.0          |
+|Apache Hadoop MapReduce Core                                |3.3.2-dremio-202310112100510489-6e65eff|Apache 2.0          |
 |Apache Hadoop MapReduce JobClient                           |2.8.5               |Apache 2.0          |
 |Apache Hadoop MapReduce JobClient                           |3.3.6-dremio-202405222026020750-207d8db4|Apache 2.0          |
 |Apache Hadoop MapReduce Shuffle                             |2.8.5               |Apache 2.0          |
@@ -233,10 +221,10 @@
 |Apache POI                                                  |4.1.2               |Apache 2.0          |
 |Apache POI                                                  |4.1.2               |Apache 2.0          |
 |Apache POI                                                  |4.1.2               |Apache 2.0          |
-|Apache Ranger                                               |1.1.0               |Apache 2.0          |
-|Apache Ranger                                               |1.1.0               |Apache 2.0          |
-|Apache Ranger                                               |1.1.0               |Apache 2.0          |
-|Apache Ranger                                               |1.1.0               |Apache 2.0          |
+|Apache Ranger                                               |1.2.0               |Apache 2.0          |
+|Apache Ranger                                               |1.2.0               |Apache 2.0          |
+|Apache Ranger                                               |1.2.0               |Apache 2.0          |
+|Apache Ranger                                               |1.2.0               |Apache 2.0          |
 |Apache Solr library                                         |8.11.2              |Apache 2.0          |
 |Apache Thrift                                               |0.13.0              |Apache 2.0          |
 |Apache Twill Apache Hadoop YARN library                     |0.14.0-202111020547020344-41637331|Apache 2.0          |
@@ -249,19 +237,20 @@
 |Apache Twill ZooKeeper client library                       |0.14.0-202111020547020344-41637331|Apache 2.0          |
 |Apache Yetus Audience Annotations                           |0.12.0              |Apache 2.0          |
 |Apache Yetus Audience Annotations                           |0.13.0              |Apache 2.0          |
-|apache-arrow                                                |16.0.0              |Apache-2.0          |
 |API Common                                                  |2.5.0               |BSD 3-clause        |
 |aria-hidden                                                 |1.1.3               |ISC                 |
 |array-buffer-byte-length                                    |1.0.0               |MIT                 |
+|array-buffer-byte-length                                    |1.0.1               |MIT                 |
 |arraybuffer.prototype.slice                                 |1.0.2               |MIT                 |
-|Arrow Flight Core                                           |15.0.1-20240515140359-ae1df93709-dremio|Apache 2.0          |
-|Arrow Flight GRPC                                           |15.0.1-20240515140359-ae1df93709-dremio|Apache 2.0          |
-|Arrow Format                                                |15.0.1-20240515140359-ae1df93709-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |15.0.1-20240515140359-ae1df93709-dremio|Apache 2.0          |
-|Arrow Memory Core                                           |15.0.1-20240515140359-ae1df93709-dremio|Apache 2.0          |
-|Arrow Memory Netty                                          |15.0.1-20240515140359-ae1df93709-dremio|Apache 2.0          |
-|Arrow Vectors                                               |15.0.1-20240515140359-ae1df93709-dremio|Apache 2.0          |
-|arrow-jdbc                                                  |15.0.1-20240515140359-ae1df93709-dremio|Apache 2.0          |
+|arraybuffer.prototype.slice                                 |1.0.3               |MIT                 |
+|Arrow Flight Core                                           |16.1.0-20240904212746-09241242ea-dremio|Apache 2.0          |
+|Arrow Format                                                |16.1.0-20240904212746-09241242ea-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |16.1.0-20240904212746-09241242ea-dremio|Apache 2.0          |
+|Arrow Memory Core                                           |16.1.0-20240904212746-09241242ea-dremio|Apache 2.0          |
+|Arrow Memory Netty                                          |16.1.0-20240904212746-09241242ea-dremio|Apache 2.0          |
+|Arrow Memory Netty Buffer                                   |16.1.0-20240904212746-09241242ea-dremio|Apache 2.0          |
+|Arrow Vectors                                               |16.1.0-20240904212746-09241242ea-dremio|Apache 2.0          |
+|arrow-jdbc                                                  |16.1.0-20240904212746-09241242ea-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -272,7 +261,9 @@
 |Asynchronous Http Client Netty Utils                        |2.7.0               |Apache 2.0          |
 |attr-accept                                                 |1.1.0               |MIT                 |
 |AutoValue Annotations                                       |1.7.4               |Apache 2.0          |
+|AutoValue Processor                                         |1.10.1              |Apache 2.0          |
 |available-typed-arrays                                      |1.0.5               |MIT                 |
+|available-typed-arrays                                      |1.0.7               |MIT                 |
 |AWS Event Stream                                            |1.0.1               |Apache 2.0          |
 |AWS Glue Data Catalog Client for Apache Hive Metastore      |1.10.0-202302080426290085-edca6ae|Apache 2.0          |
 |AWS Java SDK :: Annotations                                 |2.17.295            |Apache 2.0          |
@@ -297,9 +288,9 @@
 |AWS Java SDK :: Utilities                                   |2.17.295            |Apache 2.0          |
 |AWS Java SDK For Amazon DynamoDB                            |1.12.750            |Apache 2.0          |
 |AWS Java SDK For Amazon DynamoDB                            |1.12.750            |Apache 2.0          |
-|AWS Java SDK For Amazon Redshift                            |1.12.750            |Apache 2.0          |
-|AWS Java SDK For Amazon Redshift                            |1.12.750            |Apache 2.0          |
-|AWS Java SDK For AWS Lake Formation                         |1.12.750            |Apache 2.0          |
+|AWS Java SDK For Amazon Redshift                            |1.12.535            |Apache 2.0          |
+|AWS Java SDK For Amazon Redshift                            |1.12.535            |Apache 2.0          |
+|AWS Java SDK For AWS Lake Formation                         |1.12.535            |Apache 2.0          |
 |AWS Java SDK for AWS STS                                    |1.12.750            |Apache 2.0          |
 |AWS Java SDK for AWS STS                                    |1.12.750            |Apache 2.0          |
 |AWS SDK for AWS KMS                                         |1.12.750            |Apache 2.0          |
@@ -313,20 +304,23 @@
 |babel-plugin-transform-runtime                              |6.23.0              |MIT                 |
 |babel-runtime                                               |6.26.0              |MIT                 |
 |base16                                                      |1.0.0               |MIT                 |
-|bcpkix-jdk18on                                              |1.78.1              |Bouncy Castle Licence|
-|bcprov-jdk18on                                              |1.78.1              |Bouncy Castle Licence|
-|bcutil-jdk18on                                              |1.78.1              |Bouncy Castle Licence|
 |Bean Validation API                                         |2.0.1.Final         |Apache 2.0          |
+|Bouncy Castle ASN.1 Extension and Utility APIs              |1.78.1              |Bouncy Castle Licence|
+|Bouncy Castle ASN.1 Extension and Utility APIs              |1.78.1              |Bouncy Castle Licence|
 |Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs|1.64                |MIT                 |
+|Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs|1.78.1              |Bouncy Castle Licence|
 |Bouncy Castle Provider                                      |1.64                |MIT                 |
+|Bouncy Castle Provider                                      |1.78.1              |Bouncy Castle Licence|
 |browserslist                                                |4.21.10             |MIT                 |
 |bson                                                        |4.11.0              |Apache 2.0, Creative Commons|
+|BSON Record Codec                                           |4.11.0              |Apache 2.0          |
 |Byte Buddy                                                  |1.10.19             |Apache 2.0          |
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |3.1.8               |Apache 2.0          |
-|Calcite Core                                                |1.21.0-202407031545000155-8abd078f|Apache 2.0          |
-|Calcite Linq4j                                              |1.21.0-202407031545000155-8abd078f|Apache 2.0          |
+|Calcite Core                                                |1.21.0-202408272207160933-20207fef|Apache 2.0          |
+|Calcite Linq4j                                              |1.21.0-202408272207160933-20207fef|Apache 2.0          |
 |call-bind                                                   |1.0.2               |MIT                 |
+|call-bind                                                   |1.0.7               |MIT                 |
 |callsites                                                   |3.1.0               |MIT                 |
 |CDI APIs                                                    |2.0.2               |Apache 2.0          |
 |cdi-api                                                     |2.0                 |Apache 2.0          |
@@ -342,15 +336,16 @@
 |character-entities-legacy                                   |1.1.4               |MIT                 |
 |character-reference-invalid                                 |1.1.4               |MIT                 |
 |Checker Qual                                                |2.5.3               |MIT                 |
-|Checker Qual                                                |3.39.0              |MIT                 |
+|Checker Qual                                                |3.12.0              |MIT                 |
 |cjs-module-lexer                                            |1.2.3               |MIT                 |
 |classcat                                                    |4.1.0               |MIT                 |
+|ClassGraph                                                  |4.8.65              |The MIT License (MIT)|
 |ClassMate                                                   |1.5.1               |Apache 2.0          |
 |classnames                                                  |2.3.1               |MIT                 |
 |Cloud Storage JSON API V1 Rev171 1.25.0                     |v1-rev20220705-2.0.0|Apache 2.0          |
-|clsx                                                        |1.0.4               |MIT                 |
 |clsx                                                        |1.1.1               |MIT                 |
 |clsx                                                        |1.2.1               |MIT                 |
+|clsx                                                        |2.1.1               |MIT                 |
 |codemirror                                                  |5.30.0              |MIT                 |
 |codemirror-spell-checker                                    |1.1.2               |MIT                 |
 |Codemodel Core                                              |2.6                 |GPL v2 w/ CPE       |
@@ -360,8 +355,8 @@
 |color-space                                                 |1.16.0              |MIT                 |
 |comma-separated-tokens                                      |1.0.8               |MIT                 |
 |common-tags                                                 |1.4.0               |MIT                 |
-|Commons CLI                                                 |1.2                 |Apache 2.0          |
-|Commons Codec                                               |1.16.1              |Apache 2.0          |
+|Commons CLI                                                 |1.9.0               |Apache 2.0          |
+|Commons Codec                                               |1.17.1              |Apache 2.0          |
 |Commons Collections                                         |3.2.2               |Apache 2.0          |
 |Commons Compiler                                            |3.1.6               |BSD 3-clause        |
 |Commons Configuration                                       |1.6                 |Apache 2.0          |
@@ -377,7 +372,7 @@
 |Commons Pool                                                |1.6                 |Apache 2.0          |
 |config                                                      |1.4.2               |Apache 2.0          |
 |Conscrypt OpenJDK Uber                                      |2.5.2               |Apache 2.0          |
-|content-type                                                |2.1                 |Apache 2.0          |
+|content-type                                                |2.3                 |Apache 2.0          |
 |convert-source-map                                          |1.8.0               |MIT                 |
 |copy-to-clipboard                                           |3.0.8               |MIT                 |
 |core-js                                                     |1.2.7               |MIT                 |
@@ -387,7 +382,6 @@
 |create-react-class                                          |15.6.2              |MIT                 |
 |create-react-context                                        |0.2.2               |MIT                 |
 |cronosjs                                                    |1.7.1               |ISC                 |
-|csstype                                                     |3.0.10              |MIT                 |
 |csstype                                                     |3.0.9               |MIT                 |
 |csstype                                                     |3.1.0               |MIT                 |
 |Curator Client                                              |5.7.0               |Apache 2.0          |
@@ -407,22 +401,22 @@
 |d3-zoom                                                     |2.0.0               |BSD-3-Clause        |
 |dagre                                                       |0.8.5               |MIT                 |
 |Data Mapper For Jackson                                     |1.9.13              |Apache 2.0          |
+|data-view-buffer                                            |1.0.1               |MIT                 |
+|data-view-byte-length                                       |1.0.1               |MIT                 |
+|data-view-byte-offset                                       |1.0.0               |MIT                 |
 |DataSketches Java                                           |2.0.0               |Apache 2.0          |
 |DataSketches Memory                                         |1.3.0               |Apache 2.0          |
 |date-fns                                                    |2.28.0              |MIT                 |
 |dayjs                                                       |1.11.0              |MIT                 |
-|DB2 Shade                                                   |25.1.0-SNAPSHOT     |Dremio Free Software License 1.0|
+|DB2 Shade                                                   |25.0.0-SNAPSHOT     |Dremio Free Software License 1.0|
 |debug                                                       |4.3.3               |MIT                 |
 |debug                                                       |4.3.4               |MIT                 |
-|deep-diff                                                   |0.3.4               |MIT                 |
 |deep-equal                                                  |1.0.1               |MIT                 |
-|deep-equal                                                  |2.2.3               |MIT                 |
 |deepmerge                                                   |2.2.1               |MIT                 |
 |define-data-property                                        |1.1.0               |MIT                 |
+|define-data-property                                        |1.1.4               |MIT                 |
 |define-properties                                           |1.1.4               |MIT                 |
 |define-properties                                           |1.2.1               |MIT                 |
-|define-route                                                |0.3.1               |Apache-2.0          |
-|dialog-polyfill                                             |0.5.6               |BSD-3-Clause        |
 |Digester                                                    |1.8                 |Apache 2.0          |
 |Disruptor Framework                                         |3.4.2               |Apache 2.0          |
 |dnd-core                                                    |7.0.2               |MIT                 |
@@ -430,36 +424,38 @@
 |dom-helpers                                                 |2.4.0               |MIT                 |
 |dom-helpers                                                 |3.4.0               |MIT                 |
 |dom-helpers                                                 |5.2.1               |MIT                 |
-|downshift                                                   |7.2.0               |MIT                 |
-|Dremio Cache Manager                                        |24.0.0              |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |25.2.0              |Dremio Free Software License 1.0|
 |Dremio Diagnostic Collector                                 |0.7.0               |Apache 2.0          |
-|Dremio Fast Threads                                         |24.0.0              |Dremio Free Software License 1.0|
-|Dremio Hive 2 Exec shaded                                   |25.1.0-SNAPSHOT     |Dremio Free Software License 1.0|
-|Dremio Hive 2 Plugin                                        |25.1.0-SNAPSHOT     |Dremio Free Software License 1.0|
-|Dremio Hive 3 Exec shaded                                   |25.1.0-SNAPSHOT     |Dremio Free Software License 1.0|
-|Dremio Hive 3 Plugin                                        |25.1.0-SNAPSHOT     |Dremio Free Software License 1.0|
-|Dremio JDBC Client                                          |25.1.0-SNAPSHOT     |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |24.0.0              |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |25.2.0              |Dremio Free Software License 1.0|
+|Dremio Hive 2 Exec shaded                                   |25.2.0              |Dremio Free Software License 1.0|
+|Dremio Hive 2 Plugin                                        |25.2.0              |Dremio Free Software License 1.0|
+|Dremio Hive 3 Exec shaded                                   |25.2.0              |Dremio Free Software License 1.0|
+|Dremio Hive 3 Plugin                                        |25.2.0              |Dremio Free Software License 1.0|
+|Dremio JDBC Client                                          |25.2.0              |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |25.2.0              |Dremio Free Software License 1.0|
 |Dremio Parquet Accelerator                                  |24.0.0              |Dremio Free Software License 1.0|
 |Dremio Pushdown Pack                                        |24.0.0              |Dremio Free Software License 1.0|
-|Dremio Ranger Hive Plugin Shaded                            |25.1.0-SNAPSHOT     |Dremio Free Software License 1.0|
+|Dremio Ranger Hive Plugin Shaded                            |25.2.0              |Dremio Free Software License 1.0|
 |Dremio Smart Substitutions                                  |24.0.0              |Dremio Free Software License 1.0|
-|Dremio Twill Shaded                                         |25.1.0-SNAPSHOT     |Dremio Free Software License 1.0|
+|Dremio Twill Shaded                                         |25.2.0              |Dremio Free Software License 1.0|
 |easy-peasy                                                  |4.0.1               |MIT                 |
 |echarts                                                     |5.3.1               |Apache-2.0          |
 |EclipseLink                                                 |2.5.2               |Eclipse Public License 1.0 & Eclipse Distribution License v. 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
-|elasticsearch-core                                          |6.8.23              |Apache 2.0          |
-|elasticsearch-x-content                                     |6.8.23              |Apache 2.0          |
+|Elasticsearch X Content                                     |6.8.23              |Apache 2.0          |
 |Elasticsearch: Core                                         |6.8.23              |Apache 2.0          |
 |electron-to-chromium                                        |1.4.508             |ISC                 |
-|element-closest                                             |2.0.2               |CC0-1.0             |
 |emojis-list                                                 |3.0.0               |MIT                 |
 |encoding                                                    |0.1.12              |MIT                 |
-|Error Prone Annotations                                     |2.29.2              |Apache 2.0          |
+|Error Prone Annotations                                     |2.31.0              |Apache 2.0          |
 |error-ex                                                    |1.3.1               |MIT                 |
 |es-abstract                                                 |1.22.2              |MIT                 |
+|es-abstract                                                 |1.23.3              |MIT                 |
+|es-define-property                                          |1.0.0               |MIT                 |
+|es-errors                                                   |1.3.0               |MIT                 |
+|es-object-atoms                                             |1.0.0               |MIT                 |
 |es-set-tostringtag                                          |2.0.1               |MIT                 |
+|es-set-tostringtag                                          |2.0.3               |MIT                 |
 |es-to-primitive                                             |1.2.1               |MIT                 |
 |es6-object-assign                                           |1.1.0               |MIT                 |
 |escalade                                                    |3.1.1               |MIT                 |
@@ -472,7 +468,7 @@
 |Expression Language 3.0 API                                 |3.0.0               |CDDL + GPLv2        |
 |fast-deep-equal                                             |3.1.3               |MIT                 |
 |fast-equals                                                 |2.0.3               |MIT                 |
-|fastutil-core                                               |8.5.13              |Apache License, Version 2.0|
+|Fastutil                                                    |8.5.13              |Apache 2.0          |
 |fault                                                       |1.0.4               |MIT                 |
 |fbjs                                                        |0.8.16              |MIT                 |
 |file-saver                                                  |1.3.3               |MIT                 |
@@ -481,7 +477,7 @@
 |FindBugs-jsr305                                             |3.0.2               |Apache 2.0          |
 |fixed-data-table-2                                          |1.1.2               |BSD-3-Clause        |
 |FlatBuffers Java API                                        |1.12.0              |Apache 2.0          |
-|flight-sql                                                  |15.0.1-20240515140359-ae1df93709-dremio|Apache 2.0          |
+|flight-sql                                                  |16.1.0-20240904212746-09241242ea-dremio|Apache 2.0          |
 |Flogger                                                     |0.5.1               |Apache 2.0          |
 |Flogger System Backend                                      |0.5.1               |Apache 2.0          |
 |foodmart-data-json                                          |0.4                 |Apache 2.0          |
@@ -490,8 +486,10 @@
 |formik                                                      |2.2.6               |Apache-2.0          |
 |FreeMarker                                                  |2.3.32              |Apache 2.0          |
 |function-bind                                               |1.1.1               |MIT                 |
+|function-bind                                               |1.1.2               |MIT                 |
 |function.prototype.name                                     |1.1.6               |MIT                 |
 |functions-have-names                                        |1.2.3               |MIT                 |
+|GAPIC Google Cloud Storage V2                               |2.17.2-alpha        |Apache 2.0          |
 |GAX (Google Api EXtensions) For Java                        |0.107.0             |BSD                 |
 |GAX (Google Api EXtensions) For Java                        |1.48.0              |BSD                 |
 |GAX (Google Api EXtensions) For Java                        |2.22.0              |BSD                 |
@@ -501,7 +499,9 @@
 |Gcsio                                                       |2.2.2-dremio-202308081957350593-ab2a596|Apache 2.0          |
 |gensync                                                     |1.0.0-beta.2        |MIT                 |
 |get-intrinsic                                               |1.2.1               |MIT                 |
+|get-intrinsic                                               |1.2.4               |MIT                 |
 |get-symbol-description                                      |1.0.0               |MIT                 |
+|get-symbol-description                                      |1.0.2               |MIT                 |
 |globals                                                     |11.12.0             |MIT                 |
 |globalthis                                                  |1.0.3               |MIT                 |
 |glue                                                        |2.17.295            |Apache 2.0          |
@@ -510,9 +510,9 @@
 |Google App Engine Extensions to The Google HTTP Client Library For Java|1.42.3              |Apache 2.0          |
 |Google Auth Library for Java - Credentials                  |0.17.1              |BSD 3-clause        |
 |Google Auth Library for Java - Credentials                  |1.23.0              |BSD 3-clause        |
-|Google Auth Library for Java - OAuth2 HTTP                  |0.22.2              |BSD 3-clause        |
+|Google Auth Library for Java - OAuth2 HTTP                  |0.21.0              |BSD 3-clause        |
 |Google Auth Library for Java - OAuth2 HTTP                  |1.23.0              |BSD 3-clause        |
-|Google Cloud Core                                           |2.9.4               |Apache 2.0          |
+|Google Cloud Core                                           |1.88.0              |Apache 2.0          |
 |Google Cloud Core                                           |2.9.4               |Apache 2.0          |
 |Google Cloud Core GRPC                                      |2.9.4               |Apache 2.0          |
 |Google Cloud Core HTTP                                      |2.9.4               |Apache 2.0          |
@@ -528,24 +528,26 @@
 |Google Testing and Mocking Framework                        |1.10.x              |BSD 3-clause        |
 |gopd                                                        |1.0.1               |MIT                 |
 |graphlib                                                    |2.1.8               |MIT                 |
-|GRPC ALTs                                                   |1.65.0              |Apache 2.0          |
-|GRPC API                                                    |1.65.0              |Apache 2.0          |
-|GRPC Auth                                                   |1.65.0              |Apache 2.0          |
-|GRPC Context                                                |1.65.0              |Apache 2.0          |
-|GRPC Core                                                   |1.65.0              |Apache 2.0          |
+|GRPC ALTs                                                   |1.66.0              |Apache 2.0          |
+|GRPC API                                                    |1.66.0              |Apache 2.0          |
+|GRPC Auth                                                   |1.66.0              |Apache 2.0          |
+|GRPC Context                                                |1.66.0              |Apache 2.0          |
+|GRPC Core                                                   |1.66.0              |Apache 2.0          |
 |Grpc Examples                                               |1.56.0              |Apache 2.0          |
 |GRPC Google Cloud Monitoring V3                             |1.64.0              |Apache 2.0          |
-|GRPC GRPCLB                                                 |1.65.0              |Apache 2.0          |
-|GRPC Inprocess                                              |1.65.0              |Apache 2.0          |
-|GRPC Netty                                                  |1.65.0              |Apache 2.0          |
+|GRPC Google Cloud Storage V2                                |2.17.2-alpha        |Apache 2.0          |
+|GRPC GoogleAPIs                                             |1.66.0              |Apache 2.0          |
+|GRPC GRPCLB                                                 |1.66.0              |Apache 2.0          |
+|GRPC Inprocess                                              |1.66.0              |Apache 2.0          |
+|GRPC Netty                                                  |1.66.0              |Apache 2.0          |
+|GRPC Netty Shaded                                           |1.66.0              |Apache 2.0          |
 |GRPC OpenTracing                                            |0.2.0               |BSD 3-clause        |
-|GRPC Protobuf                                               |1.65.0              |Apache 2.0          |
-|GRPC Protobuf Lite                                          |1.65.0              |Apache 2.0          |
-|GRPC Stub                                                   |1.65.0              |Apache 2.0          |
-|GRPC Util                                                   |1.65.0              |Apache 2.0          |
-|grpc-googleapis                                             |1.65.0              |Apache 2.0          |
-|grpc-services                                               |1.65.0              |Apache 2.0          |
-|grpc-xds                                                    |1.65.0              |Apache 2.0          |
+|GRPC Protobuf                                               |1.66.0              |Apache 2.0          |
+|GRPC Protobuf Lite                                          |1.66.0              |Apache 2.0          |
+|GRPC Services                                               |1.66.0              |Apache 2.0          |
+|GRPC Stub                                                   |1.66.0              |Apache 2.0          |
+|GRPC Util                                                   |1.66.0              |Apache 2.0          |
+|GRPC XDS                                                    |1.66.0              |Apache 2.0          |
 |Gson                                                        |2.10.1              |Apache 2.0          |
 |Gson                                                        |2.2.4               |Apache 2.0          |
 |GSON Extensions to The Google HTTP Client Library For Java  |1.42.3              |Apache 2.0          |
@@ -553,7 +555,7 @@
 |Guava ListenableFuture Only                                 |9999.0-empty-to-avoid-conflict-with-guava|Apache 2.0          |
 |Guava: Google Core Libraries for Java                       |13.0.1              |Apache 2.0          |
 |Guava: Google Core Libraries for Java                       |20.0                |Apache 2.0          |
-|Guava: Google Core Libraries for Java                       |33.2.1-jre          |Apache 2.0          |
+|Guava: Google Core Libraries for Java                       |33.0.0-jre          |Apache 2.0          |
 |gud                                                         |1.0.0               |MIT                 |
 |Hadoop Winutils                                             |3.2.0               |Apache 2.0          |
 |Hadoop YARN Client                                          |2.8.5               |Apache 2.0          |
@@ -565,9 +567,13 @@
 |has-bigints                                                 |1.0.2               |MIT                 |
 |has-flag                                                    |3.0.0               |MIT                 |
 |has-property-descriptors                                    |1.0.0               |MIT                 |
+|has-property-descriptors                                    |1.0.2               |MIT                 |
 |has-proto                                                   |1.0.1               |MIT                 |
+|has-proto                                                   |1.0.3               |MIT                 |
 |has-symbols                                                 |1.0.3               |MIT                 |
 |has-tostringtag                                             |1.0.0               |MIT                 |
+|has-tostringtag                                             |1.0.2               |MIT                 |
+|hasown                                                      |2.0.2               |MIT                 |
 |hast-util-parse-selector                                    |2.2.5               |MIT                 |
 |hastscript                                                  |6.0.0               |MIT                 |
 |HdrHistogram                                                |2.1.12              |CC0 1.0 Universal   |
@@ -587,11 +593,9 @@
 |HTrace Core4                                                |4.1.0-incubating    |Apache 2.0          |
 |HTrace Core4                                                |4.2.0-incubating    |Apache 2.0          |
 |HttpClient                                                  |4.5.14              |Apache 2.0          |
-|httpclient5                                                 |5.1.3               |Apache 2.0          |
-|httpclient5                                                 |5.2.1               |Apache 2.0          |
-|httpcore5                                                   |5.1.3               |Apache 2.0          |
-|httpcore5-h2                                                |5.1.3               |Apache 2.0          |
-|httpcore5-h2                                                |5.2                 |Apache 2.0          |
+|httpclient5                                                 |5.3.1               |Apache 2.0          |
+|httpcore5                                                   |5.2.5               |Apache 2.0          |
+|httpcore5-h2                                                |5.2.5               |Apache 2.0          |
 |humanable                                                   |0.0.2               |MIT                 |
 |IAM Service Account Credentials API V1 Rev67 1.25.0         |v1-rev20201022-1.31.0|Apache 2.0          |
 |IBM Data Server Driver For JDBC and SQLJ                    |11.5.8.0            |IPLA                |
@@ -606,38 +610,43 @@
 |inherits                                                    |2.0.4               |ISC                 |
 |IntelliJ IDEA Annotations                                   |12.0                |Apache 2.0          |
 |internal-slot                                               |1.0.5               |MIT                 |
-|intl-messageformat                                          |10.2.1              |BSD-3-Clause        |
+|internal-slot                                               |1.0.7               |MIT                 |
 |intl-messageformat                                          |9.9.1               |BSD-3-Clause        |
 |invariant                                                   |2.2.4               |MIT                 |
 |is-alphabetical                                             |1.0.4               |MIT                 |
 |is-alphanumerical                                           |1.0.4               |MIT                 |
 |is-arguments                                                |1.1.1               |MIT                 |
 |is-array-buffer                                             |3.0.2               |MIT                 |
+|is-array-buffer                                             |3.0.4               |MIT                 |
 |is-arrayish                                                 |0.2.1               |MIT                 |
 |is-bigint                                                   |1.0.4               |MIT                 |
 |is-boolean-object                                           |1.1.2               |MIT                 |
 |is-callable                                                 |1.2.7               |MIT                 |
 |is-core-module                                              |2.13.0              |MIT                 |
+|is-data-view                                                |1.0.1               |MIT                 |
 |is-date-object                                              |1.0.5               |MIT                 |
 |is-decimal                                                  |1.0.4               |MIT                 |
 |is-generator-function                                       |1.0.10              |MIT                 |
 |is-hexadecimal                                              |1.0.4               |MIT                 |
 |is-nan                                                      |1.3.2               |MIT                 |
 |is-negative-zero                                            |2.0.2               |MIT                 |
+|is-negative-zero                                            |2.0.3               |MIT                 |
 |is-number-object                                            |1.0.7               |MIT                 |
 |is-plain-object                                             |5.0.0               |MIT                 |
 |is-promise                                                  |2.1.0               |MIT                 |
 |is-regex                                                    |1.1.4               |MIT                 |
 |is-shared-array-buffer                                      |1.0.2               |MIT                 |
+|is-shared-array-buffer                                      |1.0.3               |MIT                 |
 |is-stream                                                   |1.1.0               |MIT                 |
 |is-string                                                   |1.0.7               |MIT                 |
 |is-symbol                                                   |1.0.4               |MIT                 |
 |is-typed-array                                              |1.1.12              |MIT                 |
+|is-typed-array                                              |1.1.13              |MIT                 |
 |is-typed-array                                              |1.1.9               |MIT                 |
 |is-weakref                                                  |1.0.2               |MIT                 |
 |isarray                                                     |2.0.5               |MIT                 |
 |isomorphic-fetch                                            |2.2.1               |MIT                 |
-|J2ObjC Annotations                                          |3.0.0               |Apache 2.0          |
+|J2ObjC Annotations                                          |2.8                 |Apache 2.0          |
 |Jackson                                                     |1.9.13              |Apache 2.0          |
 |Jackson 2 Extensions to The Google APIs Client Library For Java|1.31.3              |Apache 2.0          |
 |Jackson 2 extensions to the Google HTTP Client Library for Java.|1.42.3              |Apache 2.0          |
@@ -682,15 +691,15 @@
 |Java Servlet API                                            |3.1.0               |GPL v2 w/ CPE       |
 |JavaBeans Activation Framework                              |1.2.0               |CDDL 1.1            |
 |JavaMail API                                                |1.6.1               |CDDL 1.1            |
-|Javassist                                                   |3.28.0-GA           |Apache 2.0          |
+|Javassist                                                   |3.30.2-GA           |Apache 2.0          |
+|Javax Interceptor API                                       |1.2                 |Eclipse Public License - v 2.0, The GNU General Public License (GPL) Version 2, June 1991|
 |Javax Persistence                                           |2.1.0               |Eclipse Public License 1.0 & Eclipse Distribution License v. 1.0|
 |Javax WS RS API                                             |2.1.1               |GPL v2 w/ CPE       |
 |javax.activation-api                                        |1.2.0               |COMMON DEVELOPMENT AND DISTRIBUTION LICENSE (CDDL) Version 1.1|
 |javax.annotation API                                        |1.3.2               |GPL v2 w/ CPE       |
 |javax.inject                                                |1                   |Apache 2.0          |
-|javax.interceptor-api                                       |1.2                 |Eclipse Public License - v 2.0, The GNU General Public License (GPL) Version 2, June 1991|
 |JAX RS Provider For JSON Content Type                       |1.9.13              |Apache 2.0          |
-|JAXB API bundle for GlassFish V3                            |2.2.2               |GPL v2 w/ CPE       |
+|JAXB API bundle for GlassFish V3                            |2.2.11              |GPL v2 w/ CPE       |
 |JAXB API bundle for GlassFish V3                            |2.3.1               |GPL v2 w/ CPE       |
 |JBoss Jakarta JAXRS Api_spec                                |2.0.1.Final         |EPL 2.0 & GPL2 w/ CPE|
 |JBoss Logging 3                                             |3.4.1.Final         |Apache 2.0          |
@@ -700,25 +709,25 @@
 |Jersey Bundle                                               |1.19.3              |CDDL 1.1            |
 |Jersey Client                                               |1.19.4              |CDDL 1.1            |
 |Jersey Core                                                 |1.19.4              |CDDL 1.1            |
-|Jersey Ext Entity Filtering                                 |2.43                |CDDL 1.1            |
+|Jersey Ext Entity Filtering                                 |2.45                |CDDL 1.1            |
 |Jersey Guice                                                |1.19.4              |CDDL 1.1            |
 |Jersey Guice                                                |1.9                 |CDDL 1.1            |
-|Jersey Inject HK2                                           |2.43                |Eclipse Public License 2.0|
+|Jersey Inject HK2                                           |2.45                |Eclipse Public License 2.0|
 |Jersey JSON                                                 |1.20                |CDDL 1.1            |
-|Jersey Media JSON Jackson                                   |2.43                |CDDL 1.1            |
+|Jersey Media JSON Jackson                                   |2.45                |CDDL 1.1            |
 |Jersey Server                                               |1.19.4              |CDDL 1.1            |
 |Jersey Servlet                                              |1.19.4              |CDDL 1.1            |
-|jersey-container-jetty-http                                 |2.43                |CDDL 1.1            |
-|jersey-container-jetty-servlet                              |2.43                |CDDL 1.1            |
-|jersey-container-servlet                                    |2.43                |CDDL 1.1            |
-|jersey-container-servlet-core                               |2.43                |CDDL 1.1            |
-|jersey-core-client                                          |2.43                |CDDL 1.1            |
-|jersey-core-common                                          |2.43                |CDDL 1.1            |
-|jersey-core-server                                          |2.43                |CDDL 1.1            |
-|jersey-ext-mvc                                              |2.43                |CDDL 1.1            |
-|jersey-ext-mvc-freemarker                                   |2.43                |CDDL 1.1            |
+|jersey-container-jetty-http                                 |2.45                |CDDL 1.1            |
+|jersey-container-jetty-servlet                              |2.45                |CDDL 1.1            |
+|jersey-container-servlet                                    |2.45                |CDDL 1.1            |
+|jersey-container-servlet-core                               |2.45                |CDDL 1.1            |
+|jersey-core-client                                          |2.45                |CDDL 1.1            |
+|jersey-core-common                                          |2.45                |CDDL 1.1            |
+|jersey-core-server                                          |2.45                |CDDL 1.1            |
+|jersey-ext-mvc                                              |2.45                |CDDL 1.1            |
+|jersey-ext-mvc-freemarker                                   |2.45                |CDDL 1.1            |
 |jersey-media-jaxb                                           |2.35                |CDDL 1.1            |
-|jersey-media-multipart                                      |2.43                |CDDL 1.1            |
+|jersey-media-multipart                                      |2.45                |CDDL 1.1            |
 |JetBrains Java Annotations                                  |24.0.1              |Apache 2.0          |
 |Jettison                                                    |1.5.4               |Apache 2.0          |
 |Jetty :: Asynchronous HTTP Client                           |9.4.53.v20231009    |Apache 2.0          |
@@ -744,7 +753,7 @@
 |JLine                                                       |0.9.94              |BSD 3-clause        |
 |jline                                                       |2.14.3              |BSD-3-Clause        |
 |jline                                                       |3.9.0               |BSD-3-Clause        |
-|JMES Path Query library                                     |1.11.761            |Apache 2.0          |
+|JMES Path Query library                                     |1.12.750            |Apache 2.0          |
 |JMES Path Query library                                     |1.12.750            |Apache 2.0          |
 |Joda-Time                                                   |2.12.5              |Apache 2.0          |
 |JOpt Simple                                                 |3.2                 |MIT                 |
@@ -753,6 +762,7 @@
 |js-tokens                                                   |4.0.0               |MIT                 |
 |JSch                                                        |0.1.55              |BSD 3-clause        |
 |jsesc                                                       |2.5.2               |MIT                 |
+|JSON Path                                                   |2.8.0               |Apache 2.0          |
 |JSON Small and Fast Parser                                  |2.4.10              |Apache 2.0          |
 |json-parse-even-better-errors                               |2.3.1               |MIT                 |
 |json-ptr                                                    |3.1.1               |MIT                 |
@@ -787,7 +797,6 @@
 |LatencyUtils                                                |2.0.3               |Public Domain, BSD 2-Clause License|
 |leantable                                                   |0.2.6               |Apache-2.0          |
 |leantable                                                   |0.4.11              |Apache-2.0          |
-|leantable                                                   |0.4.12              |Apache-2.0          |
 |leveldbjni-all                                              |1.8                 |BSD 3-clause        |
 |lines-and-columns                                           |1.2.4               |MIT                 |
 |linkifyjs                                                   |2.1.9               |MIT                 |
@@ -842,15 +851,17 @@
 |Metrics Integration For Jetty 9.3 and Higher                |4.1.19              |Apache 2.0          |
 |Metrics Integration with JMX                                |4.1.19              |Apache 2.0          |
 |micro-memoize                                               |4.0.9               |MIT                 |
+|Micrometer Registry JMX                                     |1.12.2              |Apache 2.0          |
+|Micrometer Registry Prometheus                              |1.12.2              |Apache 2.0          |
 |micrometer-commons                                          |1.12.2              |Apache 2.0          |
 |micrometer-core                                             |1.12.2              |Apache 2.0          |
 |micrometer-observation                                      |1.12.2              |Apache 2.0          |
-|micrometer-registry-jmx                                     |1.12.2              |Version 2.0         |
 |microprofile-openapi-api                                    |3.1.1               |Apache 2.0          |
 |Microsoft Authentication Library                            |1.14.2              |MIT                 |
 |Microsoft Azure Active Directory Authentication Library (ADAL) for Java|1.6.7               |MIT License         |
 |Microsoft Azure Common Module For Storage                   |12.24.1             |MIT License         |
 |Microsoft Azure Java Core Library                           |1.45.1              |MIT License         |
+|Microsoft Azure Java JSON Library                           |1.1.0               |The MIT License (MIT)|
 |Microsoft Azure Netty HTTP Client Library                   |1.13.11             |MIT License         |
 |Microsoft Azure SDK for Key Vault Core                      |1.0.0               |MIT License         |
 |Microsoft Azure Storage Client SDK                          |8.3.0               |MIT License         |
@@ -861,8 +872,6 @@
 |ModelMapper Protobuf Extension                              |2.3.0               |Apache 2.0          |
 |module-details-from-path                                    |1.0.3               |MIT                 |
 |moize                                                       |6.1.0               |MIT                 |
-|moize                                                       |6.1.3               |MIT                 |
-|moize                                                       |6.1.6               |MIT                 |
 |monaco-editor                                               |0.49.0              |MIT                 |
 |MongoDB Java Driver                                         |3.12.0              |Apache 2.0          |
 |mongodb-driver-core                                         |4.11.0              |Apache 2.0          |
@@ -870,15 +879,16 @@
 |mongodb-driver-sync                                         |4.11.0              |Apache 2.0          |
 |mousetrap                                                   |1.6.1               |Apache-2.0          |
 |ms                                                          |2.1.2               |MIT                 |
-|msw                                                         |1.2.0               |MIT                 |
 |mumath                                                      |3.3.4               |Unlicense           |
 |nanoclone                                                   |0.2.1               |MIT                 |
 |nanoid                                                      |3.3.4               |MIT                 |
-|Native Library Loader                                       |2.5.0               |Simplified BSD License|
+|Native Library Loader                                       |2.3.4               |Simplified BSD License|
 |Nessie API                                                  |0.94.0              |Apache 2.0          |
-|Nessie GC Iceberg Content Functionality                     |0.94.0              |The Apache License, Version 2.0|
-|Nessie Server Store                                         |0.94.0              |Apache 2.0          |
+|Nessie GC Iceberg Content Functionality                     |0.94.0              |Apache 2.0          |
+|Nessie Server Store                                         |0.58.0              |Apache 2.0          |
 |Nessie Services                                             |0.94.0              |Apache 2.0          |
+|Nessie Services                                             |0.94.0              |Apache 2.0          |
+|Nessie Storage URI                                          |0.94.0              |Apache 2.0          |
 |Nessie Versioned Memory Store                               |0.4.0               |Apache 2.0          |
 |Nessie Versioned Store SPI                                  |0.94.0              |Apache 2.0          |
 |nessie-client                                               |0.94.0              |Apache 2.0          |
@@ -886,53 +896,71 @@
 |nessie-protobuf-relocated                                   |0.94.0              |Apache 2.0          |
 |nessie-rest-services                                        |0.58.0              |Apache 2.0          |
 |nessie-rest-services                                        |0.76.3              |Apache 2.0          |
-|nessie-server-store-proto                                   |0.94.0              |Apache 2.0          |
-|nessie-storage-uri                                          |0.94.0              |The Apache License, Version 2.0|
+|nessie-server-store-proto                                   |0.76.3              |Apache 2.0          |
 |nessie-versioned-persist-adapter                            |0.76.3              |Apache 2.0          |
 |nessie-versioned-persist-in-memory                          |0.76.3              |Apache 2.0          |
 |nessie-versioned-persist-non-transactional                  |0.74.0              |Apache 2.0          |
 |nessie-versioned-persist-serialize                          |0.74.0              |Apache 2.0          |
-|nessie-versioned-persist-store                              |0.74.0              |The Apache License, Version 2.0|
 |Netty Reactive Streams HTTP Support                         |2.0.5               |Apache 2.0          |
 |Netty Reactive Streams Implementation                       |2.0.5               |Apache 2.0          |
 |Netty Reactive Streams Implementation                       |2.0.5               |Apache 2.0          |
 |netty-tcnative-classes                                      |2.0.65.Final        |Apache 2.0          |
 |netty-transport-classes-epoll                               |4.1.112.Final       |Apache 2.0          |
-|netty-transport-classes-kqueue                              |4.1.112.Final       |Apache 2.0          |
-|netty-transport-native-kqueue                               |4.1.112.Final       |Apache 2.0          |
+|netty-transport-classes-kqueue                              |4.1.112.Final.jar', 'netty-transport-classes-epoll-4.1.112.Final.jar', 'netty-transport-classes-kqueue-4.1.112.Final.jar', 'netty-transport-native-epoll-4.1.112.Final-linux-aarch_64.jar', 'netty-transport-native-epoll-4.1.112.Final-linu|Apache 2.0          |
+|netty-transport-native-kqueue                               |4.1.112.Final-osx-aarch_64|Apache 2.0          |
+|netty-transport-native-kqueue                               |4.1.112.Final-osx-x86_64|Apache 2.0          |
 |Netty/Buffer                                                |4.1.112.Final       |Apache 2.0          |
 |Netty/Codec                                                 |4.1.112.Final       |Apache 2.0          |
 |Netty/Codec/DNS                                             |4.1.112.Final       |Apache 2.0          |
+|Netty/Codec/DNS                                             |4.1.112.Final       |Apache 2.0          |
 |Netty/Codec/HTTP                                            |4.1.112.Final       |Apache 2.0          |
 |Netty/Codec/HTTP2                                           |4.1.112.Final       |Apache 2.0          |
+|Netty/Codec/HTTP2                                           |4.1.112.Final       |Apache 2.0          |
+|Netty/Codec/HTTP2                                           |4.1.112.Final       |Apache 2.0          |
+|Netty/Codec/HTTP2                                           |4.1.112.Final       |Apache 2.0          |
+|Netty/Codec/HTTP2                                           |4.1.112.Final       |Apache 2.0          |
+|Netty/Codec/Socks                                           |4.1.112.Final       |Apache 2.0          |
+|Netty/Codec/Socks                                           |4.1.112.Final       |Apache 2.0          |
 |Netty/Codec/Socks                                           |4.1.112.Final       |Apache 2.0          |
 |Netty/Common                                                |4.1.112.Final       |Apache 2.0          |
 |Netty/Handler                                               |4.1.112.Final       |Apache 2.0          |
 |Netty/Handler/Proxy                                         |4.1.112.Final       |Apache 2.0          |
+|Netty/Handler/Proxy                                         |4.1.112.Final       |Apache 2.0          |
 |Netty/Resolver                                              |4.1.112.Final       |Apache 2.0          |
 |Netty/Resolver/DNS                                          |4.1.112.Final       |Apache 2.0          |
+|Netty/Resolver/DNS                                          |4.1.112.Final       |Apache 2.0          |
+|Netty/Resolver/DNS                                          |4.1.112.Final-osx-aarch_64|Apache 2.0          |
+|Netty/Resolver/DNS                                          |4.1.112.Final-osx-x86_64|Apache 2.0          |
 |Netty/TomcatNative [BoringSSL - Static]                     |2.0.65.Final        |Apache 2.0          |
-|Netty/TomcatNative [BoringSSL - Static]                     |2.0.65.Final-linux-aarch_64|Apache 2.0          |
+|Netty/TomcatNative [BoringSSL - Static]                     |2.0.65.Final-linux-aarch_64.jar|Apache 2.0          |
 |Netty/TomcatNative [BoringSSL - Static]                     |2.0.65.Final-linux-x86_64.jar|Apache 2.0          |
 |Netty/TomcatNative [BoringSSL - Static]                     |2.0.65.Final-osx-aarch_64.jar|Apache 2.0          |
 |Netty/TomcatNative [BoringSSL - Static]                     |2.0.65.Final-osx-x86_64.jar|Apache 2.0          |
 |Netty/TomcatNative [BoringSSL - Static]                     |2.0.65.Final-windows-x86_64.jar|Apache 2.0          |
 |Netty/Transport                                             |4.1.112.Final       |Apache 2.0          |
 |Netty/Transport/Native/Epoll                                |4.1.112.Final       |Apache 2.0          |
+|Netty/Transport/Native/Epoll                                |4.1.112.Final-linux-aarch_64|Apache 2.0          |
+|Netty/Transport/Native/Epoll                                |4.1.112.Final-linux-riscv64|Apache 2.0          |
+|Netty/Transport/Native/Epoll                                |4.1.112.Final-linux-x86_64|Apache 2.0          |
 |Netty/Transport/Native/Unix/Common                          |4.1.112.Final       |Apache 2.0          |
-|Nimbus JOSE+JWT                                             |8.8                 |Apache 2.0          |
-|Nimbus LangTag                                              |1.4.4               |Apache 2.0          |
+|Netty/Transport/Native/Unix/Common                          |4.1.112.Final       |Apache 2.0          |
+|Netty/Transport/Native/Unix/Common                          |4.1.112.Final       |Apache 2.0          |
+|Netty/Transport/Native/Unix/Common                          |4.1.112.Final       |Apache 2.0          |
+|Nimbus JOSE+JWT                                             |9.41                |Apache 2.0          |
+|Nimbus LangTag                                              |1.7                 |Apache 2.0          |
 |node-fetch                                                  |1.7.3               |MIT                 |
 |node-releases                                               |2.0.13              |MIT                 |
 |Noggit                                                      |0.6                 |Apache 2.0          |
 |normalizr                                                   |2.3.1               |MIT                 |
-|OAuth 2.0 SDK with OpenID Connect Extensions                |9.3                 |Apache 2.0          |
-|OAuth2 Client                                               |2.43                |CDDL 1.1            |
+|OAuth 2.0 SDK with OpenID Connect Extensions                |11.20               |Apache 2.0          |
+|OAuth2 Client                                               |2.45                |CDDL 1.1            |
 |object-assign                                               |4.1.1               |MIT                 |
 |object-inspect                                              |1.12.3              |MIT                 |
+|object-inspect                                              |1.13.2              |MIT                 |
 |object-is                                                   |1.1.5               |MIT                 |
 |object-keys                                                 |1.1.1               |MIT                 |
 |object.assign                                               |4.1.4               |MIT                 |
+|object.assign                                               |4.1.5               |MIT                 |
 |Objenesis                                                   |2.4                 |Apache 2.0          |
 |Ojdbc10                                                     |19.22.0.0           |Oracle Free Use Terms and Conditions (FUTC)|
 |OkHttp                                                      |2.7.5               |Apache 2.0          |
@@ -942,6 +970,7 @@
 |Okio-jvm                                                    |3.6.0               |Apache 2.0          |
 |Old JAXB Runtime                                            |2.2.3-1             |CDDL 1.1            |
 |Ons                                                         |19.22.0.0           |Oracle Free Use Terms and Conditions (FUTC)|
+|OpenCensus                                                  |0.2.0               |Apache 2.0          |
 |OpenCensus API                                              |0.31.1              |Apache 2.0          |
 |OpenCensus DropWizard Util for Java                         |0.31.1              |Apache 2.0          |
 |OpenCensus Exemplar Util                                    |0.24.0              |Apache 2.0          |
@@ -953,32 +982,31 @@
 |OpenCensus Resources Util                                   |0.24.0              |Apache 2.0          |
 |OpenCensus Stackdriver Stats Exporter                       |0.24.0              |Apache 2.0          |
 |OpenCensus Stackdriver Trace Exporter                       |0.24.0              |Apache 2.0          |
-|opencensus-proto                                            |0.2.0               |The Apache License, Version 2.0|
 |OpenHFT/Java-Thread-Affinity/affinity                       |3.1.7               |Apache 2.0          |
 |OpenSearch SQL JDBC Driver                                  |1.1.0.1             |Apache 2.0          |
 |OpenSSL Bindings for Java                                   |1.1.3.Final         |Apache 2.0          |
 |OpenSSL toolkit                                             |1.1.1d              |OpenSSL and SSLeay license|
-|OpenTelemetry - Jaeger Remote sampler                       |1.38.0              |Apache 2.0          |
+|OpenTelemetry - Jaeger Remote sampler                       |1.31.0              |Apache 2.0          |
 |OpenTelemetry Context (Incubator)                           |1.38.0              |Apache 2.0          |
 |OpenTelemetry Metrics API Events                            |1.31.0-alpha        |Apache 2.0          |
 |OpenTelemetry Metrics API Logs                              |1.25.0-alpha        |Apache 2.0          |
-|OpenTelemetry OkHttp Senders                                |1.38.0              |Apache 2.0          |
-|OpenTelemetry OpenTracing Bridge                            |1.38.0              |Apache 2.0          |
-|OpenTelemetry Proto                                         |1.38.0              |Apache 2.0          |
-|OpenTelemetry Protocol Exporter                             |1.38.0              |Apache 2.0          |
-|OpenTelemetry Protocol Exporters                            |1.38.0              |Apache 2.0          |
-|OpenTelemetry Protocol JSON Logging Exporters               |1.38.0              |Apache 2.0          |
+|OpenTelemetry OkHttp Senders                                |1.31.0              |Apache 2.0          |
+|OpenTelemetry OpenTracing Bridge                            |1.31.0              |Apache 2.0          |
+|OpenTelemetry Proto                                         |1.31.0              |Apache 2.0          |
+|OpenTelemetry Protocol Exporter                             |1.31.0              |Apache 2.0          |
+|OpenTelemetry Protocol Exporters                            |1.31.0              |Apache 2.0          |
+|OpenTelemetry Protocol JSON Logging Exporters               |1.31.0              |Apache 2.0          |
 |OpenTelemetry Protocol Trace Exporter                       |1.25.0              |Apache 2.0          |
-|OpenTelemetry SDK                                           |1.38.0              |Apache 2.0          |
-|OpenTelemetry SDK Common                                    |1.38.0              |Apache 2.0          |
-|OpenTelemetry SDK For Tracing                               |1.38.0              |Apache 2.0          |
-|OpenTelemetry SDK Metrics                                   |1.38.0              |Apache 2.0          |
+|OpenTelemetry SDK                                           |1.31.0              |Apache 2.0          |
+|OpenTelemetry SDK Common                                    |1.31.0              |Apache 2.0          |
+|OpenTelemetry SDK For Tracing                               |1.31.0              |Apache 2.0          |
+|OpenTelemetry SDK Metrics                                   |1.31.0              |Apache 2.0          |
 |OpenTelemetry Semantic Conventions                          |1.25.0-alpha        |Apache 2.0          |
-|OpenTelemetry Semantic Conventions                          |1.38.0              |Apache 2.0          |
-|opentelemetry-exporter-common                               |1.38.0              |Apache 2.0          |
-|opentelemetry-extension-incubator                           |1.38.0              |Apache 2.0          |
-|opentelemetry-extension-trace-propagators                   |1.38.0              |Apache 2.0          |
-|opentelemetry-instrumentation-annotations                   |1.38.0              |Apache 2.0          |
+|OpenTelemetry Semantic Conventions                          |1.31.0              |Apache 2.0          |
+|opentelemetry-exporter-common                               |1.31.0              |Apache 2.0          |
+|opentelemetry-extension-incubator                           |1.31.0              |Apache 2.0          |
+|opentelemetry-extension-trace-propagators                   |1.31.0              |Apache 2.0          |
+|opentelemetry-instrumentation-annotations                   |2.4.0               |Apache 2.0          |
 |OpenTracing Java API                                        |0.33.0              |Apache 2.0          |
 |OpenTracing NoOp                                            |0.33.0              |Apache 2.0          |
 |OpenTracing utilities                                       |0.33.0              |Apache 2.0          |
@@ -992,18 +1020,15 @@
 |parquet-avro                                                |1.13.1              |Apache 2.0          |
 |parse-entities                                              |2.0.0               |MIT                 |
 |parse-json                                                  |5.2.0               |MIT                 |
-|parse-ms                                                    |4.0.0               |MIT                 |
 |path-browserify                                             |1.0.1               |MIT                 |
 |path-parse                                                  |1.0.7               |MIT                 |
 |path-type                                                   |4.0.0               |MIT                 |
 |Perfmark:perfmark API                                       |0.26.0              |Apache 2.0          |
-|performance-now                                             |0.2.0               |MIT                 |
-|performance-now                                             |2.1.0               |MIT                 |
 |picocolors                                                  |1.0.0               |ISC                 |
 |Plugin Framework for Java                                   |3.10.0              |Apache 2.0          |
 |popper.js                                                   |1.14.7              |MIT                 |
-|PostgreSQL JDBC Driver                                      |42.7.3              |BSD 2-clause        |
-|pretty-ms                                                   |9.0.0               |MIT                 |
+|possible-typed-array-names                                  |1.0.0               |MIT                 |
+|PostgreSQL JDBC Driver                                      |42.4.3              |BSD 2-clause        |
 |prismjs                                                     |1.27.0              |MIT                 |
 |prismjs                                                     |1.28.0              |MIT                 |
 |Prometheus Java Simpleclient                                |0.16.0              |Apache 2.0          |
@@ -1016,16 +1041,16 @@
 |Prometheus Java Simpleclient Servlet                        |0.16.0              |Apache 2.0          |
 |Prometheus Java Simpleclient Servlet                        |0.16.0              |Apache 2.0          |
 |promise                                                     |7.3.1               |MIT                 |
-|prop-types                                                  |15.5.10             |BSD-3-Clause        |
 |prop-types                                                  |15.5.8              |BSD-3-Clause        |
 |prop-types                                                  |15.7.2              |MIT                 |
 |prop-types                                                  |15.8.1              |MIT                 |
 |prop-types-extra                                            |1.1.0               |MIT                 |
 |property-expr                                               |2.0.4               |MIT                 |
 |property-information                                        |5.6.0               |MIT                 |
+|Proto Google Cloud Storage V2                               |2.17.2-alpha        |Apache 2.0          |
 |Proto Google Cloud Trace V1                                 |0.65.0              |Apache 2.0          |
 |Proto Google Cloud Trace V2                                 |0.65.0              |Apache 2.0          |
-|Proto Google Common Protos                                  |2.29.0              |Apache 2.0          |
+|Proto Google Common Protos                                  |2.22.0              |Apache 2.0          |
 |Proto Google IAM V1                                         |1.8.0               |Apache 2.0          |
 |Protobuf Jackson                                            |1.2.0               |MIT License         |
 |Protocol Buffer [Util]                                      |3.25.4              |BSD 3-clause        |
@@ -1042,7 +1067,6 @@
 |query-string                                                |4.3.4               |MIT                 |
 |querystring                                                 |0.2.0               |MIT                 |
 |querystringify                                              |2.2.0               |MIT                 |
-|raf                                                         |3.4.0               |MIT                 |
 |RE2/J                                                       |1.6                 |The Go license      |
 |react                                                       |18.2.0              |MIT                 |
 |react-base16-styling                                        |0.4.7               |MIT                 |
@@ -1063,7 +1087,7 @@
 |react-flow-renderer                                         |8.8.0               |MIT                 |
 |react-hook-form                                             |7.34.0              |MIT                 |
 |react-immutable-proptypes                                   |2.1.0               |MIT                 |
-|react-intl                                                  |2.9.0               |BSD-3-Clause        |
+|react-intersection-observer                                 |9.13.0              |MIT                 |
 |react-intl                                                  |5.20.10             |BSD-3-Clause        |
 |react-is                                                    |16.13.1             |MIT                 |
 |react-is                                                    |18.2.0              |MIT                 |
@@ -1073,7 +1097,6 @@
 |react-list                                                  |0.8.16              |MIT                 |
 |react-merge-refs                                            |1.1.0               |MIT                 |
 |react-modal                                                 |3.8.1               |MIT                 |
-|react-motion                                                |0.5.2               |MIT                 |
 |react-notification-system                                   |0.2.17              |MIT                 |
 |react-onclickoutside                                        |6.12.1              |MIT                 |
 |react-overlays                                              |1.1.2               |MIT                 |
@@ -1090,7 +1113,6 @@
 |react-syntax-highlighter                                    |15.5.0              |MIT                 |
 |react-textarea-autosize                                     |8.3.4               |MIT                 |
 |react-transition-group                                      |4.4.2               |BSD-3-Clause        |
-|react-transition-group                                      |4.4.5               |BSD-3-Clause        |
 |react-virtualized                                           |9.22.3              |MIT                 |
 |react-virtualized-tree                                      |3.4.1               |MIT                 |
 |Reactive Streams                                            |1.0.2               |CC0                 |
@@ -1100,7 +1122,6 @@
 |redux-api-middleware                                        |2.3.0               |MIT                 |
 |redux-auth-wrapper                                          |1.1.0               |MIT                 |
 |redux-form                                                  |5.3.6               |MIT                 |
-|redux-logger                                                |2.10.2              |MIT                 |
 |redux-saga                                                  |0.15.6              |MIT                 |
 |redux-thunk                                                 |2.3.0               |MIT                 |
 |ReflectASM                                                  |1.11.3              |BSD 3-clause        |
@@ -1110,7 +1131,7 @@
 |regenerator-runtime                                         |0.13.9              |MIT                 |
 |regenerator-runtime                                         |0.14.0              |MIT                 |
 |regexp.prototype.flags                                      |1.5.1               |MIT                 |
-|reload4j                                                    |1.2.22              |The Apache Software License, Version 2.0|
+|regexp.prototype.flags                                      |1.5.2               |MIT                 |
 |Rendezvous Hash                                             |1.0                 |BSD 3-clause        |
 |require-in-the-middle                                       |7.2.0               |MIT                 |
 |requires-port                                               |1.0.0               |MIT                 |
@@ -1123,19 +1144,21 @@
 |RocksDB JNI                                                 |7.10.2              |Apache 2.0          |
 |RSQL-parser                                                 |2.1.0               |MIT                 |
 |rxjs                                                        |7.5.5               |Apache-2.0          |
-|rxjs                                                        |7.8.1               |Apache-2.0          |
 |S2 Geometry Library                                         |0.9.0               |Apache 2.0          |
 |safe-array-concat                                           |1.0.1               |MIT                 |
+|safe-array-concat                                           |1.1.2               |MIT                 |
 |safe-buffer                                                 |5.1.2               |MIT                 |
 |safe-buffer                                                 |5.2.1               |MIT                 |
-|safe-regex-test                                             |1.0.0               |MIT                 |
+|safe-regex-test                                             |1.0.3               |MIT                 |
 |safer-buffer                                                |2.1.2               |MIT                 |
 |Scala Library                                               |2.10.7              |BSD 3-clause        |
 |scheduler                                                   |0.23.0              |MIT                 |
 |semver                                                      |6.3.1               |ISC                 |
 |semver                                                      |7.5.4               |ISC                 |
 |ServiceLocator Default Implementation                       |2.6.1               |CDDL 1.1            |
+|set-function-length                                         |1.2.2               |MIT                 |
 |set-function-name                                           |2.0.1               |MIT                 |
+|set-function-name                                           |2.0.2               |MIT                 |
 |setimmediate                                                |1.0.5               |MIT                 |
 |shallow-equal                                               |1.2.1               |MIT                 |
 |shallowequal                                                |1.1.0               |MIT                 |
@@ -1147,7 +1170,6 @@
 |Sketches Core                                               |0.9.0               |Apache 2.0          |
 |SLF4J API Module                                            |1.7.36              |MIT                 |
 |Slugify - Core                                              |2.1.7               |Apache 2.0          |
-|smart-icon                                                  |3.0.1               |Apache-2.0          |
 |smart-resource                                              |0.3.8               |Apache-2.0          |
 |smart-resource                                              |1.0.0               |Apache-2.0          |
 |SnakeYAML                                                   |1.15                |Apache 2.0          |
@@ -1164,8 +1186,11 @@
 |Streaming API for XML                                       |1.0-2               |GPL v2 w/ CPE       |
 |strict-uri-encode                                           |1.1.0               |MIT                 |
 |string.prototype.trim                                       |1.2.8               |MIT                 |
+|string.prototype.trim                                       |1.2.9               |MIT                 |
 |string.prototype.trimend                                    |1.0.7               |MIT                 |
+|string.prototype.trimend                                    |1.0.8               |MIT                 |
 |string.prototype.trimstart                                  |1.0.7               |MIT                 |
+|string.prototype.trimstart                                  |1.0.8               |MIT                 |
 |stylis                                                      |4.0.13              |MIT                 |
 |Sulky ULID                                                  |8.3.0               |Apache 2.0          |
 |sulky-codec                                                 |8.3.0               |Apache 2.0          |
@@ -1173,17 +1198,17 @@
 |sulky-io                                                    |8.3.0               |Apache 2.0          |
 |supports-color                                              |5.5.0               |MIT                 |
 |supports-preserve-symlinks-flag                             |1.0.0               |MIT                 |
-|swagger-annotations                                         |2.1.6               |Apache License 2.0  |
-|swagger-core                                                |2.1.6               |Apache License 2.0  |
-|swagger-integration                                         |2.1.6               |Apache License 2.0  |
-|swagger-jaxrs2                                              |2.1.6               |Apache License 2.0  |
-|swagger-jaxrs2-servlet-initializer                          |2.1.6               |Apache License 2.0  |
-|swagger-models                                              |2.1.6               |Apache License 2.0  |
+|Swagger Annotations                                         |2.1.6               |Apache 2.0          |
+|Swagger Core                                                |2.1.6               |Apache 2.0          |
+|Swagger Integration                                         |2.1.6               |Apache 2.0          |
+|Swagger JAXRS2                                              |2.1.6               |Apache 2.0          |
+|Swagger JAXRS2 Servlet Initializer                          |2.1.6               |Apache 2.0          |
+|Swagger Models                                              |2.1.6               |Apache 2.0          |
 |symbol-observable                                           |1.2.0               |MIT                 |
 |symbol-observable                                           |2.0.3               |MIT                 |
 |T-Digest                                                    |3.2                 |Apache 2.0          |
-|temporal-polyfill                                           |0.2.4               |MIT                 |
 |The Netty Project                                           |3.10.6.Final-nohttp |Apache 2.0          |
+|The Netty Project                                           |4.1.112.Final       |Apache 2.0          |
 |third-party-jackson-core                                    |2.17.295            |Apache 2.0          |
 |ThreeTen backport                                           |1.3.3               |BSD 3-clause        |
 |ThreeTen backport                                           |1.6.5               |BSD 3-clause        |
@@ -1193,18 +1218,21 @@
 |Token provider project                                      |1.0.1               |Apache 2.0          |
 |toposort                                                    |2.0.2               |MIT                 |
 |Tracer Resolver                                             |0.1.8               |Apache 2.0          |
-|ts-results-es                                               |4.1.0               |MIT                 |
 |ts-results-es                                               |4.1.0-alpha.1       |MIT                 |
 |ts-toolbelt                                                 |8.4.0               |Apache-2.0          |
 |tslib                                                       |1.10.0              |Apache-2.0          |
 |tslib                                                       |2.3.0               |0BSD                |
 |tslib                                                       |2.4.0               |0BSD                |
 |typed-array-buffer                                          |1.0.0               |MIT                 |
+|typed-array-buffer                                          |1.0.2               |MIT                 |
 |typed-array-byte-length                                     |1.0.0               |MIT                 |
+|typed-array-byte-length                                     |1.0.1               |MIT                 |
 |typed-array-byte-offset                                     |1.0.0               |MIT                 |
+|typed-array-byte-offset                                     |1.0.2               |MIT                 |
 |typed-array-length                                          |1.0.4               |MIT                 |
+|typed-array-length                                          |1.0.6               |MIT                 |
 |typed-styles                                                |0.0.7               |MIT                 |
-|typescript                                                  |5.4.2               |Apache-2.0          |
+|typescript                                                  |5.5.4               |Apache-2.0          |
 |typo-js                                                     |1.0.3               |BSD-3-Clause        |
 |ua-parser-js                                                |0.7.14              |MIT                 |
 |UCP                                                         |19.22.0.0           |Oracle Free Use Terms and Conditions (FUTC)|
@@ -1216,6 +1244,7 @@
 |unbox-primitive                                             |1.0.2               |MIT                 |
 |uncontrollable                                              |6.1.0               |MIT                 |
 |underscore                                                  |1.8.3               |MIT                 |
+|undici-types                                                |6.19.8              |MIT                 |
 |univocity-parsers                                           |1.3.0               |Apache 2.0          |
 |update-browserslist-db                                      |1.0.11              |MIT                 |
 |url                                                         |0.11.0              |MIT                 |
@@ -1229,13 +1258,14 @@
 |Utilities                                                   |2.2.2-dremio-202308081957350593-ab2a596|Apache 2.0          |
 |Utilities Hadoop Hadoop3                                    |hadoop2-2.2.2-dremio-202308081957350593-ab2a596|Apache 2.0          |
 |uuid                                                        |9.0.0               |MIT                 |
-|value-annotations                                           |2.10.0              |Apache 2.0          |
-|vertica-jdbc                                                |24.2.0-0            |Vertica Client License Agreement|
+|value-annotations                                           |2.10.1              |Apache 2.0          |
+|Vertica JDBC                                                |24.2.0-0            |Vertica Client License Agreement|
 |warning                                                     |3.0.0               |BSD-3-Clause        |
 |warning                                                     |4.0.3               |MIT                 |
 |whatwg-fetch                                                |2.0.3               |MIT                 |
 |which-boxed-primitive                                       |1.0.2               |MIT                 |
 |which-typed-array                                           |1.1.11              |MIT                 |
+|which-typed-array                                           |1.1.15              |MIT                 |
 |which-typed-array                                           |1.1.8               |MIT                 |
 |WildFly OpenSSL Java                                        |1.0.9.Final         |Apache 2.0          |
 |WildFly OpenSSL Linux X86 64                                |1.0.9.Final         |Apache 2.0          |

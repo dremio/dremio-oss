@@ -16,7 +16,6 @@
 package com.dremio.exec.sql;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.PlanTestBase;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
@@ -24,9 +23,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -34,7 +30,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class TestIcebergTableProperties extends PlanTestBase {
+public class TestIcebergTableProperties extends BaseTestQuery {
 
   @Test
   public void ctasWithTableProperties() throws Exception {
@@ -298,27 +294,6 @@ public class TestIcebergTableProperties extends PlanTestBase {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
       }
     }
-  }
-
-  private String getMetadataJsonString(String tableName) throws IOException {
-    String metadataLoc = getDfsTestTmpSchemaLocation() + String.format("/%s/metadata", tableName);
-    File metadataFolder = new File(metadataLoc);
-    String metadataJson = "";
-
-    Assert.assertNotNull(metadataFolder.listFiles());
-    for (File currFile : metadataFolder.listFiles()) {
-      if (currFile.getName().endsWith("metadata.json")) {
-        // We'll only have one metadata.json file as this is the first transaction for table
-        // temp_table0
-        metadataJson =
-            new String(
-                java.nio.file.Files.readAllBytes(Paths.get(currFile.getPath())),
-                StandardCharsets.US_ASCII);
-        break;
-      }
-    }
-    Assert.assertNotNull(metadataJson);
-    return metadataJson;
   }
 
   private void validateTablePropertiesFromMetadataJson(

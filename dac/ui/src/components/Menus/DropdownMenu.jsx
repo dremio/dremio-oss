@@ -17,10 +17,10 @@ import { cloneElement, Fragment } from "react";
 import PropTypes from "prop-types";
 import classNames from "clsx";
 
-import { SelectView } from "@app/components/Fields/SelectView";
+import { SelectView } from "#oss/components/Fields/SelectView";
 
 import { triangleTop } from "uiTheme/radium/overlay";
-import Spinner from "@app/components/Spinner";
+import Spinner from "#oss/components/Spinner";
 import { Divider } from "@mui/material";
 import { Tooltip } from "dremio-ui-lib";
 import { Button } from "dremio-ui-lib/components";

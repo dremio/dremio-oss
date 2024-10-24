@@ -15,7 +15,7 @@
  */
 import { RSAA } from "redux-api-middleware";
 import Immutable from "immutable";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const SCHEDULE_CHECK_SERVER_STATUS = "SCHEDULE_CHECK_SERVER_STATUS";
 export function scheduleCheckServerStatus(delay) {

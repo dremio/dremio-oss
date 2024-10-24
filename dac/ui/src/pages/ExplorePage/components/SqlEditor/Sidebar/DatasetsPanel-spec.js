@@ -212,7 +212,7 @@ describe("DatasetsPanel", () => {
       wrapper.setProps({
         parentListViewState: commonProps.parentListViewState.set(
           "isInProgress",
-          true
+          true,
         ),
       });
       expect(instance.shouldShowParentTab()).to.be.true;

@@ -16,7 +16,7 @@
 import { shallow } from "enzyme";
 
 import exploreUtils from "utils/explore/exploreUtils";
-import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
+import { PageTypes } from "#oss/pages/ExplorePage/pageTypes";
 
 import TableControlsView from "./TableControlsView";
 import { TableControls } from "./TableControls";

@@ -18,9 +18,9 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import Immutable from "immutable";
 
-import sentryUtil from "@app/utils/sentryUtil";
+import sentryUtil from "#oss/utils/sentryUtil";
 import reflectionActions from "actions/resources/reflection";
-import ApiPolling from "@app/utils/apiUtils/apiPollingUtils";
+import ApiPolling from "#oss/utils/apiUtils/apiPollingUtils";
 import { getViewState } from "selectors/resources";
 import { loadDataset } from "actions/resources/dataset";
 import ViewStateWrapper from "../ViewStateWrapper";
@@ -86,7 +86,7 @@ export class AccelerationController extends Component {
     if (failedErrorLog) {
       console.error(
         "An error has occurred while making a call in the acceleration controller:",
-        error
+        error,
       ); //specifically for instances of logErrorsToSentry & outsideCommunicationDisabled not allowing a sentry error log to be created
     }
     if (error.payload instanceof Error) return; // legacy error handling
@@ -124,7 +124,7 @@ export class AccelerationController extends Component {
     if (modal || !isModal) {
       return getReflections(
         { viewId: VIEW_ID },
-        { path: `dataset/${encodeURIComponent(datasetId)}/reflection` }
+        { path: `dataset/${encodeURIComponent(datasetId)}/reflection` },
       );
     } else {
       return false;

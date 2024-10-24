@@ -22,17 +22,17 @@
   width: 455px;
   min-width: 455px;
   position: relative;
-  background-color: #ffffff;
+  background-color: var(--fill--primary);
   cursor: pointer;
   &:hover {
-    background-color: #fff5dc;
+    background-color: var(--fill--warning);
   }
 }
 .active {
-  background-color: #fff5dc;
+  background-color: var(--fill--warning);
 }
 .inactive {
-  background-color: white;
+  background-color: var(--fill--primary);
 }
 .toggler {
   position: absolute !important;
@@ -41,6 +41,6 @@
   cursor: pointer !important;
   font-size: 17px !important;
   &:hover {
-    color: gray !important;
+    color: var(--text--faded) !important;
   }
 }

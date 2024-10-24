@@ -18,5 +18,5 @@ import { SmartResource } from "smart-resource";
 import { getProfileJSONOperator } from "../endpoints/Profiles/getProfileJSONOperator";
 
 export const ProfileJSONOperatorResource = new SmartResource(
-  getProfileJSONOperator
+  getProfileJSONOperator,
 );

@@ -1,0 +1,85 @@
+{
+  "sourceType": "RESTCATALOG",
+  "metadataRefresh": {
+    "datasetDiscovery": true,
+    "authorization": false
+  },
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.restEndpointUri",
+                "placeholder": "e.g. https://123.123.123.123:5439/api"
+              }
+            ]
+          },
+          {
+            "name": "Allowed Namespaces",
+            "elements": [
+              {
+                "propName": "config.allowedNamespaces[]",
+                "size": "half",
+                "uiType": "value_list",
+                "emptyLabel": "No namespaces added",
+                "addLabel": "Add namespace",
+                "validate": {
+                  "isRequired": false
+                }
+              },
+              {
+                "propName": "config.isRecursiveAllowedNamespaces"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "title": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.enableAsync"
+              }
+            ]
+          },
+          {
+            "elements": [
+              {
+                "label": "Catalog Properties",
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              },
+              {
+                "label": "Catalog Credentials",
+                "emptyLabel": "No credentials added",
+                "addLabel": "Add credential",
+                "propName": "config.secretPropertyList",
+                "secure": true
+              }
+            ]
+          },
+          {
+            "name": "Cache Options",
+            "checkboxController": "enableAsync",
+            "elements": [
+              {
+                "propName": "config.isCachingEnabled"
+              },
+              {
+                "propName": "config.maxCacheSpacePct"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -68,14 +68,14 @@ class Transforms {
     const oldColumn = columns.get(colIndex);
     columns = columns.set(
       colIndex,
-      oldColumn.set("color", "var(--color--orange--50)"),
+      oldColumn.set("color", "var(--fill--warning)"),
     );
     const newColName =
       sourceColumnName === newColumnName
         ? `${newColumnName} (new)`
         : newColumnName;
     const colToInsert = oldColumn
-      .set("color", "var(--color--brand--100)")
+      .set("color", "var(--fill--primary--hover--selected)")
       .set("name", newColName)
       .set("status", "HIGHLIGHTED");
     columns = columns.splice(colIndex + 1, 0, colToInsert);
@@ -130,7 +130,7 @@ class Transforms {
       .get("0")
       .set("name", columnName)
       .set("status", "HIGHLIGHTED")
-      .set("color", "var(--color--brand--100)")
+      .set("color", "var(--fill--primary--selected--hover)")
       .set("index", columns.size)
       .set("type", "");
     columns = columns.push(column);

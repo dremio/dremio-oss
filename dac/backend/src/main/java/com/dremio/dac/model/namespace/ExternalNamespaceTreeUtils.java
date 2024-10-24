@@ -18,6 +18,7 @@ package com.dremio.dac.model.namespace;
 import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.dac.explore.model.Dataset;
+import com.dremio.dac.model.common.Function;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.sources.PhysicalDataset;
 import com.dremio.dac.model.sources.SourceName;
@@ -26,6 +27,7 @@ import com.dremio.plugins.ExternalNamespaceEntry;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -34,7 +36,7 @@ public final class ExternalNamespaceTreeUtils {
   private ExternalNamespaceTreeUtils() {}
 
   public static NamespaceTree namespaceTreeOf(
-      SourceName sourceName, ExternalListResponse response) {
+      SourceName sourceName, ExternalListResponse response, boolean includeUDFChildren) {
     Objects.requireNonNull(sourceName);
 
     final NamespaceTree namespaceTree = new NamespaceTree();
@@ -61,10 +63,17 @@ public final class ExternalNamespaceTreeUtils {
 
           switch (entry.getType()) {
             case UNKNOWN:
+              break; // Unknown types are ignored
             case UDF:
-              // TODO(DX-92549): To list functions in a nessie source(sub-folders), we need to
-              // implement for UDF.
-              break; // Unknown types or UDF are ignored
+              if (includeUDFChildren) {
+                namespaceTree.addFunction(
+                    Function.newInstance(
+                        (versionedDatasetId == null)
+                            ? UUID.randomUUID().toString()
+                            : versionedDatasetId,
+                        fullPathList));
+              }
+              break;
             case FOLDER:
               namespaceTree.addFolder(
                   Folder.newInstance(

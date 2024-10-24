@@ -18,9 +18,9 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { injectIntl } from "react-intl";
 
-import { Tooltip } from "@app/components/Tooltip";
+import { Tooltip } from "#oss/components/Tooltip";
 import { Tooltip as DremioTooltip } from "dremio-ui-lib";
-import DurationBreakdown from "@app/pages/JobPageNew/components/DurationBreakdown";
+import DurationBreakdown from "#oss/pages/JobPageNew/components/DurationBreakdown";
 import { getDuration } from "utils/jobListUtils";
 
 import "./JobsContent.less";

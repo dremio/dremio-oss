@@ -16,13 +16,13 @@
 import { PureComponent } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
-import { addNotification } from "@app/actions/notification";
-import CopyButtonIcon from "@app/components/Buttons/CopyButtonIcon";
-import { getPaginationJobId } from "@app/selectors/explore";
-import { escapeDblQuotes } from "@app/utils/regExpUtils";
-import ApiUtils from "@app/utils/apiUtils/apiUtils";
-import { copyTextToClipboard } from "@app/utils/clipboard/clipboardUtils";
-import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
+import { addNotification } from "#oss/actions/notification";
+import CopyButtonIcon from "#oss/components/Buttons/CopyButtonIcon";
+import { getPaginationJobId } from "#oss/selectors/explore";
+import { escapeDblQuotes } from "#oss/utils/regExpUtils";
+import ApiUtils from "#oss/utils/apiUtils/apiUtils";
+import { copyTextToClipboard } from "#oss/utils/clipboard/clipboardUtils";
+import { MSG_CLEAR_DELAY_SEC } from "#oss/constants/Constants";
 
 const MAX_ROWS_TO_CLIPBOARD = 5000;
 
@@ -76,7 +76,7 @@ export class ExploreCopyTableButton extends PureComponent {
     // make data array with copied elements
     const dataArray = tableData.rows.map((rowEntry) => {
       return rowEntry.row.map((el) =>
-        ExploreCopyTableButton.prepareValueForTabDelimitedItem(el.v)
+        ExploreCopyTableButton.prepareValueForTabDelimitedItem(el.v),
       );
     });
     // since we loaded MAX_ROWS_TO_CLIPBOARD + 1 to detect if we reached max, remove last row
@@ -86,8 +86,8 @@ export class ExploreCopyTableButton extends PureComponent {
     // prepend data rows with the row of column names
     dataArray.unshift(
       tableData.columns.map((col) =>
-        ExploreCopyTableButton.prepareValueForTabDelimitedItem(col.name)
-      )
+        ExploreCopyTableButton.prepareValueForTabDelimitedItem(col.name),
+      ),
     );
     // make text string for copy: items are tab-delimited, rows end with LF/CR
     const rowArray = dataArray.map((row) => row.join("\t"));
@@ -100,17 +100,17 @@ export class ExploreCopyTableButton extends PureComponent {
     if (success) {
       const message = this.isMaxReached
         ? laDeprecated(
-            `The first ${MAX_ROWS_TO_CLIPBOARD.toLocaleString()} were copied to the clipboard. Use download if you want to extract the entire result set.`
+            `The first ${MAX_ROWS_TO_CLIPBOARD.toLocaleString()} were copied to the clipboard. Use download if you want to extract the entire result set.`,
           )
         : laDeprecated("Table data is copied to clipboard.");
       this.props.addNotification(message, "success", MSG_CLEAR_DELAY_SEC);
     } else {
       this.props.addNotification(
         laDeprecated(
-          "Failed to copy to clipboard. Please use download feature."
+          "Failed to copy to clipboard. Please use download feature.",
         ),
         "warning",
-        MSG_CLEAR_DELAY_SEC
+        MSG_CLEAR_DELAY_SEC,
       );
     }
   };
@@ -129,7 +129,7 @@ export class ExploreCopyTableButton extends PureComponent {
       this.props.addNotification(
         laDeprecated("Missing job id to fetch data for clipboard."),
         "error",
-        MSG_CLEAR_DELAY_SEC
+        MSG_CLEAR_DELAY_SEC,
       );
       return;
     }
@@ -151,13 +151,13 @@ export class ExploreCopyTableButton extends PureComponent {
         this.props.addNotification(
           `${msg}: ${error.errorMessage}`,
           "error",
-          MSG_CLEAR_DELAY_SEC
+          MSG_CLEAR_DELAY_SEC,
         );
         console.error(msg);
         this.setState({ isPreparing: false });
       },
       options,
-      2
+      2,
     );
   };
 

@@ -20,17 +20,8 @@ import com.google.errorprone.annotations.FormatMethod;
 public class InvalidSpecificationVersionException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 
-  public InvalidSpecificationVersionException() {
-    super();
-  }
-
-  public InvalidSpecificationVersionException(Throwable cause) {
-    super(cause);
-  }
-
-  @FormatMethod
-  public InvalidSpecificationVersionException(Throwable cause, String message, Object... args) {
-    super(String.format(message, args), cause);
+  public InvalidSpecificationVersionException(String errorMessage) {
+    super(errorMessage);
   }
 
   @FormatMethod

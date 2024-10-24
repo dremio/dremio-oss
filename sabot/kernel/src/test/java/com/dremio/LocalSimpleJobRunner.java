@@ -94,7 +94,8 @@ public final class LocalSimpleJobRunner implements SimpleJobRunner {
           false,
           config,
           false,
-          null);
+          null,
+          System.currentTimeMillis());
       queryObserver.waitForCompletion();
       resultTablePath = toTableName(queryObserver.getAttemptId());
     } catch (Exception e) {

@@ -163,7 +163,8 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
         isPartialRefresh,
         readSignatureEnabled,
         createTableEntry.getOptions().getTableFormatOptions(),
-        sourceTablePluginId);
+        sourceTablePluginId,
+        createTableEntry.getUserId());
   }
 
   @Override

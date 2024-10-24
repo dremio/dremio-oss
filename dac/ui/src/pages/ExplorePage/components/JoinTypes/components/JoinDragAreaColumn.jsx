@@ -50,7 +50,7 @@ class JoinDragAreaColumn extends PureComponent {
       const isFound =
         this.props.items &&
         this.props.items.find(
-          (item) => item.get("default").get("name") === col.get("name")
+          (item) => item.get("default").get("name") === col.get("name"),
         );
       return !isFound;
     });
@@ -59,7 +59,8 @@ class JoinDragAreaColumn extends PureComponent {
   filterByType(columns, linkedItem) {
     return columns.filter(
       (column) =>
-        linkedItem.get("empty") || column.get("type") === linkedItem.get("type")
+        linkedItem.get("empty") ||
+        column.get("type") === linkedItem.get("type"),
     );
   }
 
@@ -74,7 +75,7 @@ class JoinDragAreaColumn extends PureComponent {
           addColumn={this.props.addColumn}
           columns={this.filterByType(
             this.filterLeftColumns(),
-            item.get("custom")
+            item.get("custom"),
           )}
           key={item.get("id")}
           index={index}
@@ -93,7 +94,7 @@ class JoinDragAreaColumn extends PureComponent {
           addColumn={this.props.addColumn}
           columns={this.filterByType(
             this.props.rightColumns,
-            item.get("default")
+            item.get("default"),
           )}
           key={item.get("id") + "custom"}
           index={index}

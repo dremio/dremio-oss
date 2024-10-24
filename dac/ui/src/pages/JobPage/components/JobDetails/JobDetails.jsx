@@ -19,7 +19,7 @@ import Immutable from "immutable";
 
 import ViewStateWrapper from "components/ViewStateWrapper";
 
-import { flexElementAuto } from "@app/uiTheme/less/layout.less";
+import { flexElementAuto } from "#oss/uiTheme/less/layout.less";
 
 import HeaderDetails from "./HeaderDetails";
 import TabsNavigation from "./TabsNavigation";

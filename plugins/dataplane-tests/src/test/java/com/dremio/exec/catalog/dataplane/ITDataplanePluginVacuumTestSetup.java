@@ -69,7 +69,7 @@ public abstract class ITDataplanePluginVacuumTestSetup extends ITDataplanePlugin
   protected String getMetadataLoc(List<String> table, Reference ref)
       throws NessieNotFoundException {
     ContentKey key = ContentKey.of(table);
-    return ((IcebergTable) getNessieClient().getContent().key(key).reference(ref).get().get(key))
+    return ((IcebergTable) getNessieApi().getContent().key(key).reference(ref).get().get(key))
         .getMetadataLocation();
   }
 
@@ -87,7 +87,7 @@ public abstract class ITDataplanePluginVacuumTestSetup extends ITDataplanePlugin
 
   protected List<String> getAllPartitionStatsFiles(List<String> table)
       throws NessieNotFoundException {
-    return getAllPartitionStatsFiles(table, getNessieClient().getDefaultBranch(), null);
+    return getAllPartitionStatsFiles(table, getNessieApi().getDefaultBranch(), null);
   }
 
   protected List<String> getAllPartitionStatsFiles(
@@ -180,7 +180,7 @@ public abstract class ITDataplanePluginVacuumTestSetup extends ITDataplanePlugin
   protected List<String> snapshots(List<String> table, String refName) {
     Reference ref = null;
     try {
-      ref = getNessieClient().getReference().refName(refName).get();
+      ref = getNessieApi().getReference().refName(refName).get();
       return snapshots(table, ref);
     } catch (NessieNotFoundException e) {
       throw new RuntimeException(e);

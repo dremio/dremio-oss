@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/mixins.less";
-@import "~@app/pages/ExplorePage/components/Wiki/Wiki.variables.less";
+@import "~#oss/uiTheme/less/mixins.less";
+@import "~#oss/pages/ExplorePage/components/Wiki/Wiki.variables.less";
 @import "./MarkdownEditor.mixins.less";
 
 @_toolbar-content-height: 40px;
@@ -68,8 +68,8 @@
       @border-width: 3px;
       padding-left: @identation-size - @border-width;
       // color schema is taken from github
-      border-left: @border-width solid #dfe2e5;
-      color: #6a737d;
+      border-left: @border-width solid var(--border--neutral--solid);
+      color: var(--text--faded);
     }
 
     table {
@@ -161,10 +161,17 @@
       padding: 0; // reset pading in container. Padding would be applied to CodeMirror-lines
     }
 
+    .CodeMirror-selected {
+      background-color: var(--fill--selection);
+      color: var(--text--primary);
+    }
+
     .editor-preview,
     .editor-preview-side {
       padding: @vert-padding @horiz-padding;
-
+      pre {
+        background: var(--fill--secondary);
+      }
       // need apply max width to all children, not to a preview, as preview is a single div, which is absolutely
       // positioned above code mirror. If width more tham 800 code mirror become visible, especcially
       // it's scroll
@@ -191,6 +198,7 @@
 
     .CodeMirror-cursor {
       transform: scaleY(0.65);
+      border-left: 1px solid var(--text--primary);
     }
 
     .mde-background-mixin(var(--fill--primary));

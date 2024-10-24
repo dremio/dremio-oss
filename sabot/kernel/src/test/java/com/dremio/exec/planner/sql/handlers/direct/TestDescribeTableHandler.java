@@ -72,7 +72,7 @@ public class TestDescribeTableHandler extends BaseTestQuery {
 
   @Before
   public void setup() {
-    BaseTestQuery.setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "true");
+    BaseTestQuery.setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, true);
     describeTableHandler = new DescribeTableHandler(catalog, queryContext, session);
 
     when(catalog.getTable(new NamespaceKey(TABLE))).thenReturn(table);
@@ -97,7 +97,7 @@ public class TestDescribeTableHandler extends BaseTestQuery {
 
   @After
   public void reset() {
-    resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getOptionName());
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER);
   }
 
   private RelDataType createTableSchema() {

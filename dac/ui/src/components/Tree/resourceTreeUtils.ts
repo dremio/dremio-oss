@@ -18,11 +18,11 @@ import { splitFullPath, constructFullPath } from "utils/pathUtils";
 import {
   CONTAINER_ENTITY_TYPES,
   DATASET_ENTITY_TYPES,
-} from "@app/constants/Constants";
+} from "#oss/constants/Constants";
 import { TreeNode } from "./ResourceTree.types";
 import { uniqBy } from "lodash";
-import { store } from "@app/store/store";
-import { getResourceTree } from "@app/selectors/tree";
+import { store } from "#oss/store/store";
+import { getResourceTree } from "#oss/selectors/tree";
 import additionalResourceTreeUtils from "@inject/shared/AdditionalResourceTreeUtils";
 export const starTabNames = {
   all: "All",

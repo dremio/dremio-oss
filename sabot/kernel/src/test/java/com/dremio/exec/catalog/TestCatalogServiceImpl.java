@@ -22,8 +22,10 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import com.dremio.common.AutoCloseables;
@@ -73,6 +75,7 @@ import com.dremio.exec.store.dfs.MetadataIOPool;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
+import com.dremio.options.OptionValue;
 import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.service.DirectProvider;
@@ -87,11 +90,13 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
+import com.dremio.service.namespace.source.proto.SourceChangeState;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.dremio.service.orphanage.Orphanage;
@@ -114,6 +119,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import javax.inject.Provider;
@@ -128,6 +135,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
 
 /**
  * Unit tests for {@link CatalogServiceImpl}.
@@ -190,7 +198,12 @@ public class TestCatalogServiceImpl {
     kvStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
     kvStoreProvider.start();
 
-    namespaceService = new NamespaceServiceImpl(kvStoreProvider, mock(CatalogStatusEvents.class));
+    namespaceService =
+        spy(
+            new NamespaceServiceImpl(
+                kvStoreProvider,
+                mock(CatalogStatusEvents.class),
+                CatalogEventMessagePublisherProvider.NO_OP));
     orphanage = new OrphanageImpl(kvStoreProvider);
 
     final Orphanage.Factory orphanageFactory =
@@ -311,7 +324,8 @@ public class TestCatalogServiceImpl {
                     ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES,
                     () -> optionManager),
             () -> new VersionedDatasetAdapterFactory(),
-            () -> new CatalogStatusEventsImpl());
+            () -> new CatalogStatusEventsImpl(),
+            () -> pool);
     catalogService.start();
 
     mockUpPlugin = new MockUpPlugin();
@@ -327,9 +341,25 @@ public class TestCatalogServiceImpl {
             .setCtime(100L)
             .setConnectionConf(new MockUpConfig());
 
+    final SourceConfig mockUpConfig2 =
+        new SourceConfig()
+            .setName(MOCK_UP2)
+            .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY)
+            .setCtime(100L)
+            .setConnectionConf(new MockUpConfig());
+
+    final SourceConfig deletingConfig =
+        new SourceConfig()
+            .setName(DELETING)
+            .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY)
+            .setCtime(100L)
+            .setConnectionConf(new MockUpConfig());
+
     doMockDatasets(mockUpPlugin, ImmutableList.of());
 
     catalogService.getSystemUserCatalog().createSource(mockUpConfig);
+    catalogService.getSystemUserCatalog().createSource(mockUpConfig2);
+    catalogService.getSystemUserCatalog().createSource(deletingConfig);
     originalCatalogVersion = mockUpConfig.getTag();
 
     final SourceConfig mockUpBadConfig =
@@ -615,6 +645,78 @@ public class TestCatalogServiceImpl {
   }
 
   @Test
+  public void testDeleteAsync() throws Exception {
+    CountDownLatch latch = new CountDownLatch(1);
+    catalogService
+        .optionManager
+        .get()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionValue.OptionType.SYSTEM,
+                ExecConstants.SOURCE_ASYNC_MODIFICATION_ENABLED.getOptionName(),
+                true));
+
+    doAnswer(
+            (args) -> {
+              latch.countDown();
+              return null;
+            })
+        .when(namespaceService)
+        .deleteSourceWithCallBack(any(), any(), any());
+
+    catalogService.deleteSource(MOCK_UP2);
+
+    // wait until async deletion is done with timeout.
+    boolean completed = latch.await(5, TimeUnit.SECONDS);
+
+    // verify that the async method has been called.
+    assertTrue("Async task deletion was not completed.", completed);
+
+    catalogService
+        .optionManager
+        .get()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionValue.OptionType.SYSTEM,
+                ExecConstants.SOURCE_ASYNC_MODIFICATION_ENABLED.getOptionName(),
+                false));
+  }
+
+  @Test
+  @Disabled("DX-95117: Will be re-enabled when async source modification flag is on")
+  public void testCreateSourceThrowsWhenSourceActionIsNotNone() throws Exception {
+    SourceConfig creatingConfig =
+        new SourceConfig()
+            .setName("Foo")
+            .setSourceChangeState(SourceChangeState.SOURCE_CHANGE_STATE_CREATING);
+
+    boolean testPassed = false;
+    try {
+      catalogService.getSystemUserCatalog().createSource(creatingConfig);
+    } catch (UserException ue) {
+      testPassed = true;
+    }
+    assertTrue(testPassed);
+  }
+
+  @Test
+  @Disabled("DX-95117: Will be re-enabled when async source modification flag is on")
+  public void testUpdateSourceThrowsWhenSourceActionIsNotNone() throws Exception {
+    SourceConfig creatingConfig =
+        new SourceConfig()
+            .setName("Foo")
+            .setSourceChangeState(SourceChangeState.SOURCE_CHANGE_STATE_DELETING);
+
+    boolean testPassed = false;
+    try {
+      catalogService.getSystemUserCatalog().updateSource(creatingConfig);
+    } catch (UserException ue) {
+      testPassed = true;
+    }
+    assertTrue(testPassed);
+  }
+
+  @Test
   public void refreshMissingPlugin() throws Exception {
     final MissingPluginConf missing = new MissingPluginConf();
     missing.throwOnInvocation = false;
@@ -747,6 +849,8 @@ public class TestCatalogServiceImpl {
   }
 
   static final String MOCK_UP = "mockup";
+  static final String MOCK_UP2 = "mockup2";
+  static final String DELETING = "deleting";
   private static final String MOCK_UP_BAD = "mockup_bad";
 
   @SourceType(value = MOCK_UP, configurable = false)

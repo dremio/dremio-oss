@@ -182,7 +182,7 @@ describe("ResourceTreeController", () => {
       const path = "DG.folder.asd";
       instance.expandPathToSelectedNode(path);
       expect(wrapper.state("expandedNodes")).to.be.equal(
-        Immutable.List(["DG", "DG.folder"])
+        Immutable.List(["DG", "DG.folder"]),
       );
     });
 
@@ -204,7 +204,7 @@ describe("ResourceTreeController", () => {
           '"@drem.io"',
           '"@drem.io".folder',
           '"@drem.io".folder.another',
-        ])
+        ]),
       );
     });
   });

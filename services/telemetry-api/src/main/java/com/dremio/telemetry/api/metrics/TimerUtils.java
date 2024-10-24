@@ -43,6 +43,19 @@ public final class TimerUtils {
   }
 
   /**
+   * Create a new Timer.ResourceSample with the given name, description, and tags iterable. When in
+   * use, the Timer will be registered with io.micrometer.core.instrument.Metrics.globalRegistry.
+   *
+   * @param name the name of the Timer
+   * @param description the description of the Timer
+   * @param tags the tags to apply to the Timer
+   * @return a new Timer.ResourceSample
+   */
+  public static Timer.ResourceSample timed(String name, String description, Iterable<Tag> tags) {
+    return newTimerResourceSample(name, description == null ? "" : description, Tags.of(tags));
+  }
+
+  /**
    * Create a new Timer.ResourceSample with the given name, description, minimum expected value for
    * the Timer, and tags. When in use, the Timer will be registered with
    * io.micrometer.core.instrument.Metrics.globalRegistry and will publish percentile histogram.
@@ -56,6 +69,21 @@ public final class TimerUtils {
   public static Timer.ResourceSample timedHistogram(
       String name, String description, Duration minMs, String... tags) {
     return timed(name, description, tags).publishPercentileHistogram().minimumExpectedValue(minMs);
+  }
+
+  /**
+   * Create a new Timer.ResourceSample with the given name, description, and tags iterable. When in
+   * use, the Timer will be registered with io.micrometer.core.instrument.Metrics.globalRegistry and
+   * will publish percentile histogram.
+   *
+   * @param name the name of the Timer
+   * @param description the description of the Timer
+   * @param tags the tags to apply to the Timer
+   * @return a new Timer.ResourceSample
+   */
+  public static Timer.ResourceSample timedHistogram(
+      String name, String description, Iterable<Tag> tags) {
+    return timed(name, description, tags).publishPercentileHistogram();
   }
 
   /**

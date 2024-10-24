@@ -15,7 +15,7 @@
  */
 package com.dremio.dac.resource;
 
-import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
+import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.FOLDER;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.annotations.RestResource;
@@ -146,6 +146,6 @@ public class FolderResource {
 
   protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children)
       throws DatasetNotFoundException, NamespaceException {
-    return NamespaceTree.newInstance(datasetService, children, SPACE, collaborationHelper);
+    return NamespaceTree.newInstance(datasetService, children, FOLDER, collaborationHelper);
   }
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
+import EmptyStateContainer from "#oss/pages/HomePage/components/EmptyStateContainer";
 import { useIntl } from "react-intl";
 import * as classes from "./EmptyPrivileges.module.less";
 

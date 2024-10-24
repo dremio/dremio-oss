@@ -17,7 +17,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import { FormattedMessage } from "react-intl";
 
-import { fetchStatusOfAnalyzeTools } from "@app/utils/analyzeToolsUtils";
+import { fetchStatusOfAnalyzeTools } from "#oss/utils/analyzeToolsUtils";
 import MenuItem from "components/Menus/MenuItem";
 
 export default class AnalyzeMenuItems extends Component {

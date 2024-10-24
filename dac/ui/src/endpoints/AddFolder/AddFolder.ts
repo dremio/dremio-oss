@@ -15,7 +15,7 @@
  */
 
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export type versionContext =
   | { refType: "BRANCH" | "TAG" | "DETACHED"; refValue: string }
@@ -46,7 +46,7 @@ export const handleAddFolder = (
   rootName: string,
   fullPath: string,
   payload: { name: string },
-  params: versionContext
+  params: versionContext,
 ): Promise<any> =>
   getApiContext()
     .fetch(getAddFolderUrl({ rootType, rootName, fullPath, params }), {

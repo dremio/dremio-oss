@@ -18,19 +18,39 @@ package com.dremio.exec.store.iceberg.nessie;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.common.util.Retryer;
+import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.iceberg.BaseIcebergTest;
 import com.dremio.exec.store.iceberg.VersionedUdfMetadata;
+import com.dremio.exec.store.iceberg.dremioudf.api.udf.SQLUdfRepresentation;
 import com.dremio.exec.store.iceberg.dremioudf.api.udf.Udf;
 import com.dremio.exec.store.iceberg.dremioudf.api.udf.UdfSignature;
+import com.dremio.exec.store.iceberg.dremioudf.api.udf.UdfVersion;
 import com.dremio.exec.store.iceberg.dremioudf.core.udf.ImmutableUdfSignature;
+import com.dremio.exec.store.iceberg.dremioudf.core.udf.UdfMetadata;
 import com.dremio.exec.store.iceberg.dremioudf.core.udf.UdfUtil;
+import com.dremio.plugins.NessieClient;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Types;
 import org.junit.jupiter.api.Test;
+import org.projectnessie.error.ImmutableNessieError;
+import org.projectnessie.error.ImmutableReferenceConflicts;
+import org.projectnessie.error.NessieError;
+import org.projectnessie.error.NessieErrorDetails;
+import org.projectnessie.error.NessieReferenceConflictException;
+import org.projectnessie.model.Conflict;
 import org.projectnessie.model.ContentKey;
 
 class TestVersionedUdfOperations extends BaseIcebergTest {
@@ -91,6 +111,120 @@ class TestVersionedUdfOperations extends BaseIcebergTest {
                     .withSignature(SIGNATURE)
                     .withBody("dremio", CREATE_UDF_SQL, "dremio comment"))
         .hasMessageContaining("Unsupported Udf dialect");
+  }
+
+  @Test
+  public void testConcurrentCreate() {
+    NessieErrorDetails details =
+        ImmutableReferenceConflicts.of(
+            List.of(
+                Conflict.conflict(
+                    Conflict.ConflictType.KEY_EXISTS, ContentKey.of(UDF_KEY), "key exists")));
+    UdfVersion version = mock(UdfVersion.class);
+    when(version.representations()).thenReturn(List.of(mock(SQLUdfRepresentation.class)));
+    UdfMetadata metadata = mock(UdfMetadata.class);
+    when(metadata.metadataFileLocation()).thenReturn("location");
+    when(metadata.currentVersion()).thenReturn(version);
+    when(metadata.currentVersionId()).thenReturn("123");
+    when(metadata.currentSignatureId()).thenReturn("123");
+    NessieError error =
+        ImmutableNessieError.builder()
+            .status(409)
+            .reason("key exists")
+            .errorDetails(details)
+            .build();
+    ReferenceConflictException e =
+        new ReferenceConflictException(new NessieReferenceConflictException(error));
+    NessieClient mockNessieClient = mock(NessieClient.class);
+    doThrow(e).when(mockNessieClient).commitUdf(any(), any(), any(), any(), any(), any(), any());
+    VersionedUdfOperations versionedUdfOperations =
+        new VersionedUdfOperations(
+            mock(FileIO.class),
+            mockNessieClient,
+            UDF_KEY,
+            ResolvedVersionContext.ofBranch("MAIN", "commitHash"),
+            UDF_USER);
+    assertThatThrownBy(() -> versionedUdfOperations.doCommit(metadata, metadata))
+        .isInstanceOf(Retryer.OperationFailedAfterRetriesException.class);
+    verify(mockNessieClient, times(1)).commitUdf(any(), any(), any(), any(), any(), any(), any());
+  }
+
+  @Test
+  public void testConcurrentUpdate() {
+    NessieErrorDetails details =
+        ImmutableReferenceConflicts.of(
+            List.of(
+                Conflict.conflict(
+                    Conflict.ConflictType.VALUE_DIFFERS, ContentKey.of(UDF_KEY), "value differs")));
+    UdfVersion version = mock(UdfVersion.class);
+    when(version.representations()).thenReturn(List.of(mock(SQLUdfRepresentation.class)));
+    UdfMetadata metadata = mock(UdfMetadata.class);
+    when(metadata.metadataFileLocation()).thenReturn("location");
+    when(metadata.currentVersion()).thenReturn(version);
+    when(metadata.currentVersionId()).thenReturn("123");
+    when(metadata.currentSignatureId()).thenReturn("123");
+    NessieError error =
+        ImmutableNessieError.builder()
+            .status(409)
+            .reason("value differs")
+            .errorDetails(details)
+            .build();
+    ReferenceConflictException e =
+        new ReferenceConflictException(new NessieReferenceConflictException(error));
+    NessieClient mockNessieClient = mock(NessieClient.class);
+    when(mockNessieClient.resolveVersionContext(any()))
+        .thenReturn(ResolvedVersionContext.ofBranch("MAIN", "123"));
+    doThrow(e).when(mockNessieClient).commitUdf(any(), any(), any(), any(), any(), any(), any());
+    VersionedUdfOperations versionedUdfOperations =
+        new VersionedUdfOperations(
+            mock(FileIO.class),
+            mockNessieClient,
+            UDF_KEY,
+            ResolvedVersionContext.ofBranch("MAIN", "123"),
+            UDF_USER);
+    assertThatThrownBy(() -> versionedUdfOperations.doCommit(metadata, metadata))
+        .isInstanceOf(Retryer.OperationFailedAfterRetriesException.class);
+    verify(mockNessieClient, times(5)).commitUdf(any(), any(), any(), any(), any(), any(), any());
+  }
+
+  @Test
+  public void testConcurrentUpdateSecondTimeSucceed() {
+    NessieErrorDetails details =
+        ImmutableReferenceConflicts.of(
+            List.of(
+                Conflict.conflict(
+                    Conflict.ConflictType.VALUE_DIFFERS, ContentKey.of(UDF_KEY), "value differs")));
+    UdfVersion version = mock(UdfVersion.class);
+    when(version.representations()).thenReturn(List.of(mock(SQLUdfRepresentation.class)));
+    UdfMetadata metadata = mock(UdfMetadata.class);
+    when(metadata.metadataFileLocation()).thenReturn("location");
+    when(metadata.currentVersion()).thenReturn(version);
+    when(metadata.currentVersionId()).thenReturn("123");
+    when(metadata.currentSignatureId()).thenReturn("123");
+    NessieError error =
+        ImmutableNessieError.builder()
+            .status(409)
+            .reason("value differs")
+            .errorDetails(details)
+            .build();
+    ReferenceConflictException e =
+        new ReferenceConflictException(new NessieReferenceConflictException(error));
+    NessieClient mockNessieClient = mock(NessieClient.class);
+    when(mockNessieClient.resolveVersionContext(any()))
+        .thenReturn(ResolvedVersionContext.ofBranch("MAIN", "123"));
+    doThrow(e)
+        .doNothing()
+        .when(mockNessieClient)
+        .commitUdf(any(), any(), any(), any(), any(), any(), any());
+    VersionedUdfOperations versionedUdfOperations =
+        new VersionedUdfOperations(
+            mock(FileIO.class),
+            mockNessieClient,
+            UDF_KEY,
+            ResolvedVersionContext.ofBranch("MAIN", "123"),
+            UDF_USER);
+    versionedUdfOperations.doCommit(metadata, metadata);
+    verify(mockNessieClient, times(2)).commitUdf(any(), any(), any(), any(), any(), any(), any());
   }
 
   private String getWarehouseLocation() {

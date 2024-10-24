@@ -71,12 +71,12 @@ describe("Menu-spec", () => {
       const instance = shallow(
         <Menu {...commonProps}>
           {("foo", (<DividerHr key="foo" />), (<DividerHr key="bar" />), "bar")}
-        </Menu>
+        </Menu>,
       ).instance();
       const likeInstance = shallow(
         <Menu {...commonProps}>
           {("foo", (<DividerHr key="foo" />), "bar")}
-        </Menu>
+        </Menu>,
       ).instance();
       expect(instance.getItems()).to.eql(likeInstance.getItems());
     });

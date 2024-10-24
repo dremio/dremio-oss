@@ -177,6 +177,8 @@ public abstract class FakeGcsServer implements AutoCloseable {
                     fakeGcsServerBinary.toString(),
                     "-scheme",
                     "http",
+                    "-host",
+                    "127.0.0.1",
                     "-port",
                     String.valueOf(httpPort),
                     "-backend",

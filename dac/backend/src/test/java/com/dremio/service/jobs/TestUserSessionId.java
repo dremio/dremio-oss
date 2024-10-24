@@ -40,12 +40,12 @@ public class TestUserSessionId extends BaseTestServer {
   public static void init() throws Exception {
     BaseTestServer.init();
     BaseTestServer.getPopulator().populateTestUsers();
-    setSystemOption(UserSession.ENABLE_SESSION_IDS, "true");
+    setSystemOption(UserSession.ENABLE_SESSION_IDS, true);
   }
 
   @AfterClass
   public static void cleanup() {
-    resetSystemOption(UserSession.ENABLE_SESSION_IDS.getOptionName());
+    resetSystemOption(UserSession.ENABLE_SESSION_IDS);
   }
 
   @Test

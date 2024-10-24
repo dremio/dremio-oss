@@ -16,8 +16,8 @@
 
 import { createContext, useEffect } from "react";
 
-import { Reference } from "@app/types/nessie";
-import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
+import { Reference } from "#oss/types/nessie";
+import { isDefaultReferenceLoading } from "#oss/selectors/nessie/nessie";
 import { useNessieContext } from "../../utils/context";
 import RepoViewBody from "./components/RepoViewBody/RepoViewBody";
 

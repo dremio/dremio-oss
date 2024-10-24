@@ -19,7 +19,7 @@ import PropTypes from "prop-types";
 
 import FieldValues from "components/Fields/FieldValues";
 import "./Progress.less";
-import { title, rowMargin } from "@app/uiTheme/less/forms.less";
+import { title, rowMargin } from "#oss/uiTheme/less/forms.less";
 
 class NonMatchingValues extends Component {
   static propTypes = {

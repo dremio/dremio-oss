@@ -239,7 +239,7 @@ const SearchableMultiSelect = (props) => {
             checked={isSelected}
             color="primary"
             classes={{
-              root: "SearchableMultiSelect__optionCheckbox gutter--none gutter-right--half",
+              root: "SearchableMultiSelect__optionCheckbox gutter--none mr-1",
             }}
           />
           {optionLabel}

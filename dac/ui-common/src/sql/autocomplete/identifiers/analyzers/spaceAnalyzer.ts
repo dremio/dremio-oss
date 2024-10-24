@@ -14,11 +14,34 @@
  * limitations under the License.
  */
 
+import type { Token } from "antlr4ts";
 import type { TerminalNode } from "antlr4ts/tree/TerminalNode";
 
 import { LiveEditParser as Parser } from "../../../../../target/generated-sources/antlr/LiveEditParser";
-import { isTokenOfType } from "./analyzersCommon";
+import {
+  child,
+  type CompositeRuleAnalyzers,
+  includeIf,
+  isTokenOfType,
+  validateCompositeRules,
+} from "./analyzersCommon";
 import type { IdentifierCandidate } from "../../types/IdentifierCandidate";
+
+const followsSpaceToken = (priorToken: Token | undefined) =>
+  isTokenOfType(priorToken, Parser.SPACE);
+
+const spaceRuleAnalyzers: CompositeRuleAnalyzers = {
+  [Parser.RULE_sqlGrantPrivilege]: includeIf([
+    child(Parser.RULE_compoundIdentifier, (priorToken: Token | undefined) =>
+      followsSpaceToken(priorToken),
+    ),
+  ]),
+  [Parser.RULE_sqlRevoke]: includeIf([
+    child(Parser.RULE_compoundIdentifier, (priorToken: Token | undefined) =>
+      followsSpaceToken(priorToken),
+    ),
+  ]),
+};
 
 export function isSpace(
   priorTerminals: TerminalNode[],
@@ -27,10 +50,14 @@ export function isSpace(
   if (priorTerminals.length == 0) {
     return false;
   }
-  return isTokenOfType(
-    priorTerminals[priorTerminals.length - 1].symbol,
-    Parser.SPACE,
-  )
-    ? identifierCandidate.ruleIndex == Parser.RULE_simpleIdentifier
-    : false;
+  const priorTerminal = priorTerminals[priorTerminals.length - 1];
+  const fallbackRule = (identifierRuleIndex: number) =>
+    identifierRuleIndex == Parser.RULE_simpleIdentifier &&
+    isTokenOfType(priorTerminal.symbol, Parser.SPACE);
+  return validateCompositeRules(
+    identifierCandidate,
+    spaceRuleAnalyzers,
+    priorTerminal,
+    fallbackRule,
+  );
 }

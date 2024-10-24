@@ -18,7 +18,7 @@ import { Button } from "dremio-ui-lib/components";
 import { Link } from "react-router";
 import { FormattedMessage } from "react-intl";
 
-import * as headerClasses from "@app/exports/pages/VersionedHomePage/components/VersionedPageTableHeader/VersionedPageTableHeader.module.less";
+import * as headerClasses from "#oss/exports/pages/VersionedHomePage/components/VersionedPageTableHeader/VersionedPageTableHeader.module.less";
 
 const ProjectHistoryButton = (props: {
   to: string | Record<string, unknown>;

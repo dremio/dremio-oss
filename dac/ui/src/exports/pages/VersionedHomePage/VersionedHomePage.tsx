@@ -26,20 +26,21 @@ import {
 } from "./versioned-page-utils";
 
 import { last } from "lodash";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
 
 import VersionedSourceBreadcrumbs from "../VersionedSource/VersionedSourceBreadcrumbs/VersionedSourceBreadcrumbs";
-import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
+import { ErrorBoundary } from "#oss/components/ErrorBoundary/ErrorBoundary";
 import { useIntl } from "react-intl";
 import {
   DEFAULT_REF_REQUEST,
   SET_REF_REQUEST,
-} from "@app/actions/nessie/nessie";
-import { NotFound } from "@app/exports/components/ErrorViews/NotFound";
+} from "#oss/actions/nessie/nessie";
+import { NotFound } from "#oss/exports/components/ErrorViews/NotFound";
 import { getTracingContext } from "dremio-ui-common/contexts/TracingContext.js";
 import VersionedHomePageTabs from "./components/VersionedPageTabs/VersionedPageTabs";
 
 import classes from "./VersionedHomePage.module.less";
+import { PageTop } from "dremio-ui-common/components/PageTop.js";
 
 export type VersionedPageTabsType =
   | "data"
@@ -86,7 +87,7 @@ const VersionedHomePage = (props: VersionedHomePageProps): JSX.Element => {
   const [reservedNamespace, setReservedNamespace] = useState(
     branchName && splat
       ? `${branchName ? encodeURIComponent(branchName) : ""}${`/${splat}`}`
-      : splat ?? "",
+      : (splat ?? ""),
   );
 
   useEffect(() => {
@@ -157,7 +158,15 @@ const VersionedHomePage = (props: VersionedHomePageProps): JSX.Element => {
         className={
           !isCatalog ? classes["source__page"] : classes["catalog-page"]
         }
-        header={isCatalog ? <NavCrumbs /> : <VersionedSourceBreadcrumbs />}
+        header={
+          isCatalog ? (
+            <PageTop>
+              <NavCrumbs />
+            </PageTop>
+          ) : (
+            <VersionedSourceBreadcrumbs />
+          )
+        }
       >
         {isContentNotFound ? (
           <div className={classes["versionedHomePage__notFound"]}>

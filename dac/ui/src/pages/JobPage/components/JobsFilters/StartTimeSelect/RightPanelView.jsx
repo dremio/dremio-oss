@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 
 import PropTypes from "prop-types";
 
 import DateTimeInput from "./DateTimeInput";
-import DateRangePicker from "@app/components/DateRangePicker/DateRangePicker";
+import DateRangePicker from "#oss/components/DateRangePicker/DateRangePicker";
 
 import "./RightPanelView.less";
 

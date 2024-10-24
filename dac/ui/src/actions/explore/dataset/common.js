@@ -17,14 +17,14 @@ import Immutable from "immutable";
 import { RSAA } from "redux-api-middleware";
 import { push, replace } from "react-router-redux";
 import urlParse from "url-parse";
-import { collapseExploreSql } from "@app/actions/explore/ui";
-import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
-import { changePageTypeInUrl } from "@app/pages/ExplorePage/pageTypeUtils";
+import { collapseExploreSql } from "#oss/actions/explore/ui";
+import { PageTypes } from "#oss/pages/ExplorePage/pageTypes";
+import { changePageTypeInUrl } from "#oss/pages/ExplorePage/pageTypeUtils";
 
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import schemaUtils from "utils/apiUtils/schemaUtils";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 
 export const RUN_TABLE_TRANSFORM_START = "RUN_TABLE_TRANSFORM_START";
 export const RUN_TABLE_TRANSFORM_SUCCESS = "RUN_TABLE_TRANSFORM_SUCCESS";
@@ -35,9 +35,9 @@ import {
 } from "dremio-ui-common/utilities/projectBase.js";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
-import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { getSupportFlags } from "@app/selectors/supportFlags";
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { SQLRUNNER_TABS_UI } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getSupportFlags } from "#oss/selectors/supportFlags";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
 
 /**
  * common helper for different table operations

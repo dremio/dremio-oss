@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.sql.handlers.direct;
 
 import com.dremio.exec.ops.QueryContext;
-import com.dremio.service.namespace.NamespaceKey;
 
 public abstract class SimpleDirectHandlerWithValidator
     implements SqlDirectHandler<SimpleCommandResult>, DirectHandlerValidator {
@@ -27,10 +26,5 @@ public abstract class SimpleDirectHandlerWithValidator
 
   public interface Creator {
     SimpleDirectHandler toDirectHandler(QueryContext context);
-  }
-
-  @Override
-  public void validate(NamespaceKey key) {
-    // no-op
   }
 }

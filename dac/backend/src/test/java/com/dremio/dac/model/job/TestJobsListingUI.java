@@ -442,14 +442,14 @@ public class TestJobsListingUI extends BaseTestServer {
   }
 
   private JobId localSubmitJobAndWaitUntilCompletion(String sql, String user, QueryType queryType) {
-    DatasetUI dsGet = getDataset(new DatasetPath("testA.dsA1"));
+    DatasetUI dsGet = getHttpClient().getDatasetApi().getDataset(new DatasetPath("testA.dsA1"));
     DatasetVersion v2 = DatasetVersion.newVersion();
 
     return submitJobAndWaitUntilCompletion(
         JobRequest.newBuilder()
             .setSqlQuery(new SqlQuery(sql, user))
             .setQueryType(queryType)
-            .setDatasetPath(getDatasetPath(dsGet).toNamespaceKey())
+            .setDatasetPath(dsGet.toDatasetPath().toNamespaceKey())
             .setDatasetVersion(v2)
             .build());
   }

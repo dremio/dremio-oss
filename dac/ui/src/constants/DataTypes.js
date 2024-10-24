@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 
 export const TEXT = "TEXT";
 export const VARCHAR = "VARCHAR";

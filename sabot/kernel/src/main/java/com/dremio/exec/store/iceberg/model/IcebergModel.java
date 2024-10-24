@@ -47,7 +47,8 @@ public interface IcebergModel {
       OperatorStats operatorStats,
       PartitionSpec partitionSpec,
       SortOrder sortOrder,
-      Map<String, String> tableProperties);
+      Map<String, String> tableProperties,
+      String tableLocation);
 
   /**
    * Get Iceberg Op committer for Insert command
@@ -184,6 +185,9 @@ public interface IcebergModel {
    */
   List<SnapshotEntry> expireSnapshots(
       IcebergTableIdentifier tableIdentifier, long olderThanInMillis, int retainLast);
+
+  List<SnapshotEntry> expireSnapshotsForVersionedTable(
+      IcebergTableIdentifier tableId, long olderThanInMillis, int retainLast);
 
   /**
    * Truncate a table

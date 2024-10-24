@@ -34,7 +34,7 @@ import Modal from "components/Modals/Modal";
 import ViewStateWrapper from "components/ViewStateWrapper";
 import FormUnsavedWarningHOC from "components/Modals/FormUnsavedWarningHOC";
 
-import SelectSourceType from "pages/HomePage/components/modals/AddSourceModal/SelectSourceType";
+import SelectSourceType from "@inject/pages/HomePage/components/modals/AddSourceModal/SelectSourceType";
 import ConfigurableSourceForm from "pages/HomePage/components/modals/ConfigurableSourceForm";
 import { isCME } from "dyn-load/utils/versionUtils";
 import { loadGrant } from "dyn-load/actions/resources/grant";
@@ -44,13 +44,17 @@ import AddSourceModalMixin, {
   mapStateToProps,
   additionalMapDispatchToProps,
 } from "@inject/pages/HomePage/components/modals/AddSourceModal/AddSourceModalMixin";
-import { processUiConfig } from "@app/pages/HomePage/components/modals/EditSourceView";
+import { processUiConfig } from "#oss/pages/HomePage/components/modals/EditSourceView";
 import { passDataBetweenTabs } from "actions/modals/passDataBetweenTabs";
 import { trimObjectWhitespace } from "pages/HomePage/components/modals/utils";
 import * as classes from "./AddSourceModal.module.less";
 import { isVersionedReflectionsEnabled } from "../AddEditSourceUtils";
-import { isVersionedSource } from "@app/utils/sourceUtils";
+import {
+  isVersionedSource,
+  getAddSourceModalTitle,
+} from "@inject/utils/sourceUtils";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
+import { isMetastoreSourceType } from "@inject/constants/sourceTypes";
 
 const VIEW_ID = "ADD_SOURCE_MODAL";
 const TIME_BEFORE_MESSAGE = 5000;
@@ -92,6 +96,11 @@ export class AddSourceModal extends Component {
 
   componentDidMount() {
     this.isPreviewEngineRequired = false;
+    if (this.props.location.state.selectedSourceType) {
+      this.setStateWithSourceTypeConfigFromServer(
+        this.props.location.state.selectedSourceType,
+      );
+    }
 
     this.setStateWithSourceTypeListFromServer();
     this.fetchData();
@@ -148,10 +157,8 @@ export class AddSourceModal extends Component {
         dispatchPassDataBetweenTabs({
           isFileSystemSource: isFileSystemSource.isFileSystemSource,
           isExternalQueryAllowed: json.externalQueryAllowed,
-          isHive:
-            combinedConfig.sourceType === "HIVE3" ||
-            combinedConfig.sourceType === "HIVE",
-          isGlue: combinedConfig.sourceType === "AWSGLUE",
+          isMetaStore: isMetastoreSourceType(combinedConfig.sourceType),
+          sourceType: combinedConfig.sourceType,
         });
       },
       () => {
@@ -174,6 +181,12 @@ export class AddSourceModal extends Component {
   getTitle() {
     const { intl } = this.props;
     /*eslint no-nested-ternary: "off"*/
+    const title = getAddSourceModalTitle(
+      this.props.location.state?.selectedSourceType,
+    );
+    if (title) {
+      return title;
+    }
     return this.state.isTypeSelected
       ? intl.formatMessage(
           { id: "Source.NewSourceStep2" },

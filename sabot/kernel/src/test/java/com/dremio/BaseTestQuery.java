@@ -18,9 +18,7 @@ package com.dremio;
 import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.DEFAULT_PASSWORD;
 import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.PARQUET_SCHEMA_FALLBACK_DISABLED;
 import static java.lang.String.format;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -29,7 +27,9 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.expression.SupportedEngines.CodeGenOption;
 import com.dremio.common.memory.DremioRootAllocator;
+import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ExecTest;
@@ -51,7 +51,6 @@ import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.server.MockPartitionStatsStoreProvider;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.exec.server.SimpleJobRunner;
@@ -66,17 +65,13 @@ import com.dremio.exec.util.TestUtilities;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.hadoop.security.alias.DremioCredentialProviderFactory;
-import com.dremio.io.FSInputStream;
-import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
-import com.dremio.io.file.PathFilters;
 import com.dremio.options.OptionValidator;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.EnumValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
-import com.dremio.partitionstats.storeprovider.PartitionStatsCacheStoreProvider;
 import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
@@ -101,17 +96,14 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.DirectoryStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
@@ -120,15 +112,12 @@ import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.hadoop.HadoopFileIO;
-import org.apache.iceberg.hadoop.HadoopTableOperations;
-import org.apache.iceberg.util.LockManagers;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ObjectAssert;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.ExternalResource;
@@ -143,7 +132,6 @@ public class BaseTestQuery extends ExecTest {
   protected static final Set<String> SCHEMAS_FOR_TEST = Sets.newHashSet(TEMP_SCHEMA_HADOOP);
 
   protected static final int MAX_WIDTH_PER_NODE = 2;
-  private static final Random random = new Random();
   protected static FileSystem localFs;
 
   protected static Properties defaultProperties = null;
@@ -302,7 +290,7 @@ public class BaseTestQuery extends ExecTest {
 
     // turns on the verbose errors in tests
     // sever side stacktraces are added to the message before sending back to the client
-    setSessionOption(ExecConstants.ENABLE_VERBOSE_ERRORS_KEY, "true");
+    setSessionOption(ExecConstants.ENABLE_VERBOSE_ERRORS, true);
   }
 
   protected static void updateTestCluster(int newNodeCount, SabotConfig newConfig) {
@@ -444,12 +432,6 @@ public class BaseTestQuery extends ExecTest {
     runSQL(alterSessionSetSql);
   }
 
-  protected MockPartitionStatsStoreProvider getPartitionStatsStoreProvider(
-      int coordinatorNodeIndex) {
-    return (MockPartitionStatsStoreProvider)
-        nodes[coordinatorNodeIndex].getInstance(PartitionStatsCacheStoreProvider.class);
-  }
-
   private static void closeCurrentClient() {
     Preconditions.checkState(nodes != null && nodes[0] != null, "Nodes are not setup.");
     if (client != null) {
@@ -492,28 +474,20 @@ public class BaseTestQuery extends ExecTest {
     updateClient(props);
   }
 
+  public static CoordinationProtos.NodeEndpoint getFirstCoordinatorEndpoint() {
+    return Preconditions.checkNotNull(clusterCoordinator).getCoordinatorEndpoints().stream()
+        .findFirst()
+        .orElseThrow(() -> new IllegalStateException("no coordinator found"));
+  }
+
   /*
    * Returns JDBC url to connect to one of the drilbit
    *
    * Used by ITTestShadedJar test through reflection!!!
    */
   public static String getJDBCURL() {
-    Collection<CoordinationProtos.NodeEndpoint> endpoints =
-        clusterCoordinator.getCoordinatorEndpoints();
-    if (endpoints.isEmpty()) {
-      return null;
-    }
-    CoordinationProtos.NodeEndpoint endpoint = endpoints.iterator().next();
+    CoordinationProtos.NodeEndpoint endpoint = getFirstCoordinatorEndpoint();
     return format("jdbc:dremio:direct=%s:%d", endpoint.getAddress(), endpoint.getUserPort());
-  }
-
-  public static int getPort() {
-    Collection<CoordinationProtos.NodeEndpoint> endpoints =
-        clusterCoordinator
-            .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-            .getAvailableEndpoints();
-    CoordinationProtos.NodeEndpoint endpoint = endpoints.iterator().next();
-    return endpoint.getUserPort();
   }
 
   public TestBuilder testBuilder() {
@@ -577,7 +551,7 @@ public class BaseTestQuery extends ExecTest {
       return testPreparedStatement((PreparedStatementHandle) query);
     } else {
       Preconditions.checkArgument(query instanceof String, "Expected a string as input query");
-      query = QueryTestUtil.normalizeQuery((String) query);
+      query = TestTools.replaceWorkingPathPlaceholders((String) query);
       return client.runQuery(type, (String) query);
     }
   }
@@ -596,115 +570,83 @@ public class BaseTestQuery extends ExecTest {
     QueryTestUtil.testWithListener(client, type, query, resultListener);
   }
 
+  /** prefer {@link #runSQL(String, Object...)} instead */
   public static void testNoResult(String query, Object... args) throws Exception {
-    testNoResult(1, query, args);
-  }
-
-  protected static void testNoResult(int interation, String query, Object... args)
-      throws Exception {
-    query = String.format(query, args);
-    logger.debug("Running query:\n--------------\n" + query);
-    for (int i = 0; i < interation; i++) {
-      final List<QueryDataBatch> results = client.runQuery(QueryType.SQL, query);
-      for (final QueryDataBatch queryDataBatch : results) {
-        queryDataBatch.release();
-      }
-    }
+    runSQL(query, args);
   }
 
   public static void test(String query, Object... args) throws Exception {
-    QueryTestUtil.test(client, String.format(query, args));
+    test(String.format(query, args));
   }
 
   public static void test(final String query) throws Exception {
     QueryTestUtil.test(client, query);
   }
 
-  // run query with in CTAS (json table) and read CTAS output in bytes[].
-  public static FileAttributes testAndGetResult(final String query, final String testName)
-      throws Exception {
-    final String tableName = format("%s%d", testName, random.nextInt(100000));
-    final String ctasQuery =
-        format(
-            "CREATE TABLE dfs_test.%s STORE AS (type => 'json', prettyPrint => false) WITH SINGLE WRITER AS %s",
-            tableName, query);
-    final Path tableDir = Path.of(getDfsTestTmpSchemaLocation()).resolve(tableName);
-    test(ctasQuery);
-    // find file
-    try (DirectoryStream<FileAttributes> statuses =
-        localFs.list(tableDir, PathFilters.endsWith(".json"))) {
-      return statuses.iterator().next();
-    }
-  }
-
-  public static AutoCloseable withOption(final BooleanValidator validator, boolean value)
-      throws Exception {
+  public static AutoCloseable withOption(final BooleanValidator validator, boolean value) {
     return withOptionInternal(validator, value, false);
   }
 
-  public static AutoCloseable withSystemOption(final BooleanValidator validator, boolean value)
-      throws Exception {
+  public static AutoCloseable withSystemOption(final BooleanValidator validator, boolean value) {
     return withOptionInternal(validator, value, true);
   }
 
-  public static AutoCloseable withOption(final LongValidator validator, long value)
-      throws Exception {
+  public static AutoCloseable withOption(final LongValidator validator, long value) {
     return withOptionInternal(validator, value, false);
   }
 
-  public static AutoCloseable withSystemOption(final LongValidator validator, long value)
-      throws Exception {
+  public static AutoCloseable withSystemOption(final LongValidator validator, long value) {
     return withOptionInternal(validator, value, true);
   }
 
-  public static AutoCloseable withOption(final DoubleValidator validator, double value)
-      throws Exception {
+  public static AutoCloseable withOption(final DoubleValidator validator, double value) {
     return withOptionInternal(validator, value, false);
   }
 
-  public static AutoCloseable withSystemOption(final DoubleValidator validator, double value)
-      throws Exception {
+  public static AutoCloseable withSystemOption(final DoubleValidator validator, double value) {
     return withOptionInternal(validator, value, true);
   }
 
-  private static AutoCloseable withOption(final StringValidator validator, String value)
-      throws Exception {
-    testNoResult(
-        String.format(
-            "ALTER SESSION SET %s%s%s = %s%s%s",
-            SqlUtils.QUOTE,
-            validator.getOptionName(),
-            SqlUtils.QUOTE,
-            SqlUtils.QUOTE,
-            value,
-            SqlUtils.QUOTE));
-    return new AutoCloseable() {
-      @Override
-      public void close() throws Exception {
-        testNoResult(
-            String.format(
-                "ALTER SESSION RESET %s%s%s",
-                SqlUtils.QUOTE, validator.getOptionName(), SqlUtils.QUOTE));
-      }
-    };
+  public static AutoCloseable withOption(final StringValidator validator, String value) {
+    return withOptionInternal(validator, "'" + value + "'", false);
+  }
+
+  public static AutoCloseable withSystemOption(final StringValidator validator, String value) {
+    return withOptionInternal(validator, "'" + value + "'", true);
+  }
+
+  public static <T extends Enum<T>> AutoCloseable withOption(
+      final EnumValidator<T> validator, T value) {
+    return withOptionInternal(validator, "'" + value + "'", false);
+  }
+
+  public static <T extends Enum<T>> AutoCloseable withSystemOption(
+      final EnumValidator<T> validator, T value) {
+    return withOptionInternal(validator, "'" + value + "'", true);
   }
 
   private static AutoCloseable withOptionInternal(
-      final OptionValidator validator, Object value, boolean isSystem) throws Exception {
+      final OptionValidator validator, Object value, boolean isSystem) {
+    if (value.equals(validator.getDefault().getValue())) {
+      logger.warn(
+          "Test called withOptionInternal with default value: {}", validator.getOptionName());
+    }
     final String optionScope = isSystem ? "SYSTEM" : "SESSION";
-    testNoResult(
-        String.format(
-            "ALTER %s SET %s%s%s = %s",
-            optionScope, SqlUtils.QUOTE, validator.getOptionName(), SqlUtils.QUOTE, value));
-    return new AutoCloseable() {
-      @Override
-      public void close() throws Exception {
+    try {
+      testNoResult(
+          String.format(
+              "ALTER %s SET %s%s%s = %s",
+              optionScope, SqlUtils.QUOTE, validator.getOptionName(), SqlUtils.QUOTE, value));
+    } catch (Exception e) {
+      throw new RuntimeException(
+          "Failed to set " + optionScope + " option " + validator.getOptionName() + " to " + value,
+          e);
+    }
+    return () ->
         testNoResult(
             String.format(
                 "ALTER %s RESET %s%s%s",
                 optionScope, SqlUtils.QUOTE, validator.getOptionName(), SqlUtils.QUOTE));
-      }
-    };
   }
 
   protected static int testLogical(String query) throws Exception {
@@ -867,15 +809,17 @@ public class BaseTestQuery extends ExecTest {
     try {
       java.nio.file.Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
     } catch (Exception e) {
-      throw new RuntimeException(e.getMessage(), e);
+      throw new RuntimeException("Failed to copy file from: " + source + " to: " + dest, e);
     }
   }
 
-  protected static void copyFromJar(String sourceElement, final java.nio.file.Path target)
+  public static void copyFromJar(String sourceElement, final java.nio.file.Path target)
       throws URISyntaxException, IOException {
     URI resource = Resources.getResource(sourceElement).toURI();
 
     if (resource.getScheme().equals("jar")) {
+      // if resources are in a jar and not exploded on disk, we need to use a filesystem wrapper on
+      // top of the jar to enumerate files in the table directory
       try (java.nio.file.FileSystem fileSystem =
           FileSystems.newFileSystem(resource, Collections.emptyMap())) {
         sourceElement = !sourceElement.startsWith("/") ? "/" + sourceElement : sourceElement;
@@ -897,178 +841,201 @@ public class BaseTestQuery extends ExecTest {
     }
   }
 
+  /**
+   * @deprecated use {@code withOption} instead
+   */
+  @Deprecated
   protected static void resetSessionOption(final OptionValidator option) {
-    resetSessionOption(option.getOptionName());
-  }
-
-  protected static void resetSessionOption(final String option) {
-    String str =
-        String.format("ALTER SESSION RESET %s%s%s", SqlUtils.QUOTE, option, SqlUtils.QUOTE);
+    String sql =
+        String.format(
+            "ALTER SESSION RESET %s%s%s", SqlUtils.QUOTE, option.getOptionName(), SqlUtils.QUOTE);
     try {
-      runSQL(str);
+      runSQL(sql);
     } catch (Exception e) {
-      throw new RuntimeException(String.format("Failed to run %s", str), e);
+      throw new RuntimeException("resetSessionOption failed: " + sql, e);
     }
   }
 
-  protected static void setSessionOption(final OptionValidator option, final String value) {
-    setSessionOption(option.getOptionName(), value);
+  /**
+   * @deprecated use {@link #withOption(BooleanValidator, boolean)} instead
+   */
+  @Deprecated
+  public static void setSessionOption(BooleanValidator option, boolean value) {
+    setSessionOption(option, Boolean.toString(value));
   }
 
-  protected static void setSessionOption(final String option, final String value) {
-    String str =
-        String.format("alter session set %1$s%2$s%1$s = %3$s", SqlUtils.QUOTE, option, value);
+  /**
+   * @deprecated use {@link #withOption(LongValidator, long)} instead
+   */
+  @Deprecated
+  public static void setSessionOption(LongValidator option, long value) {
+    setSessionOption(option, Long.toString(value));
+  }
+
+  /**
+   * @deprecated use {@link #withOption(DoubleValidator, double)} instead
+   */
+  @Deprecated
+  public static void setSessionOption(DoubleValidator option, double value) {
+    setSessionOption(option, Double.toString(value));
+  }
+
+  /**
+   * @deprecated use {@link #withOption(StringValidator, String)} instead
+   */
+  @Deprecated
+  public static void setSessionOption(StringValidator option, String value) {
+    setSessionOption((OptionValidator) option, "'" + value + "'");
+  }
+
+  /**
+   * @deprecated use {@link #withOption(EnumValidator, Enum)} instead
+   */
+  @Deprecated
+  public static <T extends Enum<T>> void setSessionOption(EnumValidator<T> option, T value) {
+    setSessionOption((OptionValidator) option, "'" + value + "'");
+  }
+
+  @Deprecated
+  private static void setSessionOption(OptionValidator option, final String value) {
+    if (value.equals(option.getDefault().getValue())) {
+      logger.warn("Test called setSessionOption with default value: {}", option.getOptionName());
+    }
+    String sql =
+        String.format(
+            "ALTER SESSION SET %1$s%2$s%1$s = %3$s", SqlUtils.QUOTE, option.getOptionName(), value);
     try {
-      runSQL(str);
-    } catch (final Exception e) {
-      fail(String.format("Failed to run %s, Error: %s", str, e.toString()));
+      runSQL(sql);
+    } catch (Exception e) {
+      throw new RuntimeException("setSessionOption failed: " + sql, e);
     }
   }
 
   protected static String getSystemOptionQueryString(final String option, final String value) {
-    return String.format("alter system set %1$s%2$s%1$s = %3$s", SqlUtils.QUOTE, option, value);
+    return String.format("ALTER SYSTEM SET %1$s%2$s%1$s = %3$s", SqlUtils.QUOTE, option, value);
   }
 
-  protected static void setSystemOption(final OptionValidator option, final String value) {
-    setSystemOption(option.getOptionName(), value);
+  /**
+   * @deprecated use {@link #withSystemOption(BooleanValidator, boolean)} instead
+   */
+  @Deprecated
+  public static void setSystemOption(BooleanValidator option, boolean value) {
+    setSystemOption(option, Boolean.toString(value));
   }
 
-  protected static void setSystemOption(final String option, final String value) {
-    String str = getSystemOptionQueryString(option, value);
+  /**
+   * @deprecated use {@link #withSystemOption(LongValidator, long)} instead
+   */
+  @Deprecated
+  public static void setSystemOption(LongValidator option, long value) {
+    setSystemOption(option, Long.toString(value));
+  }
+
+  /**
+   * @deprecated use {@link #withSystemOption(DoubleValidator, double)} instead
+   */
+  @Deprecated
+  public static void setSystemOption(DoubleValidator option, double value) {
+    setSystemOption(option, Double.toString(value));
+  }
+
+  /**
+   * @deprecated use {@link #withSystemOption(StringValidator, String)} instead
+   */
+  @Deprecated
+  public static void setSystemOption(StringValidator option, String value) {
+    setSystemOption((OptionValidator) option, "'" + value + "'");
+  }
+
+  /**
+   * @deprecated use {@link #withSystemOption(EnumValidator, Enum)} instead
+   */
+  @Deprecated
+  public static <T extends Enum<T>> void setSystemOption(EnumValidator<T> option, T value) {
+    setSystemOption((OptionValidator) option, "'" + value + "'");
+  }
+
+  private static void setSystemOption(OptionValidator option, String value) {
+    if (value.equals(option.getDefault().getValue())) {
+      logger.warn("Test called setSystemOption with default value: {}", option.getOptionName());
+    }
+    String sql = getSystemOptionQueryString(option.getOptionName(), value);
     try {
-      runSQL(str);
-    } catch (final Exception e) {
-      fail(String.format("Failed to run %s, Error: %s", str, e.toString()));
+      runSQL(sql);
+    } catch (Exception e) {
+      throw new RuntimeException("setSystemOption failed: " + sql, e);
     }
   }
 
-  protected static void resetSystemOption(final String option) {
-    String str = String.format("alter system reset %1$s%2$s%1$s", SqlUtils.QUOTE, option);
+  /**
+   * @deprecated use {@code withOption} instead
+   */
+  @Deprecated
+  protected static void resetSystemOption(OptionValidator option) {
+    String sql =
+        String.format("ALTER SYSTEM RESET %1$s%2$s%1$s", SqlUtils.QUOTE, option.getOptionName());
     try {
-      runSQL(str);
-    } catch (final Exception e) {
-      fail(String.format("Failed to run %s, Error: %s", str, e.toString()));
+      runSQL(sql);
+    } catch (Exception e) {
+      throw new RuntimeException("resetSystemOption failed: " + sql, e);
     }
   }
 
-  protected static void resetSessionSettings() throws Exception {
-    String str = "ALTER SESSION RESET ALL";
+  protected static void resetSessionSettings() {
+    String sql = "ALTER SESSION RESET ALL";
     try {
-      runSQL(str);
-    } catch (final Exception e) {
-      fail(String.format("Failed to run %s, Error: %s", str, e.toString()));
+      runSQL(sql);
+    } catch (Exception e) {
+      throw new RuntimeException("resetSessionSettings failed: " + sql, e);
     }
   }
 
   protected static AutoCloseable enableHiveAsync() {
-    setSystemOption(ExecConstants.ENABLE_HIVE_ASYNC, "true");
-    return () ->
-        setSystemOption(
-            ExecConstants.ENABLE_HIVE_ASYNC,
-            ExecConstants.ENABLE_HIVE_ASYNC.getDefault().getBoolVal().toString());
+    return withSystemOption(ExecConstants.ENABLE_HIVE_ASYNC, true);
   }
 
   protected static AutoCloseable enableUseSyntax() {
-    setSystemOption(ExecConstants.ENABLE_USE_VERSION_SYNTAX, "true");
-    return () -> {
-      setSystemOption(
-          ExecConstants.ENABLE_USE_VERSION_SYNTAX,
-          ExecConstants.ENABLE_USE_VERSION_SYNTAX.getDefault().getBoolVal().toString());
-    };
+    return withSystemOption(ExecConstants.ENABLE_USE_VERSION_SYNTAX, true);
   }
 
   protected static AutoCloseable disableIcebergSortOrder() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "false");
-    return () -> {
-      setSystemOption(
-          ExecConstants.ENABLE_ICEBERG_SORT_ORDER,
-          ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getDefault().getBoolVal().toString());
-    };
+    return withSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, false);
   }
 
   protected static AutoCloseable disablePartitionPruning() {
-    setSystemOption(PlannerSettings.ENABLE_PARTITION_PRUNING, "false");
-    return () ->
-        setSystemOption(
-            PlannerSettings.ENABLE_PARTITION_PRUNING,
-            PlannerSettings.ENABLE_PARTITION_PRUNING.getDefault().getBoolVal().toString());
+    return withSystemOption(PlannerSettings.ENABLE_PARTITION_PRUNING, false);
   }
 
   protected static AutoCloseable enableIcebergTablePropertiesSupportFlag() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_TABLE_PROPERTIES, "true");
-
-    return () -> {
-      setSystemOption(
-          ExecConstants.ENABLE_ICEBERG_TABLE_PROPERTIES,
-          ExecConstants.ENABLE_ICEBERG_TABLE_PROPERTIES.getDefault().getBoolVal().toString());
-    };
+    return withSystemOption(ExecConstants.ENABLE_ICEBERG_TABLE_PROPERTIES, true);
   }
 
   protected static AutoCloseable enableJsonReadNumbersAsDouble() {
-    setSystemOption(ExecConstants.JSON_READ_NUMBERS_AS_DOUBLE, "true");
-    return () ->
-        setSystemOption(
-            ExecConstants.JSON_READ_NUMBERS_AS_DOUBLE,
-            ExecConstants.JSON_READ_NUMBERS_AS_DOUBLE_VALIDATOR
-                .getDefault()
-                .getBoolVal()
-                .toString());
+    return withSystemOption(ExecConstants.JSON_READ_NUMBERS_AS_DOUBLE_VALIDATOR, true);
   }
 
   protected static AutoCloseable enableJsonAllStrings() {
-    setSystemOption(ExecConstants.JSON_ALL_TEXT_MODE, "true");
-    return () ->
-        setSystemOption(
-            ExecConstants.JSON_ALL_TEXT_MODE,
-            ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR.getDefault().getBoolVal().toString());
+    return withSystemOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR, true);
   }
 
   protected static AutoCloseable disableExchanges() {
-    setSystemOption(PlannerSettings.EXCHANGE, "true");
-    return () ->
-        setSystemOption(
-            PlannerSettings.EXCHANGE,
-            PlannerSettings.EXCHANGE.getDefault().getBoolVal().toString());
-  }
-
-  protected static AutoCloseable treatScanAsBoost() {
-    setSystemOption(ExecConstants.ENABLE_BOOSTING, "true");
-    return () ->
-        setSystemOption(
-            ExecConstants.ENABLE_BOOSTING,
-            ExecConstants.ENABLE_BOOSTING.getDefault().getBoolVal().toString());
-  }
-
-  private static AutoCloseable setHiveParquetComplexTypes(String value) {
-    setSystemOption(ExecConstants.HIVE_COMPLEXTYPES_ENABLED, value);
-    return () ->
-        setSystemOption(
-            ExecConstants.HIVE_COMPLEXTYPES_ENABLED,
-            ExecConstants.HIVE_COMPLEXTYPES_ENABLED.getDefault().getBoolVal().toString());
+    return withSystemOption(PlannerSettings.DISABLE_EXCHANGES, true);
   }
 
   protected static AutoCloseable enableHiveParquetComplexTypes() {
-    return setHiveParquetComplexTypes("true");
-  }
-
-  protected static AutoCloseable enableMapDataType() {
-    setSystemOption(ExecConstants.ENABLE_MAP_DATA_TYPE, "true");
-    return () ->
-        setSystemOption(
-            ExecConstants.ENABLE_MAP_DATA_TYPE,
-            ExecConstants.ENABLE_MAP_DATA_TYPE.getDefault().getBoolVal().toString());
-  }
-
-  protected static AutoCloseable enableComplexHiveType() {
-    setSystemOption(ExecConstants.ENABLE_COMPLEX_HIVE_DATA_TYPE, "true");
-    return () ->
-        setSystemOption(
-            ExecConstants.ENABLE_COMPLEX_HIVE_DATA_TYPE,
-            ExecConstants.ENABLE_COMPLEX_HIVE_DATA_TYPE.getDefault().getBoolVal().toString());
+    return withSystemOption(ExecConstants.HIVE_COMPLEXTYPES_ENABLED, true);
   }
 
   protected static AutoCloseable disableHiveParquetComplexTypes() {
-    return setHiveParquetComplexTypes("false");
+    return withSystemOption(ExecConstants.HIVE_COMPLEXTYPES_ENABLED, false);
+  }
+
+  protected static AutoCloseable enableMapDataType() {
+    return withSystemOption(ExecConstants.ENABLE_MAP_DATA_TYPE, true);
+  }
+
+  protected static AutoCloseable enableComplexHiveType() {
+    return withSystemOption(ExecConstants.ENABLE_COMPLEX_HIVE_DATA_TYPE, true);
   }
 
   protected static AutoCloseable enableTableOption(String table, String optionName)
@@ -1080,41 +1047,25 @@ public class BaseTestQuery extends ExecTest {
     return () -> runSQL(unSetOptionQuery);
   }
 
-  protected static AutoCloseable setSystemOptionWithAutoReset(
-      final String option, final String value) {
-    setSystemOption(option, value);
-    return () -> resetSystemOption(option);
-  }
-
   protected static AutoCloseable disableParquetVectorization() {
-    setSystemOption(ExecConstants.PARQUET_READER_VECTORIZE, "false");
-    return () ->
-        setSystemOption(
-            ExecConstants.PARQUET_READER_VECTORIZE,
-            ExecConstants.PARQUET_READER_VECTORIZE.getDefault().getBoolVal().toString());
+    return withSystemOption(ExecConstants.PARQUET_READER_VECTORIZE, false);
   }
 
   protected static AutoCloseable setMaxLeafColumns(long newVal) {
-    setSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX, String.valueOf(newVal));
-
-    return () -> {
-      setSystemOption(
-          CatalogOptions.METADATA_LEAF_COLUMN_MAX,
-          CatalogOptions.METADATA_LEAF_COLUMN_MAX.getDefault().getValue().toString());
-    };
+    return withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX, newVal);
   }
 
   protected static AutoCloseable enableJavaExecution() {
-    setSystemOption(ExecConstants.QUERY_EXEC_OPTION, "'Java'");
-    return () -> setSystemOption(ExecConstants.QUERY_EXEC_OPTION, "'Gandiva'");
+    setSystemOption(ExecConstants.QUERY_EXEC_OPTION, CodeGenOption.Java);
+    return () -> setSystemOption(ExecConstants.QUERY_EXEC_OPTION, CodeGenOption.Gandiva);
   }
 
   protected static AutoCloseable enableSARGableFilterTransform() {
-    setSystemOption(PlannerSettings.SARGABLE_FILTER_TRANSFORM, "true");
-    return () ->
-        setSystemOption(
-            PlannerSettings.SARGABLE_FILTER_TRANSFORM,
-            PlannerSettings.SARGABLE_FILTER_TRANSFORM.getDefault().getBoolVal().toString());
+    return withSystemOption(PlannerSettings.SARGABLE_FILTER_TRANSFORM, true);
+  }
+
+  protected static AutoCloseable enableIcebergAutoCluster() {
+    return withSystemOption(ExecConstants.ENABLE_ICEBERG_AUTO_CLUSTERING, true);
   }
 
   public static class SilentListener implements UserResultsListener {
@@ -1219,19 +1170,6 @@ public class BaseTestQuery extends ExecTest {
     return formattedResults.toString();
   }
 
-  public static boolean compareFiles(FileAttributes f1, FileAttributes f2) throws Exception {
-    byte[] original = new byte[(int) f1.size()];
-    byte[] withDict = new byte[(int) f2.size()];
-
-    try (FSInputStream in1 = localFs.open(f1.getPath());
-        FSInputStream in2 = localFs.open(f2.getPath()); ) {
-      IOUtils.readFully(in1, original, 0, original.length);
-      IOUtils.readFully(in2, withDict, 0, withDict.length);
-    }
-
-    return Arrays.equals(original, withDict);
-  }
-
   protected static String getValueInFirstRecord(String sql, String columnName) throws Exception {
     final List<QueryDataBatch> results = testSqlWithResults(sql);
     final RecordBatchLoader loader = new RecordBatchLoader(getDremioRootAllocator());
@@ -1275,11 +1213,6 @@ public class BaseTestQuery extends ExecTest {
     return builder.toString();
   }
 
-  public static void checkFirstRecordContains(String query, String column, String expected)
-      throws Exception {
-    assertThat(getValueInFirstRecord(query, column)).contains(expected);
-  }
-
   protected static IcebergModel getIcebergModel(String pluginName) {
     StoragePlugin plugin = getCatalogService().getSource(pluginName);
     if (plugin instanceof SupportsIcebergMutablePlugin) {
@@ -1288,7 +1221,8 @@ public class BaseTestQuery extends ExecTest {
           null,
           null,
           null,
-          icebergMutablePlugin.createIcebergFileIO(localFs, null, null, null, null));
+          icebergMutablePlugin.createIcebergFileIO(localFs, null, null, null, null),
+          null);
     } else {
       throw new UnsupportedOperationException(
           String.format("Plugin %s does not implement SupportsIcebergMutablePlugin", pluginName));
@@ -1308,11 +1242,6 @@ public class BaseTestQuery extends ExecTest {
 
   public static Table getIcebergTable(File tableRoot) {
     return getIcebergTable(getIcebergModel(TEMP_SCHEMA), tableRoot);
-  }
-
-  protected static String getDfsTestTmpDefaultCtasFormat(String pluginName) {
-    final FileSystemPlugin plugin = getCatalogService().getSource(pluginName);
-    return plugin.getDefaultCtasFormat();
   }
 
   public static FileSystemPlugin getMockedFileSystemPlugin() {
@@ -1337,61 +1266,30 @@ public class BaseTestQuery extends ExecTest {
     }
   }
 
-  public static boolean areAzureStorageG1CredentialsNull() {
-    if (System.getenv("AZURE_STORAGE_G1_CLIENT_ID") == null
-        || System.getenv("AZURE_STORAGE_G1_TENANT_ID") == null
-        || System.getenv("AZURE_STORAGE_G1_CLIENT_SECRET") == null) {
-      return true;
-    }
-    return false;
-  }
-
-  public static boolean areAzureStorageG2CredentialsNull() {
-    if (System.getenv("AZURE_STORAGE_G2_CLIENT_ID") == null
-        || System.getenv("AZURE_STORAGE_G2_TENANT_ID") == null
-        || System.getenv("AZURE_STORAGE_G2_CLIENT_SECRET") == null) {
-      return true;
-    }
-    return false;
-  }
-
-  public static boolean areAzureStorageG2V1CredentialsNull() {
-    if (System.getenv("AZURE_STORAGE_G2_V1_ACCOUNT_NAME") == null
-        || System.getenv("AZURE_STORAGE_G2_V1_ACCOUNT_KEY") == null) {
-      return true;
-    }
-    return false;
-  }
-
-  public static boolean areAzureStorageG2V2CredentialsNull() {
-    if (System.getenv("AZURE_STORAGE_G2_V2_ACCOUNT_NAME") == null
-        || System.getenv("AZURE_STORAGE_G2_V2_ACCOUNT_KEY") == null) {
-      return true;
-    }
-    return false;
-  }
-
-  public static boolean areAzureStorageG2V2NonHierCredentialsNull() {
-    if (System.getenv("AZURE_STORAGE_G2_V2_NON_HIER_ACCOUNT_NAME") == null
-        || System.getenv("AZURE_STORAGE_G2_V2_NON_HIER_ACCOUNT_KEY") == null) {
-      return true;
-    }
-    return false;
-  }
-
   protected static org.apache.hadoop.fs.FileSystem setupLocalFS() throws IOException {
     Configuration conf = new Configuration();
     conf.set("fs.default.name", "local");
     return org.apache.hadoop.fs.FileSystem.get(conf);
   }
 
-  protected static void refresh(String table) throws Exception {
-    runSQL(String.format("alter table %s refresh metadata", table));
-  }
+  protected static String getMetadataJsonString(String tableName) throws IOException {
+    String metadataLoc = getDfsTestTmpSchemaLocation() + String.format("/%s/metadata", tableName);
+    File metadataFolder = new File(metadataLoc);
+    String metadataJson = "";
 
-  protected static final class TestHadoopTableOperations extends HadoopTableOperations {
-    public TestHadoopTableOperations(org.apache.hadoop.fs.Path location, Configuration conf) {
-      super(location, new HadoopFileIO(conf), conf, LockManagers.defaultLockManager());
+    Assert.assertNotNull(metadataFolder.listFiles());
+    for (File currFile : metadataFolder.listFiles()) {
+      if (currFile.getName().endsWith("metadata.json")) {
+        // We'll only have one metadata.json file as this is the first transaction for table
+        // temp_table0
+        metadataJson =
+            new String(
+                java.nio.file.Files.readAllBytes(Paths.get(currFile.getPath())),
+                StandardCharsets.US_ASCII);
+        break;
+      }
     }
+    Assert.assertNotNull(metadataJson);
+    return metadataJson;
   }
 }

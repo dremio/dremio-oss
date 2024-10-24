@@ -106,7 +106,7 @@ describe("FormDirtyStateWatcher", () => {
           initialValuesForDirtyStateWatcher={{
             arrayBar: [{ id: undefined, value: "1" }, { value: "2" }],
           }}
-        />
+        />,
       );
       wrapper.setProps({
         values: {
@@ -131,7 +131,7 @@ describe("FormDirtyStateWatcher", () => {
       ];
       const expected = [{ key1: "foo" }, {}, null, 1, null];
       expect(instance._removeKeysWithUndefinedValue(valuesList)).to.be.eql(
-        expected
+        expected,
       );
     });
   });

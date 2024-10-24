@@ -126,6 +126,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.arrow.memory.BufferAllocator;
@@ -157,7 +158,8 @@ public class ReflectionUtils {
       MaterializationId materializationId,
       String sql,
       QueryType queryType,
-      JobStatusListener jobStatusListener) {
+      JobStatusListener jobStatusListener,
+      OptionManager optionManager) {
 
     final SqlQuery query =
         SqlQuery.newBuilder()
@@ -201,7 +203,13 @@ public class ReflectionUtils {
                     .build(),
                 new MultiJobStatusListener(submittedListener, jobStatusListener))
             .getJobId();
-    submittedListener.await();
+
+    if (!submittedListener.await(
+        optionManager.getOption(ReflectionOptions.REFRESH_JOB_SUBMISSION_TIMEOUT_MINUTES),
+        TimeUnit.MINUTES)) {
+      return null;
+    }
+
     Span.current().setAttribute("dremio.reflectionmanager.jobId", jobId.getId());
     Span.current().setAttribute("dremio.reflectionmanager.reflection", getId(entry));
     Span.current()
@@ -703,47 +711,6 @@ public class ReflectionUtils {
     }
 
     return contains;
-  }
-
-  /**
-   * Removes an update column from a persisted column. This means it won't be written and won't be
-   * used in matching.
-   *
-   * <p>If there is not initial update column, no changes will be made.
-   */
-  public static RelNode removeUpdateColumn(RelNode node) {
-    if (node.getTraitSet() == null) {
-      // for test purposes.
-      return node;
-    }
-    RelDataTypeField field = node.getRowType().getField(UPDATE_COLUMN, false, false);
-    if (field == null) {
-      return node;
-    }
-    final RexBuilder rexBuilder = node.getCluster().getRexBuilder();
-    final RelDataTypeFactory.FieldInfoBuilder rowTypeBuilder =
-        new RelDataTypeFactory.FieldInfoBuilder(node.getCluster().getTypeFactory());
-    final List<RexNode> projects =
-        FluentIterable.from(node.getRowType().getFieldList())
-            .filter(
-                new Predicate<RelDataTypeField>() {
-                  @Override
-                  public boolean apply(RelDataTypeField input) {
-                    return !UPDATE_COLUMN.equals(input.getName());
-                  }
-                })
-            .transform(
-                new Function<RelDataTypeField, RexNode>() {
-                  @Override
-                  public RexNode apply(RelDataTypeField input) {
-                    rowTypeBuilder.add(input);
-                    return rexBuilder.makeInputRef(input.getType(), input.getIndex());
-                  }
-                })
-            .toList();
-
-    return new LogicalProject(
-        node.getCluster(), node.getTraitSet(), node, projects, rowTypeBuilder.build());
   }
 
   public static RelNode removeColumns(RelNode node, Predicate<RelDataTypeField> predicate) {

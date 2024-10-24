@@ -20,8 +20,8 @@ import Immutable from "immutable";
 
 import { updateHistoryWithJobState } from "actions/explore/history";
 import { updateExploreJobProgress } from "actions/explore/dataset/data";
-import { LOGOUT_USER_SUCCESS } from "@app/actions/account";
-import { getTableDataRaw } from "@app/selectors/explore";
+import { LOGOUT_USER_SUCCESS } from "#oss/actions/account";
+import { getTableDataRaw } from "#oss/selectors/explore";
 
 import {
   waitForRunToComplete,

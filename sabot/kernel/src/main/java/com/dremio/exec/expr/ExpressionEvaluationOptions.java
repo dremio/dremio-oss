@@ -45,6 +45,7 @@ public class ExpressionEvaluationOptions {
   private final Set<String> disabledArmGandivaFunctions;
   private SupportedEngines.CodeGenOption codeGenOption = SupportedEngines.CodeGenOption.DEFAULT;
   private boolean trackRecordLevelErrors = false;
+  private boolean canDirectTransfer = true;
 
   public ExpressionEvaluationOptions(OptionManager options) {
     this.options = options;
@@ -108,5 +109,13 @@ public class ExpressionEvaluationOptions {
 
   public boolean isTrackRecordLevelErrors() {
     return trackRecordLevelErrors;
+  }
+
+  public boolean canDirectTransfer() {
+    return canDirectTransfer;
+  }
+
+  public void setCanDirectTransfer(boolean canDirectTransfer) {
+    this.canDirectTransfer = canDirectTransfer;
   }
 }

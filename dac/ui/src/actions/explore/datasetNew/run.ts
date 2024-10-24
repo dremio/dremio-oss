@@ -15,7 +15,7 @@
  */
 
 import { RSAA } from "redux-api-middleware";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 // @ts-ignore
 import { updateParams } from "@inject/actions/explore/dataset/updateLocation";
 import {
@@ -25,19 +25,19 @@ import {
   TRANSFORM_AND_RUN_DATASET_FAILURE,
   TRANSFORM_AND_RUN_DATASET_START,
   TRANSFORM_AND_RUN_DATASET_SUCCESS,
-} from "@app/actions/explore/dataset/run";
+} from "#oss/actions/explore/dataset/run";
 import Immutable from "immutable";
-import readResponseAsJSON from "@app/utils/apiUtils/responseUtils";
+import readResponseAsJSON from "#oss/utils/apiUtils/responseUtils";
 
 const newFetchRunDataset = (
   dataset: Immutable.Map<string, any>,
   viewId: string,
-  sessionId: string
+  sessionId: string,
 ) => {
   const tipVersion = dataset.get("tipVersion");
 
   const apiCall = new APIV2Call().paths(
-    `${dataset.getIn(["apiLinks", "self"])}/run`
+    `${dataset.getIn(["apiLinks", "self"])}/run`,
   );
 
   if (tipVersion) {
@@ -71,7 +71,7 @@ const newFetchRunDataset = (
 export const newRunDataset = (
   dataset: Immutable.Map<string, any>,
   viewId: string,
-  sessionId: string
+  sessionId: string,
 ) => {
   return (dispatch: any) => {
     return dispatch(newFetchRunDataset(dataset, viewId, sessionId));
@@ -83,7 +83,7 @@ const newFetchTransformAndRun = (
   transformData: any,
   viewId: string,
   sessionId: string,
-  newVersion: string
+  newVersion: string,
 ) => {
   const apiCall = new APIV2Call()
     .paths(`${dataset.getIn(["apiLinks", "self"])}/transform_and_run`)
@@ -100,7 +100,7 @@ const newFetchTransformAndRun = (
       ],
       method: "POST",
       body: JSON.stringify(
-        !sessionId ? transformData : { ...transformData, sessionId }
+        !sessionId ? transformData : { ...transformData, sessionId },
       ),
       headers: {
         "Content-Type": "application/json",
@@ -115,7 +115,7 @@ export const newTransformAndRunDataset = (
   transformData: any,
   viewId: string,
   sessionId: string,
-  newVersion: string
+  newVersion: string,
 ) => {
   return (dispatch: any) => {
     return dispatch(
@@ -124,8 +124,8 @@ export const newTransformAndRunDataset = (
         transformData,
         viewId,
         sessionId,
-        newVersion
-      )
+        newVersion,
+      ),
     );
   };
 };

@@ -20,8 +20,8 @@ import {
   USER_GET_FAILURE,
   USER_GET_SUCCESS,
   EDIT_USER_SUCCESS,
-} from "@app/actions/modals/editUserModal";
-import { isLoading } from "@app/reducers/reducerFactories";
+} from "#oss/actions/modals/editUserModal";
+import { isLoading } from "#oss/reducers/reducerFactories";
 
 export const moduleKey = "EDIT_USER_DETAILS";
 

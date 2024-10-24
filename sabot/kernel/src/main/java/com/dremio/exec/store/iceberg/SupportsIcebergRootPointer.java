@@ -27,6 +27,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.io.FileIO;
 
@@ -100,4 +101,10 @@ public interface SupportsIcebergRootPointer {
       List<String> dataset,
       String datasourcePluginUID,
       Long fileLength);
+
+  /** Loads Iceberg Table Metadata for Iceberg Catalog table */
+  default TableMetadata loadTableMetadata(
+      FileIO io, OperatorContext context, List<String> dataset, String metadataLocation) {
+    return IcebergUtils.loadTableMetadata(io, context, metadataLocation);
+  }
 }

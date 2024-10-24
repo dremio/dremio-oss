@@ -17,10 +17,10 @@
 import PropTypes from "prop-types";
 import { compose } from "redux";
 import { withRouter } from "react-router";
-import "@app/components/IconFont/css/DremioIcons.css";
-import "@app/components/SideNav/SideNav.less";
-import { isActive } from "@app/components/SideNav/SideNavUtils";
-import { TopAction } from "@app/components/SideNav/components/TopAction";
+import "#oss/components/IconFont/css/DremioIcons.css";
+import "#oss/components/SideNav/SideNav.less";
+import { isActive } from "#oss/components/SideNav/SideNavUtils";
+import { TopAction } from "#oss/components/SideNav/components/TopAction";
 import * as adminPaths from "dremio-ui-common/paths/admin.js";
 
 const SideNavAdmin = (props) => {

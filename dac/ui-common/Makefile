@@ -13,7 +13,7 @@ UI_LIB=../ui-lib
 JS_SDK=../../ui/dremio-js
 
 SRC = $(shell find src -type f)
-LANG = $(shell find lang -type f)
+LANG_DIR = $(shell find lang -type f)
 SQL_GRAMMAR = $(shell find sql-grammar -type f)
 
 export NODE_NO_WARNINGS=1
@@ -35,7 +35,7 @@ dist-esm: node_modules tsconfig.json $(SRC) target/generated-sources/antlr
 	./node_modules/.bin/tsc --emitDeclarationOnly --declaration --declarationMap true --declarationDir dist-esm
 	@touch dist-esm
 
-dist-lang: node_modules $(LANG)
+dist-lang: node_modules $(LANG_DIR)
 	node --run dist-lang
 	@touch dist-lang
 

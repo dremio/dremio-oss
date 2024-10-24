@@ -125,7 +125,10 @@ export default class FormSection extends Component {
     const formIcon = sectionConfig.getConfig().icon;
 
     if (formIcon) {
-      const { tabTitleText } = this.props;
+      const { tabTitleText, showIcon = true } = this.props;
+      if (!showIcon) {
+        return <div>{this.renderElements(sectionConfig, fields)}</div>;
+      }
       if (tabTitleText) {
         return (
           <div>

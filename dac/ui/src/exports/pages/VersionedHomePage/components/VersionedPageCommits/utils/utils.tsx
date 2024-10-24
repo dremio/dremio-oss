@@ -16,8 +16,8 @@
 
 import { FormattedMessage } from "react-intl";
 import { Button } from "dremio-ui-lib/components";
-import { VersionedPageTabsType } from "@app/exports/pages/VersionedHomePage/VersionedHomePage";
-import * as classes from "@app/exports/pages/VersionedHomePage/components/VersionedPageTableHeader/VersionedPageTableHeader.module.less";
+import { VersionedPageTabsType } from "#oss/exports/pages/VersionedHomePage/VersionedHomePage";
+import * as classes from "#oss/exports/pages/VersionedHomePage/components/VersionedPageTableHeader/VersionedPageTableHeader.module.less";
 
 export const getGoToDataButton = (
   handlePush: (tab: VersionedPageTabsType) => void,

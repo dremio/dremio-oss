@@ -106,7 +106,7 @@ describe("Support", () => {
 
       // no support.email.addr because it's RESERVED
       expect(instance.getShownSettings().map((e) => e.id)).to.eql(
-        "$a $b".split(" ")
+        "$a $b".split(" "),
       );
     });
 
@@ -121,7 +121,7 @@ describe("Support", () => {
       // no support.email.addr because it's RESERVED
       // no exec.queue.enable because it's in a section
       expect(
-        instance.getShownSettings({ includeSections: false }).map((e) => e.id)
+        instance.getShownSettings({ includeSections: false }).map((e) => e.id),
       ).to.eql("$a $b".split(" "));
     });
   });

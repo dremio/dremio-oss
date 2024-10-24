@@ -31,6 +31,8 @@ import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
 import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.TestOutputMutator;
 import com.dremio.exec.store.dfs.IcebergTableProps;
@@ -95,7 +97,7 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
   public static void initStatics() throws Exception {
     fs = HadoopFileSystem.get(Path.of("/"), CONF);
     executorService = Executors.newCachedThreadPool();
-    schemeVariate = IcebergUtils.getDefaultPathScheme(fs.getScheme());
+    schemeVariate = IcebergUtils.getDefaultPathScheme(fs.getScheme(), CONF);
   }
 
   @AfterClass
@@ -329,7 +331,7 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
 
     IcebergModel icebergModel = new IcebergHadoopModel(plugin);
     when(plugin.getIcebergModel(
-            any(IcebergTableProps.class), anyString(), any(OperatorContext.class), eq(io)))
+            any(IcebergTableProps.class), anyString(), any(OperatorContext.class), eq(io), any()))
         .thenReturn(icebergModel);
 
     return plugin;
@@ -348,8 +350,12 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
     doNothing().when(operatorStats).addLongStat(any(MetricDef.class), anyLong());
     doNothing().when(operatorStats).setReadIOStats();
 
+    FragmentHandle fragmentHandle = mock(FragmentHandle.class);
+    when(fragmentHandle.getQueryId()).thenReturn(QueryId.getDefaultInstance());
+
     when(context.getStats()).thenReturn(operatorStats);
     when(context.getTargetBatchSize()).thenReturn(5);
+    when(context.getFragmentHandle()).thenReturn(fragmentHandle);
 
     when(context.getExecutor()).thenReturn(executorService);
     return context;

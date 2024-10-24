@@ -15,9 +15,9 @@
  */
 
 import { RSAA } from "redux-api-middleware";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
-import { APIV2Call } from "@app/core/APICall";
-import { clearCachedSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
+import { APIV2Call } from "#oss/core/APICall";
+import { clearCachedSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
 
 // SUPPORT FLAG CONSTANTS
 export const SUPPORT_FLAG_START = "SUPPORT_FLAG_START";

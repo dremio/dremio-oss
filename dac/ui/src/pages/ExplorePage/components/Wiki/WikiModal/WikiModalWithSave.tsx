@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import ApiUtils from "@app/utils/apiUtils/apiUtils";
-import { showUnsavedChangesConfirmDialog } from "@app/actions/confirmation";
+import ApiUtils from "#oss/utils/apiUtils/apiUtils";
+import { showUnsavedChangesConfirmDialog } from "#oss/actions/confirmation";
 import { connect } from "react-redux";
 import { Map, fromJS } from "immutable";
 import { useEffect, useState } from "react";
@@ -75,7 +75,7 @@ const WikiModalWithSave = ({
           version: wikiVersion,
         }),
       },
-      3
+      3,
     ).then(
       (response: { json: () => Promise<SaveProps> }) => {
         setWikiChanged(false);
@@ -88,13 +88,13 @@ const WikiModalWithSave = ({
             error: {
               message: await ApiUtils.getErrorMessage(
                 intl.formatMessage({ id: "Wiki.NotSaved" }),
-                response
+                response,
               ),
               id: "" + Math.random(),
             },
-          })
+          }),
         );
-      }
+      },
     );
   };
   const cancelHandler = () => {

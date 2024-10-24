@@ -16,11 +16,10 @@
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import SettingsBtn from "@app/components/Buttons/SettingsBtn";
+import SettingsBtn from "#oss/components/Buttons/SettingsBtn";
 import EngineActionCellMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/components/EngineActionCellMixin";
 import { Button } from "dremio-ui-lib/components";
-import * as ButtonTypes from "@app/components/Buttons/ButtonTypes";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 export function StartStopButton(props) {
   const {
@@ -151,10 +150,10 @@ const styles = {
     padding: "0px 5px 0 3px",
     marginBottom: 1,
     border: 0,
-    boxShadow: "0 1px 1px #c2c2c2",
+    boxShadow: "var(--dremio--shadow--layer-1)",
     borderRadius: 2,
-    background: "#eee",
-    color: "#333",
+    background: "var(--fill--tertiary)",
+    color: "var(--text--primary)",
     height: 23,
     fontSize: 11,
     alignItems: "center",

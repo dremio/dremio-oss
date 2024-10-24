@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
-import Message from "@app/components/Message";
+import Message from "#oss/components/Message";
 import { FormSubmit } from "@inject/pages/ArcticCatalog/components/ArcticCatalogDataItemSettings/ArcticTableOptimization/components/FormSubmit/FormSubmit";
 import RemoveGranteeDialog from "dremio-ui-common/components/PrivilegesTable/components/RemoveGranteeDialog/RemoveGranteeDialog.js";
 import { PrivilegesTable } from "dremio-ui-common/components/PrivilegesTable/PrivilegesTable.js";
@@ -29,17 +29,17 @@ import {
   GrantsResponse,
   OutputGrant,
   Privilege as OrgPrivilege,
-} from "@app/exports/endpoints/Grants/Grants.types";
+} from "#oss/exports/endpoints/Grants/Grants.types";
 import {
   GrantForGet,
   GrantForSet,
   InlineResponse200,
   Privilege as CatalogPrivilege,
-} from "@app/exports/endpoints/ArcticCatalogGrants/ArcticCatalogGrants.types";
+} from "#oss/exports/endpoints/ArcticCatalogGrants/ArcticCatalogGrants.types";
 import EmptyPrivileges from "./components/EmptyPrivileges/EmptyPrivileges";
-import { useUserDetails } from "@app/exports/providers/useUserDetails";
+import { useUserDetails } from "#oss/exports/providers/useUserDetails";
 import { useDispatch } from "react-redux";
-import { addNotification } from "@app/actions/notification";
+import { addNotification } from "#oss/actions/notification";
 import SelectOwnership from "./components/SelectOwnership/SelectOwnership";
 
 import * as classes from "./PrivilegesPage.module.less";

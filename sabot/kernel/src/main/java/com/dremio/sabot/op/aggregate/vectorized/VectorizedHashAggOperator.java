@@ -526,6 +526,9 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
   private int chunkOffsetMask;
   private long reservedPreallocation;
 
+  private final Stopwatch setUpWatch = Stopwatch.createUnstarted();
+  private final Stopwatch produceDataWatch = Stopwatch.createUnstarted();
+
   public static final String OUT_OF_MEMORY_MSG = "Vectorized Hash Agg ran out of memory";
 
   public static final String PREALLOC_FAILURE_PARTITIONS =
@@ -614,6 +617,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
 
   @Override
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
+    setUpWatch.start();
     state.is(State.NEEDS_SETUP);
     this.incoming = accessible;
     this.pivot = createPivot();
@@ -658,6 +662,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
     this.initDone = true;
 
     state = State.CAN_CONSUME;
+    setUpWatch.stop();
     return outgoing;
   }
 
@@ -2491,6 +2496,8 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
       stats.setLongStat(Metric.UNUSED_FOR_VARIABLE_KEYS, statsHolder.unusedForVarBlocks);
       stats.setLongStat(Metric.MAX_VARIABLE_BLOCK_LENGTH, maxVariableBlockLength);
     }
+    stats.setLongStat(Metric.SETUP_MILLIS, setUpWatch.elapsed(TimeUnit.MILLISECONDS));
+    stats.setLongStat(Metric.CAN_PRODUCE_MILLIS, produceDataWatch.elapsed(TimeUnit.MILLISECONDS));
   }
 
   private class HashTableStatsHolder {
@@ -2653,6 +2660,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
    */
   @Override
   public int outputData() throws Exception {
+    produceDataWatch.start();
     state.is(State.CAN_PRODUCE);
     Preconditions.checkState(
         internalStateMachine != InternalState.DONE && internalStateMachine != InternalState.NONE,
@@ -2684,7 +2692,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
         records = 0;
         break;
     }
-
+    produceDataWatch.stop();
     return records;
   }
 

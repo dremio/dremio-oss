@@ -60,7 +60,7 @@ $gutter-quadruple: map-get(
       padding: $gutter $gutter-quadruple $gutter $gutter;
       resize: vertical;
       width: 100%;
-
+      background-color: var(--fill--primary);
       &:hover {
         border: 1px solid var(--border--hover);
       }
@@ -114,7 +114,7 @@ $gutter-quadruple: map-get(
       &:hover {
         svg {
           path {
-            fill: var(--color--brand--400);
+            fill: var(--icon--hover);
           }
         }
       }

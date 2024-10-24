@@ -15,7 +15,7 @@
  */
 import Immutable from "immutable";
 import { splitFullPath } from "utils/pathUtils";
-import { ENTITY_TYPES } from "@app/constants/Constants";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
 
 export function decorateSource(source) {
   const uiProperties = Immutable.Map({
@@ -102,7 +102,7 @@ export function decorateProvision(provision) {
     workerList.reduce((prevField, nextField) => {
       const containerProperty =
         (nextField.get("containerPropertyList") || Immutable.List()).find(
-          (i) => i.get("key") === fieldName
+          (i) => i.get("key") === fieldName,
         ) || Immutable.Map({ value: 0 });
       return prevField + parseInt(containerProperty.get("value"), 10);
     }, 0);

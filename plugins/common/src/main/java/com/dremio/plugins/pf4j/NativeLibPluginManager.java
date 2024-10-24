@@ -18,6 +18,7 @@ package com.dremio.plugins.pf4j;
 import com.dremio.common.AutoCloseables;
 import com.dremio.config.DremioConfig;
 import com.dremio.options.OptionResolver;
+import java.net.URLConnection;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -38,6 +39,30 @@ public class NativeLibPluginManager extends DefaultPluginManager {
 
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(NativeLibPluginManager.class);
+
+  static {
+    /*
+     * Disable URLConnection caching, for more information see DX-91617.
+     *
+     * <p>{@code NativeLibPluginClassLoader}'s parent {@code URLClassLoader} caches the loaded JARs
+     * via {@code JarFileFactory}. This caching can have unexpected consequences when concurrently
+     * loading and closing classloaders because the shared JARs could be still in use by other
+     * classloaders.
+     *
+     * <p>In DX-91617 {@code ManagedStoragePlugin.replacePlugin()} method was called at the same
+     * time multiple times when the plugin was not present. This triggered multiple plugin creation.
+     * In this method only the first plugin creation is preserved and all the other unnecessarily
+     * created plugin instances will be closed. All these plugin instances have their own instance
+     * of a {@code NativeLibPluginClassLoader} but with caching enabled, those will share the same
+     * {@code URLJarFile} instance (as they all read from the same plugin jar file, e.g.
+     * hive3-plugin jar). Therefore, invoking close() on one of the CLs, and by extension on the
+     * shared {@code URLJarFile}, will also close all related InputStream instances (see {@code
+     * ZipFile$CleanableResource}), even if some of them have been opened by other class loaders.
+     * This can result in unexpected StreamClosedException errors in seemingly unrelated {@code
+     * NativeLibPluginClassLoader} instances.
+     */
+    URLConnection.setDefaultUseCaches("jar", false);
+  }
 
   private static final String PLUGINS_PATH_DEV_MODE = "../plugins";
 

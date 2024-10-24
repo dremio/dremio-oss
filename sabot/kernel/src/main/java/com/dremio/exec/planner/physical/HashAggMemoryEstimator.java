@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.physical;
 
+import static com.dremio.sabot.op.common.ht2.LBlockHashTable.MIN_RESERVATION_BATCH_SIZE;
+
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.NamedExpression;
@@ -76,8 +78,9 @@ public class HashAggMemoryEstimator {
   public int memControlBlockSinglePartition;
   private int memFixedBlockSinglePartition;
   private int memVariableBlockSinglePartition;
+  private static final int ROUND_8_MASK_LONG = -8;
 
-  private HashAggMemoryEstimator(
+  protected HashAggMemoryEstimator(
       int numPartitions,
       int hashTableBatchSize,
       int maxVariableBlockLength,
@@ -158,12 +161,17 @@ public class HashAggMemoryEstimator {
       final MaterializedAggExpressionsResult materializedAggExpressions,
       final int hashTableBatchSize,
       final OptionManager options) {
+    /*
+    No matter how low the batch size is, pivot structures are allocated for at least 128 records (MIN_RESERVATION_BATCH_SIZE).
+    This is to avoid OOM while allocating pivot vector due to string fields size being too large.
+     */
+    int batchSizeForPivotEstimations = Math.max(MIN_RESERVATION_BATCH_SIZE, hashTableBatchSize);
 
     final int variableWidthKeySize =
         (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
     final int maxVariableBlockLength =
         LBlockHashTable.computeVariableBlockMaxLength(
-            hashTableBatchSize, pivotInfo.getNumVarColumns(), variableWidthKeySize);
+            batchSizeForPivotEstimations, pivotInfo.getNumVarColumns(), variableWidthKeySize);
 
     final int numPartitions =
         (int) options.getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_NUMPARTITIONS);
@@ -269,13 +277,16 @@ public class HashAggMemoryEstimator {
   }
 
   private static int getValidityBufferSizeFromCount(final int valueCount) {
-    return (int) Math.ceil(valueCount / 8.0);
+    /*
+    In Apache arrow vectors, there is a single validity bit for each value but memory for
+    validity buffers is allocated in blocks of 8 bytes. Below calculation ensures that.
+     */
+    return (int) (valueCount + 63L >> 6 << 3);
   }
 
   // compute direct memory required for by the accumulators for one batch.
-  private int computeAccumulatorSizeForSinglePartition() {
-    int validitySize = 0;
-    int dataSize = 0;
+  protected int computeAccumulatorSizeForSinglePartition() {
+    int totalSize = 0;
     int index = 0;
 
     for (Field field : materializedAggExpressions.getOutputVectorFields()) {
@@ -283,46 +294,49 @@ public class HashAggMemoryEstimator {
       /* Irrespecive of the minorType, the memory for HLL and LISTAGG is fixed size. */
       if (accumType == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal()
           || accumType == AccumulatorBuilder.AccumulatorType.HLL.ordinal()) {
-        dataSize +=
+        totalSize +=
             (int)
                 optionManager.getOption(
                     VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES);
         /* Add space for temporary buffer as well */
-        dataSize +=
+        totalSize +=
             (int)
                     optionManager.getOption(
                         VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES)
                 / numPartitions;
-        validitySize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
+        totalSize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
         continue;
       } else if (accumType == AccumulatorBuilder.AccumulatorType.LISTAGG.ordinal()
           || accumType == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG.ordinal()
           || accumType == AccumulatorBuilder.AccumulatorType.LISTAGG_MERGE.ordinal()) {
-        dataSize += FixedListVarcharVector.FIXED_LISTVECTOR_SIZE_TOTAL;
+        totalSize += FixedListVarcharVector.FIXED_LISTVECTOR_SIZE_TOTAL;
         /* Add space for temporary buffer as well */
-        dataSize += FixedListVarcharVector.FIXED_LISTVECTOR_SIZE_TOTAL / numPartitions;
-        validitySize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
+        totalSize += FixedListVarcharVector.FIXED_LISTVECTOR_SIZE_TOTAL / numPartitions;
+        totalSize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
         continue;
       } else if (accumType == AccumulatorBuilder.AccumulatorType.ARRAY_AGG.ordinal()) {
-        dataSize +=
+        totalSize +=
             (int)
                 optionManager.getOption(
                     VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES);
         /* Add space for temporary buffer as well */
-        dataSize +=
+        totalSize +=
             (int)
                     optionManager.getOption(
                         VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES)
                 / numPartitions;
-        validitySize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
+        totalSize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
         continue;
       }
 
       TypeProtos.MinorType minorType = CompleteType.fromField(field).toMinorType();
+      int validitySize;
+      int dataSize;
       switch (minorType) {
         case BIT:
-          validitySize += getValidityBufferSizeFromCount(hashTableBatchSize);
-          dataSize += getValidityBufferSizeFromCount(hashTableBatchSize);
+          validitySize = getValidityBufferSizeFromCount(hashTableBatchSize);
+          dataSize = getValidityBufferSizeFromCount(hashTableBatchSize);
+          totalSize += Numbers.nextPowerOfTwo(validitySize + dataSize);
           break;
 
           /* 8 byte output accumulator */
@@ -331,8 +345,9 @@ public class HashAggMemoryEstimator {
         case TIMESTAMP:
         case FLOAT8:
         case INTERVALDAY:
-          validitySize += getValidityBufferSizeFromCount(hashTableBatchSize);
-          dataSize += (8 * hashTableBatchSize);
+          validitySize = getValidityBufferSizeFromCount(hashTableBatchSize);
+          dataSize = (int) roundUpTo8Multiple(8L * hashTableBatchSize);
+          totalSize += Numbers.nextPowerOfTwo(validitySize + dataSize);
           break;
 
           /* 4 byte output accumulator */
@@ -340,14 +355,16 @@ public class HashAggMemoryEstimator {
         case INTERVALYEAR:
         case TIME:
         case INT:
-          validitySize += getValidityBufferSizeFromCount(hashTableBatchSize);
-          dataSize += (4 * hashTableBatchSize);
+          validitySize = getValidityBufferSizeFromCount(hashTableBatchSize);
+          dataSize = (int) roundUpTo8Multiple(4L * hashTableBatchSize);
+          totalSize += Numbers.nextPowerOfTwo(validitySize + dataSize);
           break;
 
           /* 16 byte output accumulator */
         case DECIMAL:
-          validitySize += getValidityBufferSizeFromCount(hashTableBatchSize);
-          dataSize += (16 * hashTableBatchSize);
+          validitySize = getValidityBufferSizeFromCount(hashTableBatchSize);
+          dataSize = (int) roundUpTo8Multiple(16L * hashTableBatchSize);
+          totalSize += Numbers.nextPowerOfTwo(validitySize + dataSize);
           break;
 
         case VARCHAR:
@@ -355,13 +372,13 @@ public class HashAggMemoryEstimator {
           final int variableWidthKeySize =
               (int) optionManager.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
           /* Calculate the temporary buffer */
-          validitySize += getValidityBufferSizeFromCount(hashTableBatchSize);
+          validitySize = getValidityBufferSizeFromCount(hashTableBatchSize);
           /* Offset buffer size */
-          int tempVecDataSize = hashTableBatchSize * 4;
+          int tempVecDataSize = (int) roundUpTo8Multiple(hashTableBatchSize * 4L);
           tempVecDataSize += variableWidthKeySize * hashTableBatchSize;
           tempVecDataSize = Numbers.nextPowerOfTwo(tempVecDataSize);
           /* One temporary vector for each partition */
-          dataSize += tempVecDataSize / numPartitions;
+          dataSize = tempVecDataSize / numPartitions;
 
           /* Calculate the accumulator buffer. */
           validitySize += MutableVarcharVector.getValidityBufferSizeFromCount(hashTableBatchSize);
@@ -376,11 +393,16 @@ public class HashAggMemoryEstimator {
                   MutableVarcharVector.getValidityBufferSizeFromCount(hashTableBatchSize)
                       + MutableVarcharVector.getDataBufferSizeFromCount(
                           hashTableBatchSize, hashTableBatchSize * variableWidthKeySize));
+          totalSize += Numbers.nextPowerOfTwo(validitySize + dataSize);
           break;
       }
     }
 
-    return Numbers.nextPowerOfTwo(validitySize + dataSize);
+    return totalSize;
+  }
+
+  public static long roundUpTo8Multiple(long input) {
+    return input + 7L & ROUND_8_MASK_LONG;
   }
 
   private static PivotInfo getPivotInfo(

@@ -25,7 +25,7 @@ import timeUtils from "utils/timeUtils";
 
 import { fixedWidthSmall } from "uiTheme/radium/typography";
 
-import { getIconPath } from "@app/utils/getIconPath";
+import { getIconPath } from "#oss/utils/getIconPath";
 import JobStateIcon from "../JobStateIcon";
 import { Tooltip } from "dremio-ui-lib";
 
@@ -159,7 +159,7 @@ const styles = {
     width: "100%",
   },
   active: {
-    backgroundColor: "var(--color--orange--50)",
+    backgroundColor: "var(--fill--warning)",
   },
   td: {
     display: "inline-block",

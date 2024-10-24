@@ -31,18 +31,18 @@ export const restoreMockData = () => {
 
 export const listCatalogContentHandler = rest.get(
   decodeURIComponent(
-    getCatalogContentUrl(true).replace(`//${window.location.host}`, "")
+    getCatalogContentUrl(true).replace(`//${window.location.host}`, ""),
   ),
   (req, res, ctx) => {
     return res(ctx.delay(200), ctx.json(mockData));
-  }
+  },
 );
 
 export const listCatalogContentHandler2 = rest.get(
   decodeURIComponent(
-    getCatalogContentUrl(false).replace(`//${window.location.host}`, "")
+    getCatalogContentUrl(false).replace(`//${window.location.host}`, ""),
   ),
   (req, res, ctx) => {
     return res(ctx.delay(200), ctx.json(mockData));
-  }
+  },
 );

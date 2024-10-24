@@ -20,6 +20,7 @@ import type {
 } from "../../_internal/types/Config.js";
 import { User } from "../../community/users/User.js";
 import { userEntityToProperties } from "./utils.js";
+import type { SignalParam } from "../../_internal/types/Params.js";
 
 export const UsersResource = (config: ResourceConfig & SonarV3Config) => {
   return {
@@ -29,15 +30,21 @@ export const UsersResource = (config: ResourceConfig & SonarV3Config) => {
      */
     _createFromEntity: (properties: unknown) =>
       new User(userEntityToProperties(properties)),
-    retrieve: (id: string): Promise<Result<User, unknown>> =>
+    retrieve: (
+      id: string,
+      { signal }: SignalParam = {},
+    ): Promise<Result<User, unknown>> =>
       config
-        .sonarV3Request(`user/${id}`)
+        .sonarV3Request(`user/${id}`, { signal })
         .then((res) => res.json())
         .then((properties) => Ok(new User(userEntityToProperties(properties))))
         .catch((e) => Err(e)),
-    retrieveByEmail: (email: string): Promise<Result<User, unknown>> =>
+    retrieveByEmail: (
+      email: string,
+      { signal }: SignalParam = {},
+    ): Promise<Result<User, unknown>> =>
       config
-        .sonarV3Request(`user/by-name/${email}`)
+        .sonarV3Request(`user/by-name/${email}`, { signal })
         .then((res) => res.json())
         .then((properties) => Ok(new User(userEntityToProperties(properties))))
         .catch((e) => Err(e)),

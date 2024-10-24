@@ -24,7 +24,7 @@ import { logoutUser } from "@inject/actions/account";
 import Menu from "components/Menus/Menu";
 import MenuItem from "components/Menus/MenuItem";
 import DividerHr from "components/Menus/DividerHr";
-import { HookConsumer } from "@app/containers/RouteLeave";
+import { HookConsumer } from "#oss/containers/RouteLeave";
 
 const mapDispatchToProps = {
   logoutUser,

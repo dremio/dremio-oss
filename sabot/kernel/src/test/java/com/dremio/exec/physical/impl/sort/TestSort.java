@@ -65,15 +65,12 @@ public class TestSort extends BaseTestQuery {
 
   @Test
   public void testSortSpill() throws Exception {
-    setSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, "6");
-    try {
+    try (AutoCloseable ignore = withOption(GroupResourceInformation.MAX_WIDTH_PER_NODE, 6)) {
       test(
           "CREATE TABLE dfs_test.test_sort PARTITION BY (l_modline, l_moddate) AS "
               + "SELECT l.*, l_shipdate - ((EXTRACT(DAY FROM l_shipdate) - 1) * INTERVAL '1' DAY) l_moddate, "
               + "MOD(l_linenumber,3) l_modline "
               + "FROM cp.\"tpch/lineitem.parquet\" l ORDER BY l_moddate");
-    } finally {
-      resetSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY);
     }
   }
 }

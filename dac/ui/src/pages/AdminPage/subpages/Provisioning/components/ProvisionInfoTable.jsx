@@ -91,7 +91,7 @@ const styles = {
     height: 30,
     fontWeight: "500",
     fontSize: 12,
-    color: "#333333",
+    color: "var(--text--primary)",
   },
   emptyMessageStyle: {
     paddingBottom: "20%",

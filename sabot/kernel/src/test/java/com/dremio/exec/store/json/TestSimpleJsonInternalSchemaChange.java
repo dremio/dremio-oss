@@ -322,7 +322,7 @@ public class TestSimpleJsonInternalSchemaChange extends InternalSchemaTestBase {
         .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
         .havingCause()
         .isInstanceOf(UserRemoteException.class)
-        .withMessageContaining("SYSTEM ERROR: NumberFormatException");
+        .withMessageContaining("FUNCTION ERROR");
 
     alterTableChangeColumn(dirName, "heading1", "BOOLEAN");
     assertThat(runDescribeQuery(dirName)).contains("heading1|BOOLEAN");

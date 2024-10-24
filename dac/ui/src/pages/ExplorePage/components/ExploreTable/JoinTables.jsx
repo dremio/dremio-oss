@@ -18,7 +18,7 @@ import Immutable from "immutable";
 import { connect } from "react-redux";
 
 import PropTypes from "prop-types";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 import EllipsedText from "components/EllipsedText";
 import { formLabel, formDescription } from "uiTheme/radium/typography";
@@ -29,7 +29,7 @@ import { constructFullPath } from "utils/pathUtils";
 import { JOIN_TABLE_VIEW_ID } from "components/Wizards/JoinWizard/JoinController";
 import { accessEntity } from "actions/resources/lru";
 
-import { CUSTOM_JOIN } from "@app/constants/explorePage/joinTabs";
+import { CUSTOM_JOIN } from "#oss/constants/explorePage/joinTabs";
 
 import { ExploreInfoHeader } from "../ExploreInfoHeader";
 import ExploreTableController from "./ExploreTableController";
@@ -58,7 +58,7 @@ export class JoinTables extends PureComponent {
     if (nextProps.joinVersion !== this.props.joinVersion) {
       nextProps.accessEntity(
         "tableData",
-        this.props.dataset.get("datasetVersion")
+        this.props.dataset.get("datasetVersion"),
       );
     }
   }
@@ -114,7 +114,7 @@ export class JoinTables extends PureComponent {
     const nameForDisplay = ExploreInfoHeader.getNameForDisplay(
       dataset,
       {},
-      location
+      location,
     );
     const scale = this.shouldRenderSecondTable() ? WIDTH_SCALE : 1;
     const tableBlockStyle = !this.shouldRenderSecondTable()
@@ -170,7 +170,7 @@ const mapStateToProps = (state, ownProps) => {
     joinTableData: getJoinTable(state, ownProps),
     joinViewState: getViewState(state, JOIN_TABLE_VIEW_ID),
     joinDatasetFullPath: constructFullPath(
-      explorePageState.join.getIn(["custom", "joinDatasetPathList"])
+      explorePageState.join.getIn(["custom", "joinDatasetPathList"]),
     ),
     joinTab: explorePageState.join.get("joinTab"),
     joinVersion: explorePageState.join.getIn(["custom", "joinVersion"]),
@@ -197,7 +197,7 @@ const styles = {
   header: {
     ...formLabel,
     height: 25,
-    backgroundColor: "#F3F3F3",
+    backgroundColor: "var(--fill--secondary)",
     zIndex: 1,
     display: "flex",
     alignItems: "center",
@@ -211,16 +211,16 @@ const styles = {
     alignItems: "center",
     minWidth: "100%",
     minHeight: 300,
-    backgroundColor: "#F3F3F3",
-    border: "1px dotted gray",
+    backgroundColor: "var(--fill--secondary)",
+    border: "1px dotted var(--border--neutral)",
     zIndex: 1,
     flexGrow: 1,
   },
   spinner: {
     width: "calc(50% - 26px)",
     height: "calc(100% - 440px)",
-    backgroundColor: "#F3F3F3",
-    border: "1px dotted gray",
+    backgroundColor: "var(--fill--secondary)",
+    border: "1px dotted var(--fill--neutral)",
     alignItems: "center",
     zIndex: 1,
     flexGrow: 1,

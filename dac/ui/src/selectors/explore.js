@@ -15,7 +15,7 @@
  */
 import { createSelector } from "reselect";
 import Immutable from "immutable";
-import { getModuleState } from "@app/selectors/moduleState";
+import { getModuleState } from "#oss/selectors/moduleState";
 import { getLocation } from "selectors/routing";
 import { getExploreViewState, getEntity } from "selectors/resources";
 import {
@@ -23,7 +23,7 @@ import {
   getRouteParamsFromLocation,
   constructFullPathAndEncode,
 } from "utils/pathUtils";
-import { isNewQueryUrl } from "@app/utils/explorePageTypeUtils";
+import { isNewQueryUrl } from "#oss/utils/explorePageTypeUtils";
 
 const emptyTable = Immutable.fromJS({
   columns: [],

@@ -132,10 +132,12 @@ public class SourceResource extends BaseResourceWithAllocator {
     return SourceUI.get(config, connectionReader);
   }
 
+  // TODO: DX-94503 UI needs to add includeUDFChildren
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   public SourceUI getSource(
       @QueryParam("includeContents") @DefaultValue("true") boolean includeContents,
+      @QueryParam("includeUDFChildren") @DefaultValue("false") boolean includeUDFChildren,
       @QueryParam("refType") String refType,
       @QueryParam("refValue") String refValue)
       throws Exception {
@@ -156,6 +158,7 @@ public class SourceResource extends BaseResourceWithAllocator {
       source.setDatasetCountBounded(datasetCount.isCountBound() || datasetCount.isTimeBound());
 
       source.setState(sourceState);
+      source.setSourceChangeState(sourceConfig.getSourceChangeState());
 
       final AccelerationSettings settings =
           reflectionService
@@ -174,7 +177,8 @@ public class SourceResource extends BaseResourceWithAllocator {
                 refType,
                 refValue,
                 null,
-                Integer.MAX_VALUE));
+                Integer.MAX_VALUE,
+                includeUDFChildren));
       }
       return source;
     } catch (NamespaceNotFoundException nfe) {
@@ -207,12 +211,14 @@ public class SourceResource extends BaseResourceWithAllocator {
     }
   }
 
+  // TODO: DX-94503 UI needs to add includeUDFChildren
   @GET
   @Path("/folder/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   public Folder getFolder(
       @PathParam("path") String path,
       @QueryParam("includeContents") @DefaultValue("true") boolean includeContents,
+      @QueryParam("includeUDFChildren") @DefaultValue("false") boolean includeUDFChildren,
       @QueryParam("refType") String refType,
       @QueryParam("refValue") String refValue)
       throws NamespaceException,
@@ -226,6 +232,7 @@ public class SourceResource extends BaseResourceWithAllocator {
         sourceName,
         folderPath,
         includeContents,
+        includeUDFChildren,
         securityContext.getUserPrincipal().getName(),
         refType,
         refValue);

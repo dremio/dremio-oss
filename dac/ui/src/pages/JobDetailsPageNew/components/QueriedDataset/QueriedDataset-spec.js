@@ -48,7 +48,7 @@ describe("QueriedDataset", () => {
     ]);
     const wrapper = shallow(<QueriedDataset queriedDataSet={queriedDataSet} />);
     expect(wrapper.find(".queriedDataset-dataWrapper__wrapper").length).equal(
-      queriedDataSet.size
+      queriedDataSet.size,
     );
   });
 });

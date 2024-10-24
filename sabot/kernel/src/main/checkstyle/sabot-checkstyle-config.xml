@@ -31,7 +31,7 @@
 
   <!-- Maximum file line length -->
   <module name="FileLength">
-    <property name="max" value="5000"/>
+    <property name="max" value="4000"/>
   </module>
 
   <!-- No TAB characters -->

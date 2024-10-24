@@ -65,7 +65,7 @@ export class SectionTitle extends Component {
         text: PropTypes.node.isRequired,
         onClick: PropTypes.func.isRequired,
         dataQa: PropTypes.string,
-      })
+      }),
     ),
   };
 

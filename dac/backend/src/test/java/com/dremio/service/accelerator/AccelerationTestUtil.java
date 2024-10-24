@@ -217,19 +217,21 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
                 new PhysicalDataset().setFormatSettings(new FileConfig().setType(FileType.JSON)));
     final NamespaceService nsService = getNamespaceService();
     nsService.addOrUpdateDataset(path.toNamespaceKey(), dataset);
-    createDatasetFromParentAndSave(vdsPath, path.toPathString());
+    String parentDataset = path.toPathString();
+    getHttpClient().getDatasetApi().createDatasetFromParentAndSave(vdsPath, parentDataset);
   }
 
   protected AccelerationApiDescriptor createNewAcceleration(DatasetPath path) {
     return expectSuccess(
-        getBuilder(getAPIv2().path("/accelerations"))
+        getBuilder(getHttpClient().getAPIv2().path("/accelerations"))
             .buildPost(Entity.entity(path.toPathList(), JSON)),
         AccelerationApiDescriptor.class);
   }
 
   protected AccelerationApiDescriptor pollAcceleration(AccelerationId id) {
     return expectSuccess(
-        getBuilder(getAPIv2().path(String.format("/accelerations/%s", id.getId()))).buildGet(),
+        getBuilder(getHttpClient().getAPIv2().path(String.format("/accelerations/%s", id.getId())))
+            .buildGet(),
         AccelerationApiDescriptor.class);
   }
 

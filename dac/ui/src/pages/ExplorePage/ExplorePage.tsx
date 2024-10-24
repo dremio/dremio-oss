@@ -17,17 +17,17 @@ import { PureComponent, CSSProperties } from "react";
 import Immutable from "immutable";
 import classNames from "clsx";
 import { connect } from "react-redux";
-import { hashHeightTopSplitter } from "@app/constants/explorePage/heightTopSplitter";
-import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
-import { clearEntities } from "@app/actions/resources/entities";
-import { flexElementAuto } from "@app/uiTheme/less/layout.less";
+import { hashHeightTopSplitter } from "#oss/constants/explorePage/heightTopSplitter";
+import { PageTypes } from "#oss/pages/ExplorePage/pageTypes";
+import { clearEntities } from "#oss/actions/resources/entities";
+import { flexElementAuto } from "#oss/uiTheme/less/layout.less";
 
 import "./ExplorePage.less";
 import ExplorePageContentWrapper from "./subpages/ExplorePageContentWrapper";
 import {
   isNewQueryUrl,
   isTmpDatasetUrl,
-} from "@app/utils/explorePageTypeUtils";
+} from "#oss/utils/explorePageTypeUtils";
 
 export const EXPLORE_PAGE_MIN_HEIGHT = 600;
 

@@ -22,11 +22,11 @@ import {
 } from "@inject/constants/provisioningPage/provisioningConstants";
 import clsx from "clsx";
 import { Tooltip } from "dremio-ui-lib";
-import LottieImages from "@app/components/LottieImages";
-import { getIconPath } from "@app/utils/getIconPath";
+import LottieImages from "#oss/components/LottieImages";
+import { getIconPath } from "#oss/utils/getIconPath";
 import * as classes from "./EngineStatus.module.less";
-import StoppingEngineLottie from "@app/art/StoppingEngine.lottie";
-import StartingEngineLottie from "@app/art/StartingEngineNew.lottie";
+import StoppingEngineLottie from "#oss/art/StoppingEngine.lottie";
+import StartingEngineLottie from "#oss/art/StartingEngineNew.lottie";
 import { Spinner } from "dremio-ui-lib/components";
 
 const unknownStateIcon = CLUSTER_STATE_ICON[CLUSTER_STATE.unknown];

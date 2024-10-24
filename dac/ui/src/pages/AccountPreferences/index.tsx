@@ -14,23 +14,28 @@
  * limitations under the License.
  */
 
+import { applyTheme } from "#oss/theme";
 import { AppearancePicker } from "dremio-ui-common/components/AppearancePicker/AppearancePicker.js";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 export default () => {
+  const { t } = getIntlContext();
   return (
     <div className="">
       <div className="settingHeader__root">
-        <div className="settingHeader__title px-2">Preferences</div>
+        <div className="settingHeader__title px-2">Appearance</div>
       </div>
 
-      <div className="p-1 admin-preferences-settings-main">
+      <div className="p-1 px-2 admin-preferences-settings-main">
         <div className="preferences-settings-page-description">
-          Enabling or disabling the following preferences applies only to the
-          current user. You may need to refresh your browser for the settings to
-          take effect.
+          {t("AccountSettings.AppearancePicker.Common.Description")}
         </div>
         <div className="mt-3">
-          <AppearancePicker />
+          <AppearancePicker
+            onThemeChanged={() => {
+              applyTheme();
+            }}
+          />
         </div>
       </div>
     </div>

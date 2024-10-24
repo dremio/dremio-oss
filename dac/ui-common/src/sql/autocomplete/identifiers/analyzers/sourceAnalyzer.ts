@@ -33,6 +33,9 @@ const sqlVersionSourceTokens = [Parser.FROM, Parser.IN];
 const followsSqlVersionSourceToken = (priorToken: Token | undefined) =>
   isTokenOfType(priorToken, sqlVersionSourceTokens);
 
+const followsSourceToken = (priorToken: Token | undefined) =>
+  isTokenOfType(priorToken, sourceTokens);
+
 const sourceRuleAnalyzers: CompositeRuleAnalyzers = {
   [Parser.RULE_sqlUseVersion]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
@@ -87,6 +90,16 @@ const sourceRuleAnalyzers: CompositeRuleAnalyzers = {
   [Parser.RULE_sqlAssignTag]: includeIf([
     child(Parser.RULE_simpleIdentifier, (priorToken: Token | undefined) =>
       followsSqlVersionSourceToken(priorToken),
+    ),
+  ]),
+  [Parser.RULE_sqlGrantPrivilege]: includeIf([
+    child(Parser.RULE_compoundIdentifier, (priorToken: Token | undefined) =>
+      followsSourceToken(priorToken),
+    ),
+  ]),
+  [Parser.RULE_sqlRevoke]: includeIf([
+    child(Parser.RULE_compoundIdentifier, (priorToken: Token | undefined) =>
+      followsSourceToken(priorToken),
     ),
   ]),
 };

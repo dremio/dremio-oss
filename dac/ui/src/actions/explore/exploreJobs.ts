@@ -15,8 +15,8 @@
  */
 
 import { Dispatch } from "redux";
-import { getJobSummary } from "@app/exports/endpoints/JobsListing/getJobSummary";
-import { getJobDetails } from "@app/exports/endpoints/JobsListing/getJobDetails";
+import { getJobSummary } from "#oss/exports/endpoints/JobsListing/getJobSummary";
+import { getJobDetails } from "#oss/exports/endpoints/JobsListing/getJobDetails";
 
 export const FETCH_JOB_SUMMARY = "FETCH_JOB_SUMMARY";
 

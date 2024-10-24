@@ -66,7 +66,7 @@ describe("AccelerationAggregation", () => {
     };
     instance.addNewLayout();
     expect(
-      commonProps.fields.aggregationReflections.addField
+      commonProps.fields.aggregationReflections.addField,
     ).to.have.been.calledWithMatch(defaultLayout);
   });
 });

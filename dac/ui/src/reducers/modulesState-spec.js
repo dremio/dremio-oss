@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { initModuleState, resetModuleState } from "@app/actions/modulesState";
+import { initModuleState, resetModuleState } from "#oss/actions/modulesState";
 import reducer, { getData } from "./modulesState";
 
 const fakeAction = "ACTION";
@@ -62,8 +62,8 @@ describe("modulesState", () => {
     expect(() =>
       reducer(
         nextState,
-        initModuleState(key, () => {})
-      )
+        initModuleState(key, () => {}),
+      ),
     ).to.throw(); // error should be thrown in this case
   });
 });

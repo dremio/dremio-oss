@@ -17,23 +17,23 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import { merge } from "lodash/object";
 
-import { connectComplexForm } from "@app/components/Forms/connectComplexForm";
-import { ModalForm, modalFormProps } from "@app/components/Forms";
-import FormBody from "@app/components/Forms/FormBody";
-import FormTab from "@app/components/Forms/FormTab";
-import { applyValidators, isRequired } from "@app/utils/validation";
-import FormTabConfig from "@app/utils/FormUtils/FormTabConfig";
+import { connectComplexForm } from "#oss/components/Forms/connectComplexForm";
+import { ModalForm, modalFormProps } from "#oss/components/Forms";
+import FormBody from "#oss/components/Forms/FormBody";
+import FormTab from "#oss/components/Forms/FormTab";
+import { applyValidators, isRequired } from "#oss/utils/validation";
+import FormTabConfig from "#oss/utils/FormUtils/FormTabConfig";
 import EC2FormMixin, {
   getInitValuesFromVlh,
 } from "dyn-load/pages/AdminPage/components/forms/provisioning/EC2FormMixin";
-import { CLUSTER_STATE } from "@app/constants/provisioningPage/provisioningConstants";
+import { CLUSTER_STATE } from "#oss/constants/provisioningPage/provisioningConstants";
 import { EC2_FIELDS } from "dyn-load/constants/provisioningPage/provisioningConstants";
-import { loadAwsDefaults } from "@app/actions/resources/provisioning";
-import { getAwsDefaults } from "@app/selectors/provision";
+import { loadAwsDefaults } from "#oss/actions/resources/provisioning";
+import { getAwsDefaults } from "#oss/selectors/provision";
 import {
   isEditMode,
   isRestartRequired,
-} from "@app/pages/AdminPage/components/forms/provisioning/provisioningFormUtil";
+} from "#oss/pages/AdminPage/components/forms/provisioning/provisioningFormUtil";
 import {
   getInitValuesFromProvision,
   prepareProvisionValuesForSave,
@@ -114,7 +114,7 @@ export class EC2Form extends Component {
     const { provision, dirty } = this.props;
     return this.props.onFormSubmit(
       this.prepareValuesForSave(values),
-      isRestartRequired(provision, dirty)
+      isRestartRequired(provision, dirty),
     );
   };
 
@@ -155,5 +155,5 @@ export default connectComplexForm(
   },
   [],
   mapStateToProps,
-  { loadAwsDefaults }
+  { loadAwsDefaults },
 )(EC2Form);

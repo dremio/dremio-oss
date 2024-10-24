@@ -77,7 +77,7 @@ describe("ColumnDragArea", () => {
       });
       exploreDragArea = wrapper.find("ExploreDragArea");
       expect(exploreDragArea.prop("isDragged")).to.be.false;
-    }
+    },
   );
 
   describe("#canSelectColumn", function () {

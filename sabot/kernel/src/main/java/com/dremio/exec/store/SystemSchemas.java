@@ -36,6 +36,8 @@ public final class SystemSchemas {
 
   public static final String DATAFILE_PATH = "datafilePath";
   public static final String PATH = "path";
+  public static final String CLUSTERING_TABLE_PROPERTY =
+      "dremio_use_sort_order_as_clustering_columns";
   public static final String DELETE_FILE = "deleteFile";
   public static final String DELETE_FILES = "deleteFiles";
   public static final String FILE_SIZE = "fileSize";

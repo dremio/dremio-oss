@@ -68,7 +68,7 @@ describe("CardContentView", () => {
       for (const example of examples) {
         const exampleMap = Immutable.fromJS(example[0]);
         expect(CardContentView.getExampleTextParts(exampleMap)).to.eql(
-          example[1]
+          example[1],
         );
       }
     });

@@ -25,13 +25,7 @@ import com.dremio.service.users.proto.UID;
 import java.io.IOException;
 
 /** User service interface. */
-public interface UserService extends UserServiceEvents {
-
-  // Only admin and logged in user should be able to get user's info.
-  User getUser(String userName) throws UserNotFoundException;
-
-  User getUser(UID uid) throws UserNotFoundException;
-
+public interface UserService extends UserServiceEvents, UserResolver {
   // Admin only.
   User createUser(User userConfig, String authKey) throws IOException, IllegalArgumentException;
 

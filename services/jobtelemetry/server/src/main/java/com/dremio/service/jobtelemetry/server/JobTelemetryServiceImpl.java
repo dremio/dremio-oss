@@ -148,7 +148,6 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
       // update executor profile.
       profileStore.putExecutorProfile(
           profile.getQueryId(), profile.getEndpoint(), profile, request.getIsFinal());
-
       responseObserver.onNext(Empty.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {
@@ -201,6 +200,9 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
     // persist the merged profile, if in a terminal state
     if (isTerminal(mergedProfile.getState())) {
       bgProfileWriter.tryWriteAsync(queryId, mergedProfile);
+      if (saveFullProfileOnQueryTermination) {
+        profileStore.deleteSubProfiles(queryId);
+      }
     }
     return mergedProfile;
   }
@@ -250,8 +252,13 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   public void deleteProfile(DeleteProfileRequest request, StreamObserver<Empty> responseObserver) {
     logger.debug("deleteProfile - Request payload size : {} bytes", request.toByteString().size());
     try {
-      // delete profile.
-      profileStore.deleteProfile(request.getQueryId());
+      if (request.getOnlyDeleteSubProfiles()) {
+        // delete only sub profiles.
+        profileStore.deleteSubProfiles(request.getQueryId());
+      } else {
+        // delete all profiles.
+        profileStore.deleteProfile(request.getQueryId());
+      }
 
       responseObserver.onNext(Empty.getDefaultInstance());
       responseObserver.onCompleted();

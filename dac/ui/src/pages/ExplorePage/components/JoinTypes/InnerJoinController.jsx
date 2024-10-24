@@ -18,7 +18,7 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { v4 as uuidv4 } from "uuid";
 import { connect } from "react-redux";
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 
 import { ExploreInfoHeader } from "../ExploreInfoHeader";
 import InnerJoin from "./InnerJoin";
@@ -49,7 +49,7 @@ export class InnerJoinController extends Component {
             Immutable.Map({ empty: true });
           const colForDrag = InnerJoinController.getDragAreaColumnModel(
             leftColumn,
-            rightColumn
+            rightColumn,
           );
           return colForDrag;
         })
@@ -117,7 +117,7 @@ export class InnerJoinController extends Component {
     const columnName = dropData.id;
     const columnIndexThatWillBeAdded =
       !this.state.columnsInDragArea.find(
-        (col) => col.getIn([columnNameInArea, "name"]) === columnName
+        (col) => col.getIn([columnNameInArea, "name"]) === columnName,
       ) &&
       this.state[name].findIndex((column) => column.get("name") === columnName);
     const column = this.state[name].get(columnIndexThatWillBeAdded);
@@ -130,11 +130,11 @@ export class InnerJoinController extends Component {
         this.state.type === "custom"
           ? InnerJoinController.getDragAreaColumnModel(
               Immutable.Map({ empty: true }),
-              column
+              column,
             )
           : InnerJoinController.getDragAreaColumnModel(
               column,
-              Immutable.Map({ empty: true })
+              Immutable.Map({ empty: true }),
             );
       this.setState({
         isDragInProgress: false,
@@ -145,7 +145,7 @@ export class InnerJoinController extends Component {
         this.state.columnsInDragArea.push(mappedColumn);
       this.setState(
         { columnsInDragArea: newColumnsInDragArea },
-        this.updateColumns
+        this.updateColumns,
       );
     }
   }
@@ -160,30 +160,30 @@ export class InnerJoinController extends Component {
 
   removeColumn(id) {
     const newColumnsInDragArea = this.state.columnsInDragArea.filter(
-      (item) => item.get("id") !== id
+      (item) => item.get("id") !== id,
     );
     this.setState(
       { columnsInDragArea: newColumnsInDragArea },
-      this.updateColumns
+      this.updateColumns,
     );
   }
 
   addEmptyColumnToInnerJoin() {
     const empty = InnerJoinController.getDragAreaColumnModel(
       Immutable.Map({ empty: true }),
-      Immutable.Map({ empty: true })
+      Immutable.Map({ empty: true }),
     );
     const newColumnsInDragArea = this.state.columnsInDragArea.push(empty);
     this.setState(
       { columnsInDragArea: newColumnsInDragArea },
-      this.updateColumns
+      this.updateColumns,
     );
   }
 
   addColumnToInnerJoin({ columnName, dragColumnId, dragColumnType }) {
     const { columnsInDragArea } = this.state;
     const index = columnsInDragArea.findIndex(
-      (item) => dragColumnId === item.get("id")
+      (item) => dragColumnId === item.get("id"),
     );
     const column = columnsInDragArea.get(index);
     const newId =
@@ -193,10 +193,10 @@ export class InnerJoinController extends Component {
     const newColumn =
       dragColumnType === "custom"
         ? this.state.rightColumns.find(
-            (item) => item.get("name") === columnName
+            (item) => item.get("name") === columnName,
           )
         : this.state.leftColumns.find(
-            (item) => item.get("name") === columnName
+            (item) => item.get("name") === columnName,
           );
     const columns = columnsInDragArea
       .setIn([index, dragColumnId], newId)
@@ -205,7 +205,7 @@ export class InnerJoinController extends Component {
       {
         columnsInDragArea: columns,
       },
-      this.updateColumns
+      this.updateColumns,
     );
   }
 
@@ -228,7 +228,7 @@ export class InnerJoinController extends Component {
     const defaultNameForDisplay = ExploreInfoHeader.getNameForDisplay(
       this.props.dataset,
       {},
-      this.props.location
+      this.props.location,
     );
     const { canSelect } = this.props;
 

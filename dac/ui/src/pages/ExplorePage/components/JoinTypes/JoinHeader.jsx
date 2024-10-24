@@ -18,13 +18,13 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { connect } from "react-redux";
 import { injectIntl } from "react-intl";
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 import classNames from "clsx";
 
 import {
   RECOMMENDED_JOIN,
   CUSTOM_JOIN,
-} from "@app/constants/explorePage/joinTabs";
+} from "#oss/constants/explorePage/joinTabs";
 import { setJoinTab, clearJoinDataset } from "actions/explore/join";
 
 import * as classes from "./JoinHeader.module.less";
@@ -160,5 +160,5 @@ function mapStateToProps(state) {
   };
 }
 export default connect(mapStateToProps, { setJoinTab, clearJoinDataset })(
-  JoinHeader
+  JoinHeader,
 );

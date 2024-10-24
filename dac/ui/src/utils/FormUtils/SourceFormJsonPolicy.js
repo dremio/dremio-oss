@@ -39,11 +39,11 @@ import {
   KERBEROS_FIELD,
   PROFILE_NAME_FIELD,
   DB_USER_FIELD,
-} from "@app/components/Forms/Credentials";
+} from "#oss/components/Forms/Credentials";
 import addAlwaysPresent, {
   LOOSE_ELEMENT_IGNORE_LIST,
 } from "@inject/utils/FormUtils/globalSourceConfigUtil";
-import { isVersionedSource, isNessieSource } from "../sourceUtils";
+import { isVersionedSource, isArcticSource } from "@inject/utils/sourceUtils";
 
 export default class SourceFormJsonPolicy {
   static deepCopyConfig(config) {
@@ -279,7 +279,6 @@ export default class SourceFormJsonPolicy {
 
   static convertElementConfigJsonToObject(elementJson, functionalElements) {
     switch (elementJson.type) {
-      /* eslint-disable indent */
       case "credentials":
         return new CredentialsConfig(elementJson);
       case "data_freshness":
@@ -307,7 +306,6 @@ export default class SourceFormJsonPolicy {
       case "radio":
       default:
         return getFormElementConfig(elementJson);
-      /* eslint-enable indent */
     }
   }
 
@@ -410,16 +408,13 @@ export default class SourceFormJsonPolicy {
       // add Reflection Refresh tab based on config.metadataRefresh
       this.addReflectionRefreshTab(config, functionalElements);
     }
-    const isNotNessieSourceButVersioned =
-      isVersionedSource(config.sourceType) &&
-      !isNessieSource(config.sourceType);
 
     // add Sharing tab
     const notCME = !isCME || !isCME();
     if (
       SHARING_TAB_JSON_TEMPLATE.name &&
       notCME &&
-      !isNotNessieSourceButVersioned
+      !isArcticSource(config.sourceType)
     ) {
       const sharingTabJson = this.deepCopyConfig(SHARING_TAB_JSON_TEMPLATE);
       config.form.addTab(new FormTabConfig(sharingTabJson, functionalElements));
@@ -544,7 +539,7 @@ export default class SourceFormJsonPolicy {
 
     const tab = tabTemplate;
     // we should alter object by reference, that is why Object.assign is used
-    Object.assign(metadataRefreshEl, policyInfo); // eslint-disable-line no-restricted-properties
+    Object.assign(metadataRefreshEl, policyInfo);
 
     const tabConfig = new FormTabConfig(tab, functionalElements);
     config.form.addTab(tabConfig);
@@ -552,7 +547,6 @@ export default class SourceFormJsonPolicy {
 
   static convertElementTypeForUi(type) {
     switch (type) {
-      /* eslint-disable indent */
       case "boolean":
         return "checkbox";
       case "selection":
@@ -560,7 +554,6 @@ export default class SourceFormJsonPolicy {
         return "radio";
       default:
         return type;
-      /* eslint-enable indent */
     }
   }
 }

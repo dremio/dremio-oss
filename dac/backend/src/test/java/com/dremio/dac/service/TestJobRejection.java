@@ -40,7 +40,7 @@ public class TestJobRejection extends BaseTestServer {
   @Test
   public void test() throws InterruptedException, NamespaceException {
     // only allow one query to run at a time
-    setSystemOption(MAX_FOREMEN_PER_COORDINATOR.getOptionName(), "1");
+    setSystemOption(MAX_FOREMEN_PER_COORDINATOR, 1);
 
     // create a test space
     final String testSpace = "test_space";

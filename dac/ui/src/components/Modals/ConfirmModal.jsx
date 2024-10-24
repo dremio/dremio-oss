@@ -26,8 +26,8 @@ import { v4 as uuidv4 } from "uuid";
 
 import { confirmBodyText, modalContent } from "uiTheme/radium/modal";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
-import Keys from "@app/constants/Keys.json";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
+import Keys from "#oss/constants/Keys.json";
+import * as classes from "#oss/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 import * as confirmModalClasses from "./ConfirmModal.module.less";
 
 export default class ConfirmModal extends Component {

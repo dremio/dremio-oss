@@ -52,7 +52,7 @@ describe("jobsQueryState", () => {
           filters: { qt: ["UI", "EXTERNAL"] },
           sort: "qt",
           order: "ASCENDING",
-        })
+        }),
       );
       expect(result).to.eql({
         sort: "qt",
@@ -67,20 +67,20 @@ describe("jobsQueryState", () => {
       let result = renderQueryStateForServer(
         Immutable.fromJS({
           filters: { qt: ["UI", "EXTERNAL"] },
-        })
+        }),
       );
       expect(result).to.eql(
-        `filter=${encodeURIComponent('(qt=="UI",qt=="EXTERNAL")')}`
+        `filter=${encodeURIComponent('(qt=="UI",qt=="EXTERNAL")')}`,
       );
       result = renderQueryStateForServer(
         Immutable.fromJS({
           filters: { asd: ['"@dremio"."sys+v\\ersion"'] },
-        })
+        }),
       );
       expect(result).to.eql(
         `filter=${encodeURIComponent(
-          '(asd=="\\"@dremio\\".\\"sys+v\\\\ersion\\"")'
-        )}`
+          '(asd=="\\"@dremio\\".\\"sys+v\\\\ersion\\"")',
+        )}`,
       );
     });
 
@@ -88,10 +88,10 @@ describe("jobsQueryState", () => {
       const result = renderQueryStateForServer(
         Immutable.fromJS({
           filters: { st: [12345, 12345] },
-        })
+        }),
       );
       expect(result).to.eql(
-        "filter=" + encodeURIComponent("(st=gt=12345;st=lt=12345)")
+        "filter=" + encodeURIComponent("(st=gt=12345;st=lt=12345)"),
       );
     });
 
@@ -99,11 +99,11 @@ describe("jobsQueryState", () => {
       const result = renderQueryStateForServer(
         Immutable.fromJS({
           filters: { contains: ['"@dremio"."a+\\folder"'] },
-        })
+        }),
       );
       expect(result).to.eql(
         "filter=" +
-          encodeURIComponent('*=contains="\\"@dremio\\".\\"a+\\\\folder\\""')
+          encodeURIComponent('*=contains="\\"@dremio\\".\\"a+\\\\folder\\""'),
       );
     });
   });

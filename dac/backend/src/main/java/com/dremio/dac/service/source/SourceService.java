@@ -519,7 +519,8 @@ public class SourceService {
       String refType,
       String refValue,
       @Nullable String pageToken,
-      int maxResults)
+      int maxResults,
+      boolean includeUDFChildren)
       throws PhysicalDatasetNotFoundException, NamespaceException {
     try {
       final NamespaceKey sourceKey = new NamespaceKey(sourceName.getName());
@@ -539,7 +540,7 @@ public class SourceService {
                 refValue,
                 pageToken,
                 maxResults);
-        namespaceTree = namespaceTreeOf(sourceName, response);
+        namespaceTree = namespaceTreeOf(sourceName, response, includeUDFChildren);
       } else if (plugin instanceof FileSystemPlugin) {
         // TODO: limit maximum number of files to get.
         namespaceTree = new NamespaceTree();
@@ -572,7 +573,7 @@ public class SourceService {
       @Nullable String pageToken,
       int maxResults)
       throws NamespaceException {
-    return listSource(sourceName, sourceConfig, userName, null, null, pageToken, maxResults);
+    return listSource(sourceName, sourceConfig, userName, null, null, pageToken, maxResults, false);
   }
 
   /**
@@ -586,6 +587,7 @@ public class SourceService {
       SourceName sourceName,
       SourceFolderPath folderPath,
       boolean includeContents,
+      boolean includeUDFChildren,
       String userName,
       String refType,
       String refValue)
@@ -635,7 +637,14 @@ public class SourceService {
     NamespaceTree contents =
         includeContents
             ? listFolder(
-                sourceName, folderPath, userName, refType, refValue, null, Integer.MAX_VALUE)
+                sourceName,
+                folderPath,
+                userName,
+                refType,
+                refValue,
+                null,
+                Integer.MAX_VALUE,
+                includeUDFChildren)
             : null;
     String versionedDatasetId = getVersionedDatasetId(folderPath, refType, refValue);
     if (versionedDatasetId != null) {
@@ -764,7 +773,8 @@ public class SourceService {
       String refType,
       String refValue,
       @Nullable String pageToken,
-      int maxResults)
+      int maxResults,
+      boolean includeUDFChildren)
       throws PhysicalDatasetNotFoundException, NamespaceException {
     final String name = sourceName.getName();
     final String prefix = folderPath.toPathString();
@@ -782,7 +792,7 @@ public class SourceService {
                 pageToken,
                 maxResults);
 
-        return namespaceTreeOf(sourceName, response);
+        return namespaceTreeOf(sourceName, response, includeUDFChildren);
       } else if (plugin.isWrapperFor(FileSystemPlugin.class)) {
         final NamespaceTree ns = new NamespaceTree();
         ns.setIsFileSystemSource(true);
@@ -815,13 +825,15 @@ public class SourceService {
       @Nullable String startChildName,
       int maxResults)
       throws NamespaceException, IOException {
-    return listFolder(sourceName, folderPath, userName, null, null, startChildName, maxResults);
+    return listFolder(
+        sourceName, folderPath, userName, null, null, startChildName, maxResults, false);
   }
 
   @WithSpan
   public ResourceTreeListResponse listPath(
       NamespaceKey path,
       boolean showDatasets,
+      boolean showFunctions,
       String refType,
       String refValue,
       @Nullable String pageToken,
@@ -840,7 +852,8 @@ public class SourceService {
           versionedPluginListEntriesHelper(
               plugin.unwrap(VersionedPlugin.class), path, refType, refValue, pageToken, maxResults);
 
-      return generateResourceTreeEntityList(path, response, ResourceTreeEntity.ResourceType.SOURCE);
+      return generateResourceTreeEntityList(
+          path, response, ResourceTreeEntity.ResourceType.SOURCE, showFunctions);
     }
 
     // Since we're listing path in a source, the rootType should be SOURCE
@@ -897,7 +910,8 @@ public class SourceService {
     } catch (NoDefaultBranchException e) {
       throw UserException.validationError(e)
           .message(
-              "Unable to resolve source version. Version was not specified and Source %s does not have a default branch set.",
+              "Unable to resolve source version. Version was not specified and Source %s does not"
+                  + " have a default branch set.",
               sourceName)
           .buildSilently();
     } catch (ReferenceTypeConflictException e) {
@@ -1104,7 +1118,7 @@ public class SourceService {
   public List<SourceConfig> getSources() {
     final List<SourceConfig> sources = new ArrayList<>();
 
-    for (SourceConfig sourceConfig : namespaceService.getSources()) {
+    for (SourceConfig sourceConfig : createCatalog().getSourceConfigs()) {
       if (SourceUI.isInternal(sourceConfig, connectionReader)) {
         continue;
       }

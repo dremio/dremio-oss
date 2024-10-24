@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { API_URL_V2, API_URL_V3 } from "@app/constants/Api";
+import { API_URL_V2, API_URL_V3 } from "#oss/constants/Api";
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     getUrl(apiVersion) {
       return apiVersion === 3 ? API_URL_V3 : API_URL_V2;
     },

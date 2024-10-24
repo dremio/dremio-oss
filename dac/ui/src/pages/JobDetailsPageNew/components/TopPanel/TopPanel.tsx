@@ -16,13 +16,13 @@
 import { type ReactNode } from "react";
 import { Link, WithRouterProps, withRouter } from "react-router";
 import { useIntl } from "react-intl";
-import datasetPathUtils from "@app/utils/resourcePathUtils/dataset";
-import jobsUtils, { JobState } from "@app/utils/jobsUtils";
+import datasetPathUtils from "#oss/utils/resourcePathUtils/dataset";
+import jobsUtils, { JobState } from "#oss/utils/jobsUtils";
 import { Button } from "dremio-ui-lib/components";
 import classNames from "clsx";
-import JobStateIcon from "@app/pages/JobPage/components/JobStateIcon";
-import CopyButton from "@app/components/Buttons/CopyButton";
-import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
+import JobStateIcon from "#oss/pages/JobPage/components/JobStateIcon";
+import CopyButton from "#oss/components/Buttons/CopyButton";
+import { PHYSICAL_DATASET_TYPES } from "#oss/constants/datasetTypes";
 import * as jobPaths from "dremio-ui-common/paths/jobs.js";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";

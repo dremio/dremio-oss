@@ -888,7 +888,7 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
                 IcebergFileType.MANIFEST.name(),
                 true,
                 false,
-                IcebergUtils.getDefaultPathScheme(fs.getScheme()))));
+                IcebergUtils.getDefaultPathScheme(fs.getScheme(), CONF))));
   }
 
   private static ManifestFile createDataManifest(

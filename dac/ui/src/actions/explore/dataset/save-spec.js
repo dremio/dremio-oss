@@ -19,7 +19,7 @@ describe("Dataset save actions", () => {
   describe("#deleteOldDatasetVersions", () => {
     it("should return type=DELETE_OLD_DATASET_VERSIONS", () => {
       expect(
-        saveActions.deleteOldDatasetVersions("123", Immutable.List()).type
+        saveActions.deleteOldDatasetVersions("123", Immutable.List()).type,
       ).to.equal(saveActions.DELETE_OLD_DATASET_VERSIONS);
     });
     it("should include meta.entityRemovePaths for datasets and tableData in history except currentVersion", () => {
@@ -31,7 +31,7 @@ describe("Dataset save actions", () => {
       ]);
       const result = saveActions.deleteOldDatasetVersions(
         currentVersion,
-        historyItems
+        historyItems,
       );
       expect(result.meta.entityRemovePaths).to.eql([
         ["datasetUI", "456"],

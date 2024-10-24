@@ -23,12 +23,12 @@ import {
 import { Button, DialogContent, IconButton } from "dremio-ui-lib/components";
 import { NumberInput } from "@mantine/core";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PartitionTransformationSchema } from "@app/exports/components/PartitionTransformation/components/PartitionTransformationDialog/PartitionTransformationSchema";
+import { PartitionTransformationSchema } from "#oss/exports/components/PartitionTransformation/components/PartitionTransformationDialog/PartitionTransformationSchema";
 import {
   PARTITION_TRANSFORMATION_LOWER_LIMIT,
   PARTITION_TRANSFORMATION_UPPER_LIMIT,
-} from "@app/exports/components/PartitionTransformation/PartitionTransformationUtils";
-import { typeToIconType } from "@app/constants/DataTypes";
+} from "#oss/exports/components/PartitionTransformation/PartitionTransformationUtils";
+import { typeToIconType } from "#oss/constants/DataTypes";
 
 type PartitionTransformationDialogProps = {
   columnName: string;
@@ -89,6 +89,7 @@ function PartitionTransformationDialog({
               }`}
             />
             <dremio-icon
+              class="icon-primary"
               name={`data-types/${typeToIconType[columnType]}`}
             ></dremio-icon>
             <span>{columnName}</span>

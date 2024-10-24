@@ -19,7 +19,7 @@ import { connect } from "react-redux";
 import Immutable from "immutable";
 
 import Modal from "components/Modals/Modal";
-import { getProvision } from "@app/selectors/provision";
+import { getProvision } from "#oss/selectors/provision";
 
 import ProvisionInfoTable from "../../subpages/Provisioning/components/ProvisionInfoTable";
 

@@ -21,6 +21,7 @@ import static com.fasterxml.jackson.core.JsonToken.VALUE_NULL;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
+import com.dremio.common.exceptions.RowSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.PathSegment;
@@ -42,6 +43,7 @@ import com.dremio.exec.store.easy.EasyFormatUtils;
 import com.dremio.exec.store.easy.json.reader.BaseJsonProcessor;
 import com.dremio.exec.tablefunctions.copyerrors.ValidationErrorRowWriter;
 import com.dremio.exec.util.ColumnUtils;
+import com.dremio.exec.util.RowSizeUtil;
 import com.dremio.exec.vector.complex.fn.VectorOutput.ListVectorOutput;
 import com.dremio.exec.vector.complex.fn.VectorOutput.MapVectorOutput;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -68,6 +70,8 @@ import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.FieldWriter;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -83,6 +87,7 @@ public class JsonReader extends BaseJsonProcessor {
   private final boolean extended = true;
   private final boolean readNumbersAsDouble;
   private final int maxFieldSize;
+  private final int maxRowSize;
   private final int maxLeafLimit;
   private int currentLeafCount;
   private long dataSizeReadSoFar;
@@ -118,10 +123,14 @@ public class JsonReader extends BaseJsonProcessor {
   private final long processingStartTime;
   private final long fileSize;
   private FieldWrapper rootFieldWrapper;
+  private int currentRowSize;
+  private boolean rowSizeLimitEnabled;
 
   public JsonReader(
       ArrowBuf managedBuf,
       int maxFieldSize,
+      boolean rowSizeLimitEnabled,
+      int maxRowSize,
       int maxLeafLimit,
       boolean allTextMode,
       boolean skipOuterList,
@@ -131,6 +140,8 @@ public class JsonReader extends BaseJsonProcessor {
         managedBuf,
         GroupScan.ALL_COLUMNS,
         maxFieldSize,
+        rowSizeLimitEnabled,
+        maxRowSize,
         maxLeafLimit,
         allTextMode,
         skipOuterList,
@@ -154,6 +165,8 @@ public class JsonReader extends BaseJsonProcessor {
       ArrowBuf managedBuf,
       List<SchemaPath> columns,
       int maxFieldSize,
+      boolean rowSizeLimitEnabled,
+      int maxRowSize,
       int maxLeafLimit,
       boolean allTextMode,
       boolean skipOuterList,
@@ -194,6 +207,8 @@ public class JsonReader extends BaseJsonProcessor {
     this.currentFieldName = "<none>";
     this.readNumbersAsDouble = readNumbersAsDouble;
     this.maxFieldSize = maxFieldSize;
+    this.rowSizeLimitEnabled = rowSizeLimitEnabled;
+    this.maxRowSize = maxRowSize;
     this.maxLeafLimit = maxLeafLimit;
     this.dataSizeReadSoFar = 0;
     this.currentLeafCount = 0;
@@ -219,6 +234,10 @@ public class JsonReader extends BaseJsonProcessor {
   @Override
   public long getDataSizeCounter() {
     return dataSizeReadSoFar;
+  }
+
+  public void resetRowSize() {
+    currentRowSize = 0;
   }
 
   @Override
@@ -328,6 +347,10 @@ public class JsonReader extends BaseJsonProcessor {
     ReadState readState;
     try {
       readState = writeToVector(writer, t);
+      if (rowSizeLimitEnabled) {
+        RowSizeLimitExceptionHelper.checkSizeLimit(currentRowSize, maxRowSize, logger);
+        resetRowSize();
+      }
       switch (readState) {
         case END_OF_STREAM:
           break;
@@ -349,7 +372,6 @@ public class JsonReader extends BaseJsonProcessor {
                   readState.toString())
               .build(logger);
       }
-
       return readState;
     } catch (Exception e) {
       return handleOrRaiseException(writer, e);
@@ -531,7 +553,6 @@ public class JsonReader extends BaseJsonProcessor {
           consumeEntireNextValue();
           continue outside;
         }
-
         switch (parser.nextToken()) {
           case START_ARRAY:
             writeListData(map.list(fieldName), childSelection);
@@ -547,12 +568,14 @@ public class JsonReader extends BaseJsonProcessor {
           case VALUE_FALSE:
             {
               incrementLeafCount();
+              incrementCurrentRowSize(MinorType.BIT, null);
               map.bit(fieldName).writeBit(0);
               break;
             }
           case VALUE_TRUE:
             {
               incrementLeafCount();
+              incrementCurrentRowSize(MinorType.BIT, null);
               map.bit(fieldName).writeBit(1);
               break;
             }
@@ -562,6 +585,7 @@ public class JsonReader extends BaseJsonProcessor {
           case VALUE_NUMBER_FLOAT:
             {
               incrementLeafCount();
+              incrementCurrentRowSize(MinorType.FLOAT8, null);
               map.float8(fieldName).writeFloat8(parser.getDoubleValue());
               break;
             }
@@ -569,8 +593,10 @@ public class JsonReader extends BaseJsonProcessor {
             {
               incrementLeafCount();
               if (this.readNumbersAsDouble) {
+                incrementCurrentRowSize(MinorType.FLOAT8, null);
                 map.float8(fieldName).writeFloat8(parser.getDoubleValue());
               } else {
+                incrementCurrentRowSize(MinorType.BIGINT, null);
                 map.bigInt(fieldName).writeBigInt(parser.getLongValue());
               }
               break;
@@ -931,7 +957,12 @@ public class JsonReader extends BaseJsonProcessor {
       writeNull(type, writer);
       return;
     }
-
+    if (CompleteType.DECIMAL.getType().equals(type)) {
+      incrementCurrentRowSize(MinorType.DECIMAL, ((BigDecimal) value).toBigInteger().toByteArray());
+    } else if (!CompleteType.VARCHAR.getType().equals(type)) {
+      // VARCHAR type will be checked in writeString method
+      incrementCurrentRowSize(Types.getMinorTypeForArrowType(type), null);
+    }
     if (CompleteType.BIT.getType().equals(type)) {
       writer.bit().writeBit((Integer) value);
     } else if (CompleteType.INT.getType().equals(type)) {
@@ -1199,6 +1230,7 @@ public class JsonReader extends BaseJsonProcessor {
       throws IOException {
     final int size = workingBuffer.prepareVarCharHolder(val);
     FieldSizeLimitExceptionHelper.checkSizeLimit(size, maxFieldSize, currentFieldName, logger);
+    incrementCurrentRowSize(MinorType.VARCHAR, val.getBytes(UTF_8));
     writer.varChar(fieldName).writeVarChar(0, size, workingBuffer.getBuf());
   }
 
@@ -1210,6 +1242,7 @@ public class JsonReader extends BaseJsonProcessor {
   private void writeString(String val, BaseWriter.ListWriter writer) throws IOException {
     final int size = workingBuffer.prepareVarCharHolder(val);
     FieldSizeLimitExceptionHelper.checkSizeLimit(size, maxFieldSize, currentFieldName, logger);
+    incrementCurrentRowSize(MinorType.VARCHAR, val.getBytes(UTF_8));
     writer.varChar().writeVarChar(0, size, workingBuffer.getBuf());
   }
 
@@ -1238,6 +1271,7 @@ public class JsonReader extends BaseJsonProcessor {
           case VALUE_FALSE:
             {
               incrementLeafCount();
+              incrementCurrentRowSize(MinorType.BIT, null);
               list.bit().writeBit(0);
               // dataSizeReadSoFar += 1; - not counting as it takes 1-bit per value
               break;
@@ -1245,6 +1279,7 @@ public class JsonReader extends BaseJsonProcessor {
           case VALUE_TRUE:
             {
               incrementLeafCount();
+              incrementCurrentRowSize(MinorType.BIT, null);
               list.bit().writeBit(1);
               // dataSizeReadSoFar += 1; - not counting as it takes 1-bit per value
               break;
@@ -1259,6 +1294,7 @@ public class JsonReader extends BaseJsonProcessor {
           case VALUE_NUMBER_FLOAT:
             {
               incrementLeafCount();
+              incrementCurrentRowSize(MinorType.FLOAT8, null);
               list.float8().writeFloat8(parser.getDoubleValue());
               dataSizeReadSoFar += 8;
               break;
@@ -1268,8 +1304,10 @@ public class JsonReader extends BaseJsonProcessor {
               incrementLeafCount();
               dataSizeReadSoFar += 8;
               if (this.readNumbersAsDouble) {
+                incrementCurrentRowSize(MinorType.FLOAT8, null);
                 list.float8().writeFloat8(parser.getDoubleValue());
               } else {
+                incrementCurrentRowSize(MinorType.BIGINT, null);
                 list.bigInt().writeBigInt(parser.getLongValue());
               }
               break;
@@ -1420,6 +1458,19 @@ public class JsonReader extends BaseJsonProcessor {
     if (errorMessage != null) {
       throw new TransformationException(
           errorMessage, parser.getCurrentLocation().getLineNr(), fieldName);
+    }
+  }
+
+  private void incrementCurrentRowSize(MinorType type, byte[] bytes) {
+    if (!rowSizeLimitEnabled) {
+      return;
+    }
+    if (type == MinorType.VARCHAR || type == MinorType.VARBINARY) {
+      currentRowSize += RowSizeUtil.getFieldSizeForVariableWidthType(bytes);
+    } else if (type == MinorType.DECIMAL) {
+      currentRowSize += RowSizeUtil.getFieldSizeForDecimalType(bytes.length);
+    } else {
+      currentRowSize += RowSizeUtil.getFixedLengthTypeSize(type);
     }
   }
 }

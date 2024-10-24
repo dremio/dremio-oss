@@ -141,27 +141,28 @@ public class DecimalFunctions {
 
     @Override
     public void eval() {
-      String s =
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
-              in.start, in.end, in.buffer);
-      java.math.BigDecimal bd =
-          new java.math.BigDecimal(s).setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
-
-      // Decimal value will be 0 if there is precision overflow.
-      // This is similar to DecimalFunctions:CastDecimalDecimal
-      if (com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(bd, (int) precision.value)) {
-        bd = new java.math.BigDecimal("0.0");
-      }
-
       try {
+        String s =
+            com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
+                in.start, in.end, in.buffer);
+        java.math.BigDecimal bd =
+            new java.math.BigDecimal(s).setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
+
+        // Decimal value will be 0 if there is precision overflow.
+        // This is similar to DecimalFunctions:CastDecimalDecimal
+        if (com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(
+            bd, (int) precision.value)) {
+          bd = new java.math.BigDecimal("0.0");
+        }
+
         org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(
             bd, buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+        out.buffer = buffer;
+        out.precision = (int) precision.value;
+        out.scale = (int) scale.value;
       } catch (RuntimeException e) {
         throw errorContext.error(e).build();
       }
-      out.buffer = buffer;
-      out.precision = (int) precision.value;
-      out.scale = (int) scale.value;
     }
   }
 
@@ -195,27 +196,27 @@ public class DecimalFunctions {
     public void eval() {
       out.isSet = in.isSet;
       if (in.isSet == 1) {
-        String s =
-            com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
-                in.start, in.end, in.buffer);
-        java.math.BigDecimal originalValue = new java.math.BigDecimal(s);
-        java.math.BigDecimal convertedValue =
-            originalValue.setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
-        int significantDigitsConverted = convertedValue.precision() - convertedValue.scale();
+        try {
+          String s =
+              com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
+                  in.start, in.end, in.buffer);
+          java.math.BigDecimal originalValue = new java.math.BigDecimal(s);
+          java.math.BigDecimal convertedValue =
+              originalValue.setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
+          int significantDigitsConverted = convertedValue.precision() - convertedValue.scale();
 
-        if (significantDigitsConverted > expectedSignificantDigits.value) {
-          out.isSet = 0;
-        } else {
-          out.isSet = 1;
-          try {
+          if (significantDigitsConverted > expectedSignificantDigits.value) {
+            out.isSet = 0;
+          } else {
+            out.isSet = 1;
             org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(
                 convertedValue, buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
-          } catch (RuntimeException e) {
-            throw errorContext.error(e).build();
+            out.buffer = buffer;
+            out.precision = (int) precision.value;
+            out.scale = (int) scale.value;
           }
-          out.buffer = buffer;
-          out.precision = (int) precision.value;
-          out.scale = (int) scale.value;
+        } catch (RuntimeException e) {
+          throw errorContext.error(e).build();
         }
       }
     }
@@ -249,31 +250,31 @@ public class DecimalFunctions {
     public void eval() {
       out.isSet = in.isSet;
       if (in.isSet == 1) {
-        long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
-        java.math.BigDecimal input =
-            org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(
-                in.buffer,
-                org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index),
-                in.scale,
-                org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
-        java.math.BigDecimal result =
-            input.setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
-        boolean overflow =
-            com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(
-                result, (int) precision.value);
-        if (overflow) {
-          out.isSet = 0;
-        } else {
-          out.isSet = 1;
-          try {
+        try {
+          long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
+          java.math.BigDecimal input =
+              org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(
+                  in.buffer,
+                  org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index),
+                  in.scale,
+                  org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+          java.math.BigDecimal result =
+              input.setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
+          boolean overflow =
+              com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(
+                  result, (int) precision.value);
+          if (overflow) {
+            out.isSet = 0;
+          } else {
+            out.isSet = 1;
             org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(
                 result, buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
-          } catch (RuntimeException e) {
-            throw errorContext.error(e).build();
+            out.buffer = buffer;
+            out.precision = (int) precision.value;
+            out.scale = (int) scale.value;
           }
-          out.buffer = buffer;
-          out.precision = (int) precision.value;
-          out.scale = (int) scale.value;
+        } catch (RuntimeException e) {
+          throw errorContext.error(e).build();
         }
       }
     }
@@ -305,32 +306,32 @@ public class DecimalFunctions {
 
     @Override
     public void eval() {
-      long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
-      java.math.BigDecimal input =
-          org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(
-              in.buffer,
-              org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index),
-              in.scale,
-              org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
-
-      java.math.BigDecimal result =
-          com.dremio.exec.expr.fn.impl.DecimalFunctions.roundWithPositiveScale(
-              input, (int) scale.value, java.math.RoundingMode.HALF_UP);
-
-      if (com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(
-          result, (int) precision.value)) {
-        result = new java.math.BigDecimal("0.0");
-      }
-
       try {
+        long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
+        java.math.BigDecimal input =
+            org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(
+                in.buffer,
+                org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index),
+                in.scale,
+                org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+
+        java.math.BigDecimal result =
+            com.dremio.exec.expr.fn.impl.DecimalFunctions.roundWithPositiveScale(
+                input, (int) scale.value, java.math.RoundingMode.HALF_UP);
+
+        if (com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(
+            result, (int) precision.value)) {
+          result = new java.math.BigDecimal("0.0");
+        }
+
         org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(
             result, buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+        out.buffer = buffer;
+        out.precision = (int) precision.value;
+        out.scale = (int) scale.value;
       } catch (RuntimeException e) {
         throw errorContext.error(e).build();
       }
-      out.buffer = buffer;
-      out.precision = (int) precision.value;
-      out.scale = (int) scale.value;
     }
   }
 
@@ -360,18 +361,18 @@ public class DecimalFunctions {
 
     @Override
     public void eval() {
-      java.math.BigDecimal bd =
-          java.math.BigDecimal.valueOf(in.value)
-              .setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
       try {
+        java.math.BigDecimal bd =
+            java.math.BigDecimal.valueOf(in.value)
+                .setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
         org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(
             bd, buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+        out.buffer = buffer;
+        out.precision = (int) precision.value;
+        out.scale = (int) scale.value;
       } catch (RuntimeException e) {
         throw errorContext.error(e).build();
       }
-      out.buffer = buffer;
-      out.precision = (int) precision.value;
-      out.scale = (int) scale.value;
     }
   }
 
@@ -401,18 +402,18 @@ public class DecimalFunctions {
 
     @Override
     public void eval() {
-      java.math.BigDecimal bd =
-          java.math.BigDecimal.valueOf(in.value)
-              .setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
       try {
+        java.math.BigDecimal bd =
+            java.math.BigDecimal.valueOf(in.value)
+                .setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
         org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(
             bd, buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+        out.buffer = buffer;
+        out.precision = (int) precision.value;
+        out.scale = (int) scale.value;
       } catch (RuntimeException e) {
         throw errorContext.error(e).build();
       }
-      out.buffer = buffer;
-      out.precision = (int) precision.value;
-      out.scale = (int) scale.value;
     }
   }
 
@@ -441,19 +442,19 @@ public class DecimalFunctions {
 
     @Override
     public void eval() {
-      out.isSet = 1;
-      java.math.BigDecimal bd =
-          java.math.BigDecimal.valueOf(in.value)
-              .setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
       try {
+        out.isSet = 1;
+        java.math.BigDecimal bd =
+            java.math.BigDecimal.valueOf(in.value)
+                .setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
         org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(
             bd, buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+        out.buffer = buffer;
+        out.precision = (int) precision.value;
+        out.scale = (int) scale.value;
       } catch (RuntimeException e) {
         throw errorContext.error(e).build();
       }
-      out.buffer = buffer;
-      out.precision = (int) precision.value;
-      out.scale = (int) scale.value;
     }
   }
 
@@ -483,18 +484,18 @@ public class DecimalFunctions {
 
     @Override
     public void eval() {
-      java.math.BigDecimal bd =
-          java.math.BigDecimal.valueOf(in.value)
-              .setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
       try {
+        java.math.BigDecimal bd =
+            java.math.BigDecimal.valueOf(in.value)
+                .setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
         org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(
             bd, buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+        out.buffer = buffer;
+        out.precision = (int) precision.value;
+        out.scale = (int) scale.value;
       } catch (RuntimeException e) {
         throw errorContext.error(e).build();
       }
-      out.buffer = buffer;
-      out.precision = (int) precision.value;
-      out.scale = (int) scale.value;
     }
   }
 

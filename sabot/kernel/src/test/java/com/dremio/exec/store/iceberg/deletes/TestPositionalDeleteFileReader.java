@@ -18,6 +18,7 @@ package com.dremio.exec.store.iceberg.deletes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.store.iceberg.IcebergTestTables;
 import com.dremio.exec.store.parquet.InputStreamProviderFactory;
@@ -44,23 +45,27 @@ public class TestPositionalDeleteFileReader extends BaseTestOperator {
   // DATA_FILE_2: []
   private static final Path DELETE_FILE_2 =
       Path.of(
-          "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/delete-2021-02.parquet");
+          IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH
+              + "/data/2021/delete-2021-02.parquet");
 
   // Test file with 1000 rows split across two row groups.  First row group has 552 rows, second has
   // 448.
   // order_id values range from 6000 - 6999
   private static final String DATA_FILE_0 =
-      "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-00.parquet";
+      IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH
+          + "/data/2021/2021-00.parquet";
   // Test file with 1000 rows split across two row groups.  First row group has 551 rows, second has
   // 449.
   // order_id values range from 7000 - 7999
   private static final String DATA_FILE_1 =
-      "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-01.parquet";
+      IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH
+          + "/data/2021/2021-01.parquet";
   // Test file with 1000 rows split across two row groups.  First row group has 552 rows, second has
   // 448.
   // order_id values range from 8000 - 8999
   private static final String DATA_FILE_2 =
-      "/tmp/iceberg-test-tables/v2/multi_rowgroup_orders_with_deletes/data/2021/2021-02.parquet";
+      IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES_FULL_PATH
+          + "/data/2021/2021-02.parquet";
 
   private static final int DEFAULT_BATCH_SIZE = 42;
 
@@ -76,9 +81,7 @@ public class TestPositionalDeleteFileReader extends BaseTestOperator {
 
   @AfterClass
   public static void closeTables() throws Exception {
-    if (table != null) {
-      table.close();
-    }
+    AutoCloseables.close(table);
   }
 
   @Before

@@ -19,14 +19,19 @@ import { injectIntl } from "react-intl";
 import PropTypes from "prop-types";
 
 import SelectConnectionButton from "components/SelectConnectionButton";
-import { sourceTypesIncludeS3 } from "utils/sourceUtils";
-import { sourceTypesIncludeSampleSource } from "utils/sourceUtils";
+import {
+  sourceTypesIncludeS3,
+  sourceTypesIncludeSampleSource,
+} from "@inject/utils/sourceUtils";
+
 import {
   isDatabaseType,
   isMetastoreSourceType,
   isDataPlaneSourceType,
+  isLakehouseSourceType,
+  isVersionedSoftwareSource,
   AZURE_SAMPLE_SOURCE,
-} from "@app/constants/sourceTypes";
+} from "@inject/constants/sourceTypes";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import "pages/HomePage/components/modals/AddSourceModal/SelectSourceType.less";
 import SearchSource from "./SearchSource";
@@ -164,39 +169,7 @@ export default class SelectSourceType extends Component {
     );
   }
 
-  renderDataPlanSources() {
-    const { sourceTypes, intl } = this.props;
-    const { filteredSourceTypes } = this.state;
-    const sources = filteredSourceTypes || sourceTypes;
-    const dataPlaneSources = sources.filter((source) =>
-      isDataPlaneSourceType(source.sourceType),
-    );
-    return (
-      dataPlaneSources.length > 0 && (
-        <div className="SelectSourceType">
-          <div className="main">
-            <div className="source-type-section">
-              <div className="source-type-header">
-                {intl.formatMessage({
-                  id: isNotSoftware()
-                    ? "Source.ArcticCatalogs"
-                    : "Source.NessieCatalogs",
-                })}
-              </div>
-              {this.renderSourceTypes(
-                this.getEnabledSourceTypes(dataPlaneSources),
-              )}
-              {this.renderSourceTypes(
-                this.getDisabledSourceTypes(dataPlaneSources),
-              )}
-            </div>
-          </div>
-        </div>
-      )
-    );
-  }
-
-  renderDataLakeSources() {
+  renderLakehouseSources() {
     const { sourceTypes, intl } = this.props;
     const { filteredSourceTypes, searchString } = this.state;
     const sources = filteredSourceTypes || sourceTypes;
@@ -207,12 +180,15 @@ export default class SelectSourceType extends Component {
       (source) =>
         !isDatabaseType(source.sourceType) &&
         !isMetastoreSourceType(source.sourceType) &&
+        !isLakehouseSourceType(source.sourceType) &&
+        !isVersionedSoftwareSource(source.sourceType) &&
         !isDataPlaneSourceType(source.sourceType) &&
         !(isAzureProject && source.sourceType === AZURE_SAMPLE_SOURCE),
     );
-    const tableStoreSources = sources.filter((source) =>
-      isMetastoreSourceType(source.sourceType),
+    const lakehouseSources = sources.filter((source) =>
+      isLakehouseSourceType(source.sourceType),
     );
+
     const sampleSource = "Sample Source";
     const renderSampleSource = filteredSourceTypes
       ? sampleSource.toLowerCase().indexOf(searchString) > -1
@@ -222,21 +198,19 @@ export default class SelectSourceType extends Component {
       : sourceTypesIncludeS3(sourceTypes);
 
     return (
-      (fileStoreSources.length > 0 ||
-        tableStoreSources.length > 0 ||
-        renderSampleSource) && (
+      (fileStoreSources.length > 0 || renderSampleSource) && (
         <div className="SelectSourceType">
           <div className="main">
-            {tableStoreSources.length > 0 && (
+            {lakehouseSources.length > 0 && (
               <div className="source-type-section">
                 <div className="source-type-header">
-                  {intl.formatMessage({ id: "Source.MetaStores" })}
+                  {intl.formatMessage({ id: "Source.LakehouseCatalogs" })}
                 </div>
                 {this.renderSourceTypes(
-                  this.getEnabledSourceTypes(tableStoreSources),
+                  this.getEnabledSourceTypes(lakehouseSources),
                 )}
                 {this.renderSourceTypes(
-                  this.getDisabledSourceTypes(tableStoreSources),
+                  this.getDisabledSourceTypes(lakehouseSources),
                 )}
               </div>
             )}
@@ -266,8 +240,7 @@ export default class SelectSourceType extends Component {
     return (
       <>
         {this.renderSearchBox()}
-        {this.renderDataPlanSources()}
-        {this.renderDataLakeSources()}
+        {this.renderLakehouseSources()}
         {this.renderExternalSources()}
       </>
     );

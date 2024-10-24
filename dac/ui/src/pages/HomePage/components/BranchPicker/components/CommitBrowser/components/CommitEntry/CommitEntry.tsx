@@ -17,19 +17,19 @@ import { useIntl } from "react-intl";
 import {
   CommitMetaV2 as CommitMeta,
   LogEntryV2 as LogEntry,
-} from "@app/services/nessie/client";
+} from "#oss/services/nessie/client";
 import {
   DEFAULT_FORMAT_WITH_TIME,
   formatDate,
   formatDateSince,
-} from "@app/utils/date";
+} from "#oss/utils/date";
 import { Tooltip } from "@mui/material";
 import classNames from "clsx";
 import { useRef } from "react";
 import { Avatar } from "dremio-ui-lib/components";
 import CommitHash from "../CommitHash/CommitHash";
-import { Reference } from "@app/types/nessie";
-import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+import { Reference } from "#oss/types/nessie";
+import { nameToInitials } from "#oss/exports/utilities/nameToInitials";
 
 import "./CommitEntry.less";
 

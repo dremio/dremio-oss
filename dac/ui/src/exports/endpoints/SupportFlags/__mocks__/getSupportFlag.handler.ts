@@ -23,7 +23,7 @@ const originalMockData = booleanSupportFlags;
 let mockData = originalMockData;
 
 export const setMockData = (
-  newMockData: Record<string, SupportFlagResponse<boolean>>
+  newMockData: Record<string, SupportFlagResponse<boolean>>,
 ) => {
   mockData = newMockData;
 };
@@ -34,7 +34,7 @@ export const restoreMockData = () => {
 
 export const getSupportFlagHandler = rest.get(
   decodeURIComponent(
-    getSupportFlagUrl(":featureId").replace(`//${window.location.host}`, "")
+    getSupportFlagUrl(":featureId").replace(`//${window.location.host}`, ""),
   ),
   (req, res, ctx) => {
     const id = req.params.featureId as string;
@@ -44,5 +44,5 @@ export const getSupportFlagHandler = rest.get(
       value: false, // Not mocked, disable by default
     };
     return res(ctx.delay(200), ctx.json(response));
-  }
+  },
 );

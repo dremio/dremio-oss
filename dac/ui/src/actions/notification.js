@@ -21,7 +21,7 @@ export function addNotification(
   level,
   autoDismiss = 0,
   uid = null,
-  options = {}
+  options = {},
 ) {
   return {
     type: ADD_NOTIFICATION,

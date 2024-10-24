@@ -81,13 +81,15 @@ public class ExternalMaterializationDescriptor extends BaseMaterializationDescri
     return new DremioMaterialization(
         tableRel,
         queryRel,
+        queryRel,
+        tableRel,
         IncrementalUpdateSettings.NON_INCREMENTAL,
         null,
         reflection,
         getMaterializationId(),
         null,
         Long.MAX_VALUE,
-        StrippingFactory.LATEST_STRIP_VERSION,
-        null);
+        false,
+        StrippingFactory.LATEST_STRIP_VERSION);
   }
 }

@@ -16,7 +16,7 @@
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import classNames from "clsx";
-import { getSidebarSize } from "@app/selectors/home";
+import { getSidebarSize } from "#oss/selectors/home";
 import { sidebarColumn, homeRow, mainGridColumn } from "./Columns.less";
 
 const mapStateToProps = (state) => ({
@@ -46,11 +46,13 @@ export const GridColumn = containerFactory(mainGridColumn);
 
 export const SidebarColumnView = containerFactory(sidebarColumn);
 
-export const SidebarColumn = connect(mapStateToProps)(
-  ({ rightSidebarWidth, style, ...rest }) => {
-    const resultStyle = rightSidebarWidth
-      ? { ...style, width: rightSidebarWidth }
-      : style;
-    return <SidebarColumnView style={resultStyle} {...rest} />;
-  }
-);
+export const SidebarColumn = connect(mapStateToProps)(({
+  rightSidebarWidth,
+  style,
+  ...rest
+}) => {
+  const resultStyle = rightSidebarWidth
+    ? { ...style, width: rightSidebarWidth }
+    : style;
+  return <SidebarColumnView style={resultStyle} {...rest} />;
+});

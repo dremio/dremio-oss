@@ -17,8 +17,8 @@
 import { useEffect, useRef } from "react";
 import { SmartResource } from "smart-resource";
 import { useResourceSnapshot, useResourceStatus } from "smart-resource/react";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
-import { FetchOption } from "@app/services/nessie/client/index";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
+import { FetchOption } from "#oss/services/nessie/client/index";
 
 export const useVersionedCommitTags = (commitId: string) => {
   const { apiV2 } = useNessieContext();

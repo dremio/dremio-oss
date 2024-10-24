@@ -18,7 +18,7 @@ import {
   CLEAR_FULL_CELL_VALUE,
   LOAD_FULL_CELL_VALUE_SUCCESS,
 } from "actions/explore/dataset/data";
-import { getModuleState } from "@app/selectors/moduleState";
+import { getModuleState } from "#oss/selectors/moduleState";
 
 // describes a state which is used in case when user clicks '...' button explore page table.
 // as this functionality is used not only on explore page, but on adding a fail for example,

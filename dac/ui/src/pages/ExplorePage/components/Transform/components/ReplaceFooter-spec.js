@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 
-import { BOOLEAN, TEXT, DATE } from "@app/constants/DataTypes";
+import { BOOLEAN, TEXT, DATE } from "#oss/constants/DataTypes";
 
 import ReplaceFooter from "./ReplaceFooter";
 

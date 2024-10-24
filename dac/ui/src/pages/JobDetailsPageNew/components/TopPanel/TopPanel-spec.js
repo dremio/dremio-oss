@@ -77,7 +77,7 @@ describe("TopPanel", () => {
     const wrapper = shallow(<TopPanel {...props} />);
     const element = wrapper.find('[data-qa="open-results-link"]');
     expect(element.props().to.pathname).to.equal(
-      `/space/${encodedPath[0]}/${encodedPath[1]}`
+      `/space/${encodedPath[0]}/${encodedPath[1]}`,
     );
   });
 
@@ -103,7 +103,7 @@ describe("TopPanel", () => {
     const wrapper = shallow(<TopPanel {...props} />);
     const element = wrapper.find('[data-qa="open-results-link"]');
     expect(element.props().to.pathname).to.equal(
-      `/space/${encodedPath[0]}/${encodedPath[1]}.${encodedPath[2]}.${encodedPath[3]}`
+      `/space/${encodedPath[0]}/${encodedPath[1]}.${encodedPath[2]}.${encodedPath[3]}`,
     );
   });
 
@@ -129,7 +129,7 @@ describe("TopPanel", () => {
 
     const { container } = render(<TopPanel {...props} />);
     const element = container.getElementsByClassName(
-      "topPanel__openResults"
+      "topPanel__openResults",
     )[0];
     expect(element.children.length).to.equal(0);
   });

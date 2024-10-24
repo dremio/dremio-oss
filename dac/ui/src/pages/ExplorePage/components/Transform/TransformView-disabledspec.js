@@ -23,7 +23,7 @@ import ReplacePatternForm from "pages/ExplorePage/components/Transform/component
 import ExtractListForm from "pages/ExplorePage/components/Transform/components/forms/ExtractListForm";
 import ExtractMapForm from "pages/ExplorePage/components/Transform/components/forms/ExtractMapForm";
 
-import { LIST, MAP } from "@app/constants/DataTypes";
+import { LIST, MAP } from "#oss/constants/DataTypes";
 
 import cards from "./mocks/cards.json";
 import fields from "./mocks/fields.json";
@@ -96,17 +96,17 @@ describe("TransformView", () => {
     });
     wrapper = shallow(
       <TransformView {...commonProps} transform={transform} />,
-      { context }
+      { context },
     );
 
     expect(wrapper.find(Tabs)).to.have.length(6);
     expect(wrapper.find(Tabs).at(0).prop("activeTab")).to.eql("replace");
     expect(wrapper.find(ReplacePatternForm)).to.exist;
     expect(wrapper.find(ReplacePatternForm).at(0).prop("transform")).to.eql(
-      transform
+      transform,
     );
     expect(
-      wrapper.find(ReplacePatternForm).at(0).prop("loadTransformCardPreview")
+      wrapper.find(ReplacePatternForm).at(0).prop("loadTransformCardPreview"),
     ).to.eql(commonProps.loadTransformCardPreview);
   });
 
@@ -117,7 +117,7 @@ describe("TransformView", () => {
     });
     wrapper = shallow(
       <TransformView {...commonProps} transform={transform} />,
-      { context }
+      { context },
     );
 
     expect(wrapper.find(Tabs).at(0).prop("activeTab")).to.eql("extract");
@@ -132,7 +132,7 @@ describe("TransformView", () => {
     });
     wrapper = shallow(
       <TransformView {...commonProps} transform={transform} />,
-      { context }
+      { context },
     );
 
     expect(wrapper.find(Tabs).at(0).prop("activeTab")).to.eql("extract");
@@ -157,7 +157,7 @@ describe("TransformView", () => {
           {...commonProps}
           subTitles={subTitles}
           transform={transform}
-        />
+        />,
       ).instance();
       sinon
         .stub(instance, "renderSubHeadersTitle")

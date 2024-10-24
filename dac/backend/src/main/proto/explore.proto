@@ -17,7 +17,7 @@ syntax="proto2";
 package com.dremio.dac.proto.model.dataset;
 
 import "dataset.proto";
-import "SourceVersionReference.proto"
+import "SourceVersionReference.proto";
 
 option java_package = "com.dremio.dac.proto.model.dataset";
 option optimize_for = SPEED;
@@ -539,6 +539,8 @@ enum MeasureType {
   Standard_Deviation = 7;
   Standard_Deviation_Population = 8;
   Count_Star = 9;
+  Variance = 10;
+  Variance_Population = 11;
 }
 message Measure {
   optional string column = 1; //required if measureType != COUNT_STAR, null otherwise

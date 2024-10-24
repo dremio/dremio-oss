@@ -16,8 +16,8 @@
 import FormUtils from "utils/FormUtils/FormUtils";
 import { inlineHelp, elementContainer } from "uiTheme/less/forms.less";
 import { useContext } from "react";
-import { FormContext } from "@app/pages/HomePage/components/modals/formContext";
-import { ElementConfig } from "@app/types/Sources/SourceFormTypes";
+import { FormContext } from "#oss/pages/HomePage/components/modals/formContext";
+import { ElementConfig } from "#oss/types/Sources/SourceFormTypes";
 
 type FormElementProps = {
   style: Record<string, any>;
@@ -42,7 +42,7 @@ export default function FormElement({
 
     const field = FormUtils.getFieldByComplexPropName(
       fields,
-      elementConfig.getPropName()
+      elementConfig.getPropName(),
     );
     const Renderer = elementConfig.getRenderer({ sourceType, propName });
 

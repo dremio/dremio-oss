@@ -14,26 +14,28 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/mixins.less";
+@import "~#oss/uiTheme/less/mixins.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .sqlAutocomplete {
-    border: 1px solid var(--border--neutral);
+    border: 1px solid var(--color--neutral--75);
     border-radius: 4px;
     min-height: 40px;
     margin-left: 10px;
     margin-top: 8px;
     min-width: 300px;
+    background-color: white;
 
     &.vs-dark {
-      background-color: #333333;
+      background-color: var(--color--neutral--800);
+      border-color: var(--color--neutral--600);
 
       .sqlAutocomplete__actions {
-        border-color: #6f6f6f;
+        border-color: var(--color--neutral--600);
 
         .sqlAutocomplete__context {
-          color: white;
+          color: var(--color--neutral--100);
         }
       }
     }
@@ -62,24 +64,24 @@
   .sql__lightIcon {
     width: 24px;
     height: 24px;
-    color: var(--icon--primary) !important;
+    color: var(--color--neutral--500) !important;
     &:hover {
-      color: var(--icon--hover) !important;
+      color: var(--color--brand--450) !important;
     }
   }
 
   .sql__darkIcon {
     width: 24px;
     height: 24px;
-    color: var(--dremio--default--dark--mode) !important;
+    color: var(--color--neutral--100) !important;
     &:hover {
-      color: var(--dremio--hover--dark--mode) !important;
+      color: var(--color--brand--250) !important;
     }
   }
 
   .sqlAutocomplete__actions {
     align-items: center;
-    border-bottom: 1px solid var(--border--neutral);
+    border-bottom: 1px solid var(--color--neutral--75);
     display: flex;
     justify-content: flex-end;
     gap: 12px;
@@ -90,11 +92,21 @@
   .sqlAutocomplete__context {
     display: flex;
     align-items: center;
+    color: var(--color--neutral--800);
+  }
+
+  .vs-dark {
+    .sqlAutoComplete_actions {
+      border-color: var(--color--neutral--600);
+    }
+    .sqlAutocomplete__context {
+      color: var(--color--neutral--100);
+    }
   }
 
   .sqlAutocomplete__contextText-light,
   .sqlAutocomplete__contextText-dark {
-    color: var(--text--brand);
+    color: var(--color--brand--450);
     cursor: pointer;
     margin-left: 5px;
 
@@ -107,6 +119,6 @@
   }
 
   .sqlAutocomplete__contextText-dark {
-    color: #80dfe3;
+    color: var(--color--brand--250);
   }
 }

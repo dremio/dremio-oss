@@ -18,7 +18,7 @@ import Immutable from "immutable";
 import * as ActionTypes from "actions/explore/ui";
 import * as QlikActions from "actions/qlik";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
-import { hashHeightTopSplitter } from "@app/constants/explorePage/heightTopSplitter";
+import { hashHeightTopSplitter } from "#oss/constants/explorePage/heightTopSplitter";
 
 function getInitialState() {
   return Immutable.fromJS({

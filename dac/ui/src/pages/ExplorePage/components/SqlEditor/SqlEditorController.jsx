@@ -19,7 +19,7 @@ import Immutable from "immutable";
 
 import PropTypes from "prop-types";
 
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 
 import {
   setCurrentSql,
@@ -28,23 +28,23 @@ import {
   setUpdateSqlFromHistory,
   resetQueryState,
   setEditorContents,
-} from "@app/actions/explore/view";
+} from "#oss/actions/explore/view";
 
 import { constructFullPath } from "utils/pathUtils";
 import { replace } from "react-router-redux";
-import { showUnsavedChangesConfirmDialog } from "@app/actions/confirmation";
-import { addNotification } from "@app/actions/notification";
+import { showUnsavedChangesConfirmDialog } from "#oss/actions/confirmation";
+import { addNotification } from "#oss/actions/notification";
 
 import { compose } from "redux";
-import { INITIAL_CALL_VALUE } from "@app/components/SQLScripts/sqlScriptsUtils";
-import { fetchScripts, setActiveScript } from "@app/actions/resources/scripts";
-import { getActiveScript } from "@app/selectors/scripts";
+import { INITIAL_CALL_VALUE } from "#oss/components/SQLScripts/sqlScriptsUtils";
+import { fetchScripts, setActiveScript } from "#oss/actions/resources/scripts";
+import { getActiveScript } from "#oss/selectors/scripts";
 import SqlAutoComplete from "./SqlAutoComplete";
 import SQLFunctionsPanel from "./SQLFunctionsPanel";
-import { memoOne } from "@app/utils/memoUtils";
+import { memoOne } from "#oss/utils/memoUtils";
 import { extractSqlErrorFromResponse } from "./utils/errorUtils";
-import { getLocation } from "@app/selectors/routing";
-import { intl } from "@app/utils/intl";
+import { getLocation } from "#oss/selectors/routing";
+import { intl } from "#oss/utils/intl";
 import { getTracingContext } from "dremio-ui-common/contexts/TracingContext.js";
 import {
   withExtraSQLEditorContent,
@@ -52,8 +52,8 @@ import {
   EXTRA_SQL_TRACKING_EVENT,
 } from "@inject/utils/sql-editor-extra";
 import { selectTab } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
-import { isScriptUrl, isTabbableUrl } from "@app/utils/explorePageTypeUtils";
-
+import { isScriptUrl, isTabbableUrl } from "#oss/utils/explorePageTypeUtils";
+import { withColorScheme } from "dremio-ui-common/utilities/themeUtils.js";
 const toolbarHeight = 41;
 
 export class SqlEditorController extends PureComponent {
@@ -68,6 +68,7 @@ export class SqlEditorController extends PureComponent {
     handleSidebarCollapse: PropTypes.func,
     sidebarCollapsed: PropTypes.bool,
     editorWidth: PropTypes.any,
+    colorScheme: PropTypes.string,
 
     //connected by redux connect
     currentSql: PropTypes.string,
@@ -127,7 +128,9 @@ export class SqlEditorController extends PureComponent {
       this.setState({ shouldLoadHistory: true });
     }
 
-    this.setState({ defaultValue: this.getDefaultValue() });
+    this.setState({
+      defaultValue: this.getDefaultValue(),
+    });
   }
 
   UNSAFE_componentWillReceiveProps(nextProps) {
@@ -135,8 +138,13 @@ export class SqlEditorController extends PureComponent {
   }
 
   componentDidUpdate(prevProps) {
-    const { activeScript, dataset, isMultiQueryRunning, setEditorContents } =
-      this.props;
+    const {
+      activeScript,
+      dataset,
+      isMultiQueryRunning,
+      setEditorContents,
+      colorScheme,
+    } = this.props;
     const { shouldLoadHistory } = this.state;
     const isNewQueryClick =
       this.props.dataset.get("isNewQuery") &&
@@ -154,7 +162,7 @@ export class SqlEditorController extends PureComponent {
     // open right datasets panel after new query click
     if (isNewQueryClick) {
       //TODO: is there a cleaner way?
-      this.setState({ datasetsPanel: true }); // eslint-disable-line react/no-did-update-set-state
+      this.setState({ datasetsPanel: true });
     }
 
     const controller = this.getMonacoEditor();
@@ -524,6 +532,7 @@ export class SqlEditorController extends PureComponent {
         serverSqlErrors={this.getServerSqlErrors()}
         editorWidth={this.props.editorWidth}
         hasExtraSQLPanelContent={this.props.hasExtraSQLPanelContent}
+        isDarkMode={this.props.colorScheme === "dark"}
       />
     );
 
@@ -572,6 +581,7 @@ function mapStateToProps(state) {
 }
 
 export default compose(
+  withColorScheme,
   withExtraSQLEditorContent,
   connect(
     mapStateToProps,

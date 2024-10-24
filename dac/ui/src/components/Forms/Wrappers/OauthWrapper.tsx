@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { DATAPLANE_OAUTH_CLIENT_AUTH_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { useSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { DATAPLANE_OAUTH_CLIENT_AUTH_ENABLED } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 import ContainerSelection from "components/Forms/ContainerSelection";
 
 export default function OauthWrapper({

@@ -28,7 +28,7 @@ import { UPDATE_COLUMN_FILTER } from "actions/explore/view";
 import {
   JOB_STATUS,
   isWorking,
-} from "@app/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatus";
+} from "#oss/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatus";
 
 export default function table(state, action) {
   switch (action.type) {
@@ -36,7 +36,7 @@ export default function table(state, action) {
       if (action.meta.nextTable) {
         return state.setIn(
           ["tableData", action.meta.nextTable.get("version")],
-          action.meta.nextTable
+          action.meta.nextTable,
         );
       }
       return state;
@@ -59,7 +59,7 @@ export default function table(state, action) {
     case UPDATE_COLUMN_FILTER:
       return state.setIn(
         ["tableData", action.datasetVersion, "columnFilter"],
-        action.columnFilter
+        action.columnFilter,
       );
     case INIT_EXPLORE_JOB_PROGRESS:
       return state.setIn(["tableData", "jobProgress"], {
@@ -112,7 +112,7 @@ export default function table(state, action) {
       if (jobUpdate.outputRecords != null && jobUpdate.datasetVersion) {
         return newState.setIn(
           ["tableData", jobUpdate.datasetVersion, "outputRecords"],
-          jobUpdate.outputRecords
+          jobUpdate.outputRecords,
         );
       }
 

@@ -15,14 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -35,7 +29,7 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-public class SqlRevokeCatalog extends SqlCall implements SimpleDirectHandler.Creator {
+public final class SqlRevokeCatalog extends SqlCall {
   private final SqlNodeList privilegeList;
   private final SqlLiteral grantType;
   private final SqlIdentifier entity;
@@ -98,25 +92,6 @@ public class SqlRevokeCatalog extends SqlCall implements SimpleDirectHandler.Cre
     grantType.unparse(writer, 0, 0);
     writer.keyword("FROM");
     grantee.unparse(writer, leftPrec, rightPrec);
-  }
-
-  @Override
-  public SimpleDirectHandler toDirectHandler(QueryContext context) {
-    try {
-      final Class<?> cl =
-          Class.forName("com.dremio.exec.planner.sql.handlers.RevokeCatalogHandler");
-      final Constructor<?> ctor = cl.getConstructor(QueryContext.class);
-      return (SimpleDirectHandler) ctor.newInstance(context);
-    } catch (ClassNotFoundException e) {
-      throw UserException.unsupportedError(e)
-          .message("REVOKE action is not supported")
-          .buildSilently();
-    } catch (InstantiationException
-        | IllegalAccessException
-        | NoSuchMethodException
-        | InvocationTargetException e) {
-      throw Throwables.propagate(e);
-    }
   }
 
   public SqlNodeList getPrivilegeList() {

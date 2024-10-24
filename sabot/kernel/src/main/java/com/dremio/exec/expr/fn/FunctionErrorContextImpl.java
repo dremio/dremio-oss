@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.expr.fn;
 
+import static com.dremio.sabot.op.project.ProjectErrorUtils.OUTPUT_FIELD_ID;
+
 import com.dremio.common.exceptions.UserException;
 import com.google.errorprone.annotations.FormatMethod;
 
@@ -25,6 +27,10 @@ public class FunctionErrorContextImpl implements FunctionErrorContext {
 
   private int
       id; // ID by which the error context is registered within a FunctionContext. -1 == unassigned
+
+  // stores field IDs of those columns of the input vector container that will be used as input to
+  // the associated func
+  private int outputFieldId = -1;
 
   /** Creation only exposed through {@link FunctionErrorContextBuilder} */
   FunctionErrorContextImpl() {
@@ -42,6 +48,11 @@ public class FunctionErrorContextImpl implements FunctionErrorContext {
   }
 
   @Override
+  public void registerOutputFieldId(int fieldId) {
+    this.outputFieldId = fieldId;
+  }
+
+  @Override
   public ExceptionBuilder error() {
     return addFullContext(new ExceptionBuilderImpl());
   }
@@ -56,7 +67,7 @@ public class FunctionErrorContextImpl implements FunctionErrorContext {
     return b;
   }
 
-  private static class ExceptionBuilderImpl implements FunctionErrorContext.ExceptionBuilder {
+  private class ExceptionBuilderImpl implements FunctionErrorContext.ExceptionBuilder {
     private UserException.Builder b;
 
     ExceptionBuilderImpl() {
@@ -102,6 +113,9 @@ public class FunctionErrorContextImpl implements FunctionErrorContext {
     /** Builds an exception that can be thrown by the caller */
     @Override
     public RuntimeException build() {
+      if (outputFieldId != -1) {
+        addContext(OUTPUT_FIELD_ID, Integer.toString(outputFieldId));
+      }
       return b.build(logger);
     }
   }

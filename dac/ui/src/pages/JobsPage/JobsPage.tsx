@@ -16,12 +16,12 @@
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { withRouter, WithRouterProps } from "react-router";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import clsx from "clsx";
 // @ts-ignore
 import DocumentTitle from "react-document-title";
 
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
+import { SonarSideNav } from "#oss/exports/components/SideNav/SonarSideNav";
 import NavCrumbs from "@inject/components/NavCrumbs/NavCrumbs";
 // @ts-ignore
 import { JobsTable } from "dremio-ui-common/sonar/components/JobsTable/JobsTable.js";
@@ -30,7 +30,7 @@ import { jobsPageTableColumns } from "dremio-ui-common/sonar/components/JobsTabl
 import JobsFilters from "./components/JobsFilters/JobsFilter";
 import { JobsQueryParams } from "dremio-ui-common/types/Jobs.types";
 import { getShowHideColumns } from "./components/JobsFilters/utils";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 import { DatasetCell } from "./components/DatasetCell/DatasetCell";
 import { SQLCell } from "./components/SQLCell/SQLCell";
 import { JobLink } from "./components/JobLink/JobLink";
@@ -40,6 +40,8 @@ import { JobSortColumns, formatJobQueryState } from "./jobs-page-utils";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
 
 import classes from "./JobsPage.module.less";
+import { PageTop } from "dremio-ui-common/components/PageTop.js";
+import { SearchTriggerWrapper } from "#oss/exports/searchModal/SearchTriggerWrapper";
 
 const loadingSkeletonRows = Array(10).fill(null);
 
@@ -91,7 +93,7 @@ const JobsPage = ({
         });
       }
     },
-    [router, query, location]
+    [router, query, location],
   );
 
   const columns = useMemo(() => {
@@ -100,7 +102,7 @@ const JobsPage = ({
       renderJobLink,
       renderDataset,
       renderSQL,
-      !isNotSoftware()
+      !isNotSoftware(),
     )
       .sort((a: any, b: any) => {
         const colA = manageColumns.find((col: any) => col.id === a.id);
@@ -109,7 +111,7 @@ const JobsPage = ({
       })
       .filter(
         (col: any) =>
-          manageColumns.find((tCol: any) => tCol.id === col.id).selected
+          manageColumns.find((tCol: any) => tCol.id === col.id).selected,
       );
   }, [manageColumns]);
 
@@ -121,7 +123,7 @@ const JobsPage = ({
         data: data ? runningJobs?.get(data.id) || data : null,
       };
     },
-    [curJobs, runningJobs]
+    [curJobs, runningJobs],
   );
 
   useLayoutEffect(() => {
@@ -139,10 +141,13 @@ const JobsPage = ({
       <div
         className={clsx(
           classes["jobs-page__content"],
-          "dremio-layout-container --vertical"
+          "dremio-layout-container --vertical",
         )}
       >
-        <NavCrumbs />
+        <PageTop>
+          <NavCrumbs />
+          <SearchTriggerWrapper className="ml-auto" />
+        </PageTop>
         <JobsFilters
           query={query}
           manageColumns={manageColumns}

@@ -17,7 +17,7 @@
 // @ts-expect-error no import type from ui-common
 import type { Script } from "dremio-ui-common/sonar/scripts/Script.type.js";
 import exploreJobsReducer, { ExploreJobsState } from "./exploreJobs";
-import { SET_TAB_VIEW, REMOVE_TAB_VIEW } from "@app/actions/resources/scripts";
+import { SET_TAB_VIEW, REMOVE_TAB_VIEW } from "#oss/actions/resources/scripts";
 import { cloneDeep } from "lodash";
 
 type TabsExploreJobsState = {

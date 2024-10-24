@@ -303,8 +303,8 @@ export class ErrorDetectionEngine {
     for (const tokenType of tokenTypes) {
       const tokenName = LiveEditParser.VOCABULARY.getSymbolicName(tokenType);
       if (
-        ErrorDetectionEngine.EXPECTED_TOKENS_NAME_FILTER.some(
-          (nameFilter) => tokenName?.match(nameFilter),
+        ErrorDetectionEngine.EXPECTED_TOKENS_NAME_FILTER.some((nameFilter) =>
+          tokenName?.match(nameFilter),
         )
       ) {
         expectedTokens.remove(tokenType);

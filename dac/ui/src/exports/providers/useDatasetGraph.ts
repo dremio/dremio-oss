@@ -18,8 +18,8 @@ import { useEffect } from "react";
 import { Resource } from "smart-resource1";
 import { useResourceSnapshot } from "smart-resource1/react";
 import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
-import { DatasetGraphResource } from "@app/exports/resources/DatasetGraphResource";
-import { DatasetGraphResponse } from "@app/exports/types/DatasetGraph.type";
+import { DatasetGraphResource } from "#oss/exports/resources/DatasetGraphResource";
+import { DatasetGraphResponse } from "#oss/exports/types/DatasetGraph.type";
 import { useIsArsEnabled } from "@inject/utils/arsUtils";
 
 const logger = getLoggingContext().createLogger("useDatasetGraph");

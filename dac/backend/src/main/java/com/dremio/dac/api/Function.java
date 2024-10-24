@@ -149,7 +149,7 @@ public class Function implements CatalogEntity {
     return writer.toString();
   }
 
-  private static String returnTypeToString(CompleteType type) {
+  public static String returnTypeToString(CompleteType type) {
     SqlWriter writer = getSqlWriter();
     if (!type.isScalar()) {
       if (type.isStruct()) {

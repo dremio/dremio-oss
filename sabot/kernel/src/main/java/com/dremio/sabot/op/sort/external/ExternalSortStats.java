@@ -67,7 +67,10 @@ public class ExternalSortStats {
 
     OOM_ALLOCATE_COUNT,
     OOM_COPY_COUNT,
-    ;
+    CAN_CONSUME_MILLIS,
+    CAN_PRODUCE_MILLIS,
+    SETUP_MILLIS,
+    NO_MORE_TO_CONSUME_MILLIS;
 
     private final UserBitShared.MetricDef.DisplayType displayType;
     private final UserBitShared.MetricDef.AggregationType aggregationType;

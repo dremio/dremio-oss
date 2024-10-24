@@ -22,13 +22,13 @@ import static org.junit.Assert.assertTrue;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.PlanTestBase;
-import com.dremio.QueryTestUtil;
 import com.dremio.TestBuilder;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.fn.interp.TestConstantFolding;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.QueryType;
+import com.dremio.sabot.op.fromjson.ConvertFromJsonConverter;
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -73,17 +73,13 @@ public class TestFlatten extends PlanTestBase {
             "select convert_from(columns[1], 'JSON') from dfs.\"%s/store/text/convertFrom.tbl\"",
             TEST_RES_PATH);
     errorMsgWithTypeTestHelper(
-        queryConvert,
-        ErrorType.VALIDATION,
-        "Using CONVERT_FROM(*, 'JSON') is only supported against string literals and direct table references of types VARCHAR and VARBINARY.");
+        queryConvert, ErrorType.VALIDATION, ConvertFromJsonConverter.FAILURE_MSG);
     final String queryFlattenConvert =
         String.format(
             "select flatten(convert_from(columns[1], 'JSON')) from dfs.\"%s/store/text/convertFrom.tbl\"",
             TEST_RES_PATH);
     errorMsgWithTypeTestHelper(
-        queryFlattenConvert,
-        ErrorType.VALIDATION,
-        "Using CONVERT_FROM(*, 'JSON') is only supported against string literals and direct table references of types VARCHAR and VARBINARY.");
+        queryFlattenConvert, ErrorType.VALIDATION, ConvertFromJsonConverter.FAILURE_MSG);
     final String queryFlattenConvertWithEmptyArray = "select flatten(convert_from('[]', 'JSON'))";
     errorMsgWithTypeTestHelper(
         queryFlattenConvertWithEmptyArray,
@@ -923,8 +919,7 @@ public class TestFlatten extends PlanTestBase {
             + "  ) nested_0\n"
             + ") nested_1";
 
-    final String plan =
-        getPlanInString("EXPLAIN PLAN for " + QueryTestUtil.normalizeQuery(query), OPTIQ_FORMAT);
+    final String plan = getPlanInString("EXPLAIN PLAN for " + query, OPTIQ_FORMAT);
     assertTrue(
         Pattern.compile(
                 ".*Flatten.*(ITEM[^\\)]*tagId|\\$0\\.tagId).*", Pattern.MULTILINE + Pattern.DOTALL)
@@ -978,5 +973,12 @@ public class TestFlatten extends PlanTestBase {
     } catch (Exception e) {
       assertTrue(e.getMessage().contains("Flatten is not supported as part of join condition"));
     }
+  }
+
+  @Test
+  public void testAggregateWithFlattenOnEmptyScan() throws Exception {
+    String query = "select x from (select flatten(array[0,0,0,0]) as x) group by x";
+    testPlanSubstrPatterns(query, new String[] {"HashAgg(group=[{0}])"}, null);
+    testBuilder().sqlQuery(query).unOrdered().baselineColumns("x").baselineValues(0).go();
   }
 }

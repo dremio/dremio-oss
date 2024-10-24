@@ -111,6 +111,7 @@ const theme = {
         },
         paper: {
           margin: "unset",
+          background: "var(--fill--primary)",
         },
         paperWidthSm: {
           width: "25%",
@@ -163,15 +164,46 @@ const theme = {
         },
       },
     },
+    MuiCheckbox: {
+      styleOverrides: {
+        root: {
+          width: "15px",
+          height: "15px",
+          borderRadius: 0,
+          "&.Mui-checked": {
+            backgroundColor: "var(--fill--primary)",
+            color: "var(--fill--toggle--checked)",
+            "&:hover": {
+              color: "var(--fill--toggle--checked--hover)",
+            },
+          },
+          "&:hover": {
+            color: "var(--border--hover)",
+          },
+          "&:focus": {
+            color: "var(--border--focused)",
+          },
+          color: "var(--border--neutral--solid)",
+        },
+      },
+    },
     MuiRadio: {
       styleOverrides: {
         root: {
+          "&.Mui-checked": {
+            color: "var(--fill--toggle--checked)",
+            "&:hover": {
+              color: "var(--fill--toggle--checked--hover)",
+            },
+          },
           "&:hover": {
-            backgroundColor: "#F4FAFC",
+            backgroundColor: "transparent",
+            color: "var(--border--hover)",
           },
           "&:focus": {
-            backgroundColor: "#F4FAFC",
+            backgroundColor: "var(--border--focused)",
           },
+          color: "var(--border--neutral--solid)",
         },
         colorSecondary: {
           "&.Mui-checked": {
@@ -186,9 +218,25 @@ const theme = {
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-            borderWidth: 1,
+          border: "1px solid var(--border--neutral--solid)",
+          color: "var(--text--primary)",
+          "&:hover": {
+            borderColor: "var(--border--hover)",
           },
+          "&.Mui-focused": {
+            border: "1px solid var(--border--focused)",
+          },
+          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+            borderWidth: 0,
+          },
+        },
+      },
+    },
+    Divider: {
+      styleOverrides: {
+        root: {
+          borderColor: "var(--fill--neutral)",
+          backgroundColor: "var(--border--neutral)",
         },
       },
     },

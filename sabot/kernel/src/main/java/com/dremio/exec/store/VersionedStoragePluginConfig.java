@@ -23,10 +23,4 @@ public interface VersionedStoragePluginConfig {
   default boolean useSourceProvidedPrivileges() {
     return false;
   }
-
-  /** Returns the catalog Id. */
-  // TODO: DX-92694: Remove this as not all plugins have a catalog Id.
-  default String getCatalogId() {
-    return null;
-  }
 }

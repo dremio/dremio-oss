@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.dremio.dac.daemon.TestSpacesStoragePlugin;
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.server.BaseTestServer;
@@ -51,8 +52,9 @@ public class TestQueryProfileParser extends BaseTestServer {
   public void testQueryParser() throws Exception {
     TestSpacesStoragePlugin.setup();
 
+    DatasetUI datasetUI = getHttpClient().getDatasetApi().getDataset(new DatasetPath("testA.dsA1"));
     final InitialPreviewResponse previewResponse =
-        getPreview(getDataset(new DatasetPath("testA.dsA1")));
+        getHttpClient().getDatasetApi().getPreview(datasetUI);
     waitForJobComplete(previewResponse.getJobId().getId());
 
     final SearchJobsRequest searchJobsRequest =
@@ -70,7 +72,8 @@ public class TestQueryProfileParser extends BaseTestServer {
     assertTrue(jobs.size() > 0);
     JobUI job1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("job/" + jobs.get(0).getJobId().getId())).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("job/" + jobs.get(0).getJobId().getId()))
+                .buildGet(),
             JobUI.class);
     assertEquals(JobsProtoUtil.toStuff(jobs.get(0).getJobId()), job1.getJobId());
 
@@ -103,8 +106,7 @@ public class TestQueryProfileParser extends BaseTestServer {
 
     // There are 5 fragments for above query, so setting MAX_WIDTH_PER_NODE_KEY to 5.
     // This is reset at end of this method.
-    setSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, "5");
-    try {
+    try (AutoCloseable ignored = withSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE, 5)) {
       final JobId jobId =
           submitJobAndWaitUntilCompletion(
               JobRequest.newBuilder().setSqlQuery(sqlQuery).setQueryType(QueryType.UI_RUN).build());
@@ -120,8 +122,6 @@ public class TestQueryProfileParser extends BaseTestServer {
       JobProtobuf.JobAttempt jobAttempt = jobDetails.getAttempts(jobDetails.getAttemptsCount() - 1);
       assertTrue(jobAttempt.getDetails().getPeakMemory() > 0);
       assertTrue(jobAttempt.getDetails().getTotalMemory() > 0);
-    } finally {
-      resetSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY);
     }
   }
 }

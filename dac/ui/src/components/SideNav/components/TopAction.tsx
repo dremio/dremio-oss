@@ -19,7 +19,7 @@ import { Link } from "react-router";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib/components";
 import React from "react";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 type TopActionProps = {
   active?: string;
@@ -80,7 +80,10 @@ export const TopAction = (props: TopActionProps) => {
   };
 
   return (
-    <div className={`${isSocketOpen} sideNav-item ${shouldHover} ${className}`}>
+    <div
+      role="listitem"
+      className={`${isSocketOpen} sideNav-item ${shouldHover} ${className}`}
+    >
       {tooltip ? (
         <Tooltip
           {...tooltipProps}

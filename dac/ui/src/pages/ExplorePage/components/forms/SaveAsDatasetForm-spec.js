@@ -64,10 +64,10 @@ describe("SaveAsDatasetForm", () => {
   it("should render FieldWithError and TextField for this.props.fields.name", () => {
     const wrapper = shallow(<SaveAsDatasetForm {...commonProps} />, context);
     expect(wrapper.find("FieldWithError").prop("value")).to.equal(
-      commonProps.fields.name.value
+      commonProps.fields.name.value,
     );
     expect(wrapper.find("TextField").prop("value")).to.equal(
-      commonProps.fields.name.value
+      commonProps.fields.name.value,
     );
   });
 
@@ -77,7 +77,7 @@ describe("SaveAsDatasetForm", () => {
       const selected = "my.folder";
       wrapper.instance().handleChangeSelectedNode(selected);
       expect(commonProps.fields.location.onChange).to.have.been.calledWith(
-        "my.folder"
+        "my.folder",
       );
     });
 
@@ -86,7 +86,7 @@ describe("SaveAsDatasetForm", () => {
       const selected = '"@home".folder';
       wrapper.instance().handleChangeSelectedNode(selected);
       expect(commonProps.fields.location.onChange).to.have.been.calledWith(
-        '"@home".folder'
+        '"@home".folder',
       );
     });
 
@@ -98,7 +98,7 @@ describe("SaveAsDatasetForm", () => {
       });
       wrapper.instance().handleChangeSelectedNode(selected, node);
       expect(commonProps.fields.location.onChange).to.have.been.calledWith(
-        "foo"
+        "foo",
       );
     });
   });

@@ -43,8 +43,6 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
 
   Iterable<ExternalReflection> getAllExternalReflections();
 
-  Optional<ExternalReflection> getExternalReflectionById(String id);
-
   Optional<ReflectionEntry> getEntry(ReflectionId reflectionId);
 
   ExcludedReflectionsProvider getExcludedReflectionsProvider();

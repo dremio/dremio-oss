@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import sentryUtil from "@app/utils/sentryUtil";
+import sentryUtil from "#oss/utils/sentryUtil";
 import { useState } from "react";
 import { CopyButton } from "dremio-ui-lib/components";
 import * as classes from "./SupportInfo.module.less";
 import clsx from "clsx";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 /**
  * The most recent sentry event ID is stored in a global variable
@@ -49,7 +49,7 @@ const renderSupportInfoItem = ({
       <div
         className={clsx(
           "dremio-typography-monospace",
-          classes["support-info__item-contents"]
+          classes["support-info__item-contents"],
         )}
       >
         {contents}

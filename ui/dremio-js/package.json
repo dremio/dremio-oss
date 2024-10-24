@@ -42,22 +42,30 @@
     "ts-results-es": "^4"
   },
   "devDependencies": {
-    "@eslint/js": "9.5.0",
-    "@types/deep-equal": "^1.0.4",
-    "eslint": "9.5.0",
+    "@eslint/js": "9.9.1",
+    "@types/deep-equal": "1.0.4",
+    "eslint": "9.9.1",
     "eslint-config-prettier": "9.1.0",
-    "eslint-plugin-perfectionist": "2.11.0",
+    "eslint-plugin-perfectionist": "3.2.0",
     "eslint-plugin-regexp": "2.6.0",
     "js-green-licenses": "4.0.0",
     "openapi-typescript": "6.6.0",
     "prettier": "3.3.2",
     "typedoc": "0.26.2",
-    "typescript": "5.5.2",
-    "typescript-eslint": "7.14.1"
+    "typescript": "5.5.4",
+    "typescript-eslint": "8.2.0"
   },
   "peerDependencies": {
-    "apache-arrow": ">=15",
-    "temporal-polyfill": ">=0.2.4"
+    "apache-arrow": ">=17",
+    "temporal-polyfill": ">=0.2.5"
   },
-  "packageManager": "pnpm@9.3.0"
+  "peerDependenciesMeta": {
+    "apache-arrow": {
+      "optional": true
+    },
+    "temporal-polyfill": {
+      "optional": true
+    }
+  },
+  "packageManager": "pnpm@9.9.0"
 }

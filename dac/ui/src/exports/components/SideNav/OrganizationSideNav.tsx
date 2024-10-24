@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import SideNav from "@app/components/SideNav/SideNav";
+import SideNav from "#oss/components/SideNav/SideNav";
 import clsx from "clsx";
 import { Link } from "react-router";
 import * as orgPaths from "dremio-ui-common/paths/organization.js";
 import { getSessionContext } from "dremio-ui-common/contexts/SessionContext.js";
-import { TopAction } from "@app/components/SideNav/components/TopAction";
+import { TopAction } from "#oss/components/SideNav/components/TopAction";
 import { browserHistory } from "react-router";
 
 export const OrganizationSideNav = (props: any) => {

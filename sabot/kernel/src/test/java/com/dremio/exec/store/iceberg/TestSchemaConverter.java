@@ -255,7 +255,8 @@ public class TestSchemaConverter extends DremioTest {
             null,
             null,
             null,
-            Collections.emptyMap());
+            Collections.emptyMap(),
+            rootPath);
     createTableCommitter.commit();
 
     Table table = new HadoopTables(conf).load(rootPath);

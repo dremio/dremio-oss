@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { PureComponent, createRef, Fragment } from "react";
-import { Popover, MouseEvents } from "@app/components/Popover";
+import { Popover, MouseEvents } from "#oss/components/Popover";
 import classNames from "clsx";
 
 import PropTypes from "prop-types";

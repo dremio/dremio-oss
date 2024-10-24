@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import * as authUtils from "@app/utils/authUtils";
+import * as authUtils from "#oss/utils/authUtils";
 import { createStore } from "redux";
 import { Provider } from "react-redux";
 import { shallow, mount } from "enzyme";
@@ -56,7 +56,7 @@ describe("RestrictedArea", () => {
     const providerEl = mount(
       <Provider store={createStore(reducer)}>
         <RestrictedArea {...minimalProps} />
-      </Provider>
+      </Provider>,
     );
 
     wrapper = providerEl; //.childAt(1);

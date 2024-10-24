@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.handlers.query;
 
 import static com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler.refreshDataset;
+import static com.dremio.exec.store.iceberg.IcebergUtils.hasClusteringColumns;
 
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.VersionContext;
@@ -41,7 +42,6 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.DremioHint;
-import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.options.OptionValue;
@@ -74,24 +74,22 @@ public class OptimizeHandler extends TableManagementHandler {
   }
 
   @VisibleForTesting
-  protected void validatePrivileges(Catalog catalog, CatalogEntityKey key) {
+  public void validatePrivileges(CatalogEntityKey key, VersionContext versionContext) {
     NamespaceKey namespaceKey = key.toNamespaceKey();
-    catalog.validatePrivilege(namespaceKey, SqlGrant.Privilege.SELECT);
-    catalog.validatePrivilege(namespaceKey, SqlGrant.Privilege.UPDATE);
+    validate(namespaceKey, versionContext);
   }
 
   @VisibleForTesting
   @Override
   void checkValidations(
-      Catalog catalog, SqlHandlerConfig config, NamespaceKey path, SqlNode sqlNode)
-      throws Exception {
+      Catalog catalog, SqlHandlerConfig config, NamespaceKey path, SqlNode sqlNode) {
     final String sourceName = path.getRoot();
     final VersionContext sessionVersion =
         config.getContext().getSession().getSessionVersionForSource(sourceName);
     CatalogEntityKey key =
         CatalogEntityKey.buildCatalogEntityKeyDefaultToNotSpecifiedVersionContext(
             path, sessionVersion);
-    validatePrivileges(catalog, key);
+    validatePrivileges(key, sessionVersion);
     validateCompatibleTableFormat(catalog, config, path, getSqlOperator());
   }
 
@@ -147,6 +145,12 @@ public class OptimizeHandler extends TableManagementHandler {
   public Prel getNonPhysicalPlan(
       PlannerCatalog catalog, SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path)
       throws Exception {
+    DremioTable table = catalog.getTableWithSchema(path);
+    boolean withWriteAsClustering = hasClusteringColumns(table);
+    if (withWriteAsClustering) {
+      // TODO: add AutoClustering logic for OPTIMIZE
+    }
+
     // Prohibit reflections on OPTIMIZE operations
     config
         .getContext()

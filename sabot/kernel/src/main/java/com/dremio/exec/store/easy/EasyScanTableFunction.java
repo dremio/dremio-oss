@@ -63,11 +63,6 @@ public class EasyScanTableFunction extends ScanTableFunction {
     splitReaderCreatorIterator.addSplits(splits);
   }
 
-  @Override
-  protected void addBoostSplits() {
-    return;
-  }
-
   protected void setSplitReaderCreatorIterator() throws IOException, ExecutionSetupException {
     splitReaderCreatorIterator =
         new EasySplitReaderCreatorIterator(fec, context, props, functionConfig, false);

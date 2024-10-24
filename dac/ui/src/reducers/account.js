@@ -50,7 +50,7 @@ const loginUserStart = (state, action) => {
 const loginUserSuccess = (state, action) => {
   return state.set(
     "user",
-    Immutable.fromJS({ ...action.payload, inProgress: false, isFailed: false })
+    Immutable.fromJS({ ...action.payload, inProgress: false, isFailed: false }),
   );
 };
 
@@ -67,7 +67,7 @@ const editAccountSuccess = (state, action) => {
     Immutable.fromJS({
       ...state.get("user").toJS(),
       ...action.payload.userConfig,
-    })
+    }),
   );
 };
 

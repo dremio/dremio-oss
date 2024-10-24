@@ -73,4 +73,13 @@ message GetQueryProfileResponse {
 
 message DeleteProfileRequest {
   exec.shared.QueryId query_id = 1;
+  bool only_delete_sub_profiles = 2;
+}
+
+message IntermediateQueryProfile {
+  oneof profile_type {
+    exec.shared.QueryProfile planning_profile = 1;
+    exec.shared.QueryProfile tail_profile = 2;
+    exec.bit.control.ExecutorQueryProfile executor_profile = 3;
+  }
 }

@@ -21,7 +21,7 @@ import { connectComplexForm } from "components/Forms/connectComplexForm";
 import NewFieldSection from "components/Forms/NewFieldSection";
 import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
 import { getTransformCards } from "selectors/transforms";
-import { sectionMargin } from "@app/uiTheme/less/layout.less";
+import { sectionMargin } from "#oss/uiTheme/less/layout.less";
 import TransformForm, { formWrapperProps } from "../../../forms/TransformForm";
 import ExtractListCards from "./sections/ExtractListCards";
 
@@ -57,7 +57,7 @@ export class ExtractListForm extends Component {
           rule: fieldsMappers.getRuleFromCards(values.cards, values.activeCard),
         },
       },
-      submitType
+      submitType,
     );
 
   render() {
@@ -156,5 +156,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(ExtractListForm);

@@ -37,7 +37,7 @@ public class TestDatasetAutoFix extends BaseTestQuery {
   @Before
   public void before() {
     properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
-    setSessionOption(ExecConstants.ENABLE_REATTEMPTS, "true");
+    setSessionOption(ExecConstants.ENABLE_REATTEMPTS, true);
   }
 
   @Test

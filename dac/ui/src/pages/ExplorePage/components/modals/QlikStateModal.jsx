@@ -20,7 +20,7 @@ import { Link } from "react-router";
 import Immutable from "immutable";
 import { injectIntl, FormattedMessage } from "react-intl";
 import { CENTER } from "uiTheme/radium/flexStyle";
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 
 import { openQlikSense } from "actions/explore/download";
 import { getQlikAppUrl } from "sagas/qlik";

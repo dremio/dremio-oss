@@ -51,7 +51,7 @@ describe("ExploreCopyTableButton", () => {
 
   it("should make copy text from tableData", () => {
     const result = ExploreCopyTableButton.makeCopyTextFromTableData(
-      commonProps.tableData.toJS()
+      commonProps.tableData.toJS(),
     );
     const colRow = "col1\tcol2";
     expect(result.startsWith(colRow)).to.equal(true);

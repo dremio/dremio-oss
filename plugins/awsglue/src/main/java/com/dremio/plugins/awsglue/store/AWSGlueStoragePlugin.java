@@ -22,8 +22,6 @@ import com.amazonaws.glue.catalog.util.AWSGlueConfig;
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.FSConstants;
-import com.dremio.common.concurrent.bulk.BulkRequest;
-import com.dremio.common.concurrent.bulk.BulkResponse;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
@@ -34,7 +32,6 @@ import com.dremio.connector.metadata.DatasetHandleListing;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetMetadataVerifyResult;
 import com.dremio.connector.metadata.EntityPath;
-import com.dremio.connector.metadata.EntityPathWithOptions;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
@@ -69,7 +66,6 @@ import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
-import com.dremio.exec.store.BulkSourceMetadata;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.StoragePlugin;
@@ -160,8 +156,7 @@ public class AWSGlueStoragePlugin
         SupportsInternalIcebergTable,
         SupportsIcebergRootPointer,
         SupportsIcebergMutablePlugin,
-        SupportsMetadataVerify,
-        BulkSourceMetadata {
+        SupportsMetadataVerify {
 
   private static final Logger logger = LoggerFactory.getLogger(AWSGlueStoragePlugin.class);
   private static final String AWS_GLUE_HIVE_CLIENT_FACTORY =
@@ -423,6 +418,13 @@ public class AWSGlueStoragePlugin
   }
 
   @Override
+  public org.apache.iceberg.TableMetadata loadTableMetadata(
+      FileIO io, OperatorContext context, List<String> dataset, String metadataLocation) {
+    return ((SupportsIcebergRootPointer) hiveStoragePlugin)
+        .loadTableMetadata(io, context, dataset, metadataLocation);
+  }
+
+  @Override
   public boolean canGetDatasetMetadataInCoordinator() {
     return ((SupportsInternalIcebergTable) hiveStoragePlugin).canGetDatasetMetadataInCoordinator();
   }
@@ -560,7 +562,11 @@ public class AWSGlueStoragePlugin
 
   @Override
   public IcebergModel getIcebergModel(
-      IcebergTableProps tableProps, String userName, OperatorContext context, FileIO fileIO) {
+      IcebergTableProps tableProps,
+      String userName,
+      OperatorContext context,
+      FileIO fileIO,
+      String userId) {
     if (fileIO == null) {
       try {
         FileSystem fs = createFS(tableProps.getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
@@ -665,7 +671,8 @@ public class AWSGlueStoragePlugin
             null,
             partitionSpec,
             writerOptions.getDeserializedSortOrder(),
-            tableProperties);
+            tableProperties,
+            tableLocation);
     icebergOpCommitter.commit();
   }
 
@@ -1061,12 +1068,6 @@ public class AWSGlueStoragePlugin
   public Optional<DatasetHandle> getDatasetHandle(
       EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
     return hiveStoragePlugin.getDatasetHandle(datasetPath, options);
-  }
-
-  @Override
-  public BulkResponse<EntityPathWithOptions, Optional<DatasetHandle>> bulkGetDatasetHandles(
-      BulkRequest<EntityPathWithOptions> requestedDatasets) {
-    return ((BulkSourceMetadata) hiveStoragePlugin).bulkGetDatasetHandles(requestedDatasets);
   }
 
   @Override

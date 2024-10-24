@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import PropTypes from "prop-types";
-import { CLIENT_TOOL_ID } from "@app/constants/Constants";
+import { CLIENT_TOOL_ID } from "#oss/constants/Constants";
 import Immutable from "immutable";
 
 export const RESERVED = [

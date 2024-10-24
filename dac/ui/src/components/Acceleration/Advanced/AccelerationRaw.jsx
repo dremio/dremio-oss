@@ -20,7 +20,7 @@ import Immutable from "immutable";
 import { createReflectionFormValues } from "utils/accelerationUtils";
 import AccelerationRawMixin from "@inject/components/Acceleration/Advanced/AccelerationRawMixin";
 import { Button } from "dremio-ui-lib/components";
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import "#oss/uiTheme/less/Acceleration/Acceleration.less";
 import AccelerationGridController from "./AccelerationGridController";
 
 @AccelerationRawMixin

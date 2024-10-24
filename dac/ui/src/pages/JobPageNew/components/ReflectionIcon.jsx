@@ -15,7 +15,7 @@
  */
 import PropTypes from "prop-types";
 import { Tooltip } from "dremio-ui-lib";
-import { getIconPath } from "@app/utils/getIconPath";
+import { getIconPath } from "#oss/utils/getIconPath";
 
 export const getReflectionIcon = () => {
   return {

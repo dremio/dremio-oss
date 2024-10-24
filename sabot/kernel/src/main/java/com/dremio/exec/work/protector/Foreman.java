@@ -408,7 +408,12 @@ public class Foreman {
   }
 
   public synchronized void cancel(String reason, boolean clientCancelled, boolean runTimeExceeded) {
-    cancel(reason, clientCancelled, null, false, runTimeExceeded);
+    cancel(reason, clientCancelled, null, false, runTimeExceeded, false);
+  }
+
+  public synchronized void cancel(
+      String reason, boolean clientCancelled, boolean runTimeExceeded, boolean connectionClosed) {
+    cancel(reason, clientCancelled, null, false, runTimeExceeded, connectionClosed);
   }
 
   public synchronized void cancel(
@@ -417,12 +422,28 @@ public class Foreman {
       String cancelContext,
       boolean isCancelledByHeapMonitor,
       boolean runTimeExceeded) {
+    cancel(
+        reason, clientCancelled, cancelContext, isCancelledByHeapMonitor, runTimeExceeded, false);
+  }
+
+  public synchronized void cancel(
+      String reason,
+      boolean clientCancelled,
+      String cancelContext,
+      boolean isCancelledByHeapMonitor,
+      boolean runTimeExceeded,
+      boolean connectionClosed) {
     if (!canceled) {
       canceled = true;
 
       if (attemptManager != null) {
         attemptManager.cancel(
-            reason, clientCancelled, cancelContext, isCancelledByHeapMonitor, runTimeExceeded);
+            reason,
+            clientCancelled,
+            cancelContext,
+            isCancelledByHeapMonitor,
+            runTimeExceeded,
+            connectionClosed);
       }
     } else {
       logger.debug(

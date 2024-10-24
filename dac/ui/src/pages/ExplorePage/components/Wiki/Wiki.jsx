@@ -22,14 +22,14 @@ import { OrderedMap, fromJS } from "immutable";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
-import { withRouteLeaveSubscription } from "@app/containers/RouteLeave";
-import MarkdownEditor from "@app/components/MarkdownEditor";
-import { toolbarHeight as toolbarHeightCssValue } from "@app/components/MarkdownEditor.less";
+import { withRouteLeaveSubscription } from "#oss/containers/RouteLeave";
+import MarkdownEditor from "#oss/components/MarkdownEditor";
+import { toolbarHeight as toolbarHeightCssValue } from "#oss/components/MarkdownEditor.less";
 import { startSearch as startSearchAction } from "actions/search";
-import ApiUtils from "@app/utils/apiUtils/apiUtils";
-import { showConfirmationDialog } from "@app/actions/confirmation";
-import { addNotification } from "@app/actions/notification";
-import WikiEmptyState from "@app/components/WikiEmptyState";
+import ApiUtils from "#oss/utils/apiUtils/apiUtils";
+import { showConfirmationDialog } from "#oss/actions/confirmation";
+import { addNotification } from "#oss/actions/notification";
+import WikiEmptyState from "#oss/components/WikiEmptyState";
 import { IconButton } from "dremio-ui-lib";
 import WikiWrapper from "./WikiModal/WikiWrapper";
 import ShrinkableSearch from "./ShrinkableSearch/ShrinkableSearch";
@@ -84,6 +84,7 @@ export class WikiView extends PureComponent {
 
   // state and related properties ----------------------------
   state = {
+    tagsSaving: false,
     isWikiInEditMode: false,
     wikiSummary: false,
     wikiViewState: fromJS({}),
@@ -286,6 +287,7 @@ export class WikiView extends PureComponent {
     const { tagsVersion, tags } = this.state;
     const tagsToSave = tags.toList().toJS();
 
+    this.setState({ tagsSaving: true });
     this.isTagsInEditMode = true;
     return ApiUtils.fetch(
       `catalog/${entityId}/collaboration/tag`,
@@ -299,9 +301,11 @@ export class WikiView extends PureComponent {
       3,
     )
       .then((response) => {
+        this.setState({ tagsSaving: false });
         return response.json().then(this.setOriginalTags, () => {}); //tags seem to be saved, but response json is not valid; ignore?
       })
       .catch((response) => {
+        this.setState({ tagsSaving: false });
         return response.json().then((e) => {
           // User-friendly error messages for CME are currently only supported on DCS
           // If on software, use the existing error message
@@ -571,6 +575,7 @@ export class WikiView extends PureComponent {
     // If wiki is empty we show empty content placeholder with "Add wiki" button and hide edit button in toolbar
     return (
       <WikiWrapper
+        tagsSaving={this.state.tagsSaving}
         getLoadViewState={getLoadViewState}
         showLoadMask={false}
         extClassName={className}

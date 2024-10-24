@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ENTITY_TYPES } from "@app/constants/Constants";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
 
 const VIRTUAL_DATASET = "VIRTUAL_DATASET";
 const PHYSICAL_DATASET = "PHYSICAL_DATASET";

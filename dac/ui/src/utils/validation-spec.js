@@ -115,7 +115,7 @@ describe("validation", () => {
       expect(
         isEmail("email")({
           email: "dremio@sdlkfjlskdjflsdf.sdflkjsdlkfjlskdjf",
-        })
+        }),
       ).to.eql(undefined);
       expect(isEmail("email")({ email: "dremio@gmail.c" })).to.eql(undefined);
       expect(isEmail("email")({ email: "dremio@gmail" })).to.eql(undefined);
@@ -162,7 +162,7 @@ describe("validation", () => {
   describe("applyValidators", () => {
     it("should call and merge results of multiple validators", () => {
       expect(
-        applyValidators({}, [isRequired("foo.a"), isRequired("foo.b")])
+        applyValidators({}, [isRequired("foo.a"), isRequired("foo.b")]),
       ).to.eql({ foo: { a: "Foo.a is required.", b: "Foo.b is required." } });
     });
   });
@@ -234,7 +234,7 @@ describe("validation", () => {
             fieldName,
             fieldName,
             null,
-            limit
+            limit,
           );
           if (isInvalidValue) {
             expect(validator(data)).to.be.eql({
@@ -269,7 +269,7 @@ describe("validation", () => {
             fieldName,
             fieldName,
             lowLimit,
-            topLimit
+            topLimit,
           );
           if (isInvalidValue) {
             expect(validator(data)).to.be.eql({
@@ -303,7 +303,7 @@ function itShouldWorkForNestedKeys(validator, goodValue, badValue) {
 function itShouldPutLabelInMessage(validator, badValue) {
   it("should put label in message", () => {
     expect(validator("foo", "Label")({ foo: badValue }).foo).to.startsWith(
-      "Label"
+      "Label",
     );
   });
 }

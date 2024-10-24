@@ -76,7 +76,7 @@
         padding-bottom: 0.25em;
         &:not(.expanded) > span::after {
           content: ",";
-          color: rgb(51, 51, 51);
+          color: var(--text--primary);
         }
         &:last-of-type > span::after {
           content: "";
@@ -134,7 +134,7 @@
           & > span {
             &::after {
               content: ",";
-              color: rgb(51, 51, 51);
+              color: var(--text--primary);
             }
           }
         }

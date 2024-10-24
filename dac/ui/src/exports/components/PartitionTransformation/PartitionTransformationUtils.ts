@@ -74,7 +74,7 @@ export type PartitionTransformationFormat = {
  * @returns An updated array of partitionFields to include in the API payload
  */
 export const formatPartitionFields = (
-  reflection: Record<string, any>
+  reflection: Record<string, any>,
 ): PartitionTransformationFormat[] => {
   const updatedPartitionFields = [];
 
@@ -100,7 +100,7 @@ type PartitionFieldFormat = { name: string | Record<string, any> };
  * @returns An updated array of partitionFields to initiate the acceleration form
  */
 export const preparePartitionFieldsAsFormValues = (
-  reflection: Record<string, any>
+  reflection: Record<string, any>,
 ): PartitionFieldFormat[] => {
   const updatedPartitionFields = [];
 

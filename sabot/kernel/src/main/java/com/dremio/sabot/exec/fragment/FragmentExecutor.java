@@ -316,6 +316,41 @@ public class FragmentExecutor implements MemoryArbiterTask {
     this.nodeDebugContext = nodeDebugContext;
   }
 
+  public String getMetricState() {
+    String state = "UNKNOWN";
+    if (!stats.hasRunStarted()) {
+      if (taskState == State.BLOCKED_ON_SHARED_RESOURCE || !activateResource.isActivated()) {
+        state = "BLOCKED_ON_ACTIVATION";
+      } else if (taskState == State.RUNNABLE) {
+        state = "ACTIVATED_NOT_STARTED";
+      }
+    } else if (!isSetup) {
+      state = "STARTED_NOT_SETUP";
+    } else {
+      switch (taskState) {
+        case RUNNABLE:
+          state = "RUNNABLE";
+          break;
+        case BLOCKED_ON_UPSTREAM:
+          state = "BLOCKED_ON_UPSTREAM";
+          break;
+        case BLOCKED_ON_DOWNSTREAM:
+          state = "BLOCKED_ON_DOWNSTREAM";
+          break;
+        case BLOCKED_ON_SHARED_RESOURCE:
+          state = "BLOCKED_ON_SHARED_RESOURCE";
+          break;
+        case BLOCKED_ON_MEMORY:
+          state = "BLOCKED_ON_MEMORY";
+          break;
+        case DONE:
+          state = "DONE";
+          break;
+      }
+    }
+    return state;
+  }
+
   @Override
   public String getTaskId() {
     return name;
@@ -867,6 +902,7 @@ public class FragmentExecutor implements MemoryArbiterTask {
       uex = ErrorHelper.findWrappedCause(cause, UserException.class);
       if (uex != null) {
         uex.addErrorOrigin(ClusterCoordinator.Role.EXECUTOR.name());
+        uex.addIdentity(fragment.getMinor().getAssignment());
       } else {
         uex =
             UserException.systemError(deferredException.getAndClear())
@@ -1199,6 +1235,10 @@ public class FragmentExecutor implements MemoryArbiterTask {
 
     public void activate() {
       requestActivate("activate message from foreman");
+    }
+
+    public TunnelProvider getTunnelProvider() {
+      return tunnelProvider;
     }
 
     public void cancel() {

@@ -60,6 +60,7 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
   private Long fileNotificationTimestamp;
   private String ingestionSourceType;
   private String requestId;
+  private String transformationProperties;
 
   private CopyIntoFileLoadInfo() {}
 
@@ -84,6 +85,7 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
     this.fileNotificationTimestamp = builder.fileNotificationTimestamp;
     this.ingestionSourceType = builder.ingestionSourceType;
     this.requestId = builder.requestId;
+    this.transformationProperties = builder.transformationProperties;
   }
 
   public String getQueryId() {
@@ -166,6 +168,10 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
     return requestId;
   }
 
+  public String getTransformationProperties() {
+    return transformationProperties;
+  }
+
   /** Builder class for constructing CopyIntoFileLoadInfo instances. */
   public static final class Builder {
     private final String queryId;
@@ -193,6 +199,7 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
     private Long fileNotificationTimestamp;
     private String ingestionSourceType;
     private String requestId;
+    private String transformationProperties;
 
     /**
      * Constructs a new instance of the CopyIntoFileLoadInfo.Builder with the given parameters.
@@ -252,6 +259,7 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
       fileNotificationTimestamp = info.getFileNotificationTimestamp();
       ingestionSourceType = info.getIngestionSourceType();
       requestId = info.getRequestId();
+      transformationProperties = info.getTransformationProperties();
     }
 
     /**
@@ -358,6 +366,11 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
 
     public Builder setRequestId(String requestId) {
       this.requestId = requestId;
+      return this;
+    }
+
+    public Builder setTransformationProperties(String transformationProperties) {
+      this.transformationProperties = transformationProperties;
       return this;
     }
 

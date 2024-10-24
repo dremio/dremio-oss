@@ -16,7 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 
-import Spinner from "@app/components/Spinner";
+import Spinner from "#oss/components/Spinner";
 import "./LoadingOverlay.less";
 
 /**

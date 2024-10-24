@@ -15,7 +15,7 @@
  */
 
 import Immutable from "immutable";
-import Transform from "@app/pages/ExplorePage/components/Transform/Transform";
+import Transform from "#oss/pages/ExplorePage/components/Transform/Transform";
 import * as classes from "./TransformContent.module.less";
 
 type TransformContentProps = {

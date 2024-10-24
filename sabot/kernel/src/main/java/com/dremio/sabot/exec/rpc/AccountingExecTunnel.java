@@ -21,6 +21,7 @@ import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.record.FragmentWritableBatch;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
+import com.dremio.sabot.exec.DynamicLoadRoutingMessage;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.threads.SendingMonitor;
 import com.google.common.base.Stopwatch;
@@ -65,6 +66,11 @@ public class AccountingExecTunnel {
   public void sendOOBMessage(OutOfBandMessage message) {
     monitor.increment();
     tunnel.sendOOBMessage(statusHandler, message);
+  }
+
+  public void sendDLRMessage(DynamicLoadRoutingMessage message) {
+    monitor.increment();
+    tunnel.sendDLRMessage(statusHandler, message);
   }
 
   private static class StatsTrackingListenerWrapper implements RpcOutcomeListener<Ack> {

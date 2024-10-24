@@ -20,7 +20,6 @@ import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializeNameMappingF
 import static com.dremio.exec.store.iceberg.IcebergUtils.createFileIOForIcebergMetadata;
 import static com.dremio.exec.store.iceberg.IcebergUtils.getValueFromByteBuffer;
 import static com.dremio.exec.store.iceberg.IcebergUtils.isNonAddOnField;
-import static com.dremio.exec.store.iceberg.IcebergUtils.loadTableMetadata;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeSplitIdentity;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 
@@ -199,7 +198,8 @@ public class IcebergManifestListRecordReader implements RecordReader {
   public void setup(OutputMutator output) throws ExecutionSetupException {
     this.output = output;
     FileIO io = createIO(metadataLocation);
-    TableMetadata tableMetadata = loadTableMetadata(io, context, this.metadataLocation);
+    TableMetadata tableMetadata =
+        pluginForIceberg.loadTableMetadata(io, context, dataset, metadataLocation);
     initializeFileSystemScheme(io);
     partitionSpecMap = tableMetadata.specsById();
     final long snapshotId = icebergExtendedProp.getSnapshotId();

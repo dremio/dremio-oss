@@ -29,9 +29,9 @@ import { performNextAction } from "actions/explore/nextAction";
 
 import { navigateToNextDataset, postDatasetOperation } from "./common";
 import { navigateAfterReapply } from "./reapply";
-import { store } from "@app/store/store";
-import { isBranchSelected } from "@app/utils/nessieUtils";
-import { setRefs } from "@app/actions/nessie/nessie";
+import { store } from "#oss/store/store";
+import { isBranchSelected } from "#oss/utils/nessieUtils";
+import { setRefs } from "#oss/actions/nessie/nessie";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 
 export function saveDataset(dataset, viewId, nextAction) {

@@ -75,6 +75,7 @@ public class SourcesResource {
 
       SourceState state = sourceService.getStateForSource(sourceConfig);
       source.setState(state);
+      source.setSourceChangeState(sourceConfig.getSourceChangeState());
 
       sources.add(source);
     }

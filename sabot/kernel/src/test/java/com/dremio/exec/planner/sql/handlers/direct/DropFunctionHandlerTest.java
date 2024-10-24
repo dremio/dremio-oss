@@ -56,7 +56,7 @@ public class DropFunctionHandlerTest {
 
     // ASSERT
     verify(subject.userDefinedFunctionCatalog, times(1))
-        .dropFunction(eq(CatalogEntityKey.fromNamespaceKey(new NamespaceKey("foo"))));
+        .dropFunction(eq(CatalogEntityKey.of("foo")));
     Assert.assertEquals(
         ImmutableList.of(new SimpleCommandResult(true, "Function [foo] has been dropped.")),
         result);
@@ -75,7 +75,7 @@ public class DropFunctionHandlerTest {
 
     // ASSERT
     verify(subject.userDefinedFunctionCatalog, times(1))
-        .dropFunction(eq(CatalogEntityKey.fromNamespaceKey(new NamespaceKey("foo"))));
+        .dropFunction(eq(CatalogEntityKey.of("foo")));
     Assert.assertEquals(
         ImmutableList.of(new SimpleCommandResult(true, "Function [foo] has been dropped.")),
         result);
@@ -94,9 +94,9 @@ public class DropFunctionHandlerTest {
 
     // ASSERT
     verify(subject.userDefinedFunctionCatalog, never())
-        .dropFunction(eq(CatalogEntityKey.fromNamespaceKey(new NamespaceKey("foo"))));
+        .dropFunction(eq(CatalogEntityKey.of("foo")));
     Assert.assertEquals(
-        ImmutableList.of(new SimpleCommandResult(true, "Function [foo] does not exists.")), result);
+        ImmutableList.of(new SimpleCommandResult(true, "Function [foo] does not exist.")), result);
   }
 
   @Test
@@ -112,12 +112,12 @@ public class DropFunctionHandlerTest {
       subject.dropFunctionHandler.toResult(sql, sqlNode);
       Assert.fail();
     } catch (UserException userException) {
-      Assert.assertEquals("Function [foo] does not exists.", userException.getMessage());
+      Assert.assertEquals("Function [foo] does not exist.", userException.getMessage());
     }
 
     // ASSERT
     verify(subject.userDefinedFunctionCatalog, never())
-        .dropFunction(eq(CatalogEntityKey.fromNamespaceKey(new NamespaceKey("foo"))));
+        .dropFunction(eq(CatalogEntityKey.of("foo")));
   }
 
   private SqlDropFunction createDropFunction(String name, boolean ifExists) {
@@ -146,8 +146,7 @@ class Subject {
   }
 
   public Subject withUserDefinedFunction(String key) throws IOException {
-    when(userDefinedFunctionCatalog.getFunction(
-            CatalogEntityKey.fromNamespaceKey(new NamespaceKey(key))))
+    when(userDefinedFunctionCatalog.getFunction(CatalogEntityKey.of(key)))
         .thenReturn(mock(UserDefinedFunction.class));
     return this;
   }

@@ -23,9 +23,9 @@ import {
   isNumber,
   isRequired,
   noSpaces,
-} from "@app/utils/validation";
+} from "#oss/utils/validation";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
-import * as PROVISION_DISTRIBUTIONS from "@app/constants/provisioningPage/provisionDistributions";
+import * as PROVISION_DISTRIBUTIONS from "#oss/constants/provisioningPage/provisionDistributions";
 import { FormBody, ModalForm, modalFormProps } from "components/Forms";
 import NumberFormatUtils from "utils/numberFormatUtils";
 import YarnProperties from "components/Forms/YarnProperties";
@@ -34,11 +34,11 @@ import { formRow, label, sectionTitle } from "uiTheme/radium/forms";
 import { formDefault, formLabel } from "uiTheme/radium/typography";
 import TextFieldList from "components/Forms/TextFieldList";
 import { formatMessage } from "utils/locale";
-import { inputSpacing as inputSpacingCssValue } from "@app/uiTheme/less/variables.less";
+import { inputSpacing as inputSpacingCssValue } from "#oss/uiTheme/less/variables.less";
 import {
   isEditMode,
   isRestartRequired,
-} from "@app/pages/AdminPage/components/forms/provisioning/provisioningFormUtil";
+} from "#oss/pages/AdminPage/components/forms/provisioning/provisioningFormUtil";
 
 import config from "dyn-load/utils/config";
 import {
@@ -50,7 +50,7 @@ import {
 import YarnFormMixin, {
   cacheValidators,
 } from "dyn-load/pages/AdminPage/components/forms/provisioning/YarnFormMixin";
-import { textFieldBody } from "@app/components/Forms/Wrappers/FormWrappers.less";
+import { textFieldBody } from "#oss/components/Forms/Wrappers/FormWrappers.less";
 
 const DEFAULT_MEMORY = 16;
 const DEFAULT_CORES = 4;

@@ -15,7 +15,7 @@
  */
 
 import { HANDLE_THROUGH_API } from "@inject/pages/HomePage/components/HeaderButtonConstants";
-import { NEW_DATASET_NAVIGATION } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { NEW_DATASET_NAVIGATION } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 import config from "dyn-load/utils/config";
 
 export const shouldUseNewDatasetNavigation = () => {

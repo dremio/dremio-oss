@@ -140,6 +140,11 @@ public final class MockDremioQueryParser {
     return convertSqlNodeToRel(sqlNode);
   }
 
+  public RelNode toRelWithExpansion(String query) {
+    final SqlNode sqlNode = parse(query);
+    return convertSqlNodeToRelWithExpansion(sqlNode);
+  }
+
   /**
    * Get the rel from a previously parsed sql tree.
    *
@@ -150,9 +155,25 @@ public final class MockDremioQueryParser {
         SqlToRelConverter.configBuilder()
             .withInSubQueryThreshold((int) 1024)
             .withTrimUnusedFields(true)
+            .withExpand(false)
+            .withConvertTableAccess(false)
+            .build();
+    return convertSqlNodeToRelImpl(sqlNode, config);
+  }
+
+  public RelNode convertSqlNodeToRelWithExpansion(SqlNode sqlNode) {
+    final SqlToRelConverter.Config config =
+        SqlToRelConverter.configBuilder()
+            .withInSubQueryThreshold((int) 1024)
+            .withTrimUnusedFields(true)
             .withExpand(true)
             .withConvertTableAccess(false)
             .build();
+
+    return convertSqlNodeToRelImpl(sqlNode, config);
+  }
+
+  private RelNode convertSqlNodeToRelImpl(SqlNode sqlNode, SqlToRelConverter.Config config) {
     final RelOptTable.ViewExpander expander =
         (a, b, c, d) -> {
           throw new RuntimeException("View Expansion not supported.");

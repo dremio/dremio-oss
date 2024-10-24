@@ -15,7 +15,7 @@
  */
 // import Immutable from 'immutable';
 
-import * as ActionTypes from "@app/actions/resources/scripts";
+import * as ActionTypes from "#oss/actions/resources/scripts";
 
 type ScriptsState = {
   all: any[];
@@ -23,29 +23,32 @@ type ScriptsState = {
   scriptsSyncPending: Set<string>;
 };
 
-type ScriptActions = {
-  type: string;
-  payload: any;
-  meta: any;
-} | {
-  type: "SCRIPT_SYNC_STARTED";
-  id: string;
-} | {
-  type: "SCRIPT_SYNC_COMPLETED";
-  id: string;
-};
+type ScriptActions =
+  | {
+      type: string;
+      payload: any;
+      meta: any;
+    }
+  | {
+      type: "SCRIPT_SYNC_STARTED";
+      id: string;
+    }
+  | {
+      type: "SCRIPT_SYNC_COMPLETED";
+      id: string;
+    };
 
 function getInitialState(): ScriptsState {
   return {
     all: [],
     mine: [],
-    scriptsSyncPending: new Set()
+    scriptsSyncPending: new Set(),
   };
 }
 
 export default function scripts(
   state = getInitialState(),
-  action: ScriptActions
+  action: ScriptActions,
 ): ScriptsState {
   const data =
     action && action.payload && action.payload.data ? action.payload.data : [];
@@ -55,8 +58,12 @@ export default function scripts(
     case ActionTypes.FETCH_MINE_SCRIPTS_SUCCESS:
       return { ...state, mine: data };
     case ActionTypes.REPLACE_SCRIPT_CONTENTS: {
-      const scriptAllIndex = state.all.findIndex(script => script.id === action.scriptId);
-      const scriptMineIndex = state.mine.findIndex(script => script.id === action.scriptId);
+      const scriptAllIndex = state.all.findIndex(
+        (script) => script.id === action.scriptId,
+      );
+      const scriptMineIndex = state.mine.findIndex(
+        (script) => script.id === action.scriptId,
+      );
 
       if (scriptAllIndex === -1 && scriptMineIndex === -1) {
         return state;
@@ -75,15 +82,15 @@ export default function scripts(
         nextMine[scriptMineIndex] = action.script;
       }
 
-      return { ...state, all: nextAll, mine: nextMine }
+      return { ...state, all: nextAll, mine: nextMine };
     }
     case "SCRIPT_SYNC_STARTED": {
       const nextState = new Set(state.scriptsSyncPending);
       nextState.add(action.id);
       return {
         ...state,
-        scriptsSyncPending: nextState
-      }
+        scriptsSyncPending: nextState,
+      };
     }
 
     case "SCRIPT_SYNC_COMPLETED": {
@@ -91,8 +98,8 @@ export default function scripts(
       nextState.delete(action.id);
       return {
         ...state,
-        scriptsSyncPending: nextState
-      }
+        scriptsSyncPending: nextState,
+      };
     }
     default:
       return state;

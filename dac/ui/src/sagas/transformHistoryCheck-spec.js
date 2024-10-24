@@ -106,14 +106,14 @@ describe("transformHistoryCheck saga", () => {
       expect(
         shouldShowWarningModal(
           history,
-          Immutable.fromJS({ datasetVersion: "v1" })
-        )
+          Immutable.fromJS({ datasetVersion: "v1" }),
+        ),
       ).to.be.false;
       expect(
         shouldShowWarningModal(
           history,
-          Immutable.fromJS({ datasetVersion: "v2" })
-        )
+          Immutable.fromJS({ datasetVersion: "v2" }),
+        ),
       ).to.be.true;
     });
   });

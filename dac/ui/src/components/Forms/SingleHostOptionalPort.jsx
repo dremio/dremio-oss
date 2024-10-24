@@ -16,7 +16,7 @@
 import { Component } from "react";
 
 import { applyValidators, isRequired, isWholeNumber } from "utils/validation";
-import FormUtils from "@app/utils/FormUtils/FormUtils";
+import FormUtils from "#oss/utils/FormUtils/FormUtils";
 
 import Host from "./Host";
 

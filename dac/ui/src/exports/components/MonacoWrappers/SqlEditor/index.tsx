@@ -17,7 +17,7 @@
 import { forwardRef, useImperativeHandle, useRef, type HTMLProps } from "react";
 import clsx from "clsx";
 import { SqlEditor as Editor } from "dremio-ui-common/sonar/components/Monaco/components/SqlEditor/SqlEditor.js";
-import { SQL_DARK_THEME, SQL_LIGHT_THEME } from "@app/utils/sql-editor";
+import { SQL_DARK_THEME, SQL_LIGHT_THEME } from "#oss/utils/sql-editor";
 import * as classes from "./SqlEditor.module.less";
 
 type SqlEditorProps = Omit<HTMLProps<HTMLDivElement>, "onChange"> &

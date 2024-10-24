@@ -61,7 +61,7 @@ describe("ReplaceValues", () => {
       wrapper.instance().handleAllClick(e);
 
       expect(commonProps.fields.replaceValues.onChange).to.have.been.calledWith(
-        testForm
+        testForm,
       );
     });
   });
@@ -76,7 +76,7 @@ describe("ReplaceValues", () => {
       wrapper.instance().handleNoneClick(e);
 
       expect(commonProps.fields.replaceValues.onChange).to.have.been.calledWith(
-        []
+        [],
       );
     });
   });
@@ -96,11 +96,11 @@ describe("ReplaceValues", () => {
       const instance = wrapper.instance();
 
       expect(render(instance.renderSelectedValuesCount()).text()).to.contain(
-        "2 of 2 selected"
+        "2 of 2 selected",
       );
       expect(
-        shallow(instance.renderSelectedValuesCount()).props().style.color
-      ).to.equal("#333");
+        shallow(instance.renderSelectedValuesCount()).props().style.color,
+      ).to.equal("var(--text--primary)");
     });
     it("should return if nothing to replace (redux bug)", () => {
       const brokenProps = {
@@ -168,7 +168,7 @@ describe("ReplaceValues", () => {
         .filterValuesList(nextProps.valueOptions.get("values"));
 
       expect(result).to.eql(
-        Immutable.fromJS([{ value: "foo" }, { value: "foo1" }])
+        Immutable.fromJS([{ value: "foo" }, { value: "foo1" }]),
       );
     });
   });
@@ -207,7 +207,7 @@ describe("ReplaceValues", () => {
 
       const wrapper = shallow(<ReplaceValues {...nextProps} />);
       expect(
-        nextProps.valueOptions.get("values").size > MIN_VALUES_TO_SHOW_SEARCH
+        nextProps.valueOptions.get("values").size > MIN_VALUES_TO_SHOW_SEARCH,
       ).to.eql(true);
       expect(wrapper.find("SearchField")).to.have.length(1);
     });
@@ -215,7 +215,7 @@ describe("ReplaceValues", () => {
     it("should render SearchField when values list length more than minimal showing value", () => {
       const wrapper = shallow(<ReplaceValues {...commonProps} />);
       expect(
-        commonProps.valueOptions.get("values").size < MIN_VALUES_TO_SHOW_SEARCH
+        commonProps.valueOptions.get("values").size < MIN_VALUES_TO_SHOW_SEARCH,
       ).to.eql(true);
       expect(wrapper.find("SearchField")).to.have.length(0);
     });

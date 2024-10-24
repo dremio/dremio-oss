@@ -24,7 +24,7 @@ describe("FieldWithError", () => {
     const wrapper = shallow(
       <FieldWithError>
         <input />
-      </FieldWithError>
+      </FieldWithError>,
     );
     expect(wrapper.contains(<input />)).to.equal(true);
     expect(wrapper.find("label")).to.have.length(0);
@@ -34,7 +34,7 @@ describe("FieldWithError", () => {
     const wrapper = shallow(
       <FieldWithError label="label">
         <input />
-      </FieldWithError>
+      </FieldWithError>,
     );
     expect(wrapper.find("label").text()).to.equal("label");
   });
@@ -43,7 +43,7 @@ describe("FieldWithError", () => {
     const wrapper = shallow(
       <FieldWithError>
         <input />
-      </FieldWithError>
+      </FieldWithError>,
     );
     wrapper.instance().refs = { target: {} }; // simulate refs
     expect(wrapper.find(FormValidationMessage)).to.have.length(0);
@@ -57,7 +57,7 @@ describe("FieldWithError", () => {
     const wrapper = shallow(
       <FieldWithError {...props}>
         <input />
-      </FieldWithError>
+      </FieldWithError>,
     );
     const refObj = {};
     wrapper.instance().refs = { target: refObj }; // simulate refs

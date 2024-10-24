@@ -416,7 +416,7 @@ marked.Lexer.prototype.token = function (src, top) {
         for (i = 0; i < item.cells.length; i++) {
           item.cells[i] = splitCells(
             item.cells[i].replace(/^ *\| *| *\| *$/g, ""),
-            item.header.length
+            item.header.length,
           );
         }
 
@@ -468,7 +468,6 @@ marked.Lexer.prototype.token = function (src, top) {
 
   return this.tokens;
 };
-/* eslint-enable */
 
 //override space rendering
 

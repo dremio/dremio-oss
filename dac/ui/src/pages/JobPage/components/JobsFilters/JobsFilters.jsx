@@ -22,7 +22,7 @@ import { CellMeasurerCache } from "react-virtualized";
 import FilterSelectMenu, {
   getDataQaForFilterItem,
 } from "components/Fields/FilterSelectMenu";
-import Select from "@app/components/Fields/Select";
+import Select from "#oss/components/Fields/Select";
 import JobsFiltersMixin, {
   getSortItems,
 } from "dyn-load/pages/JobPage/components/JobsFilters/JobsFiltersMixin";

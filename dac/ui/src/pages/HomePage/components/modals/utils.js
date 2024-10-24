@@ -32,6 +32,6 @@ export const trimObjectWhitespace = (object, exclude = []) => {
       return typeof value === "string" && !exclude.includes(key)
         ? value.trim()
         : value;
-    })
+    }),
   );
 };

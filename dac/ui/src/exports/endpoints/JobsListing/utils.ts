@@ -40,7 +40,7 @@ export const transformFromReflectionDetails = (payload: any) => {
     cpuUsed:
       payload.topOperations?.reduce(
         (acc: number, cur: any) => acc + cur.timeConsumed,
-        0
+        0,
       ) || 0,
     queryUser: payload.user,
     duration: attemptDetails?.totalTime,

@@ -78,7 +78,7 @@ describe("AggregateContent", () => {
     };
     const wrapper = shallow(<AggregateContent {...props} />);
     expect(wrapper.find(DragColumnMenu).props().disabledColumnNames).to.be.eql(
-      Immutable.Set(["col1"])
+      Immutable.Set(["col1"]),
     );
 
     // add new dimension column that also selected for measures
@@ -93,7 +93,7 @@ describe("AggregateContent", () => {
     wrapper.setProps(props);
     // check for available column updates
     expect(wrapper.find(DragColumnMenu).props().disabledColumnNames).to.be.eql(
-      Immutable.Set(["col1", "col3"])
+      Immutable.Set(["col1", "col3"]),
     );
   });
 
@@ -111,19 +111,19 @@ canSelectMeasure or canUseFieldAsBothDimensionAndMeasure has changed`, () => {
 
       instance.receiveProps(
         { ...commonProps, canSelectMeasure: false },
-        commonProps
+        commonProps,
       );
       expect(instance.getDisabledColumnNames).to.have.callCount(1);
 
       instance.receiveProps(
         { ...commonProps, canUseFieldAsBothDimensionAndMeasure: false },
-        commonProps
+        commonProps,
       );
       expect(instance.getDisabledColumnNames).to.have.callCount(2);
 
       instance.receiveProps(
         { ...commonProps, allColumns: Immutable.fromJS([{ name: "foo" }]) },
-        commonProps
+        commonProps,
       );
       expect(instance.getDisabledColumnNames).to.have.callCount(3);
 
@@ -132,7 +132,7 @@ canSelectMeasure or canUseFieldAsBothDimensionAndMeasure has changed`, () => {
           ...commonProps,
           fields: { columnsDimensions: [], columnsMeasures: [] },
         },
-        commonProps
+        commonProps,
       );
       expect(instance.getDisabledColumnNames).to.have.callCount(4);
     });
@@ -173,9 +173,9 @@ canSelectMeasure or canUseFieldAsBothDimensionAndMeasure has changed`, () => {
         wrapper.setProps(props);
         const expectedColumnNames = Immutable.Set(["col1"]);
         expect(instance.getDisabledColumnNames(props)).to.be.eql(
-          expectedColumnNames
+          expectedColumnNames,
         );
-      }
+      },
     );
 
     it(
@@ -202,9 +202,9 @@ canSelectMeasure or canUseFieldAsBothDimensionAndMeasure has changed`, () => {
         wrapper.setProps(props);
         const expectedColumnNames = Immutable.Set(["col1", "col2", "col3"]);
         expect(instance.getDisabledColumnNames(props)).to.be.eql(
-          expectedColumnNames
+          expectedColumnNames,
         );
-      }
+      },
     );
   });
 });

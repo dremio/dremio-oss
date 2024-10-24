@@ -81,6 +81,6 @@ export function wrapConflictDetectionForm(Form) {
 
 export default function ConflictDetectionWatcher(Form) {
   return connect(null, { showConflictConfirmationDialog })(
-    wrapConflictDetectionForm(Form)
+    wrapConflictDetectionForm(Form),
   );
 }

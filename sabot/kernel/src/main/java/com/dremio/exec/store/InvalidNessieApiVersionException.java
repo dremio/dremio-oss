@@ -20,12 +20,8 @@ import com.google.errorprone.annotations.FormatMethod;
 public class InvalidNessieApiVersionException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 
-  public InvalidNessieApiVersionException() {
-    super();
-  }
-
-  public InvalidNessieApiVersionException(Throwable cause) {
-    super(cause);
+  public InvalidNessieApiVersionException(String errorMessage) {
+    super(errorMessage);
   }
 
   @FormatMethod

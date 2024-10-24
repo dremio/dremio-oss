@@ -54,7 +54,7 @@ class JoinDragArea extends PureComponent {
 
   isDragColumnAlreadyAdded() {
     return !!this.props.items.find(
-      (column) => column.get("name") === this.props.columnDragName
+      (column) => column.get("name") === this.props.columnDragName,
     );
   }
 

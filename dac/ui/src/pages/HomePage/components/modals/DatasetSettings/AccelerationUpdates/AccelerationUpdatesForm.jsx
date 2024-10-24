@@ -21,7 +21,7 @@ import { FormBody, ModalForm, modalFormProps } from "components/Forms";
 import { label, section } from "uiTheme/radium/forms";
 import { FieldSelect, Radio } from "components/Fields";
 import DataFreshnessSection from "components/Forms/DataFreshnessSection";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import { HoverHelp } from "dremio-ui-lib";
 
 const SECTIONS = [DataFreshnessSection];

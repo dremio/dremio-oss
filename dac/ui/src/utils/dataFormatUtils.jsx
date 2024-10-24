@@ -20,7 +20,7 @@ import {
   TEXT,
   FLOAT,
   STRUCT,
-} from "@app/constants/DataTypes";
+} from "#oss/constants/DataTypes";
 import { padStart } from "lodash/string";
 
 // todo: loc
@@ -126,7 +126,6 @@ class DataFormatUtils {
         return String(value); // Edge renders float inconsistently, so explicitly convert to String here
       case TEXT:
       default:
-        // eslint-disable-line no-fallthrough
         return value;
     }
   }

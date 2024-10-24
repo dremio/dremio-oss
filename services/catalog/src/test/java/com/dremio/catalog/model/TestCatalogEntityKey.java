@@ -334,7 +334,7 @@ public class TestCatalogEntityKey {
     assertThat(json).isNotNull();
 
     CatalogEntityKey keyFromJson = objectMapper.readValue(json, CatalogEntityKey.class);
-    assertThat(keyFromJson.equals(catalogEntityKey)).isTrue();
+    assertThat(keyFromJson).isEqualTo(catalogEntityKey);
   }
 
   @Test
@@ -351,7 +351,7 @@ public class TestCatalogEntityKey {
     String json = objectMapper.writeValueAsString(catalogEntityKey);
     assertThat(json).isNotNull();
     CatalogEntityKey keyFromJson = objectMapper.readValue(json, CatalogEntityKey.class);
-    assertThat(keyFromJson.equals(catalogEntityKey)).isTrue();
+    assertThat(keyFromJson).isEqualTo(catalogEntityKey);
   }
 
   @Test
@@ -360,7 +360,7 @@ public class TestCatalogEntityKey {
     NamespaceKey namespaceKey = new NamespaceKey(key1);
     final CatalogEntityKey catalogEntityKey =
         CatalogEntityKey.newBuilder().keyComponents(key1).tableVersionContext(null).build();
-    assertThat(namespaceKey.toString().equals(catalogEntityKey.toString())).isTrue();
+    assertThat(namespaceKey.toString()).isEqualTo(catalogEntityKey.toString());
   }
 
   @Test
@@ -370,15 +370,49 @@ public class TestCatalogEntityKey {
     assertThatThrownBy(
             () ->
                 CatalogEntityKey.newBuilder()
-                    .keyComponents(null)
+                    .keyComponents((String) null)
                     .tableVersionContext(tableVersionContext)
                     .build())
         .isInstanceOf(NullPointerException.class);
   }
 
+  private static void assertStringRoundTrip(String expectedToString, CatalogEntityKey key) {
+    String serializedKey = key.toString();
+    assertThat(serializedKey).isEqualTo(expectedToString);
+    CatalogEntityKey deserialized = CatalogEntityKey.fromString(serializedKey);
+    // note: details of equals are covered in another test
+    assertThat(deserialized).isEqualTo(key);
+  }
+
+  @Test
+  public void testStringRoundTrip() {
+    List<String> keyComponents = Arrays.asList("catalog", "schema", "folder", "table");
+
+    // string representation is hardcoded in this test because ReflectionSettingsStore has old
+    // values that need to remain readable without information loss.
+    // this is also why we dont use CatalogEntityKey.KEY_DELIMITER here.
+
+    assertStringRoundTrip(
+        "catalog.schema.folder.table",
+        CatalogEntityKey.newBuilder().keyComponents(keyComponents).build());
+
+    assertStringRoundTrip(
+        "catalog.schema.folder.table\u001F{\"type\":\"BRANCH\",\"value\":\"testBranch\"}",
+        CatalogEntityKey.newBuilder()
+            .keyComponents(keyComponents)
+            .tableVersionContext(new TableVersionContext(TableVersionType.BRANCH, "testBranch"))
+            .build());
+
+    assertStringRoundTrip(
+        "catalog.schema.folder.table\u001F{\"type\":\"NOT_SPECIFIED\",\"value\":\"\"}",
+        CatalogEntityKey.newBuilder()
+            .keyComponents(keyComponents)
+            .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+            .build());
+  }
+
   @Test
   public void testSerialize() {
-    String serializedKey = null;
     TableVersionContext tableVersionContext =
         new TableVersionContext(TableVersionType.BRANCH, "testBranch");
     List<String> keyComponents = Arrays.asList("catalog", "schema", "folder", "tname");
@@ -388,8 +422,8 @@ public class TestCatalogEntityKey {
             .tableVersionContext(tableVersionContext)
             .build();
 
-    serializedKey = catalogEntityKey.toString();
-    assertThat(serializedKey.contains(CatalogEntityKey.KEY_DELIMITER)).isTrue();
+    String serializedKey = catalogEntityKey.toString();
+    assertThat(serializedKey).contains(CatalogEntityKey.KEY_DELIMITER);
   }
 
   @Test
@@ -405,7 +439,7 @@ public class TestCatalogEntityKey {
             .append(CatalogEntityKey.KEY_DELIMITER)
             .append(serializedTableVersionContext)
             .toString();
-    CatalogEntityKey catalogEntityKey = new CatalogEntityKey(stringKey);
+    CatalogEntityKey catalogEntityKey = CatalogEntityKey.fromString(stringKey);
     assertThat(catalogEntityKey.getKeyComponents()).isEqualTo(keyComponents);
     assertThat(catalogEntityKey.getTableVersionContext()).isEqualTo(tableVersionContext);
   }
@@ -414,18 +448,17 @@ public class TestCatalogEntityKey {
   public void testDeserializeNegative() {
     TableVersionContext tableVersionContext =
         new TableVersionContext(TableVersionType.BRANCH, "testBranch");
-    String BAD_KEY_DELIMITER = new String("xyxy");
     List<String> keyComponents = Arrays.asList("catalog", "schema", "folder", "tname");
     String serializedKeyComponents = PathUtils.constructFullPath(keyComponents);
     String serializedTableVersionContext = tableVersionContext.serialize();
     String stringKey =
         new StringBuilder()
             .append(serializedKeyComponents)
-            .append(BAD_KEY_DELIMITER)
+            .append("badKEYdelimiter")
             .append(serializedTableVersionContext)
             .toString();
 
-    CatalogEntityKey catalogEntityKey = new CatalogEntityKey(stringKey);
+    CatalogEntityKey catalogEntityKey = CatalogEntityKey.fromString(stringKey);
     assertThat(catalogEntityKey.getKeyComponents()).isNotEqualTo(keyComponents);
   }
 
@@ -493,6 +526,7 @@ public class TestCatalogEntityKey {
             .keyComponents(key1)
             .tableVersionContext(tableVersionContextImmutable)
             .build();
+    assertThat(catalogEntityKeyImmutable.isKeyForImmutableEntity()).isTrue();
     TableVersionContext tableVersionContextImmutable2 =
         new TableVersionContext(TableVersionType.TIMESTAMP, 1000L);
     final CatalogEntityKey catalogEntityKeyImmutable2 =

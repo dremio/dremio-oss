@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 import { IndexRedirect, Route } from "react-router";
-import { UserIsAdmin } from "@app/components/Auth/authWrappers";
-import AdminModals from "@app/pages/AdminPage/AdminModals";
-import Page from "@app/components/Page";
-import AdminPage from "@app/pages/AdminPage/AdminPage";
+import { UserIsAdmin } from "#oss/components/Auth/authWrappers";
+import AdminModals from "#oss/pages/AdminPage/AdminModals";
+import Page from "#oss/components/Page";
+import AdminPage from "#oss/pages/AdminPage/AdminPage";
 import Acceleration from "@inject/pages/AdminPage/subpages/acceleration/Acceleration";
-import NodeActivity from "@app/pages/AdminPage/subpages/NodeActivity/NodeActivity";
-import Users from "@app/pages/AdminPage/subpages/Users";
-import Advanced from "@app/pages/AdminPage/subpages/Advanced";
-import Provisioning from "@app/pages/AdminPage/subpages/Provisioning";
+import NodeActivity from "#oss/pages/AdminPage/subpages/NodeActivity/NodeActivity";
+import Users from "#oss/pages/AdminPage/subpages/Users";
+import Advanced from "#oss/pages/AdminPage/subpages/Advanced";
+import Provisioning from "#oss/pages/AdminPage/subpages/Provisioning";
 import Activation from "@inject/pages/AdminPage/subpages/Activation";
-import Support from "@app/pages/AdminPage/subpages/Support";
+import Support from "#oss/pages/AdminPage/subpages/Support";
 import Queues from "@inject/pages/AdminPage/subpages/WLM/Queues";
 import QAssignments from "@inject/pages/AdminPage/subpages/WLM/QAssignments";
 import * as adminPaths from "dremio-ui-common/paths/admin.js";

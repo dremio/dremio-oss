@@ -1249,8 +1249,8 @@ public class TestCTAS extends PlanTestBase {
                   + "AS SELECT n_nationkey, n_name from cp.\"tpch/nation.parquet\" limit 1",
               TEMP_SCHEMA_HADOOP, testCtasDefaultTable);
       test(query);
-      String format = getDfsTestTmpDefaultCtasFormat(TEMP_SCHEMA_HADOOP);
-      assertEquals("iceberg", format);
+      FileSystemPlugin plugin = getCatalogService().getSource(TEMP_SCHEMA_HADOOP);
+      assertEquals("iceberg", plugin.getDefaultCtasFormat());
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), testCtasDefaultTable);
       assertTrue(tableFolder.exists());
       File metadataFolder = new File(tableFolder, "metadata");

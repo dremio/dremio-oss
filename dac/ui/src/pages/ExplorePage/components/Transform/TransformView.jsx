@@ -20,7 +20,7 @@ import { Link } from "react-router";
 
 import Tabs from "components/Tabs";
 
-import { LIST, MAP, STRUCT } from "@app/constants/DataTypes";
+import { LIST, MAP, STRUCT } from "#oss/constants/DataTypes";
 
 import { methodTitle, methodTab } from "uiTheme/radium/exploreTransform";
 import ExtractTextForm from "./components/forms/ExtractTextForm";
@@ -85,7 +85,10 @@ export class TransformView extends Component {
     ) {
       return (
         <div
-          style={{ ...methodTab, backgroundColor: "rgba(0,0,0,0.05)" }}
+          style={{
+            ...methodTab,
+            backgroundColor: "var(--fill--primary--selected)",
+          }}
           key={subtitle.id}
         >
           {subtitle.name}
@@ -190,7 +193,7 @@ export class TransformView extends Component {
 
 const styles = {
   base: {
-    backgroundColor: "var(--fill--brand)",
+    backgroundColor: "var(--fill--primary)",
     display: "flex",
     flexDirection: "column",
     flexWrap: "wrap",
@@ -206,14 +209,15 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
-    backgroundColor: "#fff",
-    border: "1px solid #f2f2f2",
+    backgroundColor: "var(--fill--primary)",
+    border: "1px solid var(--border--neutral)",
     cursor: "pointer",
   },
   titles: {
     display: "flex",
     marginTop: 2,
     marginBottom: 2,
+    background: "var(--fill--secondary)",
   },
 };
 export default TransformView;

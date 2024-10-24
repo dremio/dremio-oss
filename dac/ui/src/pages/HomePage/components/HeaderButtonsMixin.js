@@ -1,5 +1,5 @@
-import { ENTITY_TYPES } from "@app/constants/Constants";
-import { manageSourceRule, manageSpaceRule } from "@app/utils/authUtils";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
+import { manageSourceRule, manageSpaceRule } from "#oss/utils/authUtils";
 import { isCME } from "dyn-load/utils/versionUtils";
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
@@ -18,7 +18,6 @@ import { isCME } from "dyn-load/utils/versionUtils";
  */
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     getSpaceSettingsButtons() {
       const { location } = this.context;
       const { entity } = this.props;

@@ -21,14 +21,14 @@ import { Spinner } from "dremio-ui-lib/components";
 import {
   constructVersionedEntityUrl,
   useVersionedPageContext,
-} from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
-import { VersionedPageTabsType } from "@app/exports/pages/VersionedHomePage/VersionedHomePage";
+} from "#oss/exports/pages/VersionedHomePage/versioned-page-utils";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
+import { VersionedPageTabsType } from "#oss/exports/pages/VersionedHomePage/VersionedHomePage";
 import { useVersionedCommitDetails } from "./useVersionedCommitDetails";
 import { useVersionedCommitTags } from "./useVersionedCommitTags";
-import { isSmartFetchLoading } from "@app/utils/isSmartFetchLoading";
+import { isSmartFetchLoading } from "#oss/utils/isSmartFetchLoading";
 import { useDispatch } from "react-redux";
-import { setReference } from "@app/actions/nessie/nessie";
+import { setReference } from "#oss/actions/nessie/nessie";
 
 import * as classes from "./VersionedPageCommitDetails.module.less";
 

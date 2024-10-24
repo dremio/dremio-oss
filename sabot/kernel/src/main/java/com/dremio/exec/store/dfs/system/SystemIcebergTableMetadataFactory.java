@@ -21,18 +21,27 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.copyinto.CopyFileHistoryTableMetadata;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableMetadata;
 import com.dremio.options.OptionManager;
-import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.iceberg.exceptions.NotFoundException;
 
 /** Utility class for initializing the table metadata for system iceberg tables. */
 public final class SystemIcebergTableMetadataFactory {
 
-  public static final String COPY_JOB_HISTORY_TABLE_NAME = "copy_job_history";
-  public static final String COPY_FILE_HISTORY_TABLE_NAME = "copy_file_history";
+  public enum SupportedSystemIcebergTable {
+    COPY_JOB_HISTORY("copy_job_history"),
+    COPY_FILE_HISTORY("copy_file_history");
 
-  public static final List<String> SUPPORTED_TABLES =
-      ImmutableList.of(COPY_JOB_HISTORY_TABLE_NAME, COPY_FILE_HISTORY_TABLE_NAME);
+    private final String tableName;
+
+    SupportedSystemIcebergTable(String tableName) {
+      this.tableName = tableName;
+    }
+
+    public String getTableName() {
+      return tableName;
+    }
+  }
 
   public static SystemIcebergTableMetadata getTableMetadata(
       String pluginName,
@@ -42,12 +51,25 @@ public final class SystemIcebergTableMetadataFactory {
     long schemaVersion =
         optionManager.getOption(ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION);
     long commitRetries = optionManager.getOption(SYSTEM_ICEBERG_TABLES_COMMIT_NUM_RETRIES);
-    if (tableSchemaPath.stream().anyMatch(COPY_JOB_HISTORY_TABLE_NAME::equalsIgnoreCase)) {
+    if (tableSchemaPath.stream()
+        .anyMatch(
+            p -> p.equalsIgnoreCase(SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName()))) {
       return new CopyJobHistoryTableMetadata(
-          schemaVersion, commitRetries, pluginName, pluginPath, COPY_JOB_HISTORY_TABLE_NAME);
-    } else if (tableSchemaPath.stream().anyMatch(COPY_FILE_HISTORY_TABLE_NAME::equalsIgnoreCase)) {
+          schemaVersion,
+          commitRetries,
+          pluginName,
+          pluginPath,
+          SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName());
+    } else if (tableSchemaPath.stream()
+        .anyMatch(
+            p ->
+                p.equalsIgnoreCase(SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName()))) {
       return new CopyFileHistoryTableMetadata(
-          schemaVersion, commitRetries, pluginName, pluginPath, COPY_FILE_HISTORY_TABLE_NAME);
+          schemaVersion,
+          commitRetries,
+          pluginName,
+          pluginPath,
+          SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName());
     }
     throw new NotFoundException("Invalid system iceberg table : %s", tableSchemaPath);
   }
@@ -57,7 +79,8 @@ public final class SystemIcebergTableMetadataFactory {
   }
 
   public static boolean isSupportedTablePath(List<String> tableSchemaPath) {
-    return SUPPORTED_TABLES.stream()
+    return Arrays.stream(SupportedSystemIcebergTable.values())
+        .map(SupportedSystemIcebergTable::getTableName)
         .anyMatch(
             supportedTableName ->
                 tableSchemaPath.stream().anyMatch(supportedTableName::equalsIgnoreCase));

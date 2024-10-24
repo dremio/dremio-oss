@@ -15,7 +15,7 @@
  */
 
 //@ts-ignore
-import sentryUtil from "@app/utils/sentryUtil";
+import sentryUtil from "#oss/utils/sentryUtil";
 
 // Sets item and logs to sentry on error
 export const setItem = (key: string, value: any) => {

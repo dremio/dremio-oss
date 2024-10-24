@@ -18,20 +18,34 @@ import type {
   Function as FunctionInterface,
   FunctionProperties,
 } from "../../interfaces/Function.js";
+import type { FunctionCatalogReference } from "./CatalogReference.js";
 
 import { pathString } from "./utils.js";
 
 export class CatalogFunction implements FunctionInterface {
+  readonly catalogReference: FunctionCatalogReference;
   readonly createdAt: FunctionProperties["createdAt"];
+  /**
+   * @deprecated
+   */
   readonly id: FunctionProperties["id"];
   readonly isScalar: FunctionProperties["isScalar"];
   readonly lastModified: FunctionProperties["lastModified"];
+  /**
+   * @deprecated
+   */
   readonly path: FunctionProperties["path"];
   readonly returnType: FunctionProperties["returnType"];
   // eslint-disable-next-line no-unused-private-class-members
   readonly #tag: string;
 
-  constructor(properties: FunctionProperties & { tag: string }) {
+  constructor(
+    properties: FunctionProperties & {
+      catalogReference: FunctionCatalogReference;
+      tag: string;
+    },
+  ) {
+    this.catalogReference = properties.catalogReference;
     this.createdAt = properties.createdAt;
     this.id = properties.id;
     this.isScalar = properties.isScalar;
@@ -41,9 +55,22 @@ export class CatalogFunction implements FunctionInterface {
     this.#tag = properties.tag;
   }
 
+  /**
+   * @deprecated
+   */
   get name(): string {
     return this.path[this.path.length - 1]!;
   }
 
+  /**
+   * @deprecated
+   */
+  get referenceType() {
+    return "FUNCTION" as const;
+  }
+
+  /**
+   * @deprecated
+   */
   pathString = pathString(() => this.path);
 }

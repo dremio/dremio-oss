@@ -15,7 +15,7 @@
  */
 import invariant from "invariant";
 import { isEqual } from "lodash";
-import { DATASET_SUMMARY_ENTITY_TYPES } from "@app/constants/Constants";
+import { DATASET_SUMMARY_ENTITY_TYPES } from "#oss/constants/Constants";
 
 const FORMATTED_ENTITY_TYPES = new Set(["file", "folder"]);
 
@@ -25,7 +25,7 @@ const FORMATTED_ENTITY_TYPES = new Set(["file", "folder"]);
 export function abilities(
   entity,
   entityType = entity.get("entityType"),
-  isHomeFile = entity.get("isHomeFile") || false
+  isHomeFile = entity.get("isHomeFile") || false,
 ) {
   invariant(entityType, "entityType is required");
 

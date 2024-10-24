@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { SHARING_TAB_JSON_TEMPLATE } from "@app/constants/sourceTypes";
+import { SHARING_TAB_JSON_TEMPLATE } from "@inject/constants/sourceTypes";
 import SourceFormJsonPolicy from "utils/FormUtils/SourceFormJsonPolicy";
 import FormConfig from "utils/FormUtils/FormConfig";
 
@@ -45,17 +45,17 @@ describe("SourceFormJsonPolicy", () => {
 
     it("should return loaded if no default list", () => {
       expect(
-        SourceFormJsonPolicy.combineDefaultAndLoadedList(loadedList)
+        SourceFormJsonPolicy.combineDefaultAndLoadedList(loadedList),
       ).to.equal(loadedList);
       expect(
-        SourceFormJsonPolicy.combineDefaultAndLoadedList(loadedList, [])
+        SourceFormJsonPolicy.combineDefaultAndLoadedList(loadedList, []),
       ).to.equal(loadedList);
     });
     it("should filter out default entries not present in loaded", () => {
       defaultList.push({ sourceType: "TWO", prop: "P", p2: "P2" });
       const list = SourceFormJsonPolicy.combineDefaultAndLoadedList(
         loadedList,
-        defaultList
+        defaultList,
       );
       expect(list.length).to.equal(1);
       expect(list[0].sourceType).to.equal("ONE");
@@ -63,7 +63,7 @@ describe("SourceFormJsonPolicy", () => {
     it("should decorate entry from ui list", () => {
       const list = SourceFormJsonPolicy.combineDefaultAndLoadedList(
         loadedList,
-        defaultList
+        defaultList,
       );
       expect(list.length).to.equal(1);
       expect(list[0].prop).to.equal("p");
@@ -100,7 +100,7 @@ describe("SourceFormJsonPolicy", () => {
       it("should return default", () => {
         const config =
           SourceFormJsonPolicy.makeCombinedFromFunctionalConfig(
-            functionalConfig
+            functionalConfig,
           );
         expect(config.sourceType).to.equal("S3");
         expect(config.label).to.equal("s3");
@@ -109,7 +109,7 @@ describe("SourceFormJsonPolicy", () => {
       it("should prepare functional elements in config", () => {
         const config =
           SourceFormJsonPolicy.makeCombinedFromFunctionalConfig(
-            functionalConfig
+            functionalConfig,
           );
         const elementConfig = config.form.getDirectElements()[0].getConfig();
         expect(elementConfig.propertyName).to.equal("a");
@@ -132,7 +132,7 @@ describe("SourceFormJsonPolicy", () => {
       it("should add label to uiConfig when available", () => {
         const config = SourceFormJsonPolicy.mergeFormMetadataConfig(
           uiConfig,
-          functionalConfig
+          functionalConfig,
         );
         expect(config.label).to.equal("s3");
       });
@@ -251,7 +251,7 @@ describe("SourceFormJsonPolicy", () => {
         const elementConfig =
           SourceFormJsonPolicy.convertElementConfigJsonToObject(config);
         expect(elementConfig.getRenderer()).to.equal(
-          CheckEnabledContainerWrapper
+          CheckEnabledContainerWrapper,
         );
       });
       it("should create config for container selection", () => {
@@ -351,7 +351,7 @@ describe("SourceFormJsonPolicy", () => {
       it("should return functional if no ui options", () => {
         const options = SourceFormJsonPolicy.joinOptions(
           null,
-          functionalOptions
+          functionalOptions,
         );
         expect(options).to.equal(functionalOptions);
       });
@@ -362,7 +362,7 @@ describe("SourceFormJsonPolicy", () => {
       it("should merge based on option value", () => {
         const options = SourceFormJsonPolicy.joinOptions(
           uiOptions,
-          functionalOptions
+          functionalOptions,
         );
         expect(options[0].value).to.equal("ANONYMOUS");
         expect(options[0].label).to.equal("Override");
@@ -385,7 +385,7 @@ describe("SourceFormJsonPolicy", () => {
       const config =
         SourceFormJsonPolicy.combineFunctionalAndPresentationalSourceTypeConfig(
           functionalConfig,
-          uiConfig
+          uiConfig,
         );
       expect(config.form.getConfig().tabs[1].getSections().length).to.equal(1);
     });
@@ -402,7 +402,7 @@ describe("SourceFormJsonPolicy", () => {
       expect(SourceFormJsonPolicy.applyJsonPolicyToFormConfig()).to.be
         .undefined;
       expect(SourceFormJsonPolicy.applyJsonPolicyToFormConfig(false)).to.equal(
-        false
+        false,
       );
       expect(SourceFormJsonPolicy.applyJsonPolicyToFormConfig("")).to.equal("");
     });
@@ -410,7 +410,7 @@ describe("SourceFormJsonPolicy", () => {
     it("should add default general, metadata, and acceleration tabs", () => {
       const config = SourceFormJsonPolicy.applyJsonPolicyToFormConfig(
         uiConfig,
-        {}
+        {},
       );
       expect(config.form).to.not.be.undefined;
       const numberOfTabs = SHARING_TAB_JSON_TEMPLATE.name ? 4 : 3;
@@ -436,11 +436,11 @@ describe("SourceFormJsonPolicy", () => {
       };
       const config = SourceFormJsonPolicy.applyJsonPolicyToFormConfig(
         uiConfig,
-        functionalConfig
+        functionalConfig,
       );
       expect(config.form.getTabs()[0].getSections().length).to.equal(2);
       expect(
-        config.form.getTabs()[0].getSections()[1].getConfig().name
+        config.form.getTabs()[0].getSections()[1].getConfig().name,
       ).to.equal("Test section");
       expect(config.form.getConfig().sections).to.be.undefined;
     });
@@ -448,7 +448,7 @@ describe("SourceFormJsonPolicy", () => {
     it("should have icon, name, and descriptionin general tab", () => {
       const config = SourceFormJsonPolicy.applyJsonPolicyToFormConfig(
         uiConfig,
-        {}
+        {},
       );
       const section = config.form.getTabs()[0].getSections()[0];
       expect(section.getConfig().icon).to.equal("S3.svg");
@@ -466,7 +466,7 @@ describe("SourceFormJsonPolicy", () => {
       };
       const config = SourceFormJsonPolicy.applyJsonPolicyToFormConfig(
         uiConfig,
-        functionalConfig
+        functionalConfig,
       );
       expect(config.form.getTabs()[0].getSections().length).to.equal(2);
       expect(
@@ -474,7 +474,7 @@ describe("SourceFormJsonPolicy", () => {
           .getTabs()[0]
           .getSections()[1]
           .getDirectElements()[0]
-          .getConfig().label
+          .getConfig().label,
       ).to.equal("TEST loose elements");
       expect(config.form.getConfig().elements).to.be.undefined;
     });
@@ -487,7 +487,7 @@ describe("SourceFormJsonPolicy", () => {
       };
       const config = SourceFormJsonPolicy.applyJsonPolicyToFormConfig(
         uiConfig,
-        functionalConfig
+        functionalConfig,
       );
       const numberOfTabs = SHARING_TAB_JSON_TEMPLATE.name ? 4 : 3;
       expect(config.form.getTabs().length).to.equal(numberOfTabs);
@@ -507,17 +507,17 @@ describe("SourceFormJsonPolicy", () => {
       const metadataTab = findConfigContainer(
         form.getTabs(),
         "name",
-        "Metadata"
+        "Metadata",
       );
       const refreshSection = findConfigContainer(
         metadataTab.getSections(),
         "name",
-        "Metadata Refresh"
+        "Metadata Refresh",
       );
       return findConfigContainer(
         refreshSection.getDirectElements(),
         "type",
-        "metadata_refresh"
+        "metadata_refresh",
       );
     };
 
@@ -529,7 +529,7 @@ describe("SourceFormJsonPolicy", () => {
       };
       const config = SourceFormJsonPolicy.applyJsonPolicyToFormConfig(
         uiConfig,
-        functionalConfig
+        functionalConfig,
       );
       const element = getDataRefreshElement(config.form);
       expect(element.getConfig().datasetDiscovery).to.be.undefined;
@@ -544,7 +544,7 @@ describe("SourceFormJsonPolicy", () => {
       };
       const config = SourceFormJsonPolicy.applyJsonPolicyToFormConfig(
         uiConfig,
-        functionalConfig
+        functionalConfig,
       );
       const element = getDataRefreshElement(config.form);
       expect(element.getConfig().datasetDiscovery).to.equal(true);

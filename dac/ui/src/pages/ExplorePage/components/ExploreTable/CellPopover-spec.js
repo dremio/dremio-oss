@@ -50,7 +50,7 @@ describe("CellPopover", () => {
     expect(wrapper.hasClass("cell-popover-wrap")).to.eql(true);
     expect(wrapper.find("JSONTree")).to.have.length(1);
     expect(
-      wrapper.find("withLocation(SelectedTextPopoverView)")
+      wrapper.find("withLocation(SelectedTextPopoverView)"),
     ).to.have.length(1);
   });
 
@@ -60,7 +60,7 @@ describe("CellPopover", () => {
         Immutable.fromJS({
           columnName: commonProps.cellPopover.get("columnName"),
           mapPathList: ["inner_map_v2", "inner_map"],
-        })
+        }),
       );
     });
 
@@ -69,7 +69,7 @@ describe("CellPopover", () => {
         Immutable.fromJS({
           columnName: commonProps.cellPopover.get("columnName"),
           mapPathList: ["inner_map[0]", "inner_map_v2"],
-        })
+        }),
       );
     });
 
@@ -82,12 +82,12 @@ describe("CellPopover", () => {
           1,
           0,
           "inner_map",
-        ])
+        ]),
       ).to.eql(
         Immutable.fromJS({
           columnName: commonProps.cellPopover.get("columnName"),
           mapPathList: ["inner_map[0][1]", "inner_map_v2", "inner_list[0]"],
-        })
+        }),
       );
     });
   });
@@ -101,7 +101,7 @@ describe("CellPopover", () => {
       });
       const inst = shallow(
         <CellPopover data={data} cellPopover={cellPopover} />,
-        { context }
+        { context },
       ).instance();
       expect(inst.getListModel([0])).to.eql(
         Immutable.fromJS({
@@ -110,7 +110,7 @@ describe("CellPopover", () => {
           startIndex: 0,
           endIndex: 1,
           listLength: 2,
-        })
+        }),
       );
     });
 
@@ -122,7 +122,7 @@ describe("CellPopover", () => {
       });
       const inst = shallow(
         <CellPopover data={data} cellPopover={cellPopover} />,
-        { context }
+        { context },
       ).instance();
       expect(inst.getListModel([0])).to.eql(
         Immutable.fromJS({
@@ -131,7 +131,7 @@ describe("CellPopover", () => {
           startIndex: 0,
           endIndex: 1,
           listLength: 2,
-        })
+        }),
       );
     });
 
@@ -143,7 +143,7 @@ describe("CellPopover", () => {
       });
       const inst = shallow(
         <CellPopover data={data} cellPopover={cellPopover} />,
-        { context }
+        { context },
       ).instance();
       expect(inst.getListModel([0])).to.eql(
         Immutable.fromJS({
@@ -152,7 +152,7 @@ describe("CellPopover", () => {
           startIndex: 0,
           endIndex: 1,
           listLength: 2,
-        })
+        }),
       );
     });
 
@@ -164,7 +164,7 @@ describe("CellPopover", () => {
       });
       const inst = shallow(
         <CellPopover data={data} cellPopover={cellPopover} />,
-        { context }
+        { context },
       ).instance();
       expect(inst.getListModel([2])).to.eql(
         Immutable.fromJS({
@@ -173,7 +173,7 @@ describe("CellPopover", () => {
           startIndex: 2,
           endIndex: 3,
           listLength: 3,
-        })
+        }),
       );
     });
 
@@ -185,7 +185,7 @@ describe("CellPopover", () => {
       });
       const inst = shallow(
         <CellPopover data={data} cellPopover={cellPopover} />,
-        { context }
+        { context },
       ).instance();
       expect(inst.getListModel([2])).to.eql(
         Immutable.fromJS({
@@ -194,7 +194,7 @@ describe("CellPopover", () => {
           startIndex: 2,
           endIndex: 3,
           listLength: 3,
-        })
+        }),
       );
     });
 
@@ -206,7 +206,7 @@ describe("CellPopover", () => {
       });
       const inst = shallow(
         <CellPopover data={data} cellPopover={cellPopover} />,
-        { context }
+        { context },
       ).instance();
       expect(inst.getListModel([1])).to.eql(
         Immutable.fromJS({
@@ -215,7 +215,7 @@ describe("CellPopover", () => {
           startIndex: 1,
           endIndex: 2,
           listLength: 3,
-        })
+        }),
       );
     });
 
@@ -227,7 +227,7 @@ describe("CellPopover", () => {
       });
       const inst = shallow(
         <CellPopover data={data} cellPopover={cellPopover} />,
-        { context }
+        { context },
       ).instance();
       expect(inst.getListModel([1])).to.eql(
         Immutable.fromJS({
@@ -236,7 +236,7 @@ describe("CellPopover", () => {
           startIndex: 1,
           endIndex: 2,
           listLength: 3,
-        })
+        }),
       );
     });
   });
@@ -247,7 +247,7 @@ describe("CellPopover", () => {
         keyPath: ["inner_str"],
       });
       expect(instance.getMapValueFromSelection()).to.eql(
-        'inner_str:"a string"'
+        'inner_str:"a string"',
       );
 
       wrapper.setState({
@@ -283,7 +283,7 @@ describe("CellPopover", () => {
           state: { selection: "getMapModel" },
           query: { column: "revenue", columnType: "MAP" },
           pathname: "space/Prod-Sample.ds1",
-        })
+        }),
       ).to.be.true;
 
       wrapper.setProps({
@@ -298,7 +298,7 @@ describe("CellPopover", () => {
           state: { selection: "getListModel" },
           query: { column: "age", columnType: "LIST" },
           pathname: "space/Prod-Sample.ds1",
-        })
+        }),
       ).to.be.true;
     });
   });

@@ -39,7 +39,7 @@ describe("MetadataRefresh", () => {
   describe("#mapToFormFields", () => {
     it("should return default values if source is not defined", () => {
       expect(MetadataRefresh.mapToFormFields()).to.be.eql(
-        MetadataRefresh.defaultFormValues().metadataPolicy
+        MetadataRefresh.defaultFormValues().metadataPolicy,
       );
     });
 

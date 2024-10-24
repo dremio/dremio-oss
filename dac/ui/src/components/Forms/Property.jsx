@@ -22,7 +22,7 @@ import TextField from "components/Fields/TextField";
 import { RemoveButton } from "components/Fields/FieldList";
 
 import { applyValidators, isRequired } from "utils/validation";
-import { inputSpacing as inputSpacingCssValue } from "@app/uiTheme/less/variables.less";
+import { inputSpacing as inputSpacingCssValue } from "#oss/uiTheme/less/variables.less";
 
 const inputSpacing = parseInt(inputSpacingCssValue, 10);
 

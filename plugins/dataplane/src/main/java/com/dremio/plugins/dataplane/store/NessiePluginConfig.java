@@ -15,7 +15,6 @@
  */
 package com.dremio.plugins.dataplane.store;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
@@ -27,23 +26,14 @@ import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.nessiemetadata.cache.NessieDataplaneCaffeineCacheProvider;
-import com.dremio.plugins.NessieClient;
-import com.dremio.plugins.NessieClientImpl;
-import com.dremio.plugins.UsernameAwareNessieClientImpl;
-import com.google.common.annotations.VisibleForTesting;
 import io.protostuff.Tag;
-import java.net.URI;
 import java.util.List;
 import javax.inject.Provider;
-import org.projectnessie.client.NessieClientBuilder;
-import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.client.auth.oauth2.OAuth2AuthenticationProvider;
-import org.projectnessie.client.auth.oauth2.OAuth2AuthenticatorConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Connection configuration for Nessie source Plugin. */
-@SourceType(value = "NESSIE", label = "Nessie", uiConfig = "nessie-layout.json")
+@SourceType(value = "NESSIE", label = "Nessie", uiConfig = "nessie-layout.json", isVersioned = true)
 public class NessiePluginConfig extends AbstractDataplanePluginConfig {
   private static final Logger logger = LoggerFactory.getLogger(NessiePluginConfig.class);
 
@@ -91,7 +81,7 @@ public class NessiePluginConfig extends AbstractDataplanePluginConfig {
   public boolean secure = true;
 
   // Tags 17 through 31 are defined in AbstractDataplanePluginConfig
-  // Tags 32 through 36 are defined in AbstractBagpipePluginConfig
+  // Tags 32 through 36 are defined in AbstractLakehouseCatalogPluginConfig
   @Tag(37)
   @DisplayMetadata(label = "Client ID")
   @NotMetadataImpacting // Dataplane plugins don't have metadata refresh, so all properties are not
@@ -113,16 +103,8 @@ public class NessiePluginConfig extends AbstractDataplanePluginConfig {
   @Override
   public DataplanePlugin newPlugin(
       SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    final NessieClient nessieClient = getNessieClient(name, context);
-
     return new NessiePlugin(
-        this,
-        context,
-        name,
-        pluginIdProvider,
-        nessieClient,
-        new NessieDataplaneCaffeineCacheProvider(),
-        null);
+        this, context, name, pluginIdProvider, new NessieDataplaneCaffeineCacheProvider(), null);
   }
 
   @Override
@@ -140,105 +122,28 @@ public class NessiePluginConfig extends AbstractDataplanePluginConfig {
     return properties;
   }
 
-  // TODO: DX-92705: Refactor to use a compile time enum to avoid the switch statement when moving
-  // out of the NessiePluginConfig
-  @VisibleForTesting
-  NessieClient getNessieClient(String name, SabotContext sabotContext) {
-    switch (nessieAuthType) {
-      case BEARER:
-        return getNessieClientWithBearerToken(name, sabotContext);
-      case NONE:
-        return getNessieClientWithoutAuthentication(name, sabotContext);
-      case OAUTH2:
-        return getNessieClientWithOAuth2Token(name, sabotContext);
-      default:
-        throw new UnsupportedOperationException();
-    }
+  NessieAuthType getNessieAuthType() {
+    return nessieAuthType;
   }
 
-  private NessieClient getNessieClientWithBearerToken(String name, SabotContext sabotContext) {
-    NessieClientImpl nessieClient =
-        new NessieClientImpl(
-            getNessieRestClient(name, nessieEndpoint, nessieAccessToken),
-            sabotContext.getOptionManager());
-    return new UsernameAwareNessieClientImpl(nessieClient, sabotContext.getUserService());
+  SecretRef getNessieAccessToken() {
+    return nessieAccessToken;
   }
 
-  private NessieClient getNessieClientWithoutAuthentication(
-      String name, SabotContext sabotContext) {
-    NessieClientImpl nessieClient =
-        new NessieClientImpl(
-            getNessieRestClient(name, nessieEndpoint, null), sabotContext.getOptionManager());
-    return new UsernameAwareNessieClientImpl(nessieClient, sabotContext.getUserService());
+  SecretRef getOauth2ClientSecret() {
+    return oauth2ClientSecret;
   }
 
-  private NessieClient getNessieClientWithOAuth2Token(String name, SabotContext sabotContext) {
-    NessieClientImpl nessieClient =
-        new NessieClientImpl(
-            getNessieRestClient(
-                name, nessieEndpoint, oauth2TokenEndpointURI, oauth2ClientId, oauth2ClientSecret),
-            sabotContext.getOptionManager());
-    return new UsernameAwareNessieClientImpl(nessieClient, sabotContext.getUserService());
+  String getOauth2ClientId() {
+    return oauth2ClientId;
+  }
+
+  String getOauth2TokenEndpointURI() {
+    return oauth2TokenEndpointURI;
   }
 
   String getNessieEndpoint() {
     return nessieEndpoint;
-  }
-
-  @Override
-  protected NessieApiV2 getNessieRestClient(
-      String name, String nessieEndpoint, SecretRef nessieAccessToken) {
-    final NessieClientBuilder builder =
-        NessieClientBuilder.createClientBuilder("HTTP", null).withUri(URI.create(nessieEndpoint));
-
-    if (!SecretRef.isNullOrEmpty(nessieAccessToken)) {
-      builder.withAuthentication(new SecureBearerAuthentication(nessieAccessToken));
-    }
-
-    try {
-      return builder.withTracing(true).withApiCompatibilityCheck(true).build(NessieApiV2.class);
-    } catch (IllegalArgumentException e) {
-      throw UserException.resourceError(e)
-          .message(
-              "Unable to create source [%s], " + "%s must be a valid http or https address",
-              name, nessieEndpoint)
-          .build(logger);
-    }
-  }
-
-  // TODO: DX-92705: Move to the NessiePlugins and consolidate with the above method that overrides
-  // method AbstractDataplanePluginConfig.getNessieRestClient
-  private NessieApiV2 getNessieRestClient(
-      String name,
-      String nessieEndpoint,
-      String oauth2TokenEndpointURI,
-      String oauth2ClientId,
-      SecretRef oauth2ClientSecret) {
-    NessieClientBuilder builder = null;
-    try {
-      builder =
-          NessieClientBuilder.createClientBuilder("HTTP", null).withUri(URI.create(nessieEndpoint));
-      final OAuth2AuthenticatorConfig oauth2AuthenticatorConfig =
-          OAuth2AuthenticatorConfig.builder()
-              .clientId(oauth2ClientId)
-              .clientSecret(oauth2ClientSecret.get())
-              .tokenEndpoint(URI.create(oauth2TokenEndpointURI))
-              .build();
-
-      builder.withAuthentication(OAuth2AuthenticationProvider.create(oauth2AuthenticatorConfig));
-      return builder.withTracing(true).withApiCompatibilityCheck(true).build(NessieApiV2.class);
-    } catch (IllegalArgumentException e) {
-      throw UserException.resourceError(e)
-          .message(
-              "Unable to create source [%s], " + "%s must be a valid http or https address",
-              name, nessieEndpoint)
-          .build(logger);
-    } catch (UnsupportedOperationException e) { // thrown by oAuth2ClientSecret.get()
-      throw UserException.resourceError(e)
-          .message(
-              "Unable to create or access source [%s], " + "OAuth2 credentials are not valid", name)
-          .build(logger);
-    }
   }
 
   @Override

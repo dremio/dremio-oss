@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.dfs.system;
 
-import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.notNull;
@@ -33,6 +32,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableMetadata;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableVectorContainerBuilder;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
 import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
@@ -95,7 +95,8 @@ public class TestSystemIcebergTableRecordWriter extends BaseTestQuery {
     return new SystemIcebergTableRecordWriter(
         opContext,
         plugin,
-        plugin.getTableMetadata(ImmutableList.of(COPY_JOB_HISTORY_TABLE_NAME)),
+        plugin.getTableMetadata(
+            ImmutableList.of(SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName())),
         com.dremio.io.file.Path.of(targetDirPath.toString()));
   }
 
@@ -117,8 +118,13 @@ public class TestSystemIcebergTableRecordWriter extends BaseTestQuery {
           .thenReturn(HadoopFileSystem.getLocal(new Configuration()));
       SystemIcebergTableMetadata tableMetadata =
           new CopyJobHistoryTableMetadata(
-              2L, 4, "fake_plugin_name", "fake_plugin_path", COPY_JOB_HISTORY_TABLE_NAME);
-      when(plugin.getTableMetadata(ImmutableList.of(COPY_JOB_HISTORY_TABLE_NAME)))
+              2L,
+              4,
+              "fake_plugin_name",
+              "fake_plugin_path",
+              SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName());
+      when(plugin.getTableMetadata(
+              ImmutableList.of(SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName())))
           .thenReturn(tableMetadata);
       return plugin;
     } catch (IOException e) {
@@ -166,7 +172,7 @@ public class TestSystemIcebergTableRecordWriter extends BaseTestQuery {
             .build();
     VectorContainer container =
         CopyJobHistoryTableVectorContainerBuilder.initializeContainer(
-            allocator, CopyJobHistoryTableSchemaProvider.getSchema(2L));
+            allocator, new CopyJobHistoryTableSchemaProvider(2L).getSchema());
     CopyJobHistoryTableVectorContainerBuilder.writeRecordToContainer(
         container, info, 100, 13, 0L, 0L);
     return container;

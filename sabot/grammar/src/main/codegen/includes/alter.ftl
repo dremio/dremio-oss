@@ -42,6 +42,7 @@
     SqlNodeList tablePropertyNameList;
     SqlNodeList tablePropertyValueList;
     SqlNodeList sortList;
+    SqlNodeList clusterKeyList;
 }
 {
     {
@@ -96,6 +97,10 @@
           <ADD> <PRIMARY> <KEY> { return new SqlAlterTableAddPrimaryKey(pos, tblName, ParseRequiredFieldList("Primary Key"), sqlTableVersionSpec); }
           |
           <DROP> <PRIMARY> <KEY> { return new SqlAlterTableDropPrimaryKey(pos, tblName, sqlTableVersionSpec); }
+          |
+          <DROP> <CLUSTERING> <KEY> { return new SqlAlterTableClusterKey(pos, tblName, SqlNodeList.EMPTY); }
+          |
+          <DROP> <LOCALSORT> { return new SqlAlterTableSortOrder(pos, tblName, SqlNodeList.EMPTY); }
           |
           <ROUTE> (
             (<ALL> <REFLECTIONS> | <REFLECTIONS>)  { return SqlAlterDatasetReflectionRouting(pos, tblName, SqlLiteral.createSymbol(SqlAlterDatasetReflectionRouting.RoutingType.TABLE, pos)); }
@@ -270,6 +275,11 @@
           <LOCALSORT> <BY> { sortList = ParseRequiredFieldList("Sort"); }
           {
               return new SqlAlterTableSortOrder(pos, tblName, sortList);
+          }
+          |
+          <CLUSTER> <BY> { clusterKeyList = ParseRequiredFieldList("Cluster"); }
+          {
+                return new SqlAlterTableClusterKey(pos, tblName, clusterKeyList);
           }
           |
           { return new SqlAlterTableSetOption(pos, tblName, SqlSetOption(Span.of(), "TABLE"), sqlTableVersionSpec); }

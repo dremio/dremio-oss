@@ -1,0 +1,74 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+
+option java_package = "com.dremio.exec.store.iceberg.logging";
+option java_outer_classname = "VacuumLogProto";
+option optimize_for = SPEED;
+
+package com.dremio.exec.store.iceberg.logging.proto;
+
+message VacuumLog {
+  string jobId = 1;
+  string action = 2;
+  ActionTarget actionTarget = 3;
+  bool status = 4;
+  ErrorType error_type = 5;
+  string error = 6;
+}
+
+message ActionTarget {
+  oneof target {
+    DeleteOrphanFileInfo deleteFileInfo = 11;
+    NessieExpireSnapshotInfo expireSnapshotInfo = 12;
+    TableSkipInfo tableSkipInfo = 13;
+    NessieCommitScanInfo commitScanInfo = 14;
+  }
+}
+
+message DeleteOrphanFileInfo {
+  string filePath = 21;
+}
+
+message NessieExpireSnapshotInfo {
+  string table = 31;
+  string metadataLocation = 32;
+  repeated string snapshotId = 33;
+  int64 olderThanMillis = 34;
+  int32 retainLast = 35;
+}
+
+message TableSkipInfo {
+  string table = 41;
+  int64 olderThanMillis = 42;
+  int32 retainLast = 43;
+}
+
+message NessieCommitScanInfo {
+  string table = 51;
+  string metadataLocation = 52;
+  string snapshotId = 53;
+}
+
+enum ErrorType {
+  UNKNOWN = 0;
+  NOT_FOUND_EXCEPTION = 1;
+  PERMISSION_EXCEPTION = 2;
+  CONTAINER_NOT_FOUND_EXCEPTION = 3;
+  VACUUM_EXCEPTION = 4;
+  IO_EXCEPTION = 5;
+  NO_ERROR = 6;
+}

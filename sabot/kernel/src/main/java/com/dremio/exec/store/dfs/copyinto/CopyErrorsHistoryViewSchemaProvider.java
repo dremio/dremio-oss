@@ -15,94 +15,28 @@
  */
 package com.dremio.exec.store.dfs.copyinto;
 
-import com.google.common.collect.ImmutableList;
+import com.dremio.exec.store.dfs.copyinto.systemtable.schema.SchemaDefinition;
+import com.dremio.exec.store.dfs.copyinto.systemtable.schema.SchemaDefinitionFactory;
+import com.dremio.exec.store.dfs.system.SystemIcebergViewMetadataFactory.SupportedSystemIcebergView;
 import org.apache.iceberg.Schema;
-import org.apache.iceberg.types.Types;
 
 /** Provides a schema for the "copy_errors_history" view based on the specified schema version. */
 public final class CopyErrorsHistoryViewSchemaProvider {
 
-  private CopyErrorsHistoryViewSchemaProvider() {}
+  private final SchemaDefinition schemaDefinition;
+
+  public CopyErrorsHistoryViewSchemaProvider(long schemaVersion) {
+    schemaDefinition =
+        SchemaDefinitionFactory.getSchemaDefinition(
+            schemaVersion, SupportedSystemIcebergView.COPY_ERRORS_HISTORY);
+  }
 
   /**
-   * Get the schema for the "copy_errors_history" view based on the specified schema version.
+   * Get the schema for the "copy_errors_history" view.
    *
-   * @param schemaVersion The schema version of the "copy_errors_history" view.
    * @return The schema for the "copy_errors_history" view.
-   * @throws UnsupportedOperationException If the schema version is not supported.
    */
-  public static Schema getSchema(long schemaVersion) {
-    if (schemaVersion == 1) {
-      return V1SchemaDefinition.getSchema();
-    }
-    if (schemaVersion == 2) {
-      return V2SchemaDefinition.getSchema();
-    }
-    throw newUnsupportedSchemaVersionException(schemaVersion);
+  public Schema getSchema() {
+    return schemaDefinition.getTableSchema();
   }
-
-  private static UnsupportedOperationException newUnsupportedSchemaVersionException(
-      long schemaVersion) {
-    return new UnsupportedOperationException(
-        "Unsupported copy_errors_history view schema version: "
-            + schemaVersion
-            + ". Currently supported schema versions are: 1");
-  }
-
-  /** Schema definition for schema version 1 of the copy_errors_history view */
-  private static class V1SchemaDefinition {
-    private static final long SCHEMA_VERSION = 1L;
-
-    protected static Schema getSchema() {
-      Schema jobHistorySchema = CopyJobHistoryTableSchemaProvider.getSchema(SCHEMA_VERSION);
-      Schema fileHistorySchema = CopyFileHistoryTableSchemaProvider.getSchema(SCHEMA_VERSION);
-      return new Schema(
-          ImmutableList.of(
-              getFieldOf(
-                  1,
-                  jobHistorySchema.findField(
-                      CopyJobHistoryTableSchemaProvider.getExecutedAtColName())),
-              getFieldOf(
-                  2,
-                  jobHistorySchema.findField(CopyJobHistoryTableSchemaProvider.getJobIdColName())),
-              getFieldOf(
-                  3,
-                  jobHistorySchema.findField(
-                      CopyJobHistoryTableSchemaProvider.getTableNameColName())),
-              getFieldOf(
-                  4,
-                  jobHistorySchema.findField(
-                      CopyJobHistoryTableSchemaProvider.getUserNameColName())),
-              getFieldOf(
-                  5,
-                  jobHistorySchema.findField(
-                      CopyJobHistoryTableSchemaProvider.getBaseSnapshotIdColName())),
-              getFieldOf(
-                  6,
-                  jobHistorySchema.findField(
-                      CopyJobHistoryTableSchemaProvider.getStorageLocationColName())),
-              getFieldOf(
-                  7,
-                  fileHistorySchema.findField(
-                      CopyFileHistoryTableSchemaProvider.getFilePathColName())),
-              getFieldOf(
-                  8,
-                  fileHistorySchema.findField(
-                      CopyFileHistoryTableSchemaProvider.getFileStateColName())),
-              getFieldOf(
-                  9,
-                  fileHistorySchema.findField(
-                      CopyFileHistoryTableSchemaProvider.getRecordsLoadedColName())),
-              getFieldOf(
-                  10,
-                  fileHistorySchema.findField(
-                      CopyFileHistoryTableSchemaProvider.getRecordsRejectedColName()))));
-    }
-
-    private static Types.NestedField getFieldOf(int id, Types.NestedField oldField) {
-      return Types.NestedField.required(id, oldField.name(), oldField.type());
-    }
-  }
-
-  private static class V2SchemaDefinition extends V1SchemaDefinition {}
 }

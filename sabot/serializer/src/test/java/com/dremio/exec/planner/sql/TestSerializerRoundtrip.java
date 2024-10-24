@@ -1219,7 +1219,7 @@ public class TestSerializerRoundtrip {
 
   private static Output executeTest(String queryText) {
     MockDremioQueryParser tool = new MockDremioQueryParser(OPERATOR_TABLE, CATALOG, "user1");
-    RelNode root = tool.toRel(queryText);
+    RelNode root = tool.toRelWithExpansion(queryText);
 
     String queryPlanText = RelOptUtil.toString(root);
     byte[] queryPlanBinary =

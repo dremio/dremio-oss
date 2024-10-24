@@ -17,11 +17,11 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 
-import { FieldWithError, TextField } from "@app/components/Fields";
-import { connectComplexForm } from "@app/components/Forms/connectComplexForm";
-import { FormBody, ModalForm, modalFormProps } from "@app/components/Forms";
-import { changeWorkersSize } from "@app/actions/resources/provisioning";
-import { applyValidators, isNumber, isRequired } from "@app/utils/validation";
+import { FieldWithError, TextField } from "#oss/components/Fields";
+import { connectComplexForm } from "#oss/components/Forms/connectComplexForm";
+import { FormBody, ModalForm, modalFormProps } from "#oss/components/Forms";
+import { changeWorkersSize } from "#oss/actions/resources/provisioning";
+import { applyValidators, isNumber, isRequired } from "#oss/utils/validation";
 
 import ResourceSummary from "./../ResourceSummary";
 
@@ -124,6 +124,6 @@ const styles = {
     margin: "6px 42px 0 0",
     fontWeight: 500,
     fontSize: 12,
-    color: "#333333",
+    color: "var(--text--primary)",
   },
 };

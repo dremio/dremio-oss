@@ -25,20 +25,20 @@ describe("getIsInReadOnlyState", () => {
     expect(getIsInReadOnlyState()).to.equal(false);
     expect(getIsInReadOnlyState({})).to.equal(false);
     expect(
-      getIsInReadOnlyState(Immutable.fromJS({ state: "RUNNING" }))
+      getIsInReadOnlyState(Immutable.fromJS({ state: "RUNNING" })),
     ).to.equal(false);
   });
   it("should return true for STARTING/STOPPING", () => {
     expect(
-      getIsInReadOnlyState(Immutable.fromJS({ state: "STARTING" }))
+      getIsInReadOnlyState(Immutable.fromJS({ state: "STARTING" })),
     ).to.equal(true);
     expect(
-      getIsInReadOnlyState(Immutable.fromJS({ state: "STOPPING" }))
+      getIsInReadOnlyState(Immutable.fromJS({ state: "STOPPING" })),
     ).to.equal(true);
   });
   it("should return true for DELETING", () => {
     expect(
-      getIsInReadOnlyState(Immutable.fromJS({ desiredState: "DELETED" }))
+      getIsInReadOnlyState(Immutable.fromJS({ desiredState: "DELETED" })),
     ).to.equal(true);
   });
 });
@@ -64,7 +64,7 @@ describe("getNodeCount", () => {
 
   it("should get total from workersSummary", () => {
     expect(
-      getNodeCount(Immutable.fromJS({ workersSummary: { total: 2 } }))
+      getNodeCount(Immutable.fromJS({ workersSummary: { total: 2 } })),
     ).to.equal(2);
   });
 });

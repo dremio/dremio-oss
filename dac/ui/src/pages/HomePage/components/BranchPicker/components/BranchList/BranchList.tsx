@@ -19,8 +19,8 @@ import { usePromise } from "react-smart-promise";
 import { AutoSizer, List } from "react-virtualized";
 import { MenuItem } from "@mui/material";
 
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
-import { Reference } from "@app/types/nessie";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
+import { Reference } from "#oss/types/nessie";
 import { SearchField } from "components/Fields";
 import RefIcon from "../RefIcon/RefIcon";
 
@@ -50,8 +50,8 @@ function BranchList({
   const [, data] = usePromise(
     useCallback(
       () => apiV2.getAllReferencesV2({ maxRecords: 1000000 }),
-      [apiV2]
-    )
+      [apiV2],
+    ),
   );
   const branchList = useMemo(() => {
     if (!data) return [];
@@ -67,7 +67,7 @@ function BranchList({
         name: intl.formatMessage({ id: "Nessie.AllBranchesHeader" }),
       },
       ...(branches as Reference[]).filter(
-        (b) => b.name !== defaultReference.name
+        (b) => b.name !== defaultReference.name,
       ),
     ];
   }, [data, defaultReference, intl]);

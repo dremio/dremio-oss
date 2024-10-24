@@ -40,6 +40,7 @@ import com.dremio.exec.planner.sql.handlers.direct.AccelToggleHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AddColumnsHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterClearPlanCacheHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterTableChangeColumnSetOptionHandler;
+import com.dremio.exec.planner.sql.handlers.direct.AlterTableClusterKeyHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterTablePartitionSpecHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterTablePropertiesHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterTableSetOptionHandler;
@@ -86,6 +87,7 @@ import com.dremio.exec.planner.sql.parser.SqlAlterClearPlanCache;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableAddColumns;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumnSetOption;
+import com.dremio.exec.planner.sql.parser.SqlAlterTableClusterKey;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableDropColumn;
 import com.dremio.exec.planner.sql.parser.SqlAlterTablePartitionColumns;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableProperties;
@@ -109,6 +111,9 @@ import com.dremio.exec.planner.sql.parser.SqlDropPipe;
 import com.dremio.exec.planner.sql.parser.SqlDropReflection;
 import com.dremio.exec.planner.sql.parser.SqlExplainJson;
 import com.dremio.exec.planner.sql.parser.SqlForgetTable;
+import com.dremio.exec.planner.sql.parser.SqlGrantCatalog;
+import com.dremio.exec.planner.sql.parser.SqlGrantOnReference;
+import com.dremio.exec.planner.sql.parser.SqlGrantOwnership;
 import com.dremio.exec.planner.sql.parser.SqlInsertTable;
 import com.dremio.exec.planner.sql.parser.SqlManagePipe;
 import com.dremio.exec.planner.sql.parser.SqlMergeIntoTable;
@@ -116,6 +121,8 @@ import com.dremio.exec.planner.sql.parser.SqlOptimize;
 import com.dremio.exec.planner.sql.parser.SqlRefreshReflectionsForDataset;
 import com.dremio.exec.planner.sql.parser.SqlRefreshSourceStatus;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
+import com.dremio.exec.planner.sql.parser.SqlRevokeCatalog;
+import com.dremio.exec.planner.sql.parser.SqlRevokeOnReference;
 import com.dremio.exec.planner.sql.parser.SqlSetApprox;
 import com.dremio.exec.planner.sql.parser.SqlShowCreate;
 import com.dremio.exec.planner.sql.parser.SqlShowFunctions;
@@ -447,7 +454,8 @@ public class CommandCreator {
       // when the parameterized prepared statements are disabled.
       throw UserException.validationError()
           .message(
-              "Parameter values are provided despite parameterized prepared statements being disabled.")
+              "Parameter values are provided despite parameterized prepared statements being"
+                  + " disabled.")
           .buildSilently();
     }
 
@@ -619,6 +627,8 @@ public class CommandCreator {
           return direct.create(new AlterTablePropertiesHandler(catalog, config));
         } else if (sqlNode instanceof SqlAlterTableSortOrder) {
           return direct.create(new AlterTableSortOrderHandler(catalog, config));
+        } else if (sqlNode instanceof SqlAlterTableClusterKey) {
+          return direct.create(new AlterTableClusterKeyHandler(catalog, config));
         }
         throw new IllegalArgumentException("Must have a correct SQL Node for ALTER_TABLE case");
 
@@ -653,6 +663,36 @@ public class CommandCreator {
         if (sqlNode instanceof SqlClearSourcePermissionCache) {
           throw UserException.unsupportedError()
               .message("Permission cache clearing is not supported.")
+              .buildSilently();
+        }
+
+        if (sqlNode instanceof SqlGrantOnReference) {
+          throw UserException.unsupportedError()
+              .message("This edition of Dremio does not support GRANT ON REFERENCE statements.")
+              .buildSilently();
+        }
+
+        if (sqlNode instanceof SqlRevokeOnReference) {
+          throw UserException.unsupportedError()
+              .message("This edition of Dremio does not support REVOKE ON REFERENCE statements.")
+              .buildSilently();
+        }
+
+        if (sqlNode instanceof SqlGrantCatalog) {
+          throw UserException.unsupportedError()
+              .message("This edition of Dremio does not support GRANT ON CATALOG statements.")
+              .buildSilently();
+        }
+
+        if (sqlNode instanceof SqlRevokeCatalog) {
+          throw UserException.unsupportedError()
+              .message("This edition of Dremio does not support GRANT ON CATALOG statements.")
+              .buildSilently();
+        }
+
+        if (sqlNode instanceof SqlGrantOwnership) {
+          throw UserException.unsupportedError()
+              .message("This Dremio edition does not support this functionality.")
               .buildSilently();
         }
 

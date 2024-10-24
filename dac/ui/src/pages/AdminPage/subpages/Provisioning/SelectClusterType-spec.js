@@ -53,7 +53,7 @@ describe("SelectClusterType", () => {
   it("should render one SelectConnectionButton for each cluster", () => {
     const wrapper = shallow(<SelectClusterType {...commonProps} />);
     expect(wrapper.find("SelectConnectionButton")).to.have.length(
-      commonProps.clusters.size
+      commonProps.clusters.size,
     );
   });
 });

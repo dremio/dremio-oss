@@ -21,14 +21,14 @@ import {
   isYarn,
   getYarnSubProperty,
   getEngineSizeLabel,
-} from "@app/pages/AdminPage/subpages/Provisioning/provisioningUtils";
+} from "#oss/pages/AdminPage/subpages/Provisioning/provisioningUtils";
 import SingleEngineInfoBarMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineInfoBarMixin";
-import NumberFormatUtils from "@app/utils/numberFormatUtils";
-import timeUtils from "@app/utils/timeUtils";
-import { YARN_HOST_PROPERTY } from "@app/pages/AdminPage/subpages/Provisioning/ClusterListView";
-import { CLUSTER_STATE_ICON } from "@app/constants/provisioningPage/provisioningConstants";
+import NumberFormatUtils from "#oss/utils/numberFormatUtils";
+import timeUtils from "#oss/utils/timeUtils";
+import { YARN_HOST_PROPERTY } from "#oss/pages/AdminPage/subpages/Provisioning/ClusterListView";
+import { CLUSTER_STATE_ICON } from "#oss/constants/provisioningPage/provisioningConstants";
 import { EDITION } from "@inject/constants/serverStatus";
-import * as VersionUtils from "@app/utils/versionUtils";
+import * as VersionUtils from "#oss/utils/versionUtils";
 
 @SingleEngineInfoBarMixin
 export class SingleEngineInfoBar extends PureComponent {
@@ -78,7 +78,7 @@ export class SingleEngineInfoBar extends PureComponent {
 
   getMemory = (engine) =>
     NumberFormatUtils.roundNumberField(
-      engine.getIn(["yarnProps", "memoryMB"]) / 1024
+      engine.getIn(["yarnProps", "memoryMB"]) / 1024,
     );
 
   getIp = (engine) => getYarnSubProperty(engine, YARN_HOST_PROPERTY) || "-";
@@ -127,7 +127,7 @@ export class SingleEngineInfoBar extends PureComponent {
 const styles = {
   container: {
     display: "flex",
-    backgroundColor: "#f3f3f3",
+    backgroundColor: "var(--fill--secondary)",
     padding: 8,
   },
   entry: {
@@ -138,12 +138,12 @@ const styles = {
   label: {
     fontSize: 12,
     fontWeight: 400,
-    color: "#77818F",
+    color: "var(--text--faded)",
     padding: "2px 0",
   },
   value: {
     fontSize: 14,
     fontWeight: 300,
-    color: "#333333",
+    color: "var(--text--primary)",
   },
 };

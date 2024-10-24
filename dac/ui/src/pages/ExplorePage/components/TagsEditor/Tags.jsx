@@ -17,7 +17,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import ImmutablePropTypes from "react-immutable-proptypes";
 import classNames from "clsx";
-import keyCodes from "@app/constants/Keys.json";
+import keyCodes from "#oss/constants/Keys.json";
 import {
   container,
   input as inputCls,
@@ -27,7 +27,7 @@ import {
   uniqueTagsError,
 } from "./Tags.less";
 import { Tag } from "./Tag";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 // component consist of 2 main sections:
 // 1) Tags section. The section where tags are displayed
@@ -184,7 +184,7 @@ export class TagsView extends Component {
           }
           this.tagsContainer.focus();
         }
-      }
+      },
     );
   }
 
@@ -260,7 +260,7 @@ export class TagsView extends Component {
             onClick={() => this.onTagClick(t)}
             isSelected={i === selectedTagIndex}
           />
-        </span>
+        </span>,
       );
     });
 

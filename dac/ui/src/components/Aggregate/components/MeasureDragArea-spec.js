@@ -52,7 +52,7 @@ describe("MeasureDragArea", () => {
 
     expect(wrapper.find("ExploreDragArea")).to.have.length(1);
     expect(wrapper.find("DragMeasureColumn")).to.have.length(
-      commonProps.columnsField.length
+      commonProps.columnsField.length,
     );
     expect(wrapper).to.have.length(1);
   });

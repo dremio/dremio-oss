@@ -17,7 +17,7 @@ package com.dremio.exec.store.dfs.system.evolution.handler;
 
 import com.dremio.exec.store.dfs.system.evolution.step.SystemIcebergTableSchemaUpdateStep;
 import java.util.stream.Collectors;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.iceberg.UpdateSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +37,7 @@ public class SystemIcebergTablesSchemaUpdateHandler
     LOGGER.debug(
         "Applying schema update step for schema version {}.\nAdding columns: [{}]\nRemoving columns: [{}]\nChanging column types: [{}]\nRenaming columns: [{}]",
         step.getSchemaVersion(),
-        step.getAddedColumns().stream().map(Pair::getLeft).collect(Collectors.joining(", ")),
+        step.getAddedColumns().stream().map(Triple::getLeft).collect(Collectors.joining(", ")),
         String.join(", ", step.getDeletedColumns()),
         step.getChangedColumns().stream()
             .map(p -> String.format("%s: %s", p.getLeft(), p.getRight()))
@@ -45,7 +45,16 @@ public class SystemIcebergTablesSchemaUpdateHandler
         step.getRenamedColumns().stream()
             .map(p -> String.format(" %s -> %s", p.getLeft(), p.getRight()))
             .collect(Collectors.joining(", ")));
-    step.getAddedColumns().forEach(p -> update.addColumn(p.getLeft(), p.getRight()));
+    // by default, the addColumn call adds column as optional
+    step.getAddedColumns()
+        .forEach(
+            t -> {
+              if (t.getRight()) {
+                update.addColumn(t.getLeft(), t.getMiddle());
+              } else {
+                update.addRequiredColumn(t.getLeft(), t.getMiddle());
+              }
+            });
     step.getDeletedColumns().forEach(update::deleteColumn);
     step.getChangedColumns().forEach(p -> update.updateColumn(p.getLeft(), p.getRight()));
     step.getRenamedColumns().forEach(p -> update.renameColumn(p.getLeft(), p.getRight()));

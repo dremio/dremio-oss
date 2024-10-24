@@ -19,26 +19,26 @@ import { FormattedMessage } from "react-intl";
 import { withRouter, WithRouterProps } from "react-router";
 import { connect } from "react-redux";
 
-import CommitHash from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash";
+import CommitHash from "#oss/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash";
 //@ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 import { Avatar, Button } from "dremio-ui-lib/components";
-import PromiseViewState from "@app/components/PromiseViewState/PromiseViewState";
-import { Reference } from "@app/types/nessie";
+import PromiseViewState from "#oss/components/PromiseViewState/PromiseViewState";
+import { Reference } from "#oss/types/nessie";
 import { RepoViewContext } from "../../../../RepoView";
 import { convertISOStringWithTooltip, renderIcons } from "./utils";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
-import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
+import { nameToInitials } from "#oss/exports/utilities/nameToInitials";
 import {
   constructVersionedEntityUrl,
   useVersionedPageContext,
-} from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
-import { setReference } from "@app/actions/nessie/nessie";
-import { stopPropagation } from "@app/utils/reactEventUtils";
-import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
+} from "#oss/exports/pages/VersionedHomePage/versioned-page-utils";
+import { setReference } from "#oss/actions/nessie/nessie";
+import { stopPropagation } from "#oss/utils/reactEventUtils";
+import EmptyStateContainer from "#oss/pages/HomePage/components/EmptyStateContainer";
 import { useResourceSnapshot } from "smart-resource/react";
 import { ArcticCatalogPrivilegesResource } from "@inject/arctic/resources/ArcticCatalogPrivilegesResource";
-import { CatalogPrivilegeSwitch } from "@app/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
+import { CatalogPrivilegeSwitch } from "#oss/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
 import { SmartResource } from "smart-resource";
 
 import "./RepoViewBranchList.less";

@@ -37,7 +37,7 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
         public SqlCall createCall(
             SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           Preconditions.checkArgument(
-              operands.length == 15, "SqlCreateTable.createCall() has to get 15 operands!");
+              operands.length == 16, "SqlCreateTable.createCall() has to get 16 operands!");
           return new SqlCreateTable(
               pos,
               (SqlIdentifier) operands[0],
@@ -51,10 +51,11 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
               (SqlNodeList) operands[7],
               (SqlNodeList) operands[8],
               (SqlPolicy) operands[10],
-              operands[14],
+              operands[15],
               (SqlNodeList) operands[11],
               (SqlNodeList) operands[12],
-              (SqlTableVersionSpec) operands[13]);
+              (SqlTableVersionSpec) operands[13],
+              (SqlNodeList) operands[14]);
         }
       };
 
@@ -76,7 +77,8 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
       SqlNode query,
       SqlNodeList tablePropertyNameList,
       SqlNodeList tablePropertyValueList,
-      SqlTableVersionSpec sqlTableVersionSpec) {
+      SqlTableVersionSpec sqlTableVersionSpec,
+      SqlNodeList clusterKeys) {
     super(
         pos,
         tblName,
@@ -92,7 +94,8 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
         policy,
         tablePropertyNameList,
         tablePropertyValueList,
-        sqlTableVersionSpec);
+        sqlTableVersionSpec,
+        clusterKeys);
     this.query = query;
   }
 

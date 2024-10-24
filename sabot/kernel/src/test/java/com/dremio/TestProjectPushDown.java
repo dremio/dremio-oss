@@ -412,7 +412,7 @@ public class TestProjectPushDown extends PlanTestBase {
     //        "where t0.fname = t1.sname and t1.slastname = t2.tlastname and t0.fcolumns[0] +
     // t1.scolumns = 100";
 
-    final String firstExpected = "columns=[`a`, `fa`, `fcolumns`[0]]";
+    final String firstExpected = "columns=[`a`, `fa`, `fcolumns`]";
     final String secondExpected = expectedColumnsString("a", "b", "c", "sa");
     final String thirdExpected = expectedColumnsString("d", "ta");
 

@@ -145,7 +145,9 @@ public class TestHomeFiles extends BaseTestServer {
   @Test
   public void testHome() throws Exception {
     Home home =
-        expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("home/" + HOME_NAME)).buildGet(),
+            Home.class);
     assertNotNull(home.getId());
 
     java.io.File inputFile = temporaryFolder.newFile("input.json");
@@ -163,7 +165,8 @@ public class TestHomeFiles extends BaseTestServer {
     File file1Staged =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("home/" + HOME_NAME + "/upload_start/")
                         .queryParam("extension", "json"))
                 .buildPost(Entity.entity(form, form.getMediaType())),
@@ -203,7 +206,10 @@ public class TestHomeFiles extends BaseTestServer {
     doc("previewing staged file");
     JobDataFragment data =
         expectSuccess(
-            getBuilder(getAPIv2().path("/home/" + HOME_NAME + "/file_preview_unsaved/file1"))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/home/" + HOME_NAME + "/file_preview_unsaved/file1"))
                 .buildPost(Entity.json(file1StagedFormat)),
             JobDataFragment.class);
     assertEquals(1, data.getReturnedRowCount());
@@ -212,7 +218,8 @@ public class TestHomeFiles extends BaseTestServer {
     // finish upload
     File file1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/file1"))
+            getBuilder(
+                    getHttpClient().getAPIv2().path("home/" + HOME_NAME + "/upload_finish/file1"))
                 .buildPost(Entity.json(file1StagedFormat)),
             File.class);
     FileFormat file1Format = file1.getFileFormat().getFileFormat();
@@ -233,7 +240,8 @@ public class TestHomeFiles extends BaseTestServer {
     File file2Staged =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("home/" + HOME_NAME + "/upload_start/")
                         .queryParam("extension", "json"))
                 .buildPost(Entity.entity(form, form.getMediaType())),
@@ -250,18 +258,19 @@ public class TestHomeFiles extends BaseTestServer {
     // cancel upload
     doc("cancel upload for second file");
     expectSuccess(
-        getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_cancel/file2"))
+        getBuilder(getHttpClient().getAPIv2().path("home/" + HOME_NAME + "/upload_cancel/file2"))
             .buildPost(Entity.json(file2StagedFormat)));
     checkFileDoesNotExist(file2StagedFormat.getLocation());
     expectError(
         CLIENT_ERROR,
-        getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file/file2")).buildGet(),
+        getBuilder(getHttpClient().getAPIv2().path("home/" + HOME_NAME + "/file/file2")).buildGet(),
         NotFoundErrorMessage.class);
 
     doc("getting a file");
     File file2 =
         expectSuccess(
-            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file/file1")).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("home/" + HOME_NAME + "/file/file1"))
+                .buildGet(),
             File.class);
     FileFormat file2Format = file2.getFileFormat().getFileFormat();
 
@@ -291,14 +300,16 @@ public class TestHomeFiles extends BaseTestServer {
 
     final Folder putFolder1 =
         expectSuccess(
-            getBuilder(getAPIv2().path(folderPath)).buildPost(Entity.json("{\"name\": \"f1\"}")),
+            getBuilder(getHttpClient().getAPIv2().path(folderPath))
+                .buildPost(Entity.json("{\"name\": \"f1\"}")),
             Folder.class);
     assertEquals("f1", putFolder1.getName());
 
     doc("get folder");
     Folder f1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/folder/f1")).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("home/" + HOME_NAME + "/folder/f1"))
+                .buildGet(),
             Folder.class);
     assertEquals("f1", f1.getName());
     Assert.assertArrayEquals(new String[] {HOME_NAME, "f1"}, f1.getFullPathList().toArray());
@@ -319,14 +330,15 @@ public class TestHomeFiles extends BaseTestServer {
     File file1 =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("home/" + HOME_NAME + "/upload_start/")
                         .queryParam("extension", "csv"))
                 .buildPost(Entity.entity(form, form.getMediaType())),
             File.class);
     file1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/pipe"))
+            getBuilder(getHttpClient().getAPIv2().path("home/" + HOME_NAME + "/upload_finish/pipe"))
                 .buildPost(Entity.json(file1.getFileFormat().getFileFormat())),
             File.class);
     final FileFormat defaultFileFormat = file1.getFileFormat().getFileFormat();
@@ -340,7 +352,8 @@ public class TestHomeFiles extends BaseTestServer {
 
     final FileFormat updatedFileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file_format/pipe"))
+                getBuilder(
+                        getHttpClient().getAPIv2().path("home/" + HOME_NAME + "/file_format/pipe"))
                     .buildPut(Entity.json(newFileFormat)),
                 FileFormatUI.class)
             .getFileFormat();
@@ -381,7 +394,8 @@ public class TestHomeFiles extends BaseTestServer {
       expectStatus(
           Response.Status.FORBIDDEN,
           getBuilder(
-                  getAPIv2()
+                  getHttpClient()
+                      .getAPIv2()
                       .path("home/" + HOME_NAME + "/upload_start/")
                       .queryParam("extension", "csv"))
               .buildPost(Entity.entity(form, form.getMediaType())));
@@ -413,14 +427,16 @@ public class TestHomeFiles extends BaseTestServer {
     File file1 =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("home/" + HOME_NAME + "/upload_start/")
                         .queryParam("extension", extension))
                 .buildPost(Entity.entity(form, form.getMediaType())),
             File.class);
     file1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/excel"))
+            getBuilder(
+                    getHttpClient().getAPIv2().path("home/" + HOME_NAME + "/upload_finish/excel"))
                 .buildPost(Entity.json(file1.getFileFormat().getFileFormat())),
             File.class);
     FileFormat file1Format = file1.getFileFormat().getFileFormat();
@@ -434,7 +450,8 @@ public class TestHomeFiles extends BaseTestServer {
     doc("getting a excel file");
     File file2 =
         expectSuccess(
-            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file/excel")).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("home/" + HOME_NAME + "/file/excel"))
+                .buildGet(),
             File.class);
     FileFormat file2Format = file2.getFileFormat().getFileFormat();
 
@@ -467,7 +484,8 @@ public class TestHomeFiles extends BaseTestServer {
     }
     JobDataFragment data =
         expectSuccess(
-            getBuilder(getAPIv2().path("/home/" + HOME_NAME + "/file_preview/excel"))
+            getBuilder(
+                    getHttpClient().getAPIv2().path("/home/" + HOME_NAME + "/file_preview/excel"))
                 .buildPost(Entity.json(file2Format)),
             JobDataFragment.class);
     assertEquals(5, data.getReturnedRowCount());
@@ -624,7 +642,9 @@ public class TestHomeFiles extends BaseTestServer {
   @Test
   public void testHomeUploadValidation() throws Exception {
     Home home =
-        expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("home/" + HOME_NAME)).buildGet(),
+            Home.class);
     assertNotNull(home.getId());
 
     String homeFileName = "file2";
@@ -644,7 +664,8 @@ public class TestHomeFiles extends BaseTestServer {
     File file1Staged =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("home/" + HOME_NAME + "/upload_start/")
                         .queryParam("extension", "json"))
                 .buildPost(Entity.entity(form, form.getMediaType())),
@@ -660,11 +681,17 @@ public class TestHomeFiles extends BaseTestServer {
     // the upload endpoints should fail given that the location is not correct
     expectStatus(
         Response.Status.BAD_REQUEST,
-        getBuilder(getAPIv2().path("/home/" + HOME_NAME + "/file_preview_unsaved/" + homeFileName))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv2()
+                    .path("/home/" + HOME_NAME + "/file_preview_unsaved/" + homeFileName))
             .buildPost(Entity.json(file1StagedFormat)));
     expectStatus(
         Response.Status.BAD_REQUEST,
-        getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/" + homeFileName))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv2()
+                    .path("home/" + HOME_NAME + "/upload_finish/" + homeFileName))
             .buildPost(Entity.json(file1StagedFormat)));
 
     fileBody.cleanup();
@@ -694,7 +721,9 @@ public class TestHomeFiles extends BaseTestServer {
   @Test
   public void testPUTRequestOnHomefile() throws Exception {
     final Home home =
-        expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("home/" + HOME_NAME)).buildGet(),
+            Home.class);
     assertNotNull(home.getId());
 
     final java.io.File inputFile = temporaryFolder.newFile("input.json");
@@ -712,7 +741,8 @@ public class TestHomeFiles extends BaseTestServer {
     final File file1Staged =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("home/" + HOME_NAME + "/upload_start/")
                         .queryParam("extension", "json"))
                 .buildPost(Entity.entity(form, form.getMediaType())),
@@ -723,21 +753,23 @@ public class TestHomeFiles extends BaseTestServer {
     assertEquals(FileType.JSON, file1StagedFormat.getFileType());
     // finish upload
     expectSuccess(
-        getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/" + fileName))
+        getBuilder(
+                getHttpClient().getAPIv2().path("home/" + HOME_NAME + "/upload_finish/" + fileName))
             .buildPost(Entity.json(file1StagedFormat)),
         File.class);
     fileBody.cleanup();
     final Dataset dataset =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path("/catalog/")
                         .path("by-path")
                         .path("/%40dremio/" + fileName))
                 .buildGet(),
             new GenericType<Dataset>() {});
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/").path(dataset.getId()))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/").path(dataset.getId()))
             .buildPut(Entity.json(dataset)));
   }
 }

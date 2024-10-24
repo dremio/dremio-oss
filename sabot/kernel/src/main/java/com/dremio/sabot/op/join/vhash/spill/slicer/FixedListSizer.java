@@ -61,6 +61,15 @@ public class FixedListSizer implements Sizer {
     }
   }
 
+  @Override
+  public int getDataLengthFromIndex(int startIndex, int numberOfEntries) {
+    final int start = startIndex * incoming.getListSize();
+    final int length = numberOfEntries * incoming.getListSize();
+
+    final Sizer childVectorSizer = Sizer.get(incoming.getDataVector());
+    return childVectorSizer.getDataLengthFromIndex(start, length);
+  }
+
   /**
    * Computes purely data size excludes size required for offsets/validity buffers
    *

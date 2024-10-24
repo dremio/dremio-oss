@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
 import { Link } from "react-router";
 import {
   constructVersionedEntityUrl,

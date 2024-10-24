@@ -60,5 +60,5 @@ export default compose(
     removeItem: removeSource,
     showConfirmationDialog,
   }),
-  withRouter
+  withRouter,
 )(AllSourcesMenu);

@@ -24,9 +24,6 @@ import com.dremio.cache.AuthorizationCacheException;
 import com.dremio.cache.AuthorizationCacheService;
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
-import com.dremio.common.concurrent.ContextAwareCompletableFuture;
-import com.dremio.common.concurrent.bulk.BulkRequest;
-import com.dremio.common.concurrent.bulk.BulkResponse;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
@@ -42,7 +39,6 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetMetadataVerifyResult;
 import com.dremio.connector.metadata.DatasetNotFoundException;
 import com.dremio.connector.metadata.EntityPath;
-import com.dremio.connector.metadata.EntityPathWithOptions;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
@@ -92,7 +88,6 @@ import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
-import com.dremio.exec.store.BulkSourceMetadata;
 import com.dremio.exec.store.ClassPathFileSystem;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.LocalSyncableFileSystem;
@@ -183,7 +178,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -229,8 +223,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
         SupportsIcebergRootPointer,
         SupportsIcebergMutablePlugin,
         SupportsTypeCoercionsAndUpPromotions,
-        SupportsMetadataVerify,
-        BulkSourceMetadata {
+        SupportsMetadataVerify {
   /**
    * Default {@link Configuration} instance. Use this instance through {@link #getNewFsConf()} to
    * create new copies of {@link Configuration} objects.
@@ -1769,7 +1762,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
     }
   }
 
-  private void validate(NamespaceKey table, String userName) {
+  protected void validate(NamespaceKey table, String userName) {
     if (!getMutability()
         .hasMutationCapability(MutationType.TABLE, userName.equals(SystemUser.SYSTEM_USERNAME))) {
       throw UserException.parseError()
@@ -1976,7 +1969,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
             null,
             partitionSpec,
             writerOptions.getDeserializedSortOrder(),
-            tableProperties);
+            tableProperties,
+            path.toString());
     icebergOpCommitter.commit();
   }
 
@@ -2082,28 +2076,6 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
   public Optional<DatasetHandle> getDatasetHandle(
       EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
     return internalGetDatasetHandle(datasetPath, options);
-  }
-
-  @Override
-  @WithSpan
-  public BulkResponse<EntityPathWithOptions, Optional<DatasetHandle>> bulkGetDatasetHandles(
-      BulkRequest<EntityPathWithOptions> requestedDatasets) {
-    MetadataIOPool metadataIOPool = context.getMetadataIOPool();
-    return requestedDatasets.handleRequests(
-        dataset ->
-            ContextAwareCompletableFuture.createFrom(
-                metadataIOPool.execute(
-                    new MetadataIOPool.MetadataTask<>(
-                        "bulk_get_dataset_handles_async",
-                        dataset.entityPath(),
-                        () -> {
-                          try {
-                            return internalGetDatasetHandle(
-                                dataset.entityPath(), dataset.options());
-                          } catch (ConnectorException ex) {
-                            throw new RuntimeException(ex);
-                          }
-                        }))));
   }
 
   private Optional<DatasetHandle> internalGetDatasetHandle(
@@ -2223,7 +2195,11 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
 
   @Override
   public IcebergModel getIcebergModel(
-      IcebergTableProps tableProps, String userName, OperatorContext context, FileIO fileIO) {
+      IcebergTableProps tableProps,
+      String userName,
+      OperatorContext context,
+      FileIO fileIO,
+      String userId) {
     return getIcebergModel(fileIO, context);
   }
 

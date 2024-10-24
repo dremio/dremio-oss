@@ -28,10 +28,10 @@ import {
   SaveViewAsMenuItem,
   SaveViewMenuItem,
 } from "./SaveMenuUtil";
-import { MAX_MINE_SCRIPTS_ALLOWANCE } from "@app/components/SQLScripts/sqlScriptsUtils";
+import { MAX_MINE_SCRIPTS_ALLOWANCE } from "#oss/components/SQLScripts/sqlScriptsUtils";
 
 import "./SaveMenu.less";
-import { useMultiTabIsEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
+import { useMultiTabIsEnabled } from "#oss/components/SQLScripts/useMultiTabIsEnabled";
 
 export const DOWNLOAD_TYPES = {
   json: "JSON",

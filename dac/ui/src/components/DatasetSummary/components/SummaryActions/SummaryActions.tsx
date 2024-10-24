@@ -16,7 +16,7 @@
 
 import Immutable from "immutable";
 
-import QueryDataset from "@app/components/QueryDataset/QueryDataset";
+import QueryDataset from "#oss/components/QueryDataset/QueryDataset";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import { getSummaryActions } from "dyn-load/utils/summary-utils";
 

@@ -37,7 +37,7 @@ describe("FormUnsavedRouteLeave", () => {
   };
 
   const TestComponent = wrapUnsavedChangesWithWrappedForm(
-    MockControllerComponent
+    MockControllerComponent,
   );
 
   let minimalProps;

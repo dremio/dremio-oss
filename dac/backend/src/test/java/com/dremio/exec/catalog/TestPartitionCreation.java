@@ -41,7 +41,7 @@ public class TestPartitionCreation extends BaseTestQuery {
 
   @AfterClass
   public static void resetFlags() throws Exception {
-    resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getOptionName());
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER);
   }
 
   @Test
@@ -133,9 +133,7 @@ public class TestPartitionCreation extends BaseTestQuery {
 
   @Test
   public void testPartitionHash() throws Exception {
-    try {
-      setSessionOption(ExecConstants.SLICE_TARGET, "1");
-
+    try (AutoCloseable ignored = withOption(ExecConstants.SLICE_TARGET_OPTION, 1)) {
       final String tableName = "dfs_test.hashpartitiontable";
       final String query =
           "CREATE TABLE "
@@ -164,17 +162,12 @@ public class TestPartitionCreation extends BaseTestQuery {
           .sqlBaselineQuery(
               "SELECT name, kind, type, status, bool_val, string_val FROM " + FAKE_SYSOPTIONS_TABLE)
           .go();
-
-    } finally {
-      setSessionOption(
-          ExecConstants.SLICE_TARGET, String.valueOf(ExecConstants.SLICE_TARGET_DEFAULT));
     }
   }
 
   @Test
   public void testPartitionRoundRobin() throws Exception {
-    try {
-      setSessionOption(ExecConstants.SLICE_TARGET, "1");
+    try (AutoCloseable ignored = withOption(ExecConstants.SLICE_TARGET_OPTION, 1)) {
       final String tableName = "dfs_test.roundrobintable";
 
       final String query =
@@ -204,10 +197,6 @@ public class TestPartitionCreation extends BaseTestQuery {
           .sqlBaselineQuery(
               "SELECT name, kind, type, status, bool_val, string_val FROM " + FAKE_SYSOPTIONS_TABLE)
           .go();
-
-    } finally {
-      setSessionOption(
-          ExecConstants.SLICE_TARGET, String.valueOf(ExecConstants.SLICE_TARGET_DEFAULT));
     }
   }
 

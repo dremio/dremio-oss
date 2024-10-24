@@ -22,7 +22,7 @@ import com.dremio.exec.rpc.BaseRpcOutcomeListener;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection;
 
-public class UserConnectionResponseHandler implements UserResponseHandler {
+public class UserConnectionResponseHandler implements CompletedUserResponseHandler {
 
   private final UserClientConnection client;
 
@@ -33,9 +33,13 @@ public class UserConnectionResponseHandler implements UserResponseHandler {
 
   @Override
   public void completed(UserResult result) {
+    this.completed(result, new BaseRpcOutcomeListener<Ack>());
+  }
+
+  @Override
+  public void completed(UserResult result, RpcOutcomeListener<Ack> outcomeListener) {
     client.sendResult(
-        new BaseRpcOutcomeListener<Ack>(),
-        ErrorCompatibility.convertIfNecessary(result.toQueryResult()));
+        outcomeListener, ErrorCompatibility.convertIfNecessary(result.toQueryResult()));
   }
 
   @Override

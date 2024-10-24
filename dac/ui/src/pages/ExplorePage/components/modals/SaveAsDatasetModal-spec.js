@@ -74,14 +74,17 @@ describe("SaveAsDatasetModal", () => {
       <SaveAsDatasetModal
         {...commonProps}
         nextAction={NEXT_ACTIONS.openTableau}
-      />
+      />,
     );
     expect(wrapper.find(SaveAsDatasetForm).props().message).to.contain(
-      "Tableau"
+      "Tableau",
     );
 
     const wrapper2 = shallow(
-      <SaveAsDatasetModal {...commonProps} nextAction={NEXT_ACTIONS.openQlik} />
+      <SaveAsDatasetModal
+        {...commonProps}
+        nextAction={NEXT_ACTIONS.openQlik}
+      />,
     );
     expect(wrapper2.find(SaveAsDatasetForm).props().message).to.contain("Qlik");
   });
@@ -105,7 +108,7 @@ describe("SaveAsDatasetModal", () => {
           name: "name",
           location: "location",
           reapply: "ORIGINAL",
-        })
+        }),
       );
       expect(commonProps.submitReapplyAndSaveAsDataset).to.have.been.called;
       return promise.to.eventually.eql("afterSaveDataset");

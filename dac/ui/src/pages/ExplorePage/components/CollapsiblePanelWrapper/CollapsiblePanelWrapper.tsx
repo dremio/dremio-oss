@@ -17,8 +17,8 @@
 import { IconButton } from "dremio-ui-lib/components";
 import { browserHistory } from "react-router";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
-import { useMultiTabIsEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
-import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
+import { useMultiTabIsEnabled } from "#oss/components/SQLScripts/useMultiTabIsEnabled";
+import { isTabbableUrl } from "#oss/utils/explorePageTypeUtils";
 import * as classes from "./CollapsiblePanelWrapper.module.less";
 
 type CollapsiblePanelWrapperProps = {

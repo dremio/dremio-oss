@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 import invariant from "invariant";
-import { WEB_SOCKET_URL } from "@app/constants/Api";
+import { WEB_SOCKET_URL } from "#oss/constants/Api";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
 import { addNotification, removeNotification } from "actions/notification";
 import Immutable from "immutable";
 import { v4 as uuidv4 } from "uuid";
 import { isServerReachable } from "dremio-ui-common/utilities/waitForServerReachable.js";
-import { isDev } from "@app/exports/utilities/isDev";
+import { isDev } from "#oss/exports/utilities/isDev";
 
 const PING_INTERVAL = 15000;
 const CHECK_INTERVAL = 5000;
@@ -126,8 +126,8 @@ export class Socket {
       this.dispatch(
         addNotification(
           Immutable.Map({ code: WS_CLOSED, messageType: WS_CLOSED }),
-          "error"
-        )
+          "error",
+        ),
       );
   };
 
@@ -266,7 +266,7 @@ export class Socket {
       jobId,
       reflectionId,
       WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN,
-      forceSend
+      forceSend,
     );
   }
 
@@ -274,7 +274,7 @@ export class Socket {
     this._stopListenToReflectionJob(
       jobId,
       reflectionId,
-      WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN
+      WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN,
     );
   }
 
@@ -299,7 +299,7 @@ export class Socket {
       jobId,
       reflectionId,
       WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN,
-      forceSend
+      forceSend,
     );
   }
 
@@ -307,7 +307,7 @@ export class Socket {
     this._stopListenToReflectionJob(
       jobId,
       reflectionId,
-      WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN
+      WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN,
     );
   }
 

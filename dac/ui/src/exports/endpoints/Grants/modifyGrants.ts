@@ -19,7 +19,7 @@ import { getGrantsUrl } from "./utils";
 import { GrantsResponse, type SetGrantsRequest } from "./Grants.types";
 
 export const modifyGrants = (
-  payload: SetGrantsRequest
+  payload: SetGrantsRequest,
 ): Promise<GrantsResponse> =>
   getApiContext()
     .fetch(getGrantsUrl(), {

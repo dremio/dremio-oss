@@ -31,7 +31,6 @@ export const MAX_RETRY_TIME = 120000;
 
 export default function* serverStatusWatcher() {
   while (true) {
-    // eslint-disable-line no-constant-condition
     yield take(SCHEDULE_CHECK_SERVER_STATUS);
     yield* scheduleCheckServerStatus();
   }

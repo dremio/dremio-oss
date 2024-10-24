@@ -35,7 +35,7 @@
   &[aria-disabled="true"] {
     cursor: not-allowed;
     pointer-events: none;
-    color: var(--color--neutral--150);
+    color: var(--icon--disabled);
   }
 
   // Restrict clickable area to button (Useful when Icon overflows the bound of the button)

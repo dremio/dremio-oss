@@ -23,8 +23,12 @@ import {
   jobsCache,
 } from "../resources/JobsListingResource";
 import { withRouter, WithRouterProps } from "react-router";
-import { parseQueryState } from "dremio-ui-common/utilities/jobs.js";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import {
+  parseQueryState,
+  getUpdatedStartTimeForQuery,
+  isStartTimeOutdated,
+} from "dremio-ui-common/utilities/jobs.js";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 import { JobsQueryParams } from "dremio-ui-common/types/Jobs.types";
 import { debounce, isEqual } from "lodash";
 import {
@@ -32,10 +36,11 @@ import {
   DefaultJobQuery,
   getPageIndexOfCachedJob,
   hasOnlyFrontendFilters,
-} from "@app/pages/JobsPage/jobs-page-utils";
-import { usePrevious } from "@app/utils/jobsUtils";
+} from "#oss/pages/JobsPage/jobs-page-utils";
+import { usePrevious } from "#oss/utils/jobsUtils";
 import { useResourceSnapshotDeep } from "../utilities/useDeepResourceSnapshot";
 import { useResourceStatus } from "smart-resource/react";
+import { Intervals } from "#oss/pages/JobPage/components/JobsFilters/StartTimeSelect/utils";
 
 const debouncedFetch = debounce(
   (pagesRequested: number, query: JobsQueryParams) =>
@@ -43,7 +48,7 @@ const debouncedFetch = debounce(
   500,
   {
     leading: true,
-  }
+  },
 );
 
 /*
@@ -58,7 +63,7 @@ const useJobs = (query: JobsQueryParams | undefined, location: any) => {
   const [pagesRequested, setPagesRequested] = useState(
     jobFromDetails
       ? getPageIndexOfCachedJob(jobs?.value?.jobs || [], jobFromDetails)
-      : 1
+      : 1,
   );
 
   useEffect(() => {
@@ -101,7 +106,7 @@ const useRunningJobs = (jobs: any[]) => {
       (jobs || [])
         .filter((job: any) => isRunningJob(job.state))
         .map((job: any) => job.id),
-    [jobs]
+    [jobs],
   );
 
   const previousRunningJobIds = usePrevious(runningJobIds);
@@ -126,7 +131,7 @@ const useRunningJobs = (jobs: any[]) => {
     if (status === "initial" || status === "pending") return;
 
     const someJobsRunning = (result?.jobs || []).some((job: any) =>
-      isRunningJob(job.state)
+      isRunningJob(job.state),
     );
     if (!someJobsRunning) {
       JobsPollingResource.stop.bind(JobsPollingResource)();
@@ -139,7 +144,7 @@ const useRunningJobs = (jobs: any[]) => {
         acc.set(cur.id, cur);
         return acc;
       }, new Map<string, any>()),
-    [result]
+    [result],
   );
 };
 
@@ -172,13 +177,19 @@ export const JobsPageProvider = withRouter(
   (props: JobsPageProviderProps): JSX.Element => {
     const { router, location } = props;
     const { query: urlQuery = {}, pathname } = props.location;
-    const storageQuery = localStorageUtils?.getJobsFiltersState();
 
     // Handle query precendence for URL/local storage
     useEffect(() => {
+      const storageQuery = localStorageUtils?.getJobsFiltersState();
       const allowStorage = hasOnlyFrontendFilters(urlQuery);
+      // Used to reset the date-time filter if it has a Last X... value
+      const selectedStartTimeType = localStorageUtils?.getJobsDateTimeFilter();
+      const selectedStartTime = Intervals().find(
+        (item) => item.type === selectedStartTimeType,
+      );
 
       if (!storageQuery && !urlQuery.filters) {
+        // Handle init case, no localstorage/URL params
         if (allowStorage)
           localStorageUtils?.setJobsFilters(JSON.stringify(DefaultJobQuery));
         router.replace({
@@ -187,16 +198,32 @@ export const JobsPageProvider = withRouter(
           pathname: pathname,
         });
       } else if (!urlQuery.filters && storageQuery) {
+        // Handle case where local storage takes precendence
+        const updatedQuery = getUpdatedStartTimeForQuery(
+          JSON.parse(storageQuery),
+          selectedStartTime,
+        );
         router.replace({
           ...location,
-          query: JSON.parse(storageQuery),
+          query: updatedQuery,
           pathname: pathname,
         });
       } else if (urlQuery.filters) {
-        if (allowStorage)
+        // Otherwise, use URL params
+        if (isStartTimeOutdated(urlQuery, selectedStartTime)) {
+          const updatedQuery = getUpdatedStartTimeForQuery(
+            urlQuery,
+            selectedStartTime,
+          );
+          router.replace({
+            ...location,
+            query: updatedQuery,
+            pathname: pathname,
+          });
+        } else if (allowStorage)
           localStorageUtils?.setJobsFilters(JSON.stringify(urlQuery));
       }
-    }, [storageQuery, urlQuery, router, pathname, location]);
+    }, [urlQuery, router, pathname, location]);
 
     // Create query used for endpoint
     const curQuery = useMemo(() => {
@@ -206,7 +233,7 @@ export const JobsPageProvider = withRouter(
     // Get jobs
     const { jobs, jobsErr, loadNextPage, loading, pagesRequested } = useJobs(
       curQuery,
-      location
+      location,
     );
 
     // Get running jobs
@@ -221,5 +248,5 @@ export const JobsPageProvider = withRouter(
       loading,
       pagesRequested,
     });
-  }
+  },
 );

@@ -45,7 +45,7 @@ describe("DataTypes", () => {
       expect(getDefaultValue(TIME, timeTest)).to.be.eql("15:23:32");
       expect(getDefaultValue(DATE, dateTest)).to.be.eql("2015-04-20");
       expect(getDefaultValue(DATETIME, dateTimeTest)).to.be.eql(
-        "2015-04-20 15:23:32"
+        "2015-04-20 15:23:32",
       );
     });
   });
@@ -60,7 +60,7 @@ describe("DataTypes", () => {
       expect(convertToUnix("15:23:32", TIME)).to.be.eql(timeResult);
       expect(convertToUnix("2015-04-20", DATE)).to.be.eql(dateResult);
       expect(convertToUnix("2015-04-20 15:23:32", DATETIME)).to.be.eql(
-        dateTimeResult
+        dateTimeResult,
       );
     });
   });
@@ -83,7 +83,7 @@ describe("DataTypes", () => {
     describe("when dataType == TIME", () => {
       it("should convertToUnix", () => {
         expect(parseTextToDataType("15:23:32", TIME)).to.equal(
-          convertToUnix("15:23:32", TIME)
+          convertToUnix("15:23:32", TIME),
         );
       });
     });

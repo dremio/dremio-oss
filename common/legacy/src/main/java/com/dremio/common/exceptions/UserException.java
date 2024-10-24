@@ -1195,6 +1195,24 @@ public class UserException extends RuntimeException {
     return context.getErrorOrigin();
   }
 
+  /**
+   * add NodeEndpoint identity to the context.
+   *
+   * <p>if the context already has a NodeEndpoint identity, the new identity will be ignored
+   *
+   * @param endpoint node endpoint identity
+   */
+  public void addIdentity(final CoordinationProtos.NodeEndpoint endpoint) {
+    context.add(endpoint);
+  }
+
+  /**
+   * @return the NodeEndpoint identity
+   */
+  public CoordinationProtos.NodeEndpoint getIdentity() {
+    return context.getEndpoint();
+  }
+
   public String getErrorLocation() {
     NodeEndpoint ep = context.getEndpoint();
     if (ep != null) {

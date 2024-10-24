@@ -14,24 +14,28 @@
  * limitations under the License.
  */
 
-import { ReactNode, useMemo } from "react";
+import { ReactNode } from "react";
 import classNames from "clsx";
+import { useSelector } from "react-redux";
 //@ts-ignore
 import ImmutablePropTypes from "react-immutable-proptypes";
 import { useIntl } from "react-intl";
 
 import TagsView from "../Labels/Labels";
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
+import ViewStateWrapper from "#oss/components/ViewStateWrapper";
 import DataColumns from "../DataColumns/DataColumns";
 import WikiModalWithSave from "./WikiModalWithSave";
 import Collapsible from "../Collapsible/Collapsible";
-import DatasetSummaryOverlay from "@app/components/Dataset/DatasetSummaryOverlay";
+import DatasetSummaryOverlay from "#oss/components/Dataset/DatasetSummaryOverlay";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import { hideForNonDefaultBranch } from "dremio-ui-common/utilities/versionContext.js";
 //@ts-ignore
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
-import { getEntityTypeFromObject } from "@app/utils/entity-utils";
-import { ENTITY_TYPES_LIST } from "@app/constants/Constants";
+import { getEntityTypeFromObject } from "#oss/utils/entity-utils";
+import { ENTITY_TYPES_LIST } from "#oss/constants/Constants";
+import Message from "#oss/components/Message";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
+import { getSummaryDataset } from "#oss/selectors/datasets";
 
 import * as classes from "./WikiWrapper.module.less";
 
@@ -47,6 +51,7 @@ type toolbarProps = {
   tooltip: string;
 };
 interface WikiWrapperProps {
+  tagsSaving: boolean;
   getLoadViewState: (showLoadMask: boolean) => void;
   showLoadMask: boolean;
   extClassName: string;
@@ -88,6 +93,7 @@ interface WikiWrapperProps {
 }
 
 const WikiWrapper = ({
+  tagsSaving,
   getLoadViewState,
   showLoadMask,
   extClassName,
@@ -128,6 +134,7 @@ const WikiWrapper = ({
   handlePanelDetails,
 }: WikiWrapperProps) => {
   const intl = useIntl();
+  const { t } = getIntlContext();
   const versionContext = getVersionContextFromId(entityId);
   const shouldShowWikiSection = hideForNonDefaultBranch(versionContext);
   const isSmallerView = isPanel || overlay;
@@ -139,6 +146,9 @@ const WikiWrapper = ({
   const isEntity =
     ENTITY_TYPES_LIST.includes(type?.toLowerCase()) &&
     !dataset.get("queryable");
+  const summaryDataset = useSelector((state) =>
+    getSummaryDataset(state, fullPath?.join(",")),
+  );
 
   const datasetOverviewComponent = () => {
     return (
@@ -169,6 +179,7 @@ const WikiWrapper = ({
               messageStyle={messageStyle}
             >
               <TagsView
+                tagsSaving={tagsSaving}
                 className={classes["tags"]}
                 tags={getTags(tags)}
                 onAddTag={isEditAllowed ? addTag : null}
@@ -240,8 +251,16 @@ const WikiWrapper = ({
             display: "flex",
             flex: 1,
             minHeight: 0,
+            flexDirection: "column",
           }}
         >
+          {summaryDataset?.get?.("schemaOutdated") && (
+            <Message
+              messageType="warning"
+              message={t("Sonar.Dataset.DataGraph.OutdatedWarning")}
+              className={classes["no-margin"]}
+            />
+          )}
           <div className={classes["layout"]} data-qa="wikiSection">
             <div
               className={classNames(

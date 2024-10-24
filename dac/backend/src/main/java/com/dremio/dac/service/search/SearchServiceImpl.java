@@ -18,7 +18,7 @@ package com.dremio.dac.service.search;
 import static com.dremio.dac.service.search.SearchIndexManager.*;
 import static com.dremio.datastore.SearchQueryUtils.*;
 import static com.dremio.exec.ExecConstants.SEARCH_SERVICE_RELEASE_LEADERSHIP_MS;
-import static com.dremio.service.namespace.NamespaceServiceImpl.DAC_NAMESPACE;
+import static com.dremio.service.namespace.NamespaceStore.DAC_NAMESPACE;
 
 import com.dremio.common.WakeupHandler;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;

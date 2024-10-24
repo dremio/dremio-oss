@@ -18,6 +18,7 @@ package com.dremio.exec.work.user;
 import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.concurrent.ExecutorService;
 
 /** Will submit a query locally without going through the client */
 public interface LocalQueryExecutor {
@@ -48,5 +49,9 @@ public interface LocalQueryExecutor {
       boolean prepare,
       LocalExecutionConfig config,
       boolean runInSameThread,
-      UserSession userSession);
+      UserSession userSession,
+      long jobSubmissionTime);
+
+  /** Returns ThreadPool to submit local queries. */
+  ExecutorService getJobSubmissionThreadPool();
 }

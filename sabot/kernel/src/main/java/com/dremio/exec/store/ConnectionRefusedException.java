@@ -24,8 +24,8 @@ public class ConnectionRefusedException extends RuntimeException {
     super();
   }
 
-  public ConnectionRefusedException(Throwable cause) {
-    super(cause);
+  public ConnectionRefusedException(String errorMessage) {
+    super(errorMessage);
   }
 
   @FormatMethod

@@ -19,7 +19,7 @@ import Immutable from "immutable";
 import classNames from "clsx";
 
 import Tabs from "components/Tabs";
-import { flexElementAuto } from "@app/uiTheme/less/layout.less";
+import { flexElementAuto } from "#oss/uiTheme/less/layout.less";
 import OverviewContent from "./OverviewContent";
 import DetailsContent from "./DetailsContent";
 import AccelerationContent from "./AccelerationContent";
@@ -120,6 +120,6 @@ const styles = {
     alignItems: "center",
   },
   icon: {
-    color: "gray",
+    color: "var(--icon--primary)",
   },
 };

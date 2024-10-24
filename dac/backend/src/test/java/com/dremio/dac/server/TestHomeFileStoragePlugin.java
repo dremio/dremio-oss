@@ -72,7 +72,7 @@ public class TestHomeFileStoragePlugin extends BaseTestServer {
       getNamespaceService().getSpace(new NamespaceKey(spaceName));
     } catch (NamespaceNotFoundException e) {
       expectSuccess(
-          getBuilder(getPublicAPI(3).path("/catalog/"))
+          getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
               .buildPost(
                   Entity.json(new com.dremio.dac.api.Space(null, spaceName, null, null, null))),
           new GenericType<com.dremio.dac.api.Space>() {});
@@ -84,7 +84,9 @@ public class TestHomeFileStoragePlugin extends BaseTestServer {
     components.add(vdsName);
     EntityPath entityPath = new EntityPath(components);
     final String vdsSql = String.format("SELECT * FROM dfs.\"%s\"", complexPdsPath);
-    createDatasetFromSQLAndSave(vdsPath, vdsSql, Collections.emptyList());
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSave(vdsPath, vdsSql, Collections.emptyList());
 
     DatasetConfig currentConfig =
         new DatasetConfig().setTag("0").setType(DatasetType.VIRTUAL_DATASET);

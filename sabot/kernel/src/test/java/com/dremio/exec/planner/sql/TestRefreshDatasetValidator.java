@@ -109,10 +109,12 @@ public class TestRefreshDatasetValidator {
 
     assertEquals(
         "2020-01-01 00:00:00",
-        DateTimes.toJdbcTimestampFromMillisInUtc((Long) getPartitionValue(partitionValues.get(8))));
+        DateTimes.millisToIsoFormattedLocalTimestampString(
+            (Long) getPartitionValue(partitionValues.get(8))));
     assertEquals(
         "2020-01-01",
-        DateTimes.toJdbcDateFromMillisInUtc((Long) getPartitionValue(partitionValues.get(9))));
+        DateTimes.millisToIsoFormattedLocalDateString(
+            (Long) getPartitionValue(partitionValues.get(9))));
   }
 
   @Test

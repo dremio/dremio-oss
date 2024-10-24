@@ -19,10 +19,10 @@ import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 import { Spinner } from "dremio-ui-lib/components";
 
 import { AboutModalState, ActionTypes } from "./aboutModalReducer";
-import { useBuildInfo } from "@app/exports/providers/AboutModalProviders";
-import { isSmartFetchLoading } from "@app/utils/isSmartFetchLoading";
+import { useBuildInfo } from "#oss/exports/providers/AboutModalProviders";
+import { isSmartFetchLoading } from "#oss/utils/isSmartFetchLoading";
 import { getEdition } from "dyn-load/utils/versionUtils";
-import timeUtils from "@app/utils/timeUtils";
+import timeUtils from "#oss/utils/timeUtils";
 
 import * as classes from "./AboutModal.module.less";
 
@@ -35,7 +35,7 @@ const { t } = getIntlContext();
 
 function BuildInformation({ state, dispatch }: BuildInformationProps) {
   const { value: buildInfo, status: buildInfoStatus } = useBuildInfo(
-    !state.alreadyFetchedBuildInfo
+    !state.alreadyFetchedBuildInfo,
   );
 
   useEffect(
@@ -44,21 +44,21 @@ function BuildInformation({ state, dispatch }: BuildInformationProps) {
         type: "SET_ALREADY_FETCHED_BUILD_INFO",
         alreadyFetchedBuildInfo: true,
       }),
-    [dispatch]
+    [dispatch],
   );
 
   const buildTime = timeUtils.formatTime(
     buildInfo?.buildTime,
     undefined,
     undefined,
-    timeUtils.formats.ISO
+    timeUtils.formats.ISO,
   );
 
   const commitTime = timeUtils.formatTime(
     buildInfo?.commit.time,
     undefined,
     undefined,
-    timeUtils.formats.ISO
+    timeUtils.formats.ISO,
   );
 
   return isSmartFetchLoading(buildInfoStatus) ? (

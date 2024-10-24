@@ -15,14 +15,14 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
-import NewBranchDialog from "@app/pages/NessieHomePage/components/NewBranchDialog/NewBranchDialog";
-import NewTagDialog from "@app/pages/NessieHomePage/components/NewTagDialog/NewTagDialog";
-import { VersionedPageTabsType } from "@app/exports/pages/VersionedHomePage/VersionedHomePage";
-import { Tag } from "@app/services/nessie/client";
-import { Reference } from "@app/types/nessie";
-import DeleteTagDialog from "@app/pages/NessieHomePage/components/DeleteTagDialog/DeleteTagDialog";
-import { CatalogTagsTable } from "@app/exports/pages/VersionedHomePage/components/VersionedPageTags/components/CatalogTagsTable/CatalogTagsTable";
-import { catalogTagsTableColumns } from "@app/exports/pages/VersionedHomePage/components/VersionedPageTags/components/CatalogTagsTable/catalogTagsTableColumns";
+import NewBranchDialog from "#oss/pages/NessieHomePage/components/NewBranchDialog/NewBranchDialog";
+import NewTagDialog from "#oss/pages/NessieHomePage/components/NewTagDialog/NewTagDialog";
+import { VersionedPageTabsType } from "#oss/exports/pages/VersionedHomePage/VersionedHomePage";
+import { Tag } from "#oss/services/nessie/client";
+import { Reference } from "#oss/types/nessie";
+import DeleteTagDialog from "#oss/pages/NessieHomePage/components/DeleteTagDialog/DeleteTagDialog";
+import { CatalogTagsTable } from "#oss/exports/pages/VersionedHomePage/components/VersionedPageTags/components/CatalogTagsTable/CatalogTagsTable";
+import { catalogTagsTableColumns } from "#oss/exports/pages/VersionedHomePage/components/VersionedPageTags/components/CatalogTagsTable/catalogTagsTableColumns";
 
 import "./VersionedPageTagsTable.less";
 

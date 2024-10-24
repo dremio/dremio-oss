@@ -52,5 +52,5 @@ export default connectComplexForm(
   },
   [],
   mapStateToProps,
-  null
+  null,
 )(NoParamForm);

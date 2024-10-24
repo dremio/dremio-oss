@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { INIT_REFS, SET_REFS } from "@app/actions/nessie/nessie";
+import { INIT_REFS, SET_REFS } from "#oss/actions/nessie/nessie";
 import { expect } from "chai";
 import nessieReducer from "./nessie";
 import {

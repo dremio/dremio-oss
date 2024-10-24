@@ -18,13 +18,13 @@ import PropTypes from "prop-types";
 import Immutable, { fromJS } from "immutable";
 
 import { constructFullPath, splitFullPath } from "utils/pathUtils";
-import { starTabNames } from "@app/components/Tree/resourceTreeUtils";
+import { starTabNames } from "#oss/components/Tree/resourceTreeUtils";
 
-import { fetchAllAndMineScripts } from "@app/components/SQLScripts/sqlScriptsUtils";
+import { fetchAllAndMineScripts } from "#oss/components/SQLScripts/sqlScriptsUtils";
 
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
+import ViewStateWrapper from "#oss/components/ViewStateWrapper";
 import ResourceTree from "./ResourceTree";
-import sentryUtil from "@app/utils/sentryUtil";
+import sentryUtil from "#oss/utils/sentryUtil";
 
 export class ResourceTreeController extends PureComponent {
   static propTypes = {
@@ -104,7 +104,7 @@ export class ResourceTreeController extends PureComponent {
     root,
     remain,
     nodesToExpand = [],
-    skipLast = false // Skip expanding the last node
+    skipLast = false, // Skip expanding the last node
   ) => {
     if (!root) return;
     const [next, ...remaining] = remain.split(".") || [];
@@ -134,7 +134,7 @@ export class ResourceTreeController extends PureComponent {
       this.setLoading(false);
       // No more to fetch, now select and expand to the node
       this.props.onChange?.(
-        skipLast ? root.split(".").concat(remain).join(".") : root
+        skipLast ? root.split(".").concat(remain).join(".") : root,
       );
     }
   };
@@ -214,7 +214,7 @@ export class ResourceTreeController extends PureComponent {
       (!treeInitialized && resourceTree.size === 0 && !datasetsPanel)
     ) {
       return this.initializeTree().then(() =>
-        this.fetchAndExpandSelectedNode(preselectedNodeId)
+        this.fetchAndExpandSelectedNode(preselectedNodeId),
       );
     }
 
@@ -246,8 +246,8 @@ export class ResourceTreeController extends PureComponent {
     if (tabRendered.startsWith(starTabNames.starred)) {
       return Boolean(
         expandedStarredNodes.find(
-          (expNodeId) => expNodeId === branchId + nodeId
-        )
+          (expNodeId) => expNodeId === branchId + nodeId,
+        ),
       );
     } else {
       return Boolean(expandedNodes.find((expNodeId) => expNodeId === nodeId));
@@ -266,7 +266,7 @@ export class ResourceTreeController extends PureComponent {
     if (tabRendered.startsWith(starTabNames.starred)) {
       this.setState({
         expandedStarredNodes: expandedStarredNodes.concat(
-          Immutable.fromJS(parents)
+          Immutable.fromJS(parents),
         ),
       });
     } else {
@@ -294,7 +294,7 @@ export class ResourceTreeController extends PureComponent {
         nodeIdsToClose.add(
           tabRendered.startsWith(starTabNames.starred)
             ? branchId + ResourceTreeController.formatIdFromNode(node)
-            : ResourceTreeController.formatIdFromNode(node)
+            : ResourceTreeController.formatIdFromNode(node),
         );
         if (!resources) return;
         resources.forEach(findOpenChildren);
@@ -304,7 +304,7 @@ export class ResourceTreeController extends PureComponent {
       nodeIdsToOpen.add(
         tabRendered.startsWith(starTabNames.starred)
           ? branchId + selectedNodeId
-          : selectedNodeId
+          : selectedNodeId,
       );
     }
 
@@ -312,7 +312,7 @@ export class ResourceTreeController extends PureComponent {
       tabRendered.startsWith(starTabNames.starred),
       selectedNodeId,
       isNodeExpanded,
-      clickedNode
+      clickedNode,
     );
 
     this.setState((state) => {

@@ -39,6 +39,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.sabot.op.spi.SingleInputOperator.State;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.sun.codemodel.JConditional;
@@ -47,6 +48,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
@@ -81,6 +83,7 @@ public class VectorSorter implements AutoCloseable {
   private static final String OOM_ALLOCATE_COUNT = "OOM_ALLOCATE_COUNT";
   private static final String OOM_COPY_COUNT = "OOM_COPY_COUNT";
   private static final String SPILL_COPY_NANOS = "SPILL_COPY_NANOS";
+  private static final String SETUP_MILLIS = "SETUP_MILLIS";
 
   private final int targetBatchSize;
   private final OperatorContext context;
@@ -121,6 +124,7 @@ public class VectorSorter implements AutoCloseable {
   private boolean memoryStatsAvailable;
 
   private boolean diskStatsAvailable;
+  private final Stopwatch setUpWatch = Stopwatch.createUnstarted();
 
   public enum SortState {
     CONSUME,
@@ -162,6 +166,7 @@ public class VectorSorter implements AutoCloseable {
 
   public VectorAccessible setup(VectorAccessible incoming, boolean isSpillAllowed) {
     try (RollbackCloseable rollback = new RollbackCloseable()) {
+      setUpWatch.start();
       this.isSpillAllowed = isSpillAllowed;
 
       this.tracer = new VectorSortTracer();
@@ -230,6 +235,7 @@ public class VectorSorter implements AutoCloseable {
       tracer.setTargetBatchSizeInBytes(targetBatchSizeInBytes);
 
       rollback.commit();
+      setUpWatch.stop();
     } catch (Exception e) {
       Throwables.propagate(e);
     }
@@ -620,6 +626,7 @@ public class VectorSorter implements AutoCloseable {
       stats.put(OOM_COPY_COUNT, diskRuns.getOOMCopyCount());
       stats.put(SPILL_COPY_NANOS, diskRuns.getSpillCopyNanos());
     }
+    stats.put(SETUP_MILLIS, setUpWatch.elapsed(TimeUnit.MILLISECONDS));
     return stats;
   }
 

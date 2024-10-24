@@ -71,7 +71,7 @@ describe("TimeDot", () => {
   describe("#getLinkLocation", () => {
     it("should take a pathname from location", () => {
       expect(instance.getLinkLocation().pathname).to.equal(
-        commonProps.location.pathname
+        commonProps.location.pathname,
       );
     });
 

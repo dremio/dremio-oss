@@ -97,11 +97,11 @@ describe("ExploreTableController", () => {
         expect(commonProps.performTransform.calledOnce).to.equal(true);
         const args = commonProps.performTransform.args[0][0];
         expect(args.currentSql).to.equal(
-          commonProps.queryStatuses[0].sqlStatement
+          commonProps.queryStatuses[0].sqlStatement,
         );
         expect(args.queryContext).to.equal(commonProps.queryContext);
         expect(args.viewId).to.equal(
-          commonProps.exploreViewState.get("viewId")
+          commonProps.exploreViewState.get("viewId"),
         );
       });
     });
@@ -153,7 +153,7 @@ describe("ExploreTableController", () => {
     it("should return false due to empty props dataset", () => {
       wrapper = shallow(
         <ExploreTableController {...commonProps} dataset={null} />,
-        { context }
+        { context },
       );
       expect(wrapper.instance().isSqlChanged({ nextProps: { dataset: {} } })).to
         .be.false;
@@ -365,7 +365,7 @@ describe("ExploreTableController", () => {
         anchor,
         "columnType",
         "columnName",
-        "valueUrl"
+        "valueUrl",
       );
       expect(wrapper.state("activeCell")).to.eql({
         cellValue: "cellValue",
@@ -391,7 +391,7 @@ describe("ExploreTableController", () => {
       });
       const ExploreCellLargeOverlay = shallow(
         instance.renderExploreCellLargeOverlay(),
-        { context: getContext({}) }
+        { context: getContext({}) },
       );
       expect(ExploreCellLargeOverlay).to.be.exist;
     });

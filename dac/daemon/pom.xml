@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>25.1.1-202409260159070462-716c0676</version>
+    <version>${revision}</version>
   </parent>
 
   <artifactId>dremio-dac-daemon</artifactId>
@@ -384,6 +384,11 @@
         <dependency>
           <groupId>com.dremio.plugins</groupId>
           <artifactId>dremio-dataplane-plugin</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-icebergcatalog-plugin</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>

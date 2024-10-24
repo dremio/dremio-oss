@@ -16,7 +16,7 @@
 import { mount } from "enzyme";
 
 import { Router, Route, createMemoryHistory } from "react-router";
-import { EntityLink } from "@app/pages/HomePage/components/EntityLink";
+import { EntityLink } from "#oss/pages/HomePage/components/EntityLink";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 
 describe("routes", () => {
@@ -43,7 +43,7 @@ describe("routes", () => {
               <Route path={commonPaths.sourceFolder.fullRoute()} />
             </Route>
           </Route>
-        </Router>
+        </Router>,
       );
 
       expect(isLinkActive(wrapper)).to.equal(true);
@@ -62,7 +62,7 @@ describe("routes", () => {
               <Route path={commonPaths.sourceFolder.fullRoute()} />
             </Route>
           </Route>
-        </Router>
+        </Router>,
       );
 
       expect(isLinkActive(wrapper)).to.equal(true);

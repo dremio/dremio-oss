@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import LinkWithRef from "#oss/components/LinkWithRef/LinkWithRef";
 import { IconButton } from "dremio-ui-lib/components";
 import { getSettingsLocation } from "components/Menus/HomePage/DatasetMenu";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
-import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
+import { shouldUseNewDatasetNavigation } from "#oss/utils/datasetNavigationUtils";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
-
     // ignore first argument
     renderConvertButton(_, folderModalButton) {
       return (
@@ -113,6 +111,10 @@ export default function (input) {
       const { entity: entityProp } = this.props;
       const entity = item || entityProp;
       return !!entity;
+    },
+
+    renderEntityIcon() {
+      return null;
     },
   });
 }

@@ -92,36 +92,40 @@ public class TestSQLResource extends BaseTestServer {
     addPhysicalDataset(DATASET_PATH_THREE, DatasetType.PHYSICAL_DATASET);
 
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/"))
             .buildPost(
                 Entity.json(new com.dremio.dac.api.Space(null, "testSpace", null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
 
     DatasetPath d1Path = new DatasetPath("testSpace.supplier");
-    createDatasetFromSQLAndSave(
-        d1Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSave(
+            d1Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
 
     Folder newFolder1 = new Folder(null, Arrays.asList("testSpace", "myFolder"), null, null);
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(newFolder1)),
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/")).buildPost(Entity.json(newFolder1)),
         new GenericType<Folder>() {});
     Folder newFolder2 = new Folder(null, Arrays.asList("testSpace", "@dremio"), null, null);
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(newFolder2)),
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/")).buildPost(Entity.json(newFolder2)),
         new GenericType<Folder>() {});
 
     Folder subFolder1 = new Folder(null, Arrays.asList("testSpace", "@dremio", "foo"), null, null);
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(subFolder1)),
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/")).buildPost(Entity.json(subFolder1)),
         new GenericType<Folder>() {});
     Folder subFolder2 = new Folder(null, Arrays.asList("testSpace", "@dremio", "bar"), null, null);
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(subFolder2)),
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/")).buildPost(Entity.json(subFolder2)),
         new GenericType<Folder>() {});
 
     DatasetPath d2Path = new DatasetPath("testSpace.myFolder.supplier");
-    createDatasetFromSQLAndSave(
-        d2Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSave(
+            d2Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
   }
 
   @After
@@ -627,7 +631,7 @@ public class TestSQLResource extends BaseTestServer {
 
     expectError(
         FamilyExpectation.CLIENT_ERROR,
-        getBuilder(getAPIv2().path(endpoint))
+        getBuilder(getHttpClient().getAPIv2().path(endpoint))
             .buildPost(
                 Entity.entity(
                     new AutocompleteRequest(
@@ -646,7 +650,7 @@ public class TestSQLResource extends BaseTestServer {
 
     Response response =
         expectSuccess(
-            getBuilder(getAPIv2().path(endpoint))
+            getBuilder(getHttpClient().getAPIv2().path(endpoint))
                 .buildPost(
                     Entity.entity(
                         new AutocompleteRequest(

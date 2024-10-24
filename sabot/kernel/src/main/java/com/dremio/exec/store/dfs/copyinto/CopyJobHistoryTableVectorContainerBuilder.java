@@ -33,7 +33,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.Text;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.types.Types;
-import org.apache.iceberg.types.Types.NestedField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,6 +89,7 @@ public final class CopyJobHistoryTableVectorContainerBuilder {
         case 11: // branch
         case 12: // pipe_name
         case 13: // pipe_id
+        case 15: // transformation_properties
           vector = new VarCharVector(col.name(), allocator);
           break;
         case 4: // records_loaded_count
@@ -221,129 +221,16 @@ public final class CopyJobHistoryTableVectorContainerBuilder {
         // time_elapsed
         ((BigIntVector) vector).setSafe(0, processingTime);
         break;
+      case 14:
+        // transformation_properties
+        writeText(vector, fileLoadInfo.getTransformationProperties());
+        break;
       default:
         throw new UnsupportedOperationException(
             String.format(
                 "Unrecognized copy_file_history table column at index %s. Make sure that mapping to the iceberg schema is correct.",
                 fieldId));
     }
-  }
-
-  /**
-   * Constructs a {@link FieldVector} for a specified column in the copy_job_history table based on
-   * the provided information.
-   *
-   * @param allocator The buffer allocator to use for vector allocation.
-   * @param info The {@link CopyIntoFileLoadInfo} object containing file load information.
-   * @param numSuccess The number of successfully loaded records.
-   * @param numErrors The number of records that were rejected.
-   * @param processingTime The time taken for processing the load operation.
-   * @param recordTimestamp The timestamp of the record.
-   * @param col The column definition from the iceberg schema.
-   * @return A {@link FieldVector} representing the specified column for the given file load
-   *     information.
-   * @throws UnsupportedOperationException If the column fieldId is not recognized.
-   */
-  private static FieldVector getFieldVector(
-      BufferAllocator allocator,
-      CopyIntoFileLoadInfo info,
-      long numSuccess,
-      long numErrors,
-      long processingTime,
-      long recordTimestamp,
-      NestedField col) {
-    FieldVector vector;
-    switch (col.fieldId()) {
-      case 1:
-        // executed_at
-        vector = new TimeStampMilliVector(col.name(), allocator);
-        ((TimeStampMilliVector) vector).allocateNew(1);
-        ((TimeStampMilliVector) vector).setSafe(0, recordTimestamp);
-        break;
-      case 2:
-        // job_id
-        vector = new VarCharVector(col.name(), allocator);
-        ((VarCharVector) vector).allocateNew(1);
-        writeText(vector, info.getQueryId());
-        break;
-      case 3:
-        // table_name
-        vector = new VarCharVector(col.name(), allocator);
-        ((VarCharVector) vector).allocateNew(1);
-        writeText(vector, info.getTableName());
-        break;
-      case 4:
-        // records_loaded_count
-        vector = new BigIntVector(col.name(), allocator);
-        ((BigIntVector) vector).allocateNew(1);
-        ((BigIntVector) vector).setSafe(0, numSuccess);
-        break;
-      case 5:
-        // records_rejected_count
-        vector = new BigIntVector(col.name(), allocator);
-        ((BigIntVector) vector).allocateNew(1);
-        ((BigIntVector) vector).setSafe(0, numErrors);
-        break;
-      case 6:
-        // copy_options
-        vector = new VarCharVector(col.name(), allocator);
-        ((VarCharVector) vector).allocateNew(1);
-        writeText(vector, CopyIntoFileLoadInfo.Util.getJson(info.getFormatOptions()));
-        break;
-      case 7:
-        // user_name
-        vector = new VarCharVector(col.name(), allocator);
-        ((VarCharVector) vector).allocateNew(1);
-        writeText(vector, info.getQueryUser());
-        break;
-      case 8:
-        // base_snapshot_id
-        vector = new BigIntVector(col.name(), allocator);
-        ((BigIntVector) vector).allocateNew(1);
-        ((BigIntVector) vector).setSafe(0, info.getSnapshotId());
-        break;
-      case 9:
-        // storage_location
-        vector = new VarCharVector(col.name(), allocator);
-        ((VarCharVector) vector).allocateNew(1);
-        writeText(vector, info.getStorageLocation());
-        break;
-      case 10:
-        // file_format
-        vector = new VarCharVector(col.name(), allocator);
-        ((VarCharVector) vector).allocateNew(1);
-        writeText(vector, info.getFileFormat());
-        break;
-        // V2 schema
-      case 11:
-        // branch
-        vector = new VarCharVector(col.name(), allocator);
-        ((VarCharVector) vector).allocateNew(1);
-        writeText(vector, info.getBranch());
-        break;
-      case 12:
-        // pipe_name
-        vector = new VarCharVector(col.name(), allocator);
-        ((VarCharVector) vector).allocateNew(1);
-        writeText(vector, info.getPipeName());
-        break;
-      case 13:
-        // pipe_id
-        vector = new VarCharVector(col.name(), allocator);
-        ((VarCharVector) vector).allocateNew(1);
-        writeText(vector, info.getPipeId());
-        break;
-      case 14:
-        // time_elapsed
-        vector = new BigIntVector(col.name(), allocator);
-        ((BigIntVector) vector).allocateNew(1);
-        ((BigIntVector) vector).setSafe(0, processingTime);
-        break;
-      default:
-        throw new UnsupportedOperationException(
-            "Unrecognized copy_job_history table column. Make sure that mapping to the iceberg schema is correct.");
-    }
-    return vector;
   }
 
   /**

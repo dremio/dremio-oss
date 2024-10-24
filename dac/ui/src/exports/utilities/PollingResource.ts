@@ -56,7 +56,7 @@ export class PollingResource<T> extends SmartResource<T> {
    */
   start(
     getArgs: () => any[] = () => [],
-    onNext?: (value: Awaited<T>) => void
+    onNext?: (value: Awaited<T>) => void,
   ): void {
     this._errorCount = 0;
     this._getFetcherArgs = getArgs;

@@ -22,18 +22,18 @@ import { IconButton } from "dremio-ui-lib/components";
 import { injectIntl } from "react-intl";
 import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
 import { TagList } from "dremio-ui-lib";
-import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
+import { shouldUseNewDatasetNavigation } from "#oss/utils/datasetNavigationUtils";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { bodySmall } from "uiTheme/radium/typography";
 import DatasetItemLabel from "./Dataset/DatasetItemLabel";
 import DatasetsSearchViewActions from "dyn-load/components/DatasetsSearchViewActions";
-import QueryDataset from "@app/components/QueryDataset/QueryDataset";
+import QueryDataset from "#oss/components/QueryDataset/QueryDataset";
 import "./DatasetsSearch.less";
 import {
   DATASET_TYPES_TO_DREMIO_ICON,
   VIRTUAL_DATASET,
-} from "@app/constants/datasetTypes";
+} from "#oss/constants/datasetTypes";
 
 const emptyList = new Immutable.List();
 const TAG_LIST_MAX_WIDTH = 160;

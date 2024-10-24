@@ -47,6 +47,7 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBra
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useCommitQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useTagQuery;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertIcebergFilesExistAtSubPath;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.getSubPathFromNessieTableContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
@@ -136,14 +137,16 @@ public class ITDataplanePluginInsert extends ITDataplanePluginTestSetup {
     // Create empty
     runSQL(createTableQuery);
     // Verify iceberg manifest/avro/metadata.json files on FS
-    assertIcebergFilesExistAtSubPath(tablePath, 0, 1, 1, 0);
+    assertIcebergFilesExistAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), 0, 1, 1, 0, this);
 
     // Do 2 separate Inserts so there are multiple data files.
     // Insert 1
     runSQL(insertSelectQuery(tablePath, 2));
     assertTableHasExpectedNumRows(tablePath, 2);
     // Verify iceberg manifest/avro/metadata.json files on FS
-    assertIcebergFilesExistAtSubPath(tablePath, 1, 2, 2, 1);
+    assertIcebergFilesExistAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), 1, 2, 2, 1, this);
 
     // Insert 2
     runSQL(insertSelectQuery(tablePath, 3));
@@ -152,7 +155,8 @@ public class ITDataplanePluginInsert extends ITDataplanePluginTestSetup {
 
     // Assert
     // Verify iceberg manifest/avro/metadata.json files on FS
-    assertIcebergFilesExistAtSubPath(tablePath, 2, 3, 3, 2);
+    assertIcebergFilesExistAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), 2, 3, 3, 2, this);
 
     // Cleanup
     runSQL(dropTableQuery(tablePath));

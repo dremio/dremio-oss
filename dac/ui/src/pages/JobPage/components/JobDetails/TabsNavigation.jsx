@@ -103,7 +103,7 @@ class TabsNavigation extends PureComponent {
 const styles = {
   base: {
     height: 38,
-    borderBottom: "1px solid #f3f3f3",
+    borderBottom: "1px solid var(--border--neutral)",
     display: "flex",
   },
 };

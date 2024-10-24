@@ -46,6 +46,8 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.extensions.SupportsMetadataVerify;
 import com.dremio.connector.metadata.options.InternalMetadataTableOption;
+import com.dremio.context.RequestContext;
+import com.dremio.context.UserContext;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
@@ -1250,8 +1252,7 @@ public class CatalogImpl implements Catalog {
     }
 
     // Try again but from the root context
-    return getUserDefinedFunctionImplementation(
-        CatalogEntityKey.fromNamespaceKey(new NamespaceKey(path.getLeaf())));
+    return getUserDefinedFunctionImplementation(CatalogEntityKey.of(path.getLeaf()));
   }
 
   private Optional<UserDefinedFunction> getUserDefinedFunctionImplementation(
@@ -2486,10 +2487,15 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
+  public <T extends StoragePlugin> T getSource(String name, boolean skipStateCheck) {
+    return sourceModifier.getSource(name, skipStateCheck);
+  }
+
+  @Override
   @WithSpan
   public void createSource(SourceConfig config, NamespaceAttribute... attributes) {
     if (Boolean.TRUE.equals(config.getIsPrimaryCatalog())) {
-      List<SourceConfig> sources = systemNamespaceService.getSources();
+      List<SourceConfig> sources = getSourceConfigs();
       for (SourceConfig source : sources) {
         if (Boolean.TRUE.equals(source.getIsPrimaryCatalog())) {
           throw UserException.validationError()
@@ -2650,10 +2656,18 @@ public class CatalogImpl implements Catalog {
       ResolvedVersionContext resolvedVersionContext =
           versionedPlugin.resolveVersionContext(versionContext);
       List<String> contentKey = fullPath.subList(1, fullPath.size());
-      String contentId = versionedPlugin.getContentId(contentKey, resolvedVersionContext);
-      return contentId != null;
+      try {
+        // TODO: DX-96277 Remove in favor of new nessie api which checks for existence
+        String contentId =
+            RequestContext.current()
+                .with(UserContext.CTX_KEY, UserContext.SYSTEM_USER_CONTEXT)
+                .call(() -> versionedPlugin.getContentId(contentKey, resolvedVersionContext));
+        return contentId != null;
+      } catch (Exception e) {
+        logger.error("Could not fetch content for versioned plugin" + e);
+        return false;
+      }
     }
-
     Optional<String> namespaceEntityId = id.toNamespaceEntityId();
     return namespaceEntityId
         .filter(s -> userNamespaceService.getEntityById(new EntityId(s)).isPresent())
@@ -2719,6 +2733,11 @@ public class CatalogImpl implements Catalog {
   @Override
   public List<NameSpaceContainer> getEntitiesByIds(List<EntityId> ids) {
     return userNamespaceService.getEntitiesByIds(ids);
+  }
+
+  @Override
+  public List<SourceConfig> getSourceConfigs() {
+    return userNamespaceService.getSources();
   }
   //// End: NamespacePassthrough Methods
 }

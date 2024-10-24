@@ -27,8 +27,8 @@ import {
 
 import { FieldWithError, Radio, TextField } from "components/Fields";
 
-import { rowOfInputsSpacing, rowOfRadio } from "@app/uiTheme/less/forms.less";
-import { withFormContext } from "@app/pages/HomePage/components/modals/formContext";
+import { rowOfInputsSpacing, rowOfRadio } from "#oss/uiTheme/less/forms.less";
+import { withFormContext } from "#oss/pages/HomePage/components/modals/formContext";
 
 const { CONFIG_PROP_NAME, addFormPrefixToPropName } = FormUtils;
 

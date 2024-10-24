@@ -32,9 +32,9 @@
     .bg-#{$shade}-#{$grade} {
       background-color: var(--color--#{$shade}--#{$grade});
       @if $grade >= 500 {
-        color: white;
+        color: var(--color--neutral--100);
       } @else {
-        color: black;
+        color: var(--color--neutral--800);
       }
     }
   }
@@ -44,9 +44,9 @@
   .bg-brand-#{$grade} {
     background-color: var(--color--cyan--#{$grade});
     @if $grade >= 500 {
-      color: white;
+      color: var(--color--neutral--100);
     } @else {
-      color: black;
+      color: var(--color--neutral--800);
     }
   }
 }
@@ -127,8 +127,8 @@
 
 .bg-danger-subtle-border {
   @extend .bg-danger-subtle;
-  color: var(--color--red--400);
-  border: 1px solid var(--color--red--400);
+  color: var(--fill--danger--solid);
+  border: 1px solid var(--fill--danger--solid);
 }
 
 .bg-none {

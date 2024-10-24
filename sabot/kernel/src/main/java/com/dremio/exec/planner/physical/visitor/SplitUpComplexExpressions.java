@@ -113,7 +113,8 @@ public class SplitUpComplexExpressions {
     List<RexNode> complexExprs = exprSplitter.getComplexExprs();
 
     if (complexExprs.size() == 1
-        && findTopComplexFunc(funcReg, project.getProjects()).size() == 1) {
+        && findTopComplexFunc(funcReg, project.getProjects()).size() == 1
+        && !containsComplexFuncInFilter(funcReg, project.getInput())) {
       return project;
     }
 
@@ -256,5 +257,15 @@ public class SplitUpComplexExpressions {
     }
 
     return topComplexFuncs;
+  }
+
+  private static boolean containsComplexFuncInFilter(
+      FunctionImplementationRegistry funcReg, RelNode input) {
+    if (!(input instanceof FilterPrel)) {
+      return false;
+    }
+    FilterPrel filterPrel = (FilterPrel) input;
+    RexNode condition = filterPrel.getCondition();
+    return ComplexOutputFuncVisitors.hasComplexOutputFunc(condition, funcReg);
   }
 }

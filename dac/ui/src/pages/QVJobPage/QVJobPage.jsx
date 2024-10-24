@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import jobsUtils from "@app/utils/jobsUtils";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import jobsUtils from "#oss/utils/jobsUtils";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 import JobPage from "../JobPage/JobPage";
 import JobPageNew from "../JobPageNew/JobListingPage";
 

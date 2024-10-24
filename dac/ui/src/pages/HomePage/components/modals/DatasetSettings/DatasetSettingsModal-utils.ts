@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 const VIEW = "VIEW";
 const TABLE = "TABLE";

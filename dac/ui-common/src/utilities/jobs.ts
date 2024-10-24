@@ -39,3 +39,47 @@ export const formatQueryState = (query: JobsQueryParams) => {
     filters: JSON.stringify(filters),
   };
 };
+
+export const getUpdatedStartTimeForQuery = (
+  query: any,
+  selectedStartTime?: any,
+) => {
+  try {
+    if (
+      !selectedStartTime ||
+      selectedStartTime.type === "CUSTOM_INTERVAL" ||
+      selectedStartTime?.type === "ALL_TIME_INTERVAL"
+    ) {
+      return query;
+    }
+
+    const parsedQuery = parseQueryState(query);
+    const fromDate = selectedStartTime.time[0];
+    const toDate = selectedStartTime.time[1];
+    const fromDateTimestamp = fromDate.toDate().getTime();
+    const toDateTimestamp = toDate.toDate().getTime();
+    return formatQueryState({
+      ...parsedQuery,
+      filters: {
+        ...parsedQuery.filters,
+        st: [fromDateTimestamp, toDateTimestamp],
+      },
+    });
+  } catch (e) {
+    return query;
+  }
+};
+
+export const isStartTimeOutdated = (query: any, selectedStartTime?: any) => {
+  const parsedQuery = parseQueryState(query);
+  if (
+    selectedStartTime &&
+    selectedStartTime?.type !== "CUSTOM_INTERVAL" &&
+    selectedStartTime?.type !== "ALL_TIME_INTERVAL" &&
+    parsedQuery.filters.st
+  ) {
+    const prevToDateTime = parsedQuery.filters.st[1];
+    const currentDateTime = Date.now();
+    return Math.abs(currentDateTime - prevToDateTime) > 60000;
+  } else return false;
+};

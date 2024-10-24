@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.logical;
 
-import com.dremio.common.VM;
 import com.google.common.base.Stopwatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -54,7 +53,7 @@ public class CancelFlag extends org.apache.calcite.util.CancelFlag {
 
   @Override
   public boolean isCancelRequested() {
-    if (!VM.isDebugEnabled() && watch.elapsed(TimeUnit.MILLISECONDS) > timeout) {
+    if (watch.elapsed(TimeUnit.MILLISECONDS) > timeout) {
       return true;
     }
 

@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.store.dfs.copyinto;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo;
 import com.dremio.exec.record.VectorContainer;
 import java.util.List;
+import java.util.stream.LongStream;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -27,14 +29,17 @@ public class TestCopyJobHistoryPartitionTransformVectorBuilder
     extends TestCopyHistoryTableVectorBuilderBase {
   @Test
   public void testInitializeVectors() {
-    assertPartitionVectors(CopyJobHistoryTableSchemaProvider.getPartitionSpec(1L));
-    assertPartitionVectors(CopyJobHistoryTableSchemaProvider.getPartitionSpec(2L));
+    LongStream.range(0, ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal())
+        .forEach(
+            i ->
+                assertPartitionVectors(
+                    new CopyJobHistoryTableSchemaProvider(i + 1).getPartitionSpec()));
   }
 
   @Test
   public void testTransformVectors() {
-    assertTransformation(1L);
-    assertTransformation(2L);
+    LongStream.range(0, ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal())
+        .forEach(i -> assertTransformation(i + 1));
   }
 
   private void assertTransformation(long schemaVersion) {
@@ -42,8 +47,10 @@ public class TestCopyJobHistoryPartitionTransformVectorBuilder
     long numSuccess = 5L;
     long numErrors = 2L;
     CopyIntoFileLoadInfo info = getFileLoadInfo(numSuccess, numErrors);
-    Schema schema = CopyJobHistoryTableSchemaProvider.getSchema(schemaVersion);
-    PartitionSpec partitionSpec = CopyJobHistoryTableSchemaProvider.getPartitionSpec(schemaVersion);
+    CopyJobHistoryTableSchemaProvider schemaProvider =
+        new CopyJobHistoryTableSchemaProvider(schemaVersion);
+    Schema schema = schemaProvider.getSchema();
+    PartitionSpec partitionSpec = schemaProvider.getPartitionSpec();
     try (VectorContainer container =
         buildVector(schema, info, numSuccess, numErrors, currentTimeMillis)) {
       List<ValueVector> valueVectors =

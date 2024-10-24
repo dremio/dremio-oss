@@ -17,7 +17,7 @@
 import { getUsersDetails } from "../Users/getUsersDetails";
 import { UserDetails } from "../Users/UserDetails.type";
 import { transformSonarProject } from "./transformSonarProject";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 
 import VENDORS from "@inject/constants/vendors";
@@ -27,7 +27,7 @@ export const listSonarProjectsUrl = () =>
 
 export type SonarProject = {
   id: string;
-  type: "DATA_PLANE" | "QUERY_ENGINE";
+  type: "QUERY_ENGINE";
   cloudType: typeof VENDORS.AWS | typeof VENDORS.AZURE;
   createdBy: string;
   createdByDetails?: UserDetails;
@@ -51,7 +51,7 @@ type ListSonarProjectsParams = {
 };
 
 export const listSonarProjects = (
-  params: ListSonarProjectsParams
+  params: ListSonarProjectsParams,
 ): Promise<SonarProject[]> =>
   getApiContext()
     .fetch(listSonarProjectsUrl())
@@ -61,7 +61,7 @@ export const listSonarProjects = (
 
       if (params.filterTypes) {
         filteredProjects = filteredProjects.filter((project) =>
-          params.filterTypes?.includes(project.type)
+          params.filterTypes?.includes(project.type),
         );
       }
 

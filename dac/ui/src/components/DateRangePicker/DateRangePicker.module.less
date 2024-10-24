@@ -18,7 +18,27 @@
     background: transparent;
     &:hover,
     &:focus-visible {
-      background: var(--fill--secondary);
+      background-color: var(--fill--primary--hover);
+    }
+  }
+  :global(.rdrNextButton) {
+    i {
+      border-left-color: var(--icon--primary);
+    }
+    &:hover {
+      i {
+        border-left-color: var(--icon--hover);
+      }
+    }
+  }
+  :global(.rdrPprevButton) {
+    i {
+      border-right-color: var(--icon--primary);
+    }
+    &:hover {
+      i {
+        border-right-color: var(--icon--hover);
+      }
     }
   }
 
@@ -28,7 +48,7 @@
     color: var(--text--primary);
     &:hover,
     &:focus-visible {
-      background: var(--fill--secondary);
+      background-color: var(--fill--primary--hover);
     }
   }
 

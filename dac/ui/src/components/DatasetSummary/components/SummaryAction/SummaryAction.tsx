@@ -16,7 +16,7 @@
 
 import { useMemo } from "react";
 import { IconButton } from "dremio-ui-lib/components";
-import LinkWithHref from "@app/components/LinkWithRef/LinkWithRef";
+import LinkWithHref from "#oss/components/LinkWithRef/LinkWithRef";
 import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";

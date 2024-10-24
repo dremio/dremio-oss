@@ -30,7 +30,6 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
-import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Throwables;
 import java.lang.reflect.Constructor;
@@ -42,7 +41,7 @@ import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.sql.SqlNode;
 
 /** Changes column name, type specified by {@link SqlAlterTableChangeColumn} */
-public class ChangeColumnHandler extends SimpleDirectHandler {
+public class ChangeColumnHandler extends SimpleDirectHandlerWithValidator {
   private final Catalog catalog;
   private final SqlHandlerConfig config;
 
@@ -78,7 +77,7 @@ public class ChangeColumnHandler extends SimpleDirectHandler {
             .tableVersionContext(TableVersionContext.of(sourceVersion))
             .build();
 
-    catalog.validatePrivilege(resolvedPath, SqlGrant.Privilege.ALTER);
+    validate(resolvedPath, sourceVersion);
 
     DremioTable table = catalog.getTableNoResolve(catalogEntityKey);
 

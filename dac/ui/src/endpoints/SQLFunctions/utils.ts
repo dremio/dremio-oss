@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Parameter, ParameterKindEnum } from "@app/types/sqlFunctions";
+import { Parameter, ParameterKindEnum } from "#oss/types/sqlFunctions";
 
 export function isLetter(c: string) {
   return c.toLowerCase() != c.toUpperCase();
@@ -30,7 +30,7 @@ function constructParamNameWithComma(label: string, isOptional: boolean) {
 
 export function constructLabel(
   parameters: Parameter[],
-  snippetOverride?: string
+  snippetOverride?: string,
 ) {
   if (snippetOverride) {
     const paramsArray: string[] = [];
@@ -51,12 +51,12 @@ function contructLabelFromParams(parameters: Parameter[]) {
       if (idx === 0) {
         params += constructParamName(
           name,
-          param?.kind === ParameterKindEnum.OPTIONAL
+          param?.kind === ParameterKindEnum.OPTIONAL,
         );
       } else {
         params += constructParamNameWithComma(
           name,
-          param?.kind === ParameterKindEnum.OPTIONAL
+          param?.kind === ParameterKindEnum.OPTIONAL,
         );
       }
     });

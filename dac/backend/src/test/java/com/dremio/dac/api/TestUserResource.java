@@ -67,7 +67,8 @@ public class TestUserResource extends BaseTestServer {
 
     User user =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(USER_PATH).path(user1.getUID().getId())).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(USER_PATH).path(user1.getUID().getId()))
+                .buildGet(),
             User.class);
     assertEquals(user.getId(), user1.getUID().getId());
     assertEquals(user.getName(), user1.getUserName());
@@ -80,7 +81,8 @@ public class TestUserResource extends BaseTestServer {
 
     User user =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(USER_PATH).path(user1.getUID().getId())).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(USER_PATH).path(user1.getUID().getId()))
+                .buildGet(),
             User.class);
     assertEquals(user.getId(), user1.getUID().getId());
     assertEquals(user.getName(), user1.getUserName());
@@ -126,7 +128,7 @@ public class TestUserResource extends BaseTestServer {
             null);
     User savedUser =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(USER_PATH)).buildPost(Entity.json(userInfo)),
+            getBuilder(getHttpClient().getAPIv3().path(USER_PATH)).buildPost(Entity.json(userInfo)),
             User.class);
 
     assertNotNull(savedUser.getId());
@@ -157,7 +159,7 @@ public class TestUserResource extends BaseTestServer {
     // should not allow to create a user with a name of existing user
     expect(
         FamilyExpectation.CLIENT_ERROR,
-        getBuilder(getPublicAPI(3).path(USER_PATH).path("createUser"))
+        getBuilder(getHttpClient().getAPIv3().path(USER_PATH).path("createUser"))
             .buildPut(Entity.json(userInfo)));
   }
 
@@ -176,7 +178,8 @@ public class TestUserResource extends BaseTestServer {
 
     User savedUser =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(USER_PATH).path(createdUser.getUID().getId()))
+            getBuilder(
+                    getHttpClient().getAPIv3().path(USER_PATH).path(createdUser.getUID().getId()))
                 .buildPut(Entity.json(userInfo)),
             User.class);
 
@@ -213,7 +216,7 @@ public class TestUserResource extends BaseTestServer {
     // should not allow to change a user name
     expect(
         FamilyExpectation.CLIENT_ERROR,
-        getBuilder(getPublicAPI(3).path(USER_PATH).path(createdUser.getUID().getId()))
+        getBuilder(getHttpClient().getAPIv3().path(USER_PATH).path(createdUser.getUID().getId()))
             .buildPut(Entity.json(userInfo)));
   }
 
@@ -221,7 +224,7 @@ public class TestUserResource extends BaseTestServer {
   public void testGetUserByInvalidId() throws Exception {
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(USER_PATH).path("invalid-id")).buildGet());
+        getBuilder(getHttpClient().getAPIv3().path(USER_PATH).path("invalid-id")).buildGet());
   }
 
   @Test
@@ -229,7 +232,11 @@ public class TestUserResource extends BaseTestServer {
     User user =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3).path(USER_PATH).path("by-name").path(createdUser.getUserName()))
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(USER_PATH)
+                        .path("by-name")
+                        .path(createdUser.getUserName()))
                 .buildGet(),
             User.class);
     assertEquals(user.getId(), createdUser.getUID().getId());
@@ -240,7 +247,7 @@ public class TestUserResource extends BaseTestServer {
   public void testGetUserByInvalidName() throws Exception {
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(USER_PATH).path("by-name").path("invalid-name"))
+        getBuilder(getHttpClient().getAPIv3().path(USER_PATH).path("by-name").path("invalid-name"))
             .buildGet());
   }
 }

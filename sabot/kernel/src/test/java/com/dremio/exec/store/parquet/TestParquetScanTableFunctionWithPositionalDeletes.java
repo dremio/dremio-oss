@@ -143,7 +143,7 @@ public class TestParquetScanTableFunctionWithPositionalDeletes
 
   @AfterClass
   public static void closeTables() throws Exception {
-    table.close();
+    AutoCloseables.close(table);
   }
 
   @Test

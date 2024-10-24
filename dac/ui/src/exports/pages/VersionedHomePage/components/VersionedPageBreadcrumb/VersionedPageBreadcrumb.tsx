@@ -18,14 +18,14 @@ import { Breadcrumbs, ClickAwayListener, Fade, Popper } from "@mui/material";
 import { bindToggle, bindPopper } from "material-ui-popup-state";
 import { usePopupState } from "material-ui-popup-state/hooks";
 
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
-import NessieLink from "@app/pages/NessieHomePage/components/NessieLink/NessieLink";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
+import NessieLink from "#oss/pages/NessieHomePage/components/NessieLink/NessieLink";
 import {
   constructVersionedEntityUrl,
   useVersionedPageContext,
-} from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
+} from "#oss/exports/pages/VersionedHomePage/versioned-page-utils";
 import { withRouter, type WithRouterProps } from "react-router";
-import { VersionedPageTabsType } from "@app/exports/pages/VersionedHomePage/VersionedHomePage";
+import { VersionedPageTabsType } from "#oss/exports/pages/VersionedHomePage/VersionedHomePage";
 import { IconButton } from "dremio-ui-lib/components";
 
 import "./VersionedPageBreadcrumb.less";

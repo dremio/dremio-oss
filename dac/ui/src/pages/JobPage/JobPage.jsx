@@ -19,9 +19,9 @@ import Immutable from "immutable";
 import PropTypes from "prop-types";
 import DocumentTitle from "react-document-title";
 import { injectIntl } from "react-intl";
-import { flexElementAuto } from "@app/uiTheme/less/layout.less";
-import { getClusterInfo } from "@app/utils/infoUtils";
-import { getSupport } from "@app/utils/supportUtils";
+import { flexElementAuto } from "#oss/uiTheme/less/layout.less";
+import { getClusterInfo } from "#oss/utils/infoUtils";
+import { getSupport } from "#oss/utils/supportUtils";
 
 import {
   updateQueryState,
@@ -33,7 +33,7 @@ import {
 
 import { getJobs, getDataWithItemsForFilters } from "selectors/jobs";
 import { getViewState } from "selectors/resources";
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
+import { SonarSideNav } from "#oss/exports/components/SideNav/SonarSideNav";
 
 import { parseQueryState } from "utils/jobsQueryState";
 import jobsUtils from "utils/jobsUtils";
@@ -85,7 +85,7 @@ export class JobPage extends PureComponent {
     if (!Object.keys(nextProps.location.query).length) {
       // first load, or re-clicking "Jobs" in the header
       nextProps.updateQueryState(
-        queryState.setIn(["filters", "qt"], ["UI", "EXTERNAL"])
+        queryState.setIn(["filters", "qt"], ["UI", "EXTERNAL"]),
       );
     } else if (!nextProps.queryState.equals(prevProps.queryState)) {
       nextProps.filterJobsData(nextProps.queryState, VIEW_ID);

@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { transformFromReflectionDetails } from "@app/exports/endpoints/JobsListing/utils";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
+import { transformFromReflectionDetails } from "#oss/exports/endpoints/JobsListing/utils";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
 import { renderQueryStateForServer } from "utils/jobsQueryState";
 
 export const FETCH_JOBS_LIST_REQUEST = "FETCH_JOBS_LIST_REQUEST";

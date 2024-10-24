@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 
-import { sourceProperties } from "@app/constants/sourceTypes";
+import { sourceProperties } from "#oss/constants/sourceTypes";
 import { expect } from "chai";
 import SelectSourceType from "./SelectSourceType";
 

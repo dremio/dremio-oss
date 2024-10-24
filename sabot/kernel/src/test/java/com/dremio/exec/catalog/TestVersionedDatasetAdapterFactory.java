@@ -64,7 +64,8 @@ public class TestVersionedDatasetAdapterFactory {
   @Test
   public void testNewInstanceException() throws ConnectorException {
     StoragePlugin storagePlugin = mock(StoragePlugin.class);
-    when(storagePlugin.getDatasetHandle(any(), any())).thenThrow(ConnectorException.class);
+    when(storagePlugin.getDatasetHandle(any(), any(GetDatasetOption[].class)))
+        .thenThrow(ConnectorException.class);
 
     assertThrows(
         UserException.class,
@@ -84,7 +85,7 @@ public class TestVersionedDatasetAdapterFactory {
     ResolvedVersionContext resolvedVersionContext = mock(ResolvedVersionContext.class);
     StoragePlugin storagePlugin = mock(StoragePlugin.class);
 
-    when(storagePlugin.getDatasetHandle(eq(entityPath), any()))
+    when(storagePlugin.getDatasetHandle(eq(entityPath), any(GetDatasetOption[].class)))
         .thenReturn(Optional.of(mock(DatasetHandle.class)));
 
     VersionedDatasetAdapter versionedDatasetAdapter =
@@ -97,7 +98,7 @@ public class TestVersionedDatasetAdapterFactory {
                 null);
 
     assertEquals(storagePlugin, versionedDatasetAdapter.getStoragePlugin());
-    assertNull(versionedDatasetAdapter.getOwner(entityPath, null, null));
+    assertEquals(versionedDatasetAdapter.getOwner(entityPath, null, null), Optional.empty());
 
     verify(storagePlugin)
         .getDatasetHandle(eq(entityPath), getDatasetOptionsArgumentCaptor.capture());

@@ -18,8 +18,8 @@ import { useIntl } from "react-intl";
 import { Link } from "react-router";
 import { useRef } from "react";
 
-import { getLocation } from "@app/selectors/routing";
-import config from "@app/utils/config";
+import { getLocation } from "#oss/selectors/routing";
+import config from "#oss/utils/config";
 
 import SideNavHelpExtra from "@inject/components/SideNav/SideNavHelpExtra";
 import SideNavHelpCopyright from "@inject/components/SideNav/SideNavHelpCopyright";

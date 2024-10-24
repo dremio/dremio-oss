@@ -69,7 +69,7 @@ describe("SingleTypeForm", () => {
         .reduce((prev, l) => prev.concat(l), []);
 
       const wrapper = shallow(
-        <SingleTypeForm {...commonProps} singles={singles} />
+        <SingleTypeForm {...commonProps} singles={singles} />,
       );
       expect(wrapper.instance().getCurrentDesiredTypeItem()).to.eql({
         desiredType: "TEXT",

@@ -43,6 +43,8 @@ public class TestCachingCatalog {
 
   private static final NamespaceKey NAMESPACE_KEY_1 =
       new NamespaceKey(ImmutableList.of("xx", "a", "b"));
+  private static final NamespaceKey NAMESPACE_KEY_1_DIFFERENT_CASING =
+      new NamespaceKey(ImmutableList.of("xx", "a", "B"));
   private static final NamespaceKey NAMESPACE_KEY_2 =
       new NamespaceKey(ImmutableList.of("xx", "a", "c"));
 
@@ -214,6 +216,31 @@ public class TestCachingCatalog {
     assertThatThrownBy(() -> cachingCatalog.getTableNoResolve(catalogEntityKey));
     verify(delegate, times(2)).getTableNoResolve(eq(namespaceKey));
     verify(delegate, times(2)).getTableNoResolve(eq(catalogEntityKey));
+  }
+
+  @Test
+  public void testCachingForGetFunctions() {
+    CatalogEntityKey functionKey = CatalogEntityKey.fromNamespaceKey(NAMESPACE_KEY_1);
+    cachingCatalog.getFunctions(functionKey, SimpleCatalog.FunctionType.SCALAR);
+    verify(delegate, times(1)).getFunctions(eq(functionKey), eq(SimpleCatalog.FunctionType.SCALAR));
+
+    cachingCatalog.getFunctions(functionKey, SimpleCatalog.FunctionType.SCALAR);
+    verify(delegate, times(1)).getFunctions(eq(functionKey), eq(SimpleCatalog.FunctionType.SCALAR));
+  }
+
+  @Test
+  public void testCachingForGetFunctionsWithDifferentCasing() {
+    CatalogEntityKey functionKey = CatalogEntityKey.fromNamespaceKey(NAMESPACE_KEY_1);
+    CatalogEntityKey functionKeyDifferentCasing =
+        CatalogEntityKey.fromNamespaceKey(NAMESPACE_KEY_1_DIFFERENT_CASING);
+
+    cachingCatalog.getFunctions(functionKey, SimpleCatalog.FunctionType.SCALAR);
+    verify(delegate, times(1)).getFunctions(eq(functionKey), eq(SimpleCatalog.FunctionType.SCALAR));
+
+    cachingCatalog.getFunctions(functionKeyDifferentCasing, SimpleCatalog.FunctionType.SCALAR);
+    verify(delegate, times(1)).getFunctions(eq(functionKey), eq(SimpleCatalog.FunctionType.SCALAR));
+    verify(delegate, times(1))
+        .getFunctions(eq(functionKeyDifferentCasing), eq(SimpleCatalog.FunctionType.SCALAR));
   }
 
   private void validateCaching(Supplier<DremioTable> catalogLookup, Runnable verification) {

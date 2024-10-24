@@ -16,20 +16,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { NESSIE_REF_PREFIX } from "@app/constants/nessie";
+import { NESSIE_REF_PREFIX } from "#oss/constants/nessie";
 import {
   type DatasetReference,
   fetchDefaultReferenceIfNeeded as fetchDefaultRef,
-} from "@app/actions/nessie/nessie";
+} from "#oss/actions/nessie/nessie";
 import {
   getEndpointFromSource,
   getNessieReferencePayload,
-} from "@app/utils/nessieUtils";
-import { selectSourceByName } from "@app/selectors/home";
-import { getApiV2 } from "@app/services/nessie/impl/TreeApi";
-import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
-import { constructFullPath } from "@app/utils/pathUtils";
-import { type NessieRootState } from "@app/types/nessie";
+} from "#oss/utils/nessieUtils";
+import { selectSourceByName } from "#oss/selectors/home";
+import { getApiV2 } from "#oss/services/nessie/impl/TreeApi";
+import { isDefaultReferenceLoading } from "#oss/selectors/nessie/nessie";
+import { constructFullPath } from "#oss/utils/pathUtils";
+import { type NessieRootState } from "#oss/types/nessie";
 import { isEmpty } from "lodash";
 
 const DEFAULT_CONTEXT = "<none>";

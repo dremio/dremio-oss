@@ -29,7 +29,6 @@ import com.dremio.sabot.op.scan.OutputMutator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,16 +88,7 @@ public class ParquetCoercionReader extends FilteringFileCoercionReader {
       incoming.buildSchema();
       // reset the schema change callback
       mutator.getAndResetSchemaChanged();
-
-      for (Field field : originalSchema.getFields()) {
-        ValueVector vector = outputMutator.getVector(field.getName());
-        if (vector == null) {
-          continue;
-        }
-        outgoing.add(vector);
-      }
-      outgoing.buildSchema(BatchSchema.SelectionVectorMode.NONE);
-
+      prepareOutgoing();
       if (filters.hasPushdownFilters()) {
 
         // filter expressions on columns with schema mismatch
@@ -125,6 +115,15 @@ public class ParquetCoercionReader extends FilteringFileCoercionReader {
     }
   }
 
+  protected void prepareOutgoing() {
+    originalSchema.getFields().stream()
+        .map(Field::getName)
+        .map(outputMutator::getVector)
+        .filter(Objects::nonNull)
+        .forEach(outgoing::add);
+    outgoing.buildSchema(BatchSchema.SelectionVectorMode.NONE);
+  }
+
   @Override
   public int next() {
     switch (nextMethodState) {
@@ -143,6 +142,7 @@ public class ParquetCoercionReader extends FilteringFileCoercionReader {
           projectorOutput = filteringReaderInputMutator.getContainer();
           this.outgoingMutator = filteringReaderInputMutator;
         }
+        incoming.setAllCount(recordCount);
 
         // we haven't set up projector in this.setup() since we didn't know the container for
         // projector's output
@@ -159,7 +159,6 @@ public class ParquetCoercionReader extends FilteringFileCoercionReader {
           mutator.getAndResetSchemaChanged();
           setupProjector(this.outgoingMutator, projectorOutput);
         }
-        incoming.setAllCount(recordCount);
 
         runProjector(recordCount);
         projectorOutput.setAllCount(recordCount);
@@ -178,6 +177,7 @@ public class ParquetCoercionReader extends FilteringFileCoercionReader {
         if (recordCount == 0) {
           return 0;
         }
+        incoming.setAllCount(recordCount);
 
         if (mutator.getSchemaChanged()) {
           incoming.buildSchema();
@@ -185,7 +185,6 @@ public class ParquetCoercionReader extends FilteringFileCoercionReader {
           mutator.getAndResetSchemaChanged();
           setupProjector(this.outgoingMutator, projectorOutput);
         }
-        incoming.setAllCount(recordCount);
 
         runProjector(recordCount);
     }

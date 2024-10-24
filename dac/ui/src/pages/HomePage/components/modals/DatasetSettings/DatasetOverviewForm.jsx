@@ -28,9 +28,9 @@ import {
   getIcebergIconTypeFromEntity,
   getIconByEntityType,
 } from "utils/iconUtils";
-import { isArcticSource, isVersionedSource } from "@app/utils/sourceUtils";
+import { isArcticSource, isVersionedSource } from "@inject/utils/sourceUtils";
 
-import DatasetOverviewFormMixin from "dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetOverviewFormMixin"; // eslint-disable-line max-len
+import DatasetOverviewFormMixin from "dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetOverviewFormMixin";
 
 @DatasetOverviewFormMixin
 export default class DatasetOverviewForm extends PureComponent {

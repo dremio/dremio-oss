@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.BasePath;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.hadoop.HadoopFileSystem;
@@ -31,6 +32,7 @@ import com.dremio.exec.store.TestOutputMutator;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.BaseTestOperator;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.google.common.collect.ImmutableList;
 import java.nio.charset.StandardCharsets;
@@ -39,13 +41,16 @@ import java.util.List;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expressions;
+import org.apache.iceberg.io.FileIO;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mock;
+import org.mockito.stubbing.Answer;
 
 public class TestIcebergManifestListRecordReader extends BaseTestOperator {
 
@@ -63,6 +68,8 @@ public class TestIcebergManifestListRecordReader extends BaseTestOperator {
   private OperatorContextImpl context;
   private FileSystem fs;
 
+  private Configuration conf;
+
   @Mock(extraInterfaces = {MutablePlugin.class})
   private SupportsIcebergRootPointer plugin;
 
@@ -74,15 +81,14 @@ public class TestIcebergManifestListRecordReader extends BaseTestOperator {
 
   @AfterClass
   public static void closeTables() throws Exception {
-    table.close();
-    inconsistentPartitionTable.close();
+    AutoCloseables.close(table, inconsistentPartitionTable);
   }
 
   @Before
   public void beforeTest() throws Exception {
     context = testContext.getNewOperatorContext(getTestAllocator(), null, DEFAULT_BATCH_SIZE, null);
     testCloseables.add(context);
-    Configuration conf = new Configuration();
+    conf = new Configuration();
     fs = HadoopFileSystem.get(Path.of("/"), conf, context.getStats());
 
     when(plugin.createFSWithAsyncOptions(anyString(), anyString(), any())).thenReturn(fs);
@@ -91,6 +97,14 @@ public class TestIcebergManifestListRecordReader extends BaseTestOperator {
         .thenReturn(
             new DremioFileIO(
                 fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(conf)));
+    when(plugin.loadTableMetadata(any(), any(), any(), any()))
+        .thenAnswer(
+            (Answer<TableMetadata>)
+                invocation -> {
+                  Object[] args = invocation.getArguments();
+                  return IcebergUtils.loadTableMetadata(
+                      (FileIO) args[0], (OperatorContext) args[1], (String) args[3]);
+                });
   }
 
   @Test
@@ -144,7 +158,7 @@ public class TestIcebergManifestListRecordReader extends BaseTestOperator {
                 + table.getLocation()
                 + "/metadata/8a83125a-a077-4f1e-974b-fcbaf370b085-m0.avro"),
         false,
-        IcebergUtils.getDefaultPathScheme(fs.getScheme()),
+        IcebergUtils.getDefaultPathScheme(fs.getScheme(), conf),
         Expressions.alwaysTrue());
   }
 

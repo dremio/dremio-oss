@@ -24,7 +24,7 @@ type PageHeaderWithBreadcrumbProps = {
 };
 
 export const SimplePageHeader = (
-  props: PageHeaderWithBreadcrumbProps
+  props: PageHeaderWithBreadcrumbProps,
 ): JSX.Element => {
   return (
     <div className={clsx(classes["simple-page-header"], props.className)}>

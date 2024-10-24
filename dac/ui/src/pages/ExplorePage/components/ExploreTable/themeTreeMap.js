@@ -70,7 +70,7 @@ export default function getTheme(canSelect) {
       nodeType,
       expanded,
       expandable,
-      hover
+      hover,
     ) => ({
       className: classnames(`${nodeType}-node`, {
         expanded,

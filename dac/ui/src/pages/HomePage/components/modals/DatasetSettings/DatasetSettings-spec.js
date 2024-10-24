@@ -17,7 +17,7 @@ import { shallow } from "enzyme";
 import Immutable from "immutable";
 import AccelerationController from "components/Acceleration/AccelerationController";
 import { getEntity } from "selectors/resources";
-import { getHomeEntityOrChild } from "@app/selectors/home";
+import { getHomeEntityOrChild } from "#oss/selectors/home";
 
 import FileFormatController from "./FileFormatController";
 import AccelerationUpdatesController from "./AccelerationUpdates/AccelerationUpdatesController";
@@ -142,7 +142,7 @@ describe("DatasetSettings", () => {
       expect(props.loadDatasetForDatasetType).to.be.calledWith(
         "dataset",
         "/dataset_url",
-        "DATASET_SETTINGS_VIEW_ID"
+        "DATASET_SETTINGS_VIEW_ID",
       );
       expect(context.router.replace).to.be.calledWith({
         state: { entityId: "/dataset_id", entityType: "dataset" },
@@ -165,7 +165,7 @@ describe("DatasetSettings", () => {
       expect(props.loadDatasetForDatasetType).to.be.calledWith(
         "dataset",
         "/dataset_url",
-        "DATASET_SETTINGS_VIEW_ID"
+        "DATASET_SETTINGS_VIEW_ID",
       );
       expect(context.router.replace).to.not.be.called;
     });
@@ -199,7 +199,7 @@ describe("DatasetSettings", () => {
   describe("#updateFormDirtyState", function () {
     it("should update isFormDirty state", function () {
       const instance = shallow(
-        <DatasetSettings {...minimalProps} />
+        <DatasetSettings {...minimalProps} />,
       ).instance();
       instance.updateFormDirtyState(true);
       expect(instance.state.isFormDirty).to.be.true;
@@ -242,7 +242,7 @@ describe("DatasetSettings", () => {
     // Lets check a number of arguments for those methods as weak signature check
     expect(getEntity.length).to.be.equal(
       getHomeEntityOrChild.length,
-      "getHomeEntityOrChild must have the same signature as getEntity"
+      "getHomeEntityOrChild must have the same signature as getEntity",
     );
   });
 });

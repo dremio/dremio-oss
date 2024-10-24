@@ -18,9 +18,9 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import Immutable from "immutable";
 
-import Modal from "@app/components/Modals/Modal";
-import { getProvision } from "@app/selectors/provision";
-import AdjustWorkersForm from "@app/pages/AdminPage/subpages/Provisioning/components/forms/AdjustWorkersForm";
+import Modal from "#oss/components/Modals/Modal";
+import { getProvision } from "#oss/selectors/provision";
+import AdjustWorkersForm from "#oss/pages/AdminPage/subpages/Provisioning/components/forms/AdjustWorkersForm";
 
 export class AdjustWorkersModal extends Component {
   static propTypes = {

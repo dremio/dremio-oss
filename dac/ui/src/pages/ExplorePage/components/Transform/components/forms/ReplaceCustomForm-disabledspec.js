@@ -82,7 +82,7 @@ describe("ReplaceCustomForm", () => {
         columnType: "INTEGER",
       });
       const wrapper = shallow(
-        <ReplaceCustomForm {...commonProps} transform={transform} />
+        <ReplaceCustomForm {...commonProps} transform={transform} />,
       );
       expect(wrapper.instance().submit(values)).to.eql("submitResponse");
       expect(commonProps.submit.calledOnce).to.eql(true);
@@ -90,7 +90,7 @@ describe("ReplaceCustomForm", () => {
         ...filterMappers.getCommonFilterValues(values, transform),
         filter: filterMappers.mapFilterExcludeCustom(
           values,
-          commonProps.transform
+          commonProps.transform,
         ),
       });
     });
@@ -106,7 +106,7 @@ describe("ReplaceCustomForm", () => {
         transformType: "exclude",
       });
       const wrapper = shallow(
-        <ReplaceCustomForm {...commonProps} transform={transform} />
+        <ReplaceCustomForm {...commonProps} transform={transform} />,
       );
       expect(wrapper.find(ReplaceFooter)).to.have.length(0);
     });

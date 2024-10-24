@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { getCatalogDataset } from "@app/endpoints/CatalogContent/getCatalogDataset";
+import { getCatalogDataset } from "#oss/endpoints/CatalogContent/getCatalogDataset";
 import { SmartResource } from "smart-resource";
 
 const CatalogDatasetResource = new SmartResource(getCatalogDataset);

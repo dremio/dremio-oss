@@ -15,15 +15,15 @@
  */
 
 import { RSAA } from "redux-api-middleware";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import {
   RUN_TABLE_TRANSFORM_FAILURE,
   RUN_TABLE_TRANSFORM_START,
   RUN_TABLE_TRANSFORM_SUCCESS,
-} from "@app/actions/explore/dataset/common";
+} from "#oss/actions/explore/dataset/common";
 import Immutable from "immutable";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
-import readResponseAsJSON from "@app/utils/apiUtils/responseUtils";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
+import readResponseAsJSON from "#oss/utils/apiUtils/responseUtils";
 
 export const newPostDatasetOperation = (
   href: string,
@@ -31,7 +31,7 @@ export const newPostDatasetOperation = (
   viewId: string,
   nextTable: any,
   body: any,
-  sessionId: string
+  sessionId: string,
 ) => {
   const meta = {
     viewId,

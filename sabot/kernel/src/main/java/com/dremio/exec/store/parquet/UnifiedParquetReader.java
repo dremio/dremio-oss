@@ -1044,11 +1044,15 @@ public class UnifiedParquetReader implements RecordReader {
   }
 
   private boolean isVectorizableNonPartitionColFilterPresent() {
+    List<SchemaPath> batchSchemaColumnPaths =
+        vectorizableReaderColumns.stream()
+            .map(columnResolver::getBatchSchemaColumnPath)
+            .collect(Collectors.toList());
     return this.runtimeFilters.stream()
         .flatMap(f -> f.getNonPartitionColumnFilters().stream())
         .flatMap(f -> f.getColumnsList().stream())
         .map(SchemaPath::getSimplePath)
-        .anyMatch(vectorizableReaderColumns::contains);
+        .anyMatch(batchSchemaColumnPaths::contains);
   }
 
   private ExecutionPath getExecutionPath() {

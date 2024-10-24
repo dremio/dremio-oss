@@ -190,6 +190,8 @@
     "PERMISSION",
     "MIN_REPLICAS",
     "MAX_REPLICAS",
+    "CLUSTER",
+    "CLUSTERING",
     "CONCURRENT"
   ]
 
@@ -716,6 +718,16 @@
   # This method must accept a single argument "(SqlNode tableRef)".
   # Return type of method implementation should be 'SqlNode'.
   tableVersionContextParserMethod: "TableWithVersionContext"
+
+  # Method for parsing a version extension to the NamedFunctionCall production.
+  # This method must accept a single argument "(SqlCall call)".
+  # Return type of method implementation should be 'SqlCall'.
+  functionVersionContextParserMethod: "FunctionWithVersionContext"
+
+  # Method for parsing a version extension to the NamedRoutineCall production.
+  # This method must accept a single argument "(SqlNode call)".
+  # Return type of method implementation should be 'SqlNode'.
+  tableFunctionVersionContextParserMethod: "TableFunctionWithVersionContext"
 
   # List of files in @includes directory that have parser method
   # implementations for custom SQL statements, literals or types

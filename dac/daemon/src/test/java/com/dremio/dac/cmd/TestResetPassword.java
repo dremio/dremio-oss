@@ -58,11 +58,11 @@ public class TestResetPassword extends BaseTestServer {
     UserLogin userLogin = new UserLogin(DEFAULT_USERNAME, DEFAULT_PASSWORD);
     expectStatus(
         Status.UNAUTHORIZED,
-        getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)),
+        getHttpClient().getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)),
         GenericErrorMessage.class);
     userLogin = new UserLogin(DEFAULT_USERNAME, "tshiran123456");
     expectSuccess(
-        getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)),
+        getHttpClient().getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)),
         UserLoginSession.class);
   }
 }

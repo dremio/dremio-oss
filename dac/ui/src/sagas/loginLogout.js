@@ -16,19 +16,19 @@
 import { all, call, fork, put, takeLatest } from "redux-saga/effects";
 import { push } from "react-router-redux";
 
-import { log } from "@app/utils/logger";
+import { log } from "#oss/utils/logger";
 import {
   LOGIN_USER_SUCCESS,
   LOGOUT_USER_SUCCESS,
   NO_USERS_ERROR,
   UNAUTHORIZED_ERROR,
-} from "@app/actions/account";
+} from "#oss/actions/account";
 import socket from "@inject/utils/socket";
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import { isAuthorized } from "@inject/sagas/utils/isAuthorized";
 import { default as handleAppInitHelper } from "@inject/sagas/utils/handleAppInit";
-import { appInitComplete } from "@app/actions/app";
-import { removeLastSession, setLastSession } from "@app/utils/lastSession";
+import { appInitComplete } from "#oss/actions/app";
+import { removeLastSession, setLastSession } from "#oss/utils/lastSession";
 
 //#region Route constants. Unfortunately should store these constants here (not in routes.js) to
 // avoid module circular references
@@ -42,7 +42,7 @@ export function getLoginUrl(preserveRedirect = false) {
     return LOGIN_PATH;
   }
   return `${LOGIN_PATH}?redirect=${encodeURIComponent(
-    window.location.href.slice(window.location.origin.length)
+    window.location.href.slice(window.location.origin.length),
   )}`;
 }
 
@@ -96,7 +96,7 @@ export function* handleAppInit() {
     return;
   }
   yield call(handleAppInitHelper);
-  isAppInit = true; // eslint-disable-line require-atomic-updates
+  isAppInit = true;
 }
 
 //export for testing

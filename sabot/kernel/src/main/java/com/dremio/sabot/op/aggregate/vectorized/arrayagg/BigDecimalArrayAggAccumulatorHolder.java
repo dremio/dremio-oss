@@ -52,6 +52,7 @@ public final class BigDecimalArrayAggAccumulatorHolder
   @Override
   public void addItemToVector(BigDecimal data, int index) {
     vector.set(index, data);
+    vector.setValueCount(vector.getValueCount() + 1);
   }
 
   @Override
@@ -67,7 +68,7 @@ public final class BigDecimalArrayAggAccumulatorHolder
   @Override
   public void reAllocIfNeeded(BigDecimal data) {
     super.reAllocIfNeeded(data);
-    if (numItems + 1 >= vector.getValueCapacity()) {
+    if (getValueCount() + 1 >= vector.getValueCapacity()) {
       vector.reAlloc();
     }
   }

@@ -41,5 +41,10 @@ public final class NamespaceOptions {
   public static final TypeValidators.LongValidator DATASET_VERSIONS_LIMIT =
       new TypeValidators.LongValidator("store.dataset.versions.limit", 50);
 
+  /** How often to run dataset version trimmer in seconds. */
+  public static final TypeValidators.RangeLongValidator DATASET_VERSIONS_TRIMMER_SCHEDULE_SECONDS =
+      new TypeValidators.RangeLongValidator(
+          "store.dataset.versions.trimmer.schedule.seconds", 30, 10 * 24 * 3600, 24 * 3600);
+
   private NamespaceOptions() {}
 }

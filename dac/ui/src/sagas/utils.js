@@ -17,15 +17,15 @@ import { RSAA, isRSAA } from "redux-api-middleware";
 import invariant from "invariant";
 import deepEqual from "deep-equal";
 import { get } from "lodash/object";
-import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
-import { excludePageType } from "@app/pages/ExplorePage/pageTypeUtils";
+import { PageTypes } from "#oss/pages/ExplorePage/pageTypes";
+import { excludePageType } from "#oss/pages/ExplorePage/pageTypeUtils";
 import { constructFullPath } from "utils/pathUtils";
-import { EXPLORE_PAGE_LOCATION_CHANGED } from "@app/actions/explore/dataset/data";
-import { log } from "@app/utils/logger";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import { EXPLORE_PAGE_LOCATION_CHANGED } from "#oss/actions/explore/dataset/data";
+import { log } from "#oss/utils/logger";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import { select } from "redux-saga/effects";
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 
 export const LOCATION_CHANGE = "@@router/LOCATION_CHANGE";
 
@@ -48,7 +48,7 @@ export function getLocationChangePredicate(oldLocation) {
 // is used for data load cancellation purposes
 export const getExplorePageLocationChangePredicate = (
   prevRouteState,
-  action
+  action,
 ) => {
   if (action.type !== EXPLORE_PAGE_LOCATION_CHANGED) {
     return [false];
@@ -73,7 +73,7 @@ export const getExplorePageLocationChangePredicate = (
   // we should not treat navigation between data, catalog, graph tabs as location change,
   // BUT navigation to/from details (join, convert column type etc.) should be treated as page change
   const pageTypeChanged =
-    (prevRouteState.params.pageType === PageTypes.details) ^ // eslint-disable-line no-bitwise
+    (prevRouteState.params.pageType === PageTypes.details) ^
     (newRouteState.params.pageType === PageTypes.details);
 
   const hasScriptId = !!(
@@ -88,7 +88,7 @@ export const getExplorePageLocationChangePredicate = (
   const result = Boolean(
     excludePageType(oldPathname) !== excludePageType(newPathname) ||
       pageTypeChanged ||
-      queryChanged
+      queryChanged,
   );
   // do not check state here as in getLocationChangePredicate above. For case of 'save as' state is changed to show a modal,
   // but we should not cancel data loading
@@ -142,7 +142,7 @@ export function getApiActionTypes(apiAction) {
   const callApiAction = unwrapAction(apiAction);
   invariant(isRSAA(callApiAction), "Not a valid api action");
   return callApiAction[RSAA].types.map((actionType) =>
-    typeof actionType === "string" ? actionType : actionType.type
+    typeof actionType === "string" ? actionType : actionType.type,
   );
 }
 

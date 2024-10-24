@@ -40,9 +40,11 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.create
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTagQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.dropTableQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.dropTableQueryWithAt;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.fullyQualifiedTableName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueBranchName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTableName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTagName;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.insertTableQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.insertTableWithValuesQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.joinedTableKey;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.quoted;
@@ -51,8 +53,10 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.select
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.showTablePropertiesQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tablePathWithFolders;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.truncateTableQuery;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.updateByIdQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBranchQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useTagQuery;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasTable;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -880,5 +884,74 @@ public class ITDataplanePluginAlter extends ITDataplanePluginTestSetup {
     resultString = getResultString(queryDataBatches, ",", false);
     assertThat(resultString != null && resultString.contains("property_name")).isFalse();
     runSQL(dropTableQuery(tablePath));
+  }
+
+  @Test
+  public void testAlterTableSetGCEnabled() throws Exception {
+    // Arrange
+    final String tableName = generateUniqueTableName();
+    final List<String> tablePath = tablePathWithFolders(tableName);
+
+    // Act
+    // Create an empty table
+    runSQL(createEmptyTableQuery(tablePath));
+
+    // Alter the table to set TBLPROPERTY(gc.enabled, true)
+    runSQL(
+        String.format(
+            "ALTER TABLE %s SET TBLPROPERTIES ('gc.enabled'='true')",
+            fullyQualifiedTableName(DATAPLANE_PLUGIN_NAME, tablePath)));
+
+    // Insert data into the table
+    runSQL(insertTableQuery(tablePath));
+
+    // Assert that the property is unchanged
+    assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
+    runSqlWithResults(showTablePropertiesQuery(tablePath))
+        .forEach(
+            row -> {
+              if (row.get(0).equals("gc.enabled")) {
+                assertThat(row.get(1)).isEqualTo("true");
+              }
+            });
+  }
+
+  @Test
+  public void testAlterTableSetMetadataDeleteFlagEnabled() throws Exception {
+    // Arrange
+    final String tableName = generateUniqueTableName();
+    final List<String> tablePath = tablePathWithFolders(tableName);
+
+    // Act
+    // Create an empty table
+    runSQL(createEmptyTableQuery(tablePath));
+
+    // Alter the table to set TBLPROPERTY(write.metadata.delete-after-commit.enabled, true)
+    runSQL(
+        String.format(
+            "ALTER TABLE %s SET TBLPROPERTIES ('write.metadata.delete-after-commit.enabled'='true')",
+            fullyQualifiedTableName(DATAPLANE_PLUGIN_NAME, tablePath)));
+
+    // Insert data into the table
+    runSQL(insertTableQuery(tablePath));
+    runSQL(updateByIdQuery(tablePath));
+
+    // Assert that the property is unchanged
+    assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
+    runSqlWithResults(showTablePropertiesQuery(tablePath))
+        .forEach(
+            row -> {
+              if (row.get(0).equals("write.metadata.delete-after-commit.enabled")) {
+                assertThat(row.get(1)).isEqualTo("true");
+              }
+            });
+    // Assert that the default gc property is false
+    runSqlWithResults(showTablePropertiesQuery(tablePath))
+        .forEach(
+            row -> {
+              if (row.get(0).equals("gc.enabled")) {
+                assertThat(row.get(1)).isEqualTo("false");
+              }
+            });
   }
 }

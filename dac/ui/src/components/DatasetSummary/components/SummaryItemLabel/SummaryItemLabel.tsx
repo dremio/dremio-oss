@@ -18,10 +18,10 @@ import { useRef, useState } from "react";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 import { getIconType, addTooltip } from "../../datasetSummaryUtils";
-import { getIconPath } from "@app/utils/getIconPath";
+import { getIconPath } from "#oss/utils/getIconPath";
 import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";
-import QueryDataset from "@app/components/QueryDataset/QueryDataset";
-import SummaryAction from "@app/components/DatasetSummary/components/SummaryAction/SummaryAction";
+import QueryDataset from "#oss/components/QueryDataset/QueryDataset";
+import SummaryAction from "#oss/components/DatasetSummary/components/SummaryAction/SummaryAction";
 
 import * as classes from "./SummaryItemLabel.module.less";
 

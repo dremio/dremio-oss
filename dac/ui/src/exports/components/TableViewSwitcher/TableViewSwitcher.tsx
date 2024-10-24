@@ -18,7 +18,7 @@ import {
   SegmentedControl,
   SegmentedControlOption,
 } from "dremio-ui-lib/components";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 export const TableViewSwitcher = (props) => {
   const { formatMessage } = intl;

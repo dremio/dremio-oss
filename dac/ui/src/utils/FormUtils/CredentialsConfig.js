@@ -40,7 +40,7 @@ export default class CredentialsConfig extends FormElementConfig {
     return FormUtils.addInitValue(
       initValues,
       AUTHENTICATION_TYPE_FIELD,
-      "MASTER"
+      "MASTER",
     );
   }
 

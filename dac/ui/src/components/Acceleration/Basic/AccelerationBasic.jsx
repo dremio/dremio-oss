@@ -21,8 +21,8 @@ import { modalFormProps } from "components/Forms";
 import { Toggle } from "components/Fields";
 import Message from "components/Message";
 
-import "@app/uiTheme/less/commonModifiers.less";
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import "#oss/uiTheme/less/commonModifiers.less";
+import "#oss/uiTheme/less/Acceleration/Acceleration.less";
 import LayoutInfo from "../LayoutInfo";
 import AccelerationAggregate from "./AccelerationAggregate";
 import { SpinnerOverlay } from "dremio-ui-lib/components";

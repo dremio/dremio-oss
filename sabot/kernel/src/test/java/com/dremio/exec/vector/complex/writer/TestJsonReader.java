@@ -595,4 +595,77 @@ public class TestJsonReader extends PlanTestBase {
         .build()
         .run();
   }
+
+  @Test
+  public void testRowSizeLimitException() throws Exception {
+    try (AutoCloseable c = withOption(ExecConstants.ENABLE_ROW_SIZE_LIMIT_ENFORCEMENT, true);
+        AutoCloseable c2 = withOption(ExecConstants.LIMIT_ROW_SIZE_BYTES, 1000)) {
+      final String query = "select * from cp.\"jsoninput/twitter_43.json\"";
+      test(query);
+    } catch (UserException e) {
+      assertTrue(
+          e.getMessage()
+              .contains(
+                  "UNSUPPORTED_OPERATION ERROR: Row exceeds the size limit of 1000 bytes, actual size is 1101 bytes."));
+    }
+  }
+
+  @Test
+  public void testRowSizeLimitExceptionWithMap() throws Exception {
+    try (AutoCloseable c = withOption(ExecConstants.ENABLE_ROW_SIZE_LIMIT_ENFORCEMENT, true);
+        AutoCloseable c2 = withOption(ExecConstants.LIMIT_ROW_SIZE_BYTES, 5)) {
+      final String query = "SELECT * FROM cp.\"json/map_list_map.json\"";
+      test(query);
+    } catch (UserException e) {
+      assertTrue(
+          e.getMessage()
+              .contains(
+                  "UNSUPPORTED_OPERATION ERROR: Row exceeds the size limit of 5 bytes, actual size is 32 bytes."));
+    }
+  }
+
+  @Test
+  public void testRowSizeLimitExceptionWithList() throws Exception {
+    try (AutoCloseable c = withOption(ExecConstants.ENABLE_ROW_SIZE_LIMIT_ENFORCEMENT, true);
+        AutoCloseable c2 = withOption(ExecConstants.LIMIT_ROW_SIZE_BYTES, 5)) {
+      final String query = "SELECT * FROM cp.\"json/list_list.json\"";
+      test(query);
+    } catch (UserException e) {
+      assertTrue(
+          e.getMessage()
+              .contains(
+                  "UNSUPPORTED_OPERATION ERROR: Row exceeds the size limit of 5 bytes, actual size is 8 bytes."));
+    }
+  }
+
+  @Test
+  public void testRowSizeLimitCheckWithStringNull() throws Exception {
+    try (AutoCloseable c = withOption(ExecConstants.ENABLE_ROW_SIZE_LIMIT_ENFORCEMENT, true)) {
+      final String query = "select * from cp.\"jsoninput/nullable1.json\"";
+      testBuilder()
+          .sqlQuery(query)
+          .ordered()
+          .baselineColumns("a1", "b1")
+          .baselineValues(1L, "abc")
+          .baselineValues(2L, null)
+          .build()
+          .run();
+    }
+  }
+
+  @Test
+  public void testRowSizeLimitCheckWithNumericNull() throws Exception {
+    try (AutoCloseable c = withOption(ExecConstants.ENABLE_ROW_SIZE_LIMIT_ENFORCEMENT, true)) {
+      final String query = "select * from cp.\"jsoninput/nullable3.json\"";
+      testBuilder()
+          .sqlQuery(query)
+          .ordered()
+          .baselineColumns("a", "b")
+          .baselineValues(1L, 3L)
+          .baselineValues(null, 3L)
+          .baselineValues(1L, null)
+          .build()
+          .run();
+    }
+  }
 }

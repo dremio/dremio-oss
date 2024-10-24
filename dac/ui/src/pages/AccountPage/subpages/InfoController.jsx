@@ -38,7 +38,7 @@ export class InfoController extends PureComponent {
 
   submit = (submitPromise) => {
     return ApiUtils.attachFormSubmitHandlers(submitPromise).then(() =>
-      this.props.updateFormDirtyState(false)
+      this.props.updateFormDirtyState(false),
     );
   };
 

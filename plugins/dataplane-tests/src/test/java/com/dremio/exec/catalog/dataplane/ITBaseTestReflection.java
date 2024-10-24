@@ -106,7 +106,7 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
     nsService.addOrUpdateSpace(new SpacePath(config.getName()).toNamespaceKey(), config);
 
     materializationStore = new MaterializationStore(p(LegacyKVStoreProvider.class));
-    setSystemOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName(), "false");
+    setSystemOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED, false);
     setMaterializationCacheSettings(false);
   }
 
@@ -209,7 +209,9 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
 
   protected DatasetUI createVdsFromQuery(String query, String space, String dataset) {
     final DatasetPath datasetPath = new DatasetPath(ImmutableList.of(space, dataset));
-    return createDatasetFromSQLAndSave(datasetPath, query, Collections.emptyList());
+    return getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSave(datasetPath, query, Collections.emptyList());
   }
 
   protected DatasetUI createVdsFromQuery(String query, String testSpace) {
@@ -324,7 +326,7 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
 
   protected void createSpace(String name) {
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getCatalogApi())
             .buildPost(Entity.json(new com.dremio.dac.api.Space(null, name, null, null, null))),
         new GenericType<com.dremio.dac.api.Space>() {});
   }
@@ -332,9 +334,9 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
   protected void dropSpace(String name) {
     com.dremio.dac.api.Space s =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("/catalog/").path("by-path").path(name)).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path("by-path").path(name)).buildGet(),
             new GenericType<com.dremio.dac.api.Space>() {});
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/").path(s.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(s.getId())).buildDelete());
   }
 
   /**

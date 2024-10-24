@@ -22,12 +22,12 @@ import Dataset from "./Dataset";
 import DatasetGraph from "./DatasetGraph";
 import SQL from "../SQL/SQL";
 
-import { store } from "@app/store/store";
+import { store } from "#oss/store/store";
 import { ARSFeatureSwitch } from "@inject/utils/arsUtils";
-import { useDatasetGraph } from "@app/exports/providers/useDatasetGraph";
-import { DatasetGraphResource } from "@app/exports/resources/DatasetGraphResource";
-import { isSmartFetchLoading } from "@app/utils/isSmartFetchLoading";
-import { addNotification } from "@app/actions/notification";
+import { useDatasetGraph } from "#oss/exports/providers/useDatasetGraph";
+import { DatasetGraphResource } from "#oss/exports/resources/DatasetGraphResource";
+import { isSmartFetchLoading } from "#oss/utils/isSmartFetchLoading";
+import { addNotification } from "#oss/actions/notification";
 // @ts-ignore
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
@@ -37,19 +37,15 @@ const { t } = getIntlContext();
 
 type SQLTabProps = {
   algebraicMatch: Immutable.List<any>;
-  isContrast: boolean;
   jobId: string;
   isComplete: boolean;
-  onClick: any;
   submittedSql: string;
 };
 
 function SQLTab({
   algebraicMatch,
-  isContrast,
   jobId,
   isComplete,
-  onClick,
   submittedSql,
 }: SQLTabProps) {
   const { value, error, status } = useDatasetGraph(jobId, isComplete);
@@ -70,9 +66,6 @@ function SQLTab({
   return (
     <div className="sqlTab">
       <SQL
-        defaultContrast={isContrast}
-        onClick={onClick}
-        showContrast
         sqlString={submittedSql}
         sqlClass="sqlTab__SQLBody"
         title={t("JobDetails.SQL.Submitted")}

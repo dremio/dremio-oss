@@ -17,10 +17,10 @@ package com.dremio.sabot.op.join.vhash.spill.slicer;
 
 import static com.dremio.sabot.op.join.vhash.spill.slicer.Sizer.BYTE_SIZE_BITS;
 
+import com.dremio.common.util.FormattingUtils;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
-import com.dremio.sabot.memory.FormattingUtils;
 import com.dremio.sabot.op.aggregate.vectorized.VariableLengthValidator;
 import com.dremio.sabot.op.join.vhash.spill.pool.Page;
 import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;

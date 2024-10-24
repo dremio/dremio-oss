@@ -51,7 +51,7 @@ export const datasets = (params: SonarProjectIdParam) => "/" as const;
 /**
  * @deprecated import from sonarPaths
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 export const sources = (params: SonarSourceNameParam) =>
   `/source/${params.sourceName}` as const;
 

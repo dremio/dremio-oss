@@ -18,16 +18,16 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { browserHistory } from "react-router";
 
-import moment from "@app/utils/dayjs";
-import { intl } from "@app/utils/intl";
+import moment from "#oss/utils/dayjs";
+import { intl } from "#oss/utils/intl";
 
-import EntityLink from "@app/pages/HomePage/components/EntityLink";
+import EntityLink from "#oss/pages/HomePage/components/EntityLink";
 import EllipsedText from "components/EllipsedText";
 import AllSourcesMenu from "components/Menus/HomePage/AllSourcesMenu";
 import SettingsBtn from "components/Buttons/SettingsBtn";
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import LinkWithRef from "#oss/components/LinkWithRef/LinkWithRef";
 import CatalogListingView from "../../components/CatalogListingView/CatalogListingView";
-import BreadCrumbs from "@app/components/BreadCrumbs";
+import BreadCrumbs from "#oss/components/BreadCrumbs";
 
 import { IconButton } from "dremio-ui-lib/components";
 import { getIconStatusDatabase } from "utils/iconUtils";
@@ -38,7 +38,7 @@ import {
   catalogListingColumns,
   CATALOG_LISTING_COLUMNS,
 } from "dremio-ui-common/sonar/components/CatalogListingTable/catalogListingColumns.js";
-import { getCatalogData } from "@app/utils/catalog-listing-utils";
+import { getCatalogData } from "#oss/utils/catalog-listing-utils";
 import {
   renderResourcePin,
   renderSourceDetailsIcon,
@@ -62,6 +62,7 @@ class AllSourcesView extends PureComponent {
     isExternalSource: PropTypes.bool,
     isDataPlaneSource: PropTypes.bool,
     isObjectStorageSource: PropTypes.bool,
+    isLakehouseSource: PropTypes.bool,
   };
 
   static contextTypes = {
@@ -196,16 +197,20 @@ class AllSourcesView extends PureComponent {
   };
 
   renderAddButton() {
-    const { isExternalSource, isDataPlaneSource, isObjectStorageSource } =
-      this.props;
+    const {
+      isExternalSource,
+      isDataPlaneSource,
+      isObjectStorageSource,
+      isLakehouseSource,
+    } = this.props;
 
     /*eslint no-nested-ternary: "off"*/
     const headerId = isExternalSource
       ? "Source.AddDatabaseSource"
-      : isDataPlaneSource
+      : isLakehouseSource
         ? isNotSoftware()
           ? "Source.AddArcticCatalog"
-          : "Source.AddNessieCatalog"
+          : "Source.AddLakehouse"
         : isObjectStorageSource
           ? "Source.Add.Object.Storage"
           : "Source.Add.Metastore";

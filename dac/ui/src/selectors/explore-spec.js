@@ -50,13 +50,13 @@ describe("explore selectors", () => {
 
     it("returns empty table for unknown version", () => {
       expect(
-        getImmutableTable({ resources: { entities } }, "unknown", {})
+        getImmutableTable({ resources: { entities } }, "unknown", {}),
       ).to.eql(emptyTable);
     });
 
     it("returns tableData for version", () => {
       expect(
-        getImmutableTable({ resources: { entities } }, "someVersion", {})
+        getImmutableTable({ resources: { entities } }, "someVersion", {}),
       ).to.eql(entities.getIn(["tableData", "someVersion"]));
     });
 
@@ -65,7 +65,7 @@ describe("explore selectors", () => {
         getImmutableTable({ resources: { entities } }, "someVersion", {
           query: { type: "default" },
           state: { previewVersion: "previewVersion" },
-        })
+        }),
       ).to.eql(entities.getIn(["table", "previewVersion"]));
     });
   });
@@ -87,7 +87,7 @@ describe("explore selectors", () => {
         expect(newDataset.get("sql")).to.equal("");
         expect(newDataset.get("datasetType")).to.equal("SCRIPT");
         expect(newDataset.get("apiLinks").get("self")).to.equal(
-          "/dataset/tmp/UNTITLED/new_untitled_sql"
+          "/dataset/tmp/UNTITLED/new_untitled_sql",
         );
         expect(newDataset.get("needsLoad")).to.equal(false);
       });
@@ -129,10 +129,10 @@ describe("explore selectors", () => {
         const dataset = getIntialDatasetFromState(state);
         const apiLinks = dataset.get("apiLinks").toJS();
         const resourceURL = [space, folder].map((a) =>
-          encodeURIComponent(`"${a.replace(/"/g, "")}"`)
+          encodeURIComponent(`"${a.replace(/"/g, "")}"`),
         );
         expect(apiLinks.self).to.deep.eql(
-          `/dataset/${resourceURL.join(".")}/version/${query.version}`
+          `/dataset/${resourceURL.join(".")}/version/${query.version}`,
         );
       });
     });

@@ -201,6 +201,11 @@ public final class JobIndexKeys {
           .setCanContainMultipleValues(true)
           .build();
 
+  public static final IndexKey RESULTS_CLEANED =
+      IndexKey.newBuilder("rc", "RESULTS_CLEANED", String.class)
+          .setIncludeInSearchAllFields(true)
+          .build();
+
   public static final FilterIndexMapping MAPPING =
       new FilterIndexMapping(
           JOBID,
@@ -219,5 +224,6 @@ public final class JobIndexKeys {
           ALL_DATASETS,
           CONSIDERED_REFLECTION_IDS,
           MATCHED_REFLECTION_IDS,
-          CHOSEN_REFLECTION_IDS);
+          CHOSEN_REFLECTION_IDS,
+          RESULTS_CLEANED);
 }

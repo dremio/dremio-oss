@@ -34,5 +34,5 @@ export const modifyGrantsHandler = rest.put(
   decodeURIComponent(getGrantsUrl().replace(`//${window.location.host}`, "")),
   async (req, res, ctx) => {
     return res(ctx.delay(1250), ctx.json(mockData));
-  }
+  },
 );

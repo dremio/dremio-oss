@@ -23,6 +23,7 @@ import { withOffsetAsyncIter } from "../../_internal/IterationHelpers.js";
 import type {
   LimitParams,
   OffsetParams,
+  SignalParam,
 } from "../../_internal/types/Params.js";
 
 type JobsSortable = "dur";
@@ -38,9 +39,9 @@ type JobsSortOptions =
     };
 
 export const JobsResource = (config: SonarV3Config) => {
-  const retrieve = (id: string) =>
+  const retrieve = (id: string, { signal }: SignalParam = {}) =>
     config
-      .sonarV3Request(`job/${id}`)
+      .sonarV3Request(`job/${id}`, { signal })
       .then((res) => res.json())
       .then((properties) =>
         Ok(new Job(jobEntityToProperties({ ...properties, id }), config)),

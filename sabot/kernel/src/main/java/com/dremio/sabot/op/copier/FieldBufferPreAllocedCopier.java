@@ -261,6 +261,31 @@ public abstract class FieldBufferPreAllocedCopier {
     }
   }
 
+  static class NullCopier extends FieldBufferPreAllocedCopier {
+    private final FieldVector source;
+    private final FieldVector target;
+
+    NullCopier(FieldVector source, FieldVector target) {
+      this.source = source;
+      this.target = target;
+    }
+
+    @Override
+    public void copy(long sv2Addr, int count) {}
+
+    @Override
+    public void copy(long sv2Addr, int count, long nullAddr, int nullCount) {}
+
+    @Override
+    public Cursor copy(long sv2Addr, int count, Cursor cursor) {
+      if (cursor == null) {
+        cursor = new Cursor();
+      }
+      cursor.targetIndex += count;
+      return cursor;
+    }
+  }
+
   static class BitCopier extends FieldBufferPreAllocedCopier {
 
     private final FieldVector source;
@@ -448,7 +473,9 @@ public abstract class FieldBufferPreAllocedCopier {
       case UNION:
         copiers.add(new GenericCopier(source, target));
         break;
-
+      case NULL:
+        copiers.add(new NullCopier(source, target));
+        break;
       default:
         throw new UnsupportedOperationException("Unknown type to copy.");
     }

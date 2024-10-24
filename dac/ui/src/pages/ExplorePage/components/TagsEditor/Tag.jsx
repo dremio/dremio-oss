@@ -76,7 +76,7 @@ export class Tag extends Component {
         isDeletable && deletable,
         isSelected && selected,
         onClick && clickable, // show pointer if onClick handler is provided
-        className
+        className,
       ),
       onClick,
       "data-qa": daqa,

@@ -45,7 +45,6 @@ import com.dremio.plugins.s3.store.S3FileSystem;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
 import com.google.common.base.Strings;
 import io.protostuff.Tag;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import javax.inject.Provider;
@@ -53,8 +52,6 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import org.apache.hadoop.fs.azurebfs.services.SharedKeyCredentials;
 import org.apache.hadoop.fs.s3a.Constants;
-import org.projectnessie.client.NessieClientBuilder;
-import org.projectnessie.client.api.NessieApiV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -245,6 +242,9 @@ public abstract class AbstractDataplanePluginConfig
   @NotMetadataImpacting // Dataplane plugins don't have metadata refresh, so all properties are not
   // metadata impacting
   public String googleClientId;
+
+  // Tags 32 through 36 are defined in other Plugin
+  // Tags 37 through 39 are defined in NessiePlugin for OAuth inputs
 
   @Override
   public CacheProperties getCacheProperties() {
@@ -485,27 +485,6 @@ public abstract class AbstractDataplanePluginConfig
   @Override
   public String getDefaultCtasFormat() {
     return defaultCtasFormat.getDefaultCtasFormat();
-  }
-
-  // TODO: DX-92705: Move to the NessiePlugins.
-  protected NessieApiV2 getNessieRestClient(
-      String name, String nessieEndpoint, SecretRef nessieAccessToken) {
-    final NessieClientBuilder builder =
-        NessieClientBuilder.createClientBuilder("HTTP", null).withUri(URI.create(nessieEndpoint));
-
-    if (!SecretRef.isNullOrEmpty(nessieAccessToken)) {
-      builder.withAuthentication(new SecureBearerAuthentication(nessieAccessToken));
-    }
-
-    try {
-      return builder.withTracing(true).withApiCompatibilityCheck(false).build(NessieApiV2.class);
-    } catch (IllegalArgumentException e) {
-      throw UserException.resourceError(e)
-          .message(
-              "Unable to create source [%s], " + "%s must be a valid http or https address",
-              name, nessieEndpoint)
-          .build(logger);
-    }
   }
 
   public abstract String getSourceTypeName();

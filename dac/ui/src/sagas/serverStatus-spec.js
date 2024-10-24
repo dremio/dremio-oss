@@ -94,7 +94,7 @@ describe("serverStatus saga", () => {
           CHECK_SERVER_STATUS_START,
           CHECK_SERVER_STATUS_SUCCESS,
           CHECK_SERVER_STATUS_FAILURE,
-        ])
+        ]),
       );
       next = generator.next();
       expect(next.value).to.eql(getRace(1));

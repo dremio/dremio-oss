@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { NESSIE_REF_PREFIX } from "@app/constants/nessie";
-import { initialState } from "@app/reducers/nessie/nessie";
-import { NessieRootState, Reference } from "@app/types/nessie";
+import { NESSIE_REF_PREFIX } from "#oss/constants/nessie";
+import { initialState } from "#oss/reducers/nessie/nessie";
+import { NessieRootState, Reference } from "#oss/types/nessie";
 export const init = {
   dataplane: {
     ...initialState,

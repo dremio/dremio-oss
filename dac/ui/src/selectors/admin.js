@@ -27,7 +27,7 @@ export function getUsers(state) {
 export function getUser(state, userName) {
   // todo: really need to normalize userName v username
   console.warn(
-    "using deprecated selectors/admin getUser(state, userName) API - should reference users by id instead"
+    "using deprecated selectors/admin getUser(state, userName) API - should reference users by id instead",
   );
   return state.resources.entities
     .get("user")
@@ -48,5 +48,5 @@ function getAccelerationsList(state) {
 
 export const getAccelerations = createSelector(
   [getAccelerationsList],
-  (acceleration) => acceleration
+  (acceleration) => acceleration,
 );

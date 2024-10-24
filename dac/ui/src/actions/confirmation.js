@@ -43,11 +43,11 @@ export function showUnsavedChangesConfirmDialog({ text, confirm }) {
         text:
           text ||
           laDeprecated(
-            "You have unsaved changes. Are you sure you want to leave?"
+            "You have unsaved changes. Are you sure you want to leave?",
           ),
         confirm,
         isCentered: true, // This is so that the modal header doesn't overlap with the modal header of the form.
-      })
+      }),
     );
 }
 
@@ -59,13 +59,13 @@ export function showConflictConfirmationDialog({ text, confirm } = {}) {
         text:
           text ||
           laDeprecated(
-            "This configuration has been modified. To continue, Dremio must update to the latest configuration."
+            "This configuration has been modified. To continue, Dremio must update to the latest configuration.",
           ),
         hideCancelButton: true,
         confirmText: laDeprecated("Update"),
         showOnlyConfirm: true,
         confirm,
-      })
+      }),
     );
 }
 
@@ -76,9 +76,9 @@ export function showClearReflectionDialog({ confirm, reflectionName } = {}) {
         title: laDeprecated("Remove Reflection"),
         confirmText: laDeprecated("Remove"),
         text: laDeprecated(
-          `Are you sure you want to remove Reflection “${reflectionName}”?`
+          `Are you sure you want to remove Reflection “${reflectionName}”?`,
         ), // todo: sub loc
         confirm,
-      })
+      }),
     );
 }

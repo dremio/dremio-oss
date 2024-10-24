@@ -15,11 +15,11 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import SampleDataMessage from "@app/pages/ExplorePage/components/SampleDataMessage";
+import SampleDataMessage from "#oss/pages/ExplorePage/components/SampleDataMessage";
 import classNames from "clsx";
 import { base, warning, buttons } from "./WizardFooter.less";
 import { connect } from "react-redux";
-import { getApproximate } from "@app/selectors/explore";
+import { getApproximate } from "#oss/selectors/explore";
 
 class WizardFooter extends Component {
   static propTypes = {

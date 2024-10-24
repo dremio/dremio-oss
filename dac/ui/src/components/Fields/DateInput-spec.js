@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 import MockDate from "mockdate";
 import { shallow } from "enzyme";
 import {
@@ -21,7 +21,7 @@ import {
   TIME,
   dateTypeToFormat,
   DATETIME,
-} from "@app/constants/DataTypes";
+} from "#oss/constants/DataTypes";
 
 import DateInput from "./DateInput";
 const getDD = (wrapper) =>
@@ -44,7 +44,7 @@ describe("DateInput", () => {
       const dateMoment = moment(dateTest, dateTypeToFormat[DATE]);
       const timeMoment = moment(timeTest, dateTypeToFormat[TIME]);
       expect(
-        DateInput.mergeDateWithTime(dateMoment, timeMoment, DATETIME)
+        DateInput.mergeDateWithTime(dateMoment, timeMoment, DATETIME),
       ).to.be.eql(result);
 
       const dateMomentPre = dateMoment.toString();
@@ -62,7 +62,7 @@ describe("DateInput", () => {
       const dateMoment = moment(dateTest, dateTypeToFormat[DATE]);
       const timeMoment = moment(timeTest, dateTypeToFormat[TIME]);
       expect(
-        DateInput.mergeDateWithTime(dateMoment, timeMoment, DATETIME)
+        DateInput.mergeDateWithTime(dateMoment, timeMoment, DATETIME),
       ).to.be.eql(result);
     });
 
@@ -73,7 +73,7 @@ describe("DateInput", () => {
       const dateMoment = moment(dateTest, dateTypeToFormat[DATE]);
       const timeMoment = moment(timeTest, dateTypeToFormat[TIME]);
       expect(
-        DateInput.mergeDateWithTime(dateMoment, timeMoment, DATETIME)
+        DateInput.mergeDateWithTime(dateMoment, timeMoment, DATETIME),
       ).to.be.eql(result);
     });
 
@@ -84,7 +84,7 @@ describe("DateInput", () => {
       const dateMoment = moment(dateTest, dateTypeToFormat[DATE]);
       const timeMoment = moment(timeTest, dateTypeToFormat[TIME]);
       expect(
-        DateInput.mergeDateWithTime(dateMoment, timeMoment, DATETIME)
+        DateInput.mergeDateWithTime(dateMoment, timeMoment, DATETIME),
       ).to.be.eql(result);
     });
   });
@@ -132,7 +132,7 @@ describe("DateInput", () => {
       const wrapper = shallow(<DateInput {...props} />);
 
       expect(getDD(wrapper).find("TimePicker").prop("value")).to.eql(
-        props.value
+        props.value,
       );
     });
 
@@ -144,7 +144,7 @@ describe("DateInput", () => {
       const wrapper = shallow(<DateInput {...props} />);
 
       expect(getDD(wrapper).find("TimePicker").prop("value")).to.eql(
-        moment().format("hh:mm:ss")
+        moment().format("hh:mm:ss"),
       );
     });
   });

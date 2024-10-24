@@ -24,7 +24,7 @@ public class TestNestedLoopJoinComputationPushdown extends PlanTestBase {
 
   @Before
   public void before() {
-    setSessionOption(PlannerSettings.ENABLE_CROSS_JOIN, "true");
+    setSessionOption(PlannerSettings.ENABLE_CROSS_JOIN, true);
   }
 
   @Test

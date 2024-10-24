@@ -16,13 +16,16 @@
 package com.dremio.service.tokens;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.dac.proto.model.tokens.SessionState;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
@@ -35,6 +38,7 @@ import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.test.DremioTest;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Provider;
 import org.glassfish.jersey.uri.UriComponent;
@@ -122,8 +126,14 @@ public class TestTokenManager {
   @Test
   public void validToken() throws Exception {
     final TokenDetails details = manager.createToken(username, clientAddress);
-    assertEquals(manager.validateToken(details.token).username, username);
-    assertTrue(manager.getTokenStore().get(details.token) != null);
+
+    TokenDetails validateResult = manager.validateToken(details.token);
+    assertEquals(validateResult.username, username);
+    assertTrue(validateResult.getScopes().isEmpty());
+
+    SessionState getResult = manager.getTokenStore().get(details.token);
+    assertNotNull(getResult);
+    assertNull(getResult.getScopesList());
   }
 
   @Test
@@ -139,6 +149,7 @@ public class TestTokenManager {
         manager.validateTemporaryToken(
             details.token, request.getPath(), UriComponent.decodeQuery(request, true));
     assertEquals(validateDetails.username, username);
+    assertTrue(validateDetails.getScopes().isEmpty());
     assertNotNull(manager.getTokenStore().get(validateDetails.token));
     final long actualDuration =
         validateDetails.expiresAt
@@ -193,7 +204,7 @@ public class TestTokenManager {
     final long expires = now + 1000;
 
     final TokenDetails details =
-        manager.createToken(username, clientAddress, now, expires, null, null);
+        manager.createToken(username, clientAddress, now, expires, null, null, null);
     assertEquals(manager.validateToken(details.token).username, username);
     assertTrue(manager.getTokenStore().get(details.token) != null);
 
@@ -278,7 +289,7 @@ public class TestTokenManager {
     final long expires = now + (10 * 1000);
 
     final TokenDetails details =
-        manager.createToken(username, clientAddress, now, expires, null, null);
+        manager.createToken(username, clientAddress, now, expires, null, null, null);
     assertEquals(manager.validateToken(details.token).username, username);
     assertTrue(manager.getTokenStore().get(details.token) != null);
 
@@ -300,7 +311,32 @@ public class TestTokenManager {
     final long expires = now + (10 * 1000);
 
     final TokenDetails details =
-        manager.createToken(username, clientAddress, now, expires, null, null);
+        manager.createToken(username, clientAddress, now, expires, null, null, null);
     assertEquals((long) manager.getTokenStore().get(details.token).getExpiresAt(), expires);
+  }
+
+  @Test
+  public void testCustomDurationAndScope() {
+    final long now = System.currentTimeMillis();
+    final long expires = now + (3 * 1000);
+
+    final TokenDetails createResult =
+        manager.createToken(username, null, expires, List.of("dremio.all"));
+    assertFalse(createResult.token.isEmpty());
+    assertEquals(username, createResult.username);
+    assertEquals(List.of("dremio.all"), createResult.getScopes());
+
+    final TokenDetails validateResult = manager.validateToken(createResult.token);
+    assertEquals(List.of("dremio.all"), validateResult.getScopes());
+    assertEquals(username, validateResult.username);
+    assertEquals(expires, validateResult.expiresAt);
+  }
+
+  @Test
+  public void createJwtThrows() {
+    assertThrows(
+        UnsupportedOperationException.class, () -> manager.createJwt(username, clientAddress));
+    assertThrows(
+        UnsupportedOperationException.class, () -> manager.createJwt(username, clientAddress, 0L));
   }
 }

@@ -60,6 +60,16 @@ public class IcebergHiveModel extends IcebergBaseModel {
   }
 
   @Override
+  protected IcebergCommand getIcebergCommand(
+      IcebergTableIdentifier tableIdentifier,
+      String tableLocation,
+      @Nullable IcebergCommitOrigin commitOrigin) {
+    TableOperations tableOperations =
+        plugin.createIcebergTableOperations(fileIO, queryUserName, tableIdentifier);
+    return new IcebergHiveCommand(configuration, tableLocation, tableOperations, currentQueryId());
+  }
+
+  @Override
   public IcebergTableIdentifier getTableIdentifier(String rootFolder) {
     return new IcebergHiveTableIdentifier(namespace, rootFolder, tableName);
   }

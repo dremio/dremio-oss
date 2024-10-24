@@ -20,7 +20,7 @@ import {
   FormBody,
   ModalForm,
   modalFormProps,
-} from "@app/components/Forms";
+} from "#oss/components/Forms";
 import { FieldWithError, TextField } from "components/Fields";
 import { formRow } from "uiTheme/radium/forms";
 import { applyValidators, isRequired } from "utils/validation";
@@ -95,5 +95,5 @@ export default connectComplexForm(
   },
   [],
   null,
-  null
+  null,
 )(SQLScriptForm);

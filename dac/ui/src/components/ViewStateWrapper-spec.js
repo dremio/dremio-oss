@@ -33,7 +33,7 @@ describe("ViewStateWrapper", () => {
       const wrapper = shallow(
         <ViewStateWrapper viewState={viewState}>
           <button />
-        </ViewStateWrapper>
+        </ViewStateWrapper>,
       );
       expect(wrapper.find("button")).to.have.length(1);
       expect(wrapper.find("Spinner")).to.have.length(0);
@@ -50,7 +50,7 @@ describe("ViewStateWrapper", () => {
       const wrapper = shallow(
         <ViewStateWrapper viewState={viewState}>
           <button />
-        </ViewStateWrapper>
+        </ViewStateWrapper>,
       );
       expect(wrapper.find("LoadingOverlay")).to.have.length(1);
       expect(wrapper.children().find("button")).to.have.length(1);
@@ -69,7 +69,7 @@ describe("ViewStateWrapper", () => {
 
     it("should set shouldWeSeeSpinner after spinnerDelay", (done) => {
       const wrapper = shallow(
-        <ViewStateWrapper viewState={viewState} spinnerDelay={0} />
+        <ViewStateWrapper viewState={viewState} spinnerDelay={0} />,
       );
       expect(wrapper.state("shouldWeSeeSpinner")).to.be.false;
       setTimeout(() => {
@@ -80,7 +80,7 @@ describe("ViewStateWrapper", () => {
 
     it("should not show spinner when isInProgress=false at end of spinnerDelay", () => {
       const wrapper = shallow(
-        <ViewStateWrapper viewState={viewState} spinnerDelay={0} />
+        <ViewStateWrapper viewState={viewState} spinnerDelay={0} />,
       );
       expect(wrapper.state("shouldWeSeeSpinner")).to.be.false;
       wrapper.setProps({ viewState: viewState.set("isInProgress", false) });
@@ -114,10 +114,10 @@ describe("ViewStateWrapper", () => {
       const wrapper = shallow(<ViewStateWrapper viewState={viewState} />);
       const messageProps = wrapper.find("Message").first().props();
       expect(messageProps.message).to.equal(
-        viewState.getIn(["error", "message"])
+        viewState.getIn(["error", "message"]),
       );
       expect(messageProps.dismissed).to.equal(
-        viewState.getIn(["error", "dismissed"])
+        viewState.getIn(["error", "dismissed"]),
       );
       expect(messageProps.messageId).to.equal(viewState.getIn(["error", "id"]));
       expect(messageProps.messageType).to.equal("error");
@@ -142,10 +142,10 @@ describe("ViewStateWrapper", () => {
       const wrapper = shallow(<ViewStateWrapper viewState={viewState} />);
       const messageProps = wrapper.find("Message").first().props();
       expect(messageProps.message).to.equal(
-        viewState.getIn(["error", "message"])
+        viewState.getIn(["error", "message"]),
       );
       expect(messageProps.dismissed).to.equal(
-        viewState.getIn(["error", "dismissed"])
+        viewState.getIn(["error", "dismissed"]),
       );
       expect(messageProps.messageId).to.equal(viewState.getIn(["error", "id"]));
       expect(messageProps.messageType).to.equal("warning");
@@ -157,7 +157,7 @@ describe("ViewStateWrapper", () => {
       const wrapper = shallow(
         <ViewStateWrapper viewState={viewState.set("isInProgress", true)}>
           <div />
-        </ViewStateWrapper>
+        </ViewStateWrapper>,
       );
       expect(wrapper.instance().renderChildren()).to.not.be.undefined;
 
@@ -169,7 +169,7 @@ describe("ViewStateWrapper", () => {
       const wrapper = shallow(
         <ViewStateWrapper viewState={viewState.set("isFailed", true)}>
           <div />
-        </ViewStateWrapper>
+        </ViewStateWrapper>,
       );
       expect(wrapper.instance().renderChildren()).to.be.undefined;
 
@@ -186,7 +186,7 @@ describe("ViewStateWrapper", () => {
     const wrapper = shallow(
       <ViewStateWrapper viewState={failedState}>
         <button />
-      </ViewStateWrapper>
+      </ViewStateWrapper>,
     );
     expect(wrapper.find("button")).to.have.length(0);
     expect(wrapper.find("Message")).to.have.length(1);
@@ -195,7 +195,7 @@ describe("ViewStateWrapper", () => {
     const wrapper2 = shallow(
       <ViewStateWrapper viewState={failedState} showMessage={false}>
         <button />
-      </ViewStateWrapper>
+      </ViewStateWrapper>,
     );
     expect(wrapper2.find("Message")).to.have.length(0);
   });
@@ -214,8 +214,8 @@ describe("findFirstTruthyValue", () => {
     expect(
       findFirstTruthyValue(
         fieldName,
-        ...generateList(0, "", "testValue", false)
-      )
+        ...generateList(0, "", "testValue", false),
+      ),
     ).to.be.equal("testValue");
   });
 
@@ -223,8 +223,8 @@ describe("findFirstTruthyValue", () => {
     expect(
       findFirstTruthyValue(
         fieldName,
-        ...generateList(0, "", true, "testValue", false)
-      )
+        ...generateList(0, "", true, "testValue", false),
+      ),
     ).to.be.true;
   });
 });
@@ -242,7 +242,7 @@ it("mergeViewStates merges view state correctly", () => {
       isFailed: false,
       isWarning: true,
       error: null,
-    })
+    }),
   );
 
   expect(result.toJS()).to.be.eql({

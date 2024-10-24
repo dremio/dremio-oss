@@ -58,25 +58,25 @@ describe("JobsTr-spec", () => {
   it("Job Row content", () => {
     const wrapper = shallow(<JobTr {...commonProps} />);
     expect(wrapper.find(".user").find("TextHighlight").prop("text")).to.equal(
-      commonProps.job.get("user")
+      commonProps.job.get("user"),
     );
     expect(wrapper.find(".startTime").text()).to.eql(
-      timeUtils.formatTime(commonProps.job.get("startTime"))
+      timeUtils.formatTime(commonProps.job.get("startTime")),
     );
     expect(wrapper.find(".endTime").text()).to.eql(
-      timeUtils.formatTime(commonProps.job.get("endTime"))
+      timeUtils.formatTime(commonProps.job.get("endTime")),
     );
     expect(wrapper.find(".duration").text()).to.eql(
       jobsUtils.getJobDuration(
         commonProps.job.get("startTime"),
-        commonProps.job.get("endTime")
-      )
+        commonProps.job.get("endTime"),
+      ),
     );
     expect(wrapper.find(".sql").find("TextHighlight").prop("text")).to.equal(
-      commonProps.job.get("description")
+      commonProps.job.get("description"),
     );
     expect(wrapper.find("JobStateIcon").first().prop("state")).to.equal(
-      "COMPLETED"
+      "COMPLETED",
     );
   });
 });

@@ -65,7 +65,9 @@ public class TestJobResultsDownload extends BaseTestServer {
     login(user1name, password);
 
     final InitialPreviewResponse response =
-        createDatasetFromSQL("select * from (values(1, 2))", Collections.emptyList());
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromSQL("select * from (values(1, 2))", Collections.emptyList());
     final String jobId = response.getJobId().getId();
     logger.debug("Job is submitted. Job is: {}", jobId);
     final JobsService jobsService = l(JobsService.class);
@@ -73,7 +75,8 @@ public class TestJobResultsDownload extends BaseTestServer {
     // download json for a submitted job
     expectSuccess(
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("job")
                     .path(jobId)
                     .path("download")

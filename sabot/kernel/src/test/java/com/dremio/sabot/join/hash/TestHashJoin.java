@@ -15,10 +15,14 @@
  */
 package com.dremio.sabot.join.hash;
 
+import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.JoinCondition;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.HashJoinPOP;
 import com.dremio.sabot.join.BaseTestJoin;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
+import com.dremio.sabot.op.join.vhash.VectorizedHashJoinOperator;
+import com.dremio.sabot.op.join.vhash.spill.VectorizedSpillingHashJoinOperator;
 import java.util.List;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.junit.Ignore;
@@ -31,6 +35,30 @@ public class TestHashJoin extends BaseTestJoin {
     return new JoinInfo(
         HashJoinOperator.class,
         new HashJoinPOP(PROPS, null, null, conditions, null, type, false, null));
+  }
+
+  protected JoinInfo getSpillingJoinInfo(
+      List<JoinCondition> conditions,
+      LogicalExpression extraCondition,
+      JoinRelType type,
+      int reserve,
+      int limit) {
+    OpProps opProps = OpProps.prototype(reserve, limit);
+    return new JoinInfo(
+        VectorizedSpillingHashJoinOperator.class,
+        new HashJoinPOP(opProps, null, null, conditions, extraCondition, type, true, true, null));
+  }
+
+  protected JoinInfo getNoSpillJoinInfo(
+      List<JoinCondition> conditions,
+      LogicalExpression extraCondition,
+      JoinRelType type,
+      int reserve,
+      int limit) {
+    OpProps opProps = OpProps.prototype(reserve, limit);
+    return new JoinInfo(
+        VectorizedHashJoinOperator.class,
+        new HashJoinPOP(opProps, null, null, conditions, extraCondition, type, true, null));
   }
 
   @Ignore("DX-5845")

@@ -21,19 +21,19 @@ import { LOGIN_VIEW_ID, loginUser } from "@inject/actions/account";
 
 import { Link } from "react-router";
 import { Button } from "dremio-ui-lib/components";
-import { FieldWithError, TextField } from "@app/components/Fields";
+import { FieldWithError, TextField } from "#oss/components/Fields";
 import { getViewState } from "selectors/resources";
 import {
   connectComplexForm,
   InnerComplexForm,
 } from "components/Forms/connectComplexForm";
 import ViewStateWrapper from "components/ViewStateWrapper";
-import Spinner from "@app/components/Spinner";
+import Spinner from "#oss/components/Spinner";
 
 import { formLabel } from "uiTheme/radium/typography";
-import { applyValidators, isRequired } from "@app/utils/validation";
-import { intl } from "@app/utils/intl";
-import { getLastSession } from "@app/utils/lastSession";
+import { applyValidators, isRequired } from "#oss/utils/validation";
+import { intl } from "#oss/utils/intl";
+import { getLastSession } from "#oss/utils/lastSession";
 
 export class LoginForm extends PureComponent {
   static propTypes = {
@@ -70,7 +70,7 @@ export class LoginForm extends PureComponent {
     } = this.props;
     return (
       <ViewStateWrapper
-        style={{ paddingTop: 30 }}
+        className="pt-1"
         hideChildrenWhenFailed={false}
         viewState={viewState}
         showMessage={showMessage}
@@ -151,7 +151,7 @@ const styles = {
     height: 24,
   },
   label: {
-    color: "#fff",
+    color: "var(--text--primary)",
     marginBottom: 3,
   },
   fieldsRow: {
@@ -203,5 +203,5 @@ export default connectComplexForm(
   mapStateToProps,
   {
     loginUser,
-  }
+  },
 )(LoginForm);

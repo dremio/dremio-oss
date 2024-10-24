@@ -20,7 +20,7 @@ import { replace } from "react-router-redux";
 import { UserAuthWrapper } from "redux-auth-wrapper";
 
 import userUtils from "utils/userUtils";
-import { initApp } from "@app/actions/app";
+import { initApp } from "#oss/actions/app";
 import LoadingOverlay from "../LoadingOverlay";
 
 export const UserIsAuthenticated = UserAuthWrapper({

@@ -119,7 +119,7 @@ public class FlattenOperator implements SingleInputOperator {
               .getClassProducer()
               .materializeAndAllowComplex(namedExpression.getExpr(), incoming);
       final Field outputField = expr.getCompleteType().toField(outputName);
-      switch (ProjectOperator.getEvalMode(incoming, expr, transferFieldIds)) {
+      switch (ProjectOperator.getEvalMode(incoming, expr, transferFieldIds, true)) {
         case COMPLEX:
           complexWriters = Lists.newArrayList();
           cg.addExpr(expr, namedExpression.getRef());

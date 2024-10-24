@@ -30,7 +30,7 @@ import DragSource from "components/DragComponents/DragSource";
 import Checkbox from "components/Fields/Checkbox";
 import { SearchField } from "components/Fields";
 import { SelectView } from "./SelectView";
-import { getIconPath } from "@app/utils/getIconPath";
+import { getIconPath } from "#oss/utils/getIconPath";
 
 import "./FilterSelectMenu.less";
 
@@ -295,7 +295,7 @@ export default class FilterSelectMenu extends Component {
       prevItems.find(({ id: prevId }) => newId && prevId && prevId === newId),
     );
     if (shouldUpdateState) {
-      this.setState({ itemsList: newItems }); // eslint-disable-line
+      this.setState({ itemsList: newItems });
     }
   }
 

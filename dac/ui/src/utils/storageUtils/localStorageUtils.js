@@ -235,17 +235,6 @@ export class LocalStorageUtils {
     localStorage.removeItem("columns");
   }
 
-  setSqlThemeContrast(theme) {
-    this._safeSave("isContrast", theme);
-  }
-
-  getSqlThemeContrast() {
-    return (
-      localStorage.getItem("isContrast") &&
-      JSON.parse(localStorage.getItem("isContrast"))
-    );
-  }
-
   setSqlAutocomplete(theme) {
     this._safeSave("isAutocomplete", theme);
   }
@@ -304,6 +293,14 @@ export class LocalStorageUtils {
 
   getJobsFiltersState() {
     return localStorage.getItem("jobsFilters");
+  }
+
+  setJobsDateTimeFilter(state) {
+    localStorage.setItem("jobsFiltersDateTime", state);
+  }
+
+  getJobsDateTimeFilter() {
+    return localStorage.getItem("jobsFiltersDateTime");
   }
 }
 

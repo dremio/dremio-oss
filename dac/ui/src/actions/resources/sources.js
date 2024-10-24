@@ -27,9 +27,9 @@ import sourcesMapper from "utils/mappers/sourcesMapper";
 import { getUniqueName } from "utils/pathUtils";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import DataFreshnessSection from "components/Forms/DataFreshnessSection";
-import { getSourceNames, getSpaceNames } from "@app/selectors/home";
-import { APIV2Call } from "@app/core/APICall";
-import { AZURE_SAMPLE_SOURCE } from "@app/constants/sourceTypes";
+import { getSourceNames, getSpaceNames } from "#oss/selectors/home";
+import { APIV2Call } from "#oss/core/APICall";
+import { AZURE_SAMPLE_SOURCE } from "#oss/constants/sourceTypes";
 import VENDORS from "@inject/constants/vendors";
 
 export const ADD_NEW_SOURCE_START = "ADD_NEW_SOURCE_START";

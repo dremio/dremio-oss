@@ -61,6 +61,19 @@ public class SparseUnionSizer implements Sizer {
     }
   }
 
+  @Override
+  public int getDataLengthFromIndex(int startIndex, int numberOfEntries) {
+    int totalDataLength = 0;
+    int endIndex = startIndex + numberOfEntries;
+    for (; startIndex < endIndex; startIndex++) {
+      final int vectorTypeId = incoming.getTypeValue(startIndex);
+
+      final Sizer childVectorSizer = Sizer.get(incoming.getVectorByType((byte) vectorTypeId));
+      totalDataLength += childVectorSizer.getDataLengthFromIndex(startIndex, 1);
+    }
+    return totalDataLength;
+  }
+
   /**
    * From given selection vector buffer, starting from given index, computer size needed to save
    * data for given number of records Computes space only for actual data buffers, excluding

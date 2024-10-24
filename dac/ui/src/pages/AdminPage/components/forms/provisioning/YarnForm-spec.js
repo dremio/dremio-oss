@@ -16,7 +16,7 @@
 import Immutable from "immutable";
 import { shallow } from "enzyme";
 import { minimalFormProps } from "testUtil";
-import * as PROVISION_DISTRIBUTIONS from "@app/constants/provisioningPage/provisionDistributions";
+import * as PROVISION_DISTRIBUTIONS from "#oss/constants/provisioningPage/provisionDistributions";
 import { YarnForm } from "./YarnForm";
 
 describe("YarnForm", () => {
@@ -74,7 +74,7 @@ describe("YarnForm", () => {
         values: { ...commonProps.values, distroType: "OTHER" },
       });
       expect(commonProps.fields.spillDirectories[0].onChange).to.be.calledWith(
-        "file:///var/log/dremio"
+        "file:///var/log/dremio",
       );
       wrapper.setProps({
         values: {
@@ -84,7 +84,7 @@ describe("YarnForm", () => {
         },
       });
       expect(commonProps.fields.spillDirectories[0].onChange).to.be.calledWith(
-        "maprfs:///var/mapr/local/${NM_HOST}/mapred/spill"
+        "maprfs:///var/mapr/local/${NM_HOST}/mapred/spill",
       );
     });
 
@@ -111,7 +111,7 @@ describe("YarnForm", () => {
         values: { ...commonProps.values, distroType: "MAPR", namenodeHost: "" },
       });
       expect(commonProps.fields.namenodeHost.onChange).to.be.calledWith(
-        "maprfs:///"
+        "maprfs:///",
       );
     });
 
@@ -279,7 +279,7 @@ describe("YarnForm", () => {
   describe("#distributionDirectory", () => {
     it("should return appropriate directory when selected distroType is MAPR", () => {
       expect(YarnForm.distributionDirectory("MAPR")).to.be.eql(
-        "maprfs:///var/mapr/local/${NM_HOST}/mapred/spill"
+        "maprfs:///var/mapr/local/${NM_HOST}/mapred/spill",
       );
     });
 
@@ -287,7 +287,7 @@ describe("YarnForm", () => {
       const { MAPR, ...other } = PROVISION_DISTRIBUTIONS; // eslint-disable-line @typescript-eslint/no-unused-vars
       Object.keys(other).forEach((distroType) => {
         expect(YarnForm.distributionDirectory(distroType)).to.be.eql(
-          "file:///var/log/dremio"
+          "file:///var/log/dremio",
         );
       });
     });

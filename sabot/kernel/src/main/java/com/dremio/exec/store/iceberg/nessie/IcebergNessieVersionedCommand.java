@@ -38,6 +38,15 @@ public class IcebergNessieVersionedCommand extends IcebergBaseCommand {
     this.versionedTableOperations = tableOperations;
   }
 
+  public IcebergNessieVersionedCommand(
+      String tableLocation,
+      Configuration configuration,
+      IcebergNessieVersionedTableOperations tableOperations,
+      UserBitShared.QueryId queryId) {
+    super(configuration, tableLocation, tableOperations, queryId);
+    this.versionedTableOperations = tableOperations;
+  }
+
   @Override
   public void deleteTable() {
     // super.deleteTable(); // TODO Okay to only delete in Nessie?

@@ -15,12 +15,12 @@
  */
 import { Fragment, PureComponent } from "react";
 import PropTypes from "prop-types";
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 import classNames from "clsx";
 
-import { SelectView } from "@app/components/Fields/SelectView";
+import { SelectView } from "#oss/components/Fields/SelectView";
 
-import { dateTypeToFormat, TIME, DATE } from "@app/constants/DataTypes";
+import { dateTypeToFormat, TIME, DATE } from "#oss/constants/DataTypes";
 
 import TimePicker from "./TimePicker";
 import DateRangePicker from "../DateRangePicker/DateRangePicker";
@@ -153,6 +153,7 @@ export default class DateInput extends PureComponent {
             />
             <dremio-icon
               key="date-icon"
+              class="icon-primary"
               name="data-types/TypeDateTime"
               style={{
                 blockSize: 24,

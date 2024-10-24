@@ -20,18 +20,27 @@ import type {
   CommunitySource,
   CommunitySourceProperties,
 } from "../../interfaces/Source.js";
-import { CatalogReference } from "./CatalogReference.js";
+import { SourceCatalogReference } from "./CatalogReference.js";
 import { catalogReferenceEntityToProperties, pathString } from "./utils.js";
+import { catalogReferenceFromProperties } from "./catalogReferenceFromProperties.js";
+import type { SonarV3Config } from "../../_internal/types/Config.js";
 
 export class Source implements CommunitySource {
   readonly acceleration: CommunitySource["acceleration"];
   readonly allowCrossSourceSelection: CommunitySource["allowCrossSourceSelection"];
-  #children: CatalogReference[];
+  #children: ReturnType<typeof catalogReferenceFromProperties>[];
+  readonly catalogReference: SourceCatalogReference;
   readonly config: CommunitySource["config"];
   readonly createdAt: CommunitySource["createdAt"];
   readonly disableMetadataValidityCheck: CommunitySource["disableMetadataValidityCheck"];
+  /**
+   * @deprecated
+   */
   readonly id: CommunitySource["id"];
   readonly metadataPolicy: CommunitySource["metadataPolicy"];
+  /**
+   * @deprecated
+   */
   readonly name: CommunitySource["name"];
   readonly status: CommunitySource["status"];
   readonly type: CommunitySource["type"];
@@ -40,12 +49,14 @@ export class Source implements CommunitySource {
 
   constructor(
     properties: CommunitySourceProperties & {
-      children: CatalogReference[];
+      catalogReference: SourceCatalogReference;
+      children: ReturnType<typeof catalogReferenceFromProperties>[];
       tag: string;
     },
   ) {
     this.acceleration = properties.acceleration;
     this.allowCrossSourceSelection = properties.allowCrossSourceSelection;
+    this.catalogReference = properties.catalogReference;
     this.#children = properties.children;
     this.config = properties.config;
     this.createdAt = properties.createdAt;
@@ -73,7 +84,11 @@ export class Source implements CommunitySource {
 
   pathString = pathString(() => this.path);
 
-  static fromResource(properties: any, retrieve: any) {
+  get referenceType() {
+    return "SOURCE" as const;
+  }
+
+  static fromResource(properties: any, config: SonarV3Config) {
     return new Source({
       acceleration: {
         activePolicyType: properties.accelerationActivePolicyType,
@@ -88,12 +103,18 @@ export class Source implements CommunitySource {
         refreshSchedule: properties.accelerationRefreshSchedule,
       },
       allowCrossSourceSelection: properties.allowCrossSourceSelection,
-      children: properties.children.map(
-        (child: any) =>
-          new CatalogReference(
-            catalogReferenceEntityToProperties(child),
-            retrieve,
-          ),
+      catalogReference: new SourceCatalogReference(
+        {
+          id: properties.id,
+          path: [properties.name],
+        },
+        config,
+      ),
+      children: properties.children.map((child: unknown) =>
+        catalogReferenceFromProperties(
+          catalogReferenceEntityToProperties(child),
+          config,
+        ),
       ),
       config: properties.config,
       createdAt: new Date(properties.createdAt),

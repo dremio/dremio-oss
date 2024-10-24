@@ -17,8 +17,8 @@ import { PureComponent } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 
-import { getRootEntityNameV3 } from "@app/selectors/home";
-import EllipsedText from "@app/components/EllipsedText";
+import { getRootEntityNameV3 } from "#oss/selectors/home";
+import EllipsedText from "#oss/components/EllipsedText";
 import { Tooltip } from "dremio-ui-lib";
 
 const mapStateToProps = (state, { entityId }) => ({

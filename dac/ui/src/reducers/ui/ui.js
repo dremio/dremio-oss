@@ -15,7 +15,7 @@
  */
 import Immutable from "immutable";
 
-import * as ActionTypes from "actions/ui/ui";
+import * as ActionTypes from "@inject/actions/ui/ui";
 
 const initialState = Immutable.fromJS({
   rightTreeVisible: false,
@@ -24,6 +24,8 @@ const initialState = Immutable.fromJS({
   objectStorageSourcesExpanded: false,
   dataplaneSourcesExpanded: false,
   datasetsExpanded: false,
+  dremioCatalogsExpanded: false,
+  lakehouseSourcesExpanded: false,
   resourceTree: {
     path: [],
     nodes: {},
@@ -53,25 +55,35 @@ export default function ui(state = initialState, action) {
     case ActionTypes.TOGGLE_EXTERNAL_SOURCES_EXPANDED:
       return state.set(
         "externalSourcesExpanded",
-        !state.get("externalSourcesExpanded")
+        !state.get("externalSourcesExpanded"),
       );
     case ActionTypes.TOGGLE_METASTORE_EXPANDED:
       return state.set(
         "metastoreSourcesExpanded",
-        !state.get("metastoreSourcesExpanded")
+        !state.get("metastoreSourcesExpanded"),
       );
     case ActionTypes.TOGGLE_OBJECT_STORAGE_EXPANDED:
       return state.set(
         "objectStorageSourcesExpanded",
-        !state.get("objectStorageSourcesExpanded")
+        !state.get("objectStorageSourcesExpanded"),
       );
     case ActionTypes.TOGGLE_DATAPLANE_SOURCES_EXPANDED:
       return state.set(
         "dataplaneSourcesExpanded",
-        !state.get("dataplaneSourcesExpanded")
+        !state.get("dataplaneSourcesExpanded"),
       );
     case ActionTypes.TOGGLE_DATASETS_EXPANDED:
       return state.set("datasetsExpanded", !state.get("datasetsExpanded"));
+    case ActionTypes.TOGGLE_LAKEHOUSE_SOURCES_EXPANDED:
+      return state.set(
+        "lakehouseSourcesExpanded",
+        !state.get("lakehouseSourcesExpanded"),
+      );
+    case ActionTypes.TOGGLE_DREMIO_CATALOGS_EXPANDED:
+      return state.set(
+        "dremioCatalogsExpanded",
+        !state.get("dremioCatalogsExpanded"),
+      );
     default:
       return state;
   }

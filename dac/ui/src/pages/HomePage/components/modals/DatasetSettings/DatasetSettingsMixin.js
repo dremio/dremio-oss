@@ -17,9 +17,9 @@
 import Immutable from "immutable";
 import { abilities } from "utils/datasetUtils";
 import datasetSettingsConfig from "@inject/pages/HomePage/components/modals/DatasetSettings/datasetSettingsConfig";
-import { isVersionedSource } from "@app/utils/sourceUtils";
-import { ARCTIC } from "@app/constants/sourceTypes";
-import { REFLECTION_ARCTIC_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { isVersionedSource } from "@inject/utils/sourceUtils";
+import { ARCTIC } from "#oss/constants/sourceTypes";
+import { REFLECTION_ARCTIC_ENABLED } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 import {
   getDatasetReferenceFromId,
   isOnCommitOrTag,
@@ -29,7 +29,6 @@ import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 export default function (input) {
   const { t } = getIntlContext();
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     extendContentRenderers(contentRenderers) {
       return contentRenderers;
     },

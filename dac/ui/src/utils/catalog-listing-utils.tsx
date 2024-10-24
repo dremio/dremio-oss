@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import ResourcePin from "@app/components/ResourcePin";
+import ResourcePin from "#oss/components/ResourcePin";
 import Immutable from "immutable";
 
 export const getCatalogData = (

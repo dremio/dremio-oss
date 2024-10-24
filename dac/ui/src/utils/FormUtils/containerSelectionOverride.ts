@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { isDataPlaneSourceType } from "@app/constants/sourceTypes";
-import StorageSelectionWrapper from "@app/components/Forms/Wrappers/StorageSelectionWrapper";
-import OauthWrapper from "@app/components/Forms/Wrappers/OauthWrapper";
+import { isDataPlaneSourceType } from "#oss/constants/sourceTypes";
+import StorageSelectionWrapper from "#oss/components/Forms/Wrappers/StorageSelectionWrapper";
+import OauthWrapper from "#oss/components/Forms/Wrappers/OauthWrapper";
 
 export const getRendererOverride = (sourceType: string, propName: string) => {
   if (isDataPlaneSourceType(sourceType)) {

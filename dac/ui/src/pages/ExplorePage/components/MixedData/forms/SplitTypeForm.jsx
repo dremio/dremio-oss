@@ -18,7 +18,7 @@ import PropTypes from "prop-types";
 import { startCase } from "lodash/string";
 
 import Checkbox from "components/Fields/Checkbox";
-import { typeToIconType } from "@app/constants/DataTypes";
+import { typeToIconType } from "#oss/constants/DataTypes";
 import Meter from "components/Meter";
 import { applyValidators, notEmptyArray } from "utils/validation";
 
@@ -35,7 +35,7 @@ import {
   rowMargin,
   firstColumn,
   secondColumn,
-} from "@app/uiTheme/less/forms.less";
+} from "#oss/uiTheme/less/forms.less";
 import TransformForm, { formWrapperProps } from "./../../forms/TransformForm";
 import { transformProps } from "./../../forms/TransformationPropTypes";
 import NonMatchingValues from "./../NonMatchingValues";
@@ -99,6 +99,7 @@ export class SplitTypeForm extends Component {
                   onChange={this.toggleType.bind(this, option.type)}
                   label={[
                     <dremio-icon
+                      class="icon-primary"
                       key={`${option.type}-fonticon`}
                       name={`data-types/${typeToIconType[option.type ? option.type.toUpperCase() : "TEXT"]}`}
                     ></dremio-icon>,

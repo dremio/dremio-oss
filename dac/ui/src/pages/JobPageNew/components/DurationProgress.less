@@ -21,14 +21,14 @@
       height: 4px;
       display: flex;
       align-items: center;
-      background-color: rgb(242, 242, 242);
+      background-color: var(--fill--secondary);
       width: 100%;
-      border: 1px solid rgba(0, 0, 0, 0.03);
+      border: 1px solid var(--border--neutral);
       border-radius: 4px;
       overflow: hidden;
 
       &__value {
-        background-color: rgb(119, 129, 143);
+        background-color: var(--progress--bar);
         height: 4px;
         border-radius: 4px;
         position: absolute;
@@ -41,12 +41,12 @@
       height: 22px;
 
       &__title {
-        color: rgb(51, 51, 51);
+        color: var(--text--primary);
         font-size: 12px;
         line-height: 32px;
       }
       &__value {
-        color: rgb(119, 129, 143);
+        color: var(--text--faded);
         font-size: 12px;
         line-height: 32px;
       }

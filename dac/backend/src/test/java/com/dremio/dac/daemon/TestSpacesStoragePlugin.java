@@ -201,7 +201,8 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
 
   @Test
   public void testSpacesPlugin() throws Exception {
-    try (AutoCloseable ac = withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES, "true")) {
+    try (AutoCloseable ignored =
+        withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR, true)) {
       setup();
       // update storage plugin
 

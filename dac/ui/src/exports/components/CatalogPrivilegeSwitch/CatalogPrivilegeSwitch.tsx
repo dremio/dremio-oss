@@ -44,10 +44,10 @@ export const CatalogPrivilegeSwitch = (props: Props): JSX.Element | null => {
     return renderEnabled() || null;
   }
   const [result] = useResourceSnapshot(
-    ArcticCatalogPrivilegesResource || new SmartResource(() => null)
+    ArcticCatalogPrivilegesResource || new SmartResource(() => null),
   );
   const status = useResourceStatus(
-    ArcticCatalogPrivilegesResource || new SmartResource(() => null)
+    ArcticCatalogPrivilegesResource || new SmartResource(() => null),
   );
 
   if (status === "initial" || status === "pending") {

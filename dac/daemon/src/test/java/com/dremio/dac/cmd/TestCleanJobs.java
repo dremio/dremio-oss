@@ -62,9 +62,7 @@ public class TestCleanJobs extends CleanBaseTest {
     try (LocalKVStoreProvider provider = providerOptional.get()) {
       provider.start();
       long diffBeforeJob2 = System.currentTimeMillis() - beforeJob2TS;
-      result =
-          Clean.deleteOldJobsAndProfiles(
-              provider.asLegacy(), diffBeforeJob2, TimeUnit.MILLISECONDS);
+      result = Clean.deleteOldJobsAndProfiles(provider, diffBeforeJob2, TimeUnit.MILLISECONDS);
     }
 
     final String expectedReport =

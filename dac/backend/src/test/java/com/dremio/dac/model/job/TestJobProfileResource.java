@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.model.job;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -29,6 +30,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import javax.ws.rs.NotFoundException;
 import org.junit.Test;
 
 public class TestJobProfileResource extends BaseTestServer {
@@ -137,8 +139,7 @@ public class TestJobProfileResource extends BaseTestServer {
 
   @Test
   public void testGetJobProfileOperatorAttributes() throws Exception {
-    try (AutoCloseable ignore =
-        withSystemOption(PlannerSettings.PRETTY_PLAN_SCRAPING.getOptionName(), "true")) {
+    try (AutoCloseable ignore = withSystemOption(PlannerSettings.PRETTY_PLAN_SCRAPING, true)) {
       JobProfileOperatorInfo jobProfileOperatorInfo =
           new JobProfileOperatorInfo(getTestProfile(), 0, 6);
 
@@ -161,5 +162,32 @@ public class TestJobProfileResource extends BaseTestServer {
         System.out.println("Exception in converting RelNodeInfo protobuff to json " + e);
       }
     }
+  }
+
+  @Test
+  public void testMissingProfileOperatorInfo() {
+    assertThatThrownBy(() -> new JobProfileOperatorInfo(null, 0, 0))
+        .isInstanceOf(NotFoundException.class)
+        .hasMessageContaining("Profile is not available");
+    assertThatThrownBy(
+            () ->
+                new JobProfileOperatorInfo(
+                    getTestProfile().toBuilder().removeFragmentProfile(0).build(), 0, 0))
+        .isInstanceOf(NotFoundException.class)
+        .hasMessageContaining("Profile Fragment is not available");
+    assertThatThrownBy(
+            () ->
+                new JobProfileOperatorInfo(
+                    getTestProfile().toBuilder()
+                        .setFragmentProfile(
+                            0,
+                            getTestProfile().getFragmentProfile(0).toBuilder()
+                                .removeMinorFragmentProfile(0)
+                                .build())
+                        .build(),
+                    0,
+                    0))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("OperatorId : 0 not exists in Phase 0");
   }
 }

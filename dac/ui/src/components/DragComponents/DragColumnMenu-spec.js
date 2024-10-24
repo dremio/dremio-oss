@@ -50,16 +50,18 @@ describe("DragColumnMenu", () => {
       sinon.stub(instance, "updateColumns");
       instance.UNSAFE_componentWillUpdate(instance.props, instance.state);
       expect(instance.updateColumns).to.not.be.called;
-      instance.UNSAFE_componentWillUpdate(instance.props, { filter: "someFilter" });
+      instance.UNSAFE_componentWillUpdate(instance.props, {
+        filter: "someFilter",
+      });
       expect(instance.updateColumns).to.have.callCount(1);
       instance.UNSAFE_componentWillUpdate(
         { ...instance.props, items: Immutable.List([{}]) },
-        instance.state
+        instance.state,
       );
       expect(instance.updateColumns).to.have.callCount(2);
       instance.UNSAFE_componentWillUpdate(
         { ...instance.props, disabledColumnNames: Immutable.List(["foo"]) },
-        instance.state
+        instance.state,
       );
       expect(instance.updateColumns).to.have.callCount(3);
     });
@@ -74,18 +76,18 @@ describe("DragColumnMenu", () => {
     it("should return original order if all are disabled or everything is not disabled", () => {
       const allColumnNames = Immutable.Set(["foo", "bar", "baz"]);
       expect(DragColumnMenu.sortColumns(columns, Immutable.Set())).to.eql(
-        columns
+        columns,
       );
       expect(DragColumnMenu.sortColumns(columns, allColumnNames)).to.eql(
-        columns
+        columns,
       );
     });
 
     it("should return disabled columns last", () => {
       expect(
         DragColumnMenu.sortColumns(columns, Immutable.Set(["bar"])).map((col) =>
-          col.get("name")
-        )
+          col.get("name"),
+        ),
       ).to.eql(Immutable.List(["foo", "baz", "bar"]));
     });
   });

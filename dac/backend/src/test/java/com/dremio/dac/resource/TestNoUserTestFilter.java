@@ -37,7 +37,8 @@ public class TestNoUserTestFilter extends BaseTestServer {
     login();
 
     doc("use the clear test API");
-    expectSuccess(getBuilder(getAPIv2().path("/test/clear")).buildPost(Entity.json("")));
+    expectSuccess(
+        getBuilder(getHttpClient().getAPIv2().path("/test/clear")).buildPost(Entity.json("")));
 
     doc("make sure server returns proper response");
     // clearing everything should not affect the server response if NoUserTestFilter is being used
@@ -46,7 +47,11 @@ public class TestNoUserTestFilter extends BaseTestServer {
       GenericErrorMessage errorMessage =
           expectStatus(
               Response.Status.FORBIDDEN,
-              getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)),
+              getHttpClient()
+                  .getAPIv2()
+                  .path("/login")
+                  .request(JSON)
+                  .buildPost(Entity.json(userLogin)),
               GenericErrorMessage.class);
       assertThat(errorMessage.getErrorMessage()).isEqualTo(GenericErrorMessage.NO_USER_MSG);
     }

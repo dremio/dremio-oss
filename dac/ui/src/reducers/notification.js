@@ -27,7 +27,7 @@ export default function notification(state = {}, action) {
       }
       return actionUtils.humanizeNotificationMessage()(
         action.payload,
-        action.meta.showDefaultMoreInfo
+        action.meta.showDefaultMoreInfo,
       );
     }
     if (typeof action.meta.notification === "function") {

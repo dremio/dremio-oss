@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import SourceProperties from "@app/components/Forms/SourceProperties";
+import SourceProperties from "#oss/components/Forms/SourceProperties";
 
 export const CLUSTER_STATE = {
   running: "RUNNING",

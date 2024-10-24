@@ -18,20 +18,20 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import Immutable from "immutable";
 
-import { getHomeContents } from "@app/selectors/home";
-import { loadHomeContentWithAbort } from "@app/actions/home";
+import { getHomeContents } from "#oss/selectors/home";
+import { loadHomeContentWithAbort } from "#oss/actions/home";
 import { getViewState } from "selectors/resources";
-import { ENTITY_TYPES } from "@app/constants/Constants";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
 
 import { updateRightTreeVisibility } from "actions/ui/ui";
 
 import MainInfo from "../components/MainInfo";
-import { CatalogPrivilegeSwitch } from "@app/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
-import Message from "@app/components/Message";
+import { CatalogPrivilegeSwitch } from "#oss/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
+import Message from "#oss/components/Message";
 import { fetchArsFlag } from "@inject/utils/arsUtils";
-import { store } from "@app/store/store";
-import { isVersionedSource } from "@app/utils/sourceUtils";
-import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
+import { store } from "#oss/store/store";
+import { isVersionedSource } from "@inject/utils/sourceUtils";
+import { isDefaultReferenceLoading } from "#oss/selectors/nessie/nessie";
 
 export const VIEW_ID = "HomeContents";
 

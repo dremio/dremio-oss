@@ -46,6 +46,7 @@ import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.Views;
 import com.dremio.exec.store.dfs.MayBeDistFileSystemPlugin;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
 import com.dremio.exec.store.dfs.system.evolution.SystemIcebergTablesUpdateStepsProvider;
 import com.dremio.exec.store.dfs.system.evolution.SystemIcebergTablesUpdateStepsProvider.UpdateSteps;
 import com.dremio.exec.store.dfs.system.evolution.handler.SystemIcebergTablesPartitionUpdateHandler;
@@ -66,6 +67,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -363,9 +365,10 @@ public class SystemIcebergTablesStoragePlugin
     if (tablesCreated.get()) {
       return;
     }
-    for (String tableName : SystemIcebergTableMetadataFactory.SUPPORTED_TABLES) {
-      createEmptySystemIcebergTableIfNotExists(ImmutableList.of(tableName));
-    }
+    Arrays.stream(SupportedSystemIcebergTable.values())
+        .map(SupportedSystemIcebergTable::getTableName)
+        .forEach(
+            tableName -> createEmptySystemIcebergTableIfNotExists(ImmutableList.of(tableName)));
     tablesCreated.set(true);
   }
 
@@ -484,9 +487,9 @@ public class SystemIcebergTablesStoragePlugin
         getContext()
             .getOptionManager()
             .getOption(ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION);
-    for (String systemIcebergTableName : SystemIcebergTableMetadataFactory.SUPPORTED_TABLES) {
-      updateSystemIcebergTable(systemIcebergTableName, systemIcebergTablesSchemaVersion);
-    }
+    Arrays.stream(SupportedSystemIcebergTable.values())
+        .map(SupportedSystemIcebergTable::getTableName)
+        .forEach(name -> updateSystemIcebergTable(name, systemIcebergTablesSchemaVersion));
   }
 
   private void updateSystemIcebergTable(String tableName, long systemIcebergTablesSchemaVersion) {

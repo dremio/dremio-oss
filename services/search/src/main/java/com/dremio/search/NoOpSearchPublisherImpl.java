@@ -15,30 +15,15 @@
  */
 package com.dremio.search;
 
-import com.dremio.services.pubsub.PubSubClient;
-import java.io.Closeable;
-import java.io.IOException;
-import javax.inject.Inject;
-import javax.inject.Provider;
-import javax.inject.Singleton;
-
-/** Implementation listens to search document events and then processes them. */
-@Singleton
-public class NoOpSearchPublisherImpl implements SearchPublisher, Closeable {
-  private final Provider<PubSubClient> pubSubClientProvider;
-
-  @Inject
-  public NoOpSearchPublisherImpl(Provider<PubSubClient> pubSubClientProvider) {
-    this.pubSubClientProvider = pubSubClientProvider;
-  }
-
+/** Implementation performs a no-op. */
+public class NoOpSearchPublisherImpl implements SearchPublisher {
   @Override
   public void start() {
     // No-op
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     // No-op
   }
 }

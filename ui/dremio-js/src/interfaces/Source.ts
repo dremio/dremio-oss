@@ -16,6 +16,7 @@
 
 import type { CatalogObjectMethods } from "./CatalogObject.js";
 import type { CatalogReference } from "./CatalogReference.js";
+import type { Grantee } from "./Grantee.js";
 
 export type CommunitySourceProperties = {
   acceleration: {
@@ -68,3 +69,12 @@ export type CommunitySourceMethods = {
 
 export type CommunitySource = CommunitySourceProperties &
   CommunitySourceMethods;
+
+export type EnterpriseSourceMethods = {
+  grants(): Promise<{
+    availablePrivileges: string[];
+    grants: { grantee: Grantee; privileges: string[] }[];
+  }>;
+};
+
+export type EnterpriseSource = CommunitySource & EnterpriseSourceMethods;

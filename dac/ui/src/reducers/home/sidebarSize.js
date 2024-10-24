@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 // handles a state for expandable and resizable slidebar
-import { MIN_SIDEBAR_WIDTH, SET_SIDEBAR_SIZE } from "@app/actions/home";
+import { MIN_SIDEBAR_WIDTH, SET_SIDEBAR_SIZE } from "#oss/actions/home";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
 
 const slidebarSize = (state, /* action */ { type, size }) => {

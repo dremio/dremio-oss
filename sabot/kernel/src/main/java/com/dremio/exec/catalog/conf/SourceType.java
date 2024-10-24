@@ -37,4 +37,6 @@ public @interface SourceType {
   boolean externalQuerySupported() default false;
 
   boolean previewEngineRequired() default false;
+
+  boolean isVersioned() default false;
 }

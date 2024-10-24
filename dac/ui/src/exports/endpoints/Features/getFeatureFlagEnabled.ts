@@ -16,7 +16,7 @@
 import moize from "moize";
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import { type FeatureFlagResponse } from "./FeatureFlagResponse.type";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const getFeatureFlagEnabledUrl = (flagId: string) =>
   new APIV2Call().projectScope(false).paths(`features/${flagId}`).toString();
@@ -28,5 +28,5 @@ export const getFeatureFlagEnabled = moize(
       .then((res) => res.json() as unknown as FeatureFlagResponse)
       .then((res) => res.entitlement === "ENABLED");
   },
-  { isPromise: true, maxSize: Infinity }
+  { isPromise: true, maxSize: Infinity },
 );

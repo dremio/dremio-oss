@@ -157,15 +157,49 @@ public class SpillingOperatorHeapController implements HeapLowMemController, Aut
     }
   }
 
+  /**
+   * Chooses a victim from a list of participants.
+   *
+   * <p>The consideration is that field count * number of batches dictates the memory overhead per
+   * participant. This also dictates the growth rate per second per operator. The greater the field
+   * count, the 'fatter' the victim.
+   *
+   * <p>Here is the calculation for. memory growth (depends on the low mem condition support key,
+   * which is by default at 75% memory full post GC): BORDER (severity = 1) (25% of heap or below
+   * still available post GC): LOW (severity = 2) (available memory remained at 15% or below post
+   * GC) VERY LOW (severity = 3) (available memory remained at 15% or below post multiple GCs)
+   *
+   * <p>Here is the calculation for memory growth: if incoming batch rate is 10 per second, the heap
+   * memory growth rate will be approximately 256 bytes per second per field per batch * 10 batches
+   * * field count. When the field count is below 32, then this means per second growth for operator
+   * is approximately < 64K per second per operator. So this means when we are at border or low
+   * condition and we have already got a fatter victim that generates over 64K per second per
+   * operator, we can wait for the next low mem signal for choosing the next victim. However, if we
+   * are at very low memory, we need to choose even thinner victims even if we have some fatter
+   * victims to avoid the race to hit OOM and query being killed.
+   *
+   * @param memoryState Current state of memory
+   * @param sizeFactor size in GB of the pool
+   */
   private synchronized void chooseVictimAndTriggerSpilling(
       MemoryState memoryState, int sizeFactor) {
     int victimsSoFar = 0;
     int maxAllowedVictims = computeAllowedVictims(memoryState);
-    logger.info("Choosing {} Victims. Memory state is {}", maxAllowedVictims, memoryState.name());
+    logger.info(
+        "Choosing {} Victims. Memory state is {}, Num Trackers = {}",
+        maxAllowedVictims,
+        memoryState.name(),
+        fattestFirst.size());
     if (maxAllowedVictims > 0) {
-      for (int idx : fattestFirst) {
+      var pqc = new PriorityQueue<>(fattestFirst);
+      while (!pqc.isEmpty()) {
+        int idx = pqc.poll();
+        logger.debug(
+            "[{}] width = {} -> Memory state {}", idx, memoryState.name(), widthLowerBoundIndex);
         if ((idx < widthLowerBoundIndex && memoryState.getSeverity() <= 1)
-            || (idx == 0 && memoryState.getSeverity() <= 2)) {
+            || (idx == 0 && memoryState.getSeverity() <= 2 && victimsSoFar > 0)) {
+          // victimsSoFar > 0 means we have already chosen a fatter victim this round so no need to
+          // choose a very thin victim unless the low memory condition severity is > 2).
           break;
         }
         final int victimsLeft = maxAllowedVictims - victimsSoFar;
@@ -189,11 +223,14 @@ public class SpillingOperatorHeapController implements HeapLowMemController, Aut
             : (memoryState.getSeverity() == 2) ? 1 : 0);
     int prev = 0;
     int total = 0;
-    for (int idx : fattestFirst) {
-      if (idx < firstLowerBound) {
-        prev += trackers[idx].numParticipants();
-      } else if (idx < secondLowerBound) {
+    var pqc = new PriorityQueue<>(fattestFirst);
+    while (!pqc.isEmpty()) {
+      int idx = pqc.poll();
+      if (idx < secondLowerBound && (prev > 0 || total > 0)) {
+        // if we have already chosen fatter victims we do not need thinner victims
         break;
+      } else if (idx > firstLowerBound) {
+        prev += trackers[idx].numParticipants();
       } else {
         total += trackers[idx].numParticipants();
       }

@@ -58,7 +58,8 @@ public class TestJobResource extends BaseTestServer {
 
     final Invocation invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")
@@ -109,7 +110,8 @@ public class TestJobResource extends BaseTestServer {
 
     final Invocation invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")

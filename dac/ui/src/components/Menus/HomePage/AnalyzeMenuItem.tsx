@@ -19,8 +19,8 @@ import Immutable from "immutable";
 import { FormattedMessage } from "react-intl";
 
 import config from "dyn-load/utils/config";
-import { getAnalyzeToolsConfig } from "@app/utils/config";
-import { fetchStatusOfAnalyzeTools } from "@app/utils/analyzeToolsUtils";
+import { getAnalyzeToolsConfig } from "#oss/utils/config";
+import { fetchStatusOfAnalyzeTools } from "#oss/utils/analyzeToolsUtils";
 import MenuItem from "components/Menus/MenuItem";
 import SubMenu from "components/Menus/SubMenu";
 import AnalyzeMenuItems from "components/Menus/AnalyzeMenuItems";

@@ -16,7 +16,7 @@
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 
-import { EngineStatusIcon } from "@app/pages/AdminPage/subpages/Provisioning/components/EngineStatus";
+import { EngineStatusIcon } from "#oss/pages/AdminPage/subpages/Provisioning/components/EngineStatus";
 import { getEngineStatusCounts } from "dyn-load/pages/AdminPage/subpages/Provisioning/provisioningUtils";
 import { getItems } from "@inject/pages/AdminPage/subpages/Provisioning/components/singleEngine/EngineStatusBarMixin";
 export function EngineStatusBar(props) {

@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CLIENT_TOOL_ID } from "@app/constants/Constants";
+import { CLIENT_TOOL_ID } from "#oss/constants/Constants";
 import { useIntl } from "react-intl";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
-import { getIconPath } from "@app/utils/getIconPath";
+import { getIconPath } from "#oss/utils/getIconPath";
 import "./BiApplicationTools.less";
 
 export const RESERVED = [
@@ -39,7 +39,7 @@ const iconStyle = { width: "32px", height: "32px" };
 const renderIcon = (
   name: string,
   alt: string,
-  style: Record<string, unknown>
+  style: Record<string, unknown>,
 ) => {
   return name === "corporate/tableau" ? (
     <dremio-icon name={name} alt={alt} style={style} />

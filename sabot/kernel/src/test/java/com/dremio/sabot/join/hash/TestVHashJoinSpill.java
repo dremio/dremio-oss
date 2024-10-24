@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.join.hash;
 
+import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.HashJoinPOP;
@@ -57,6 +58,13 @@ public class TestVHashJoinSpill extends BaseTestJoin {
     return new JoinInfo(
         VectorizedSpillingHashJoinOperator.class,
         new HashJoinPOP(PROPS, null, null, conditions, null, type, true, true, null));
+  }
+
+  protected JoinInfo getJoinInfo(
+      List<JoinCondition> conditions, LogicalExpression extraCondition, JoinRelType type) {
+    return new JoinInfo(
+        VectorizedSpillingHashJoinOperator.class,
+        new HashJoinPOP(PROPS, null, null, conditions, extraCondition, type, true, true, null));
   }
 
   @Test

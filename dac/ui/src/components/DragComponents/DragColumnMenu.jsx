@@ -20,13 +20,13 @@ import { AutoSizer, List } from "react-virtualized";
 
 import { SearchField } from "components/Fields";
 import classNames from "clsx";
-import { rowMargin } from "@app/uiTheme/less/forms.less";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import { rowMargin } from "#oss/uiTheme/less/forms.less";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 
 import {
   base,
   search,
-} from "@app/uiTheme/less/DragComponents/DragColumnMenu.less";
+} from "#oss/uiTheme/less/DragComponents/DragColumnMenu.less";
 import ColumnMenuItem from "./ColumnMenuItem";
 
 export const NOT_SUPPORTED_TYPES = new Set(["MAP", "LIST"]);
@@ -52,7 +52,7 @@ export default class DragColumnMenu extends PureComponent {
     return columns.sortBy(
       (column) =>
         (disabledColumnNames.has(column.get("name")) ? columns.size : 0) +
-        column.get("index")
+        column.get("index"),
     );
   }
 
@@ -85,7 +85,7 @@ export default class DragColumnMenu extends PureComponent {
   updateColumns(filter, disabledColumnNames) {
     this.filteredSortedColumns = DragColumnMenu.sortColumns(
       this.filterColumns(filter, this.props.items),
-      disabledColumnNames
+      disabledColumnNames,
     );
     if (this.virtualList) {
       this.virtualList.forceUpdateGrid();
@@ -94,7 +94,7 @@ export default class DragColumnMenu extends PureComponent {
 
   filterColumns(filter, allColumns) {
     return allColumns.filter((column) =>
-      column.get("name").toLowerCase().includes(filter.trim().toLowerCase())
+      column.get("name").toLowerCase().includes(filter.trim().toLowerCase()),
     );
   }
 

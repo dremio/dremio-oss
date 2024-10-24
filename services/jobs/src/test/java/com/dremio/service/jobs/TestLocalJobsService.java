@@ -19,6 +19,7 @@ import static com.dremio.exec.ExecConstants.ENABLE_DEPRECATED_JOBS_USER_STATS_AP
 import static com.dremio.service.job.proto.QueryType.METADATA_REFRESH;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.doAnswer;
@@ -100,8 +101,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockMakers;
-import org.mockito.MockSettings;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
@@ -113,8 +112,6 @@ public class TestLocalJobsService {
       DremioConfig.create(null, DremioTest.DEFAULT_SABOT_CONFIG)
           .withValue(DremioConfig.SCHEDULER_LEADERLESS_CLUSTERED_SINGLETON, "true");
   private LocalJobsService localJobsService;
-  private static MockSettings INLINE_MOCK_SETTINGS =
-      Mockito.withSettings().mockMaker(MockMakers.INLINE);
   private final QueryProfile queryProfile =
       QueryProfile.newBuilder()
           .setPlan("PLAN_VALUE")
@@ -146,8 +143,7 @@ public class TestLocalJobsService {
   @Mock private CatalogService catalogServiceProvider;
   @Mock private LegacyIndexedStore<JobId, JobResult> legacyIndexedStore;
   @Mock private JobCountsClient jobCountsClient;
-  private JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub jobTelemetryServiceStub =
-      mock(JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub.class, INLINE_MOCK_SETTINGS);
+  @Mock private JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub jobTelemetryServiceStub;
 
   @Before
   public void setup() {
@@ -300,7 +296,7 @@ public class TestLocalJobsService {
     // Mocking localQueryExecutor to throw exception while trying to submit query
     doThrow(new RejectedExecutionException())
         .when(localQueryExecutor)
-        .submitLocalQuery(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any());
+        .submitLocalQuery(any(), any(), any(), anyBoolean(), any(), anyBoolean(), any(), anyLong());
 
     LegacyKVStoreProvider legacyKVStoreProvider = mock(LegacyKVStoreProvider.class);
     LegacyIndexedStore legacyIndexedStore = mock(LegacyIndexedStore.class);
@@ -321,7 +317,9 @@ public class TestLocalJobsService {
     final StreamObserver<JobEvent> eventObserver = getEventObserver(latch);
     ArgumentCaptor<JobResult> jobResultsCaptor = ArgumentCaptor.forClass(JobResult.class);
     localJobsService.submitJob(
-        getSubmitJobRequest("select 1", SYSTEM_USERNAME, QueryType.JDBC),
+        getSubmitJobRequest("select 1", SYSTEM_USERNAME, QueryType.JDBC).toBuilder()
+            .setRunInSameThread(true)
+            .build(),
         eventObserver,
         PlanTransformationListener.NO_OP);
     latch.await();

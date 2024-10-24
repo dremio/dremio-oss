@@ -60,7 +60,7 @@ export class UpdateDatasetView extends Component {
         key: PropTypes.string.isRequired,
         name: PropTypes.string.isRequired,
         type: PropTypes.string.isRequired,
-      })
+      }),
     ),
     dependentDatasets: PropTypes.array,
     item: PropTypes.instanceOf(Immutable.Map),
@@ -121,7 +121,7 @@ export class UpdateDatasetView extends Component {
       const messageObj = new Immutable.Map({
         message: intl.formatMessage(
           { id: this.getWarningTextId(mode) },
-          { dependentDatasetCount: dependentDatasets.length }
+          { dependentDatasetCount: dependentDatasets.length },
         ),
         moreInfo: (
           <DependantDatasetsWarning dependantDatasets={dependentDatasets} />
@@ -239,8 +239,8 @@ export class UpdateDatasetView extends Component {
             button.type === ButtonTypes.NEXT
               ? "primary"
               : button.type === ButtonTypes.PRIMARY_DANGER
-              ? "primary-danger"
-              : "secondary"
+                ? "primary-danger"
+                : "secondary"
           }
           key={`${index}_button`}
           data-qa={button.name}
@@ -256,7 +256,7 @@ export class UpdateDatasetView extends Component {
     const updateDatasetClass = classNames(
       "update-dataset",
       { "update-dataset-small": size === ModalSize.small },
-      { "update-dataset-smallest": size === ModalSize.smallest }
+      { "update-dataset-smallest": size === ModalSize.smallest },
     );
     return (
       <div className={updateDatasetClass} onClick={this.clickHandler}>
@@ -291,5 +291,5 @@ export default connectComplexForm(
     validate,
   },
   [],
-  mapStateToProps
+  mapStateToProps,
 )(UpdateDatasetView);

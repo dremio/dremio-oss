@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import PropTypes from "prop-types";
-import jobsUtils from "@app/utils/jobsUtils";
+import jobsUtils from "#oss/utils/jobsUtils";
 import "./DurationProgress.less";
 
 const DurationProgress = ({

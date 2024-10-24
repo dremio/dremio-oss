@@ -43,7 +43,7 @@ export const rulePropType = PropTypes.shape({
 
 export const isAuthorized = (
   /* rule */ { isAdmin = false }, // see authInfoPropType for format
-  authInfo // see rulePropType for format
+  authInfo, // see rulePropType for format
 ) => {
   return isAdmin && authInfo.isAdmin;
 };

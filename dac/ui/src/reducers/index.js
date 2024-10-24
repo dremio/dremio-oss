@@ -23,17 +23,17 @@ import developmentOptions from "dyn-load/reducers/developmentOptions";
 import account from "@inject/reducers/account";
 import admin from "@inject/reducers/admin";
 import roles from "@inject/reducers/roles";
-import init from "@app/reducers/init";
+import init from "#oss/reducers/init";
 import user from "@inject/reducers/user";
 import featureFlag from "@inject/reducers/featureFlag";
 import additionalReducers from "@inject/reducers/additionalReducers";
 import {
   PollingSonarProjectsResource,
   SonarProjectsResource,
-} from "@app/exports/resources/SonarProjectsResource";
-import { resetFeatureFlagsResource } from "@app/exports/resources/FeaturesFlagsResource";
-import { getExploreState } from "@app/selectors/explore";
-import { log } from "@app/utils/logger";
+} from "#oss/exports/resources/SonarProjectsResource";
+import { resetFeatureFlagsResource } from "#oss/exports/resources/FeaturesFlagsResource";
+import { getExploreState } from "#oss/selectors/explore";
+import { log } from "#oss/utils/logger";
 
 import search from "./search";
 

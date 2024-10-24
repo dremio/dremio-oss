@@ -45,8 +45,8 @@ describe.skip("AddSourceModal", () => {
             links: {
               self: "someUrl",
             },
-          })
-        )
+          }),
+        ),
       ),
       spaces: Immutable.fromJS([{}]),
       sources: Immutable.fromJS([{}]),
@@ -136,7 +136,7 @@ describe.skip("AddSourceModal", () => {
       };
       const wrapper = shallow(
         <AddSourceModal {...commonProps} source={selectedSource} />,
-        { context }
+        { context },
       );
       instance = wrapper.instance();
     });
@@ -170,7 +170,7 @@ describe.skip("AddSourceModal", () => {
     it("isSubmitTakingLong should be true after 5 seconds", function () {
       const instance = shallow(
         <AddSourceModal {...commonProps} source={selectedSource} />,
-        { context }
+        { context },
       ).instance();
       instance.startTrackSubmitTime();
       this.clock.tick(5000);
@@ -183,7 +183,7 @@ describe.skip("AddSourceModal", () => {
     it("isSubmitTakingLong should be false and reset submitTimer", () => {
       const instance = shallow(
         <AddSourceModal {...commonProps} source={selectedSource} />,
-        { context }
+        { context },
       ).instance();
       instance.setState({
         isSubmitTakingLong: true,

@@ -32,6 +32,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.service.Service;
 import com.dremio.service.job.proto.JobAttempt;
+import com.dremio.service.job.proto.JobFailureInfo;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobResult;
@@ -145,8 +146,19 @@ public class JobResultsStore implements Service {
               .message(String.format(cancelledMessage))
               .build(logger);
         } else if (mostRecentJob.getState() == JobState.FAILED) {
-          String failureMessage =
-              mostRecentJob.getInfo().getDetailedFailureInfo().getErrorsList().get(0).getMessage();
+          JobFailureInfo detailedFailureInfo = mostRecentJob.getInfo().getDetailedFailureInfo();
+          String failureMessage;
+          if (detailedFailureInfo == null) {
+            failureMessage = mostRecentJob.getInfo().getFailureInfo();
+          } else {
+            failureMessage =
+                mostRecentJob
+                    .getInfo()
+                    .getDetailedFailureInfo()
+                    .getErrorsList()
+                    .get(0)
+                    .getMessage();
+          }
           throw UserException.dataReadError().message(failureMessage).build(logger);
         }
       }

@@ -25,13 +25,12 @@ import { logoutUser } from "@inject/actions/account";
 import accountMenuConfig from "@inject/components/SideNav/accountMenuConfig";
 
 import DividerHr from "components/Menus/DividerHr";
-import { HookConsumer } from "@app/containers/RouteLeave";
-import { showAccountSettingsModal } from "@app/actions/modals/accountSettingsActions";
+import { HookConsumer } from "#oss/containers/RouteLeave";
+import { showAccountSettingsModal } from "#oss/actions/modals/accountSettingsActions";
 
 import * as classes from "./AccountMenu.module.less";
 
 const AccountMenu = (props) => {
-  // eslint-disable-next-line no-shadow
   const { close, openAccountSettingsModal, logoutUser } = props;
 
   const onAccountSettings = () => {

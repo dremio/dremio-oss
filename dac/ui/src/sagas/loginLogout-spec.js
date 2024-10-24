@@ -21,19 +21,19 @@ import {
   checkAppState,
   resetAppInitState,
   handleAppStop,
-} from "@app/sagas/loginLogout";
-import { LOGIN_USER_SUCCESS } from "@app/actions/account";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+} from "#oss/sagas/loginLogout";
+import { LOGIN_USER_SUCCESS } from "#oss/actions/account";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 import { expect } from "chai";
 import { default as handleAppInitHelper } from "@inject/sagas/utils/handleAppInit";
 import { isAuthorized } from "@inject/sagas/utils/isAuthorized";
-import { appInitComplete } from "@app/actions/app";
+import { appInitComplete } from "#oss/actions/app";
 
 describe("login", () => {
   it("afterLogin calls handleLogin saga if LOGIN_USER_SUCCESS is dispatched", () => {
     const gen = afterLogin();
     expect(gen.next().value).to.be.eql(
-      takeLatest(LOGIN_USER_SUCCESS, handleLogin)
+      takeLatest(LOGIN_USER_SUCCESS, handleLogin),
     );
     expect(gen.next().done).to.be.true;
   });
@@ -90,7 +90,7 @@ describe("login", () => {
 
     it("clears current user data is a user in not authorized anymore", () => {
       expect(gen.next(false).value).to.be.eql(
-        call([localStorageUtils, localStorageUtils.clearUserData])
+        call([localStorageUtils, localStorageUtils.clearUserData]),
       );
       expect(gen.next(true).value).to.be.eql(put(appInitComplete()));
     });

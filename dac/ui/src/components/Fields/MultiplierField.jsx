@@ -21,7 +21,7 @@ import classNames from "clsx";
 // use a PrevalidatedTextField as a buffer to that you can temporarily have invalid numbers while typing (e.g. empty-string)
 import PrevalidatedTextField from "components/Fields/PrevalidatedTextField";
 import Select from "components/Fields/Select";
-import { rowOfInputsSpacing } from "@app/uiTheme/less/forms.less";
+import { rowOfInputsSpacing } from "#oss/uiTheme/less/forms.less";
 
 export default class MultiplierField extends Component {
   static propTypes = {
@@ -155,7 +155,7 @@ export default class MultiplierField extends Component {
         />
         <Select
           items={Array.from(this.getFilteredUnitMultipliers().keys()).map(
-            (size) => ({ label: size })
+            (size) => ({ label: size }),
           )}
           value={this.getUnit()}
           disabled={this.props.disabled}

@@ -39,6 +39,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import java.util.Iterator;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 @JsonTypeName("writer-committer")
 public class WriterCommitterPOP extends AbstractSingle {
@@ -54,6 +55,7 @@ public class WriterCommitterPOP extends AbstractSingle {
   private final StoragePluginId sourceTablePluginId;
   private final StoragePlugin sourceTablePlugin;
   private final TableFormatWriterOptions tableFormatOptions;
+  @Nullable private final String userId;
 
   @JsonCreator
   public WriterCommitterPOP(
@@ -69,7 +71,8 @@ public class WriterCommitterPOP extends AbstractSingle {
       @JsonProperty("isReadSignatureEnabled") boolean isReadSignatureEnabled,
       @JsonProperty("sourceTablePluginId") StoragePluginId sourceTablePluginId,
       @JsonProperty("tableFormatOptions") TableFormatWriterOptions tableFormatOptions,
-      @JacksonInject StoragePluginResolver storagePluginResolver) {
+      @JacksonInject StoragePluginResolver storagePluginResolver,
+      @JsonProperty("userId") String userId) {
     super(props, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
@@ -83,6 +86,7 @@ public class WriterCommitterPOP extends AbstractSingle {
     this.tableFormatOptions = tableFormatOptions;
     this.sourceTablePlugin =
         sourceTablePluginId != null ? storagePluginResolver.getSource(sourceTablePluginId) : null;
+    this.userId = userId;
   }
 
   public WriterCommitterPOP(
@@ -98,7 +102,8 @@ public class WriterCommitterPOP extends AbstractSingle {
       boolean isPartialRefresh,
       boolean isReadSignatureEnabled,
       TableFormatWriterOptions tableFormatOptions,
-      StoragePluginId sourceTablePluginId) {
+      StoragePluginId sourceTablePluginId,
+      final String userId) {
     super(props, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
@@ -111,6 +116,7 @@ public class WriterCommitterPOP extends AbstractSingle {
     this.readSignatureEnabled = isReadSignatureEnabled;
     this.tableFormatOptions = tableFormatOptions;
     this.sourceTablePluginId = sourceTablePluginId;
+    this.userId = userId;
   }
 
   @Override
@@ -134,7 +140,8 @@ public class WriterCommitterPOP extends AbstractSingle {
         partialRefresh,
         readSignatureEnabled,
         tableFormatOptions,
-        sourceTablePluginId);
+        sourceTablePluginId,
+        userId);
   }
 
   public String getTempLocation() {
@@ -201,5 +208,9 @@ public class WriterCommitterPOP extends AbstractSingle {
 
   public TableFormatWriterOptions getTableFormatOptions() {
     return tableFormatOptions;
+  }
+
+  public String getUserId() {
+    return userId;
   }
 }

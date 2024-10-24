@@ -15,24 +15,24 @@
  */
 import { PureComponent } from "react";
 import { connect } from "react-redux";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import classNames from "clsx";
 import TextHighlight from "components/TextHighlight";
 import EllipsedText from "components/EllipsedText";
 import { getStarredItemIds } from "selectors/tree";
-import { getIsStarred } from "@app/components/Tree/resourceTreeUtils";
+import { getIsStarred } from "#oss/components/Tree/resourceTreeUtils";
 // need this util as MainInfoItemName.js wraps label into a link. If we do not block event bubbling
 // redirect would occur
-import { stopPropagation } from "@app/utils/reactEventUtils";
+import { stopPropagation } from "#oss/utils/reactEventUtils";
 import { IconButton } from "dremio-ui-lib";
 import { Popover } from "dremio-ui-lib/components";
 import DatasetOverlayContent from "./DatasetOverlayContent";
 import DatasetSummaryOverlay from "./DatasetSummaryOverlay";
-import WikiDrawerWrapper from "@app/components/WikiDrawerWrapper";
+import WikiDrawerWrapper from "#oss/components/WikiDrawerWrapper";
 import { ARSFeatureSwitch } from "@inject/utils/arsUtils";
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 
 import "./DatasetItemLabel.less";
 

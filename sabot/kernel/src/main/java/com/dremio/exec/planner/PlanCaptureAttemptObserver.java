@@ -18,11 +18,13 @@ package com.dremio.exec.planner;
 import com.dremio.common.exceptions.UserCancellationException;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.descriptor.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo.Substitution;
+import com.dremio.exec.planner.common.PlannerMetrics;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -59,6 +61,8 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -229,6 +233,8 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   @Override
   public void planAccelerated(final SubstitutionInfo info) {
     accelerated = true;
+    Set<String> targetTypes = new TreeSet<>();
+
     for (Substitution sub : info.getSubstitutions()) {
       final MaterializationDescriptor descriptor = sub.getMaterialization();
       final String key = descriptor.getLayoutId();
@@ -239,8 +245,26 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
             LayoutMaterializedViewProfile.newBuilder(lmvProfile)
                 .setNumUsed(lmvProfile.getNumUsed() + 1)
                 .build();
+        // All materialization targets in the same reflection have the same target type so we only
+        // need to record the first one.
+        if (profile.getNormalizedPlansCount() > 0 && lmvProfile.getNumUsed() == 0) {
+          final int index = profile.getNormalizedPlans(0).indexOf("_target");
+          if (index >= 0 && index < ViewExpansionContext.DEFAULT_RAW_TARGET.length()) {
+            final String targetType = profile.getNormalizedPlans(0).substring(0, index);
+            targetTypes.add(targetType);
+          }
+        }
         mapIdToAccelerationProfile.put(key, profile);
       }
+    }
+    if (targetTypes.isEmpty()) {
+      targetTypes.add("unknown_matching");
+    }
+    // FlightSQL replays the profile for the execute job so don't double count on the execute job
+    if (this.numJoinsInUserQuery != null) {
+      PlannerMetrics.getAcceleratedQueriesCounter()
+          .withTag(PlannerMetrics.TAG_TARGET, targetTypes.toString())
+          .increment();
     }
     detailsPopulator.planAccelerated(info);
   }
@@ -336,7 +360,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
               .addAllDisplayColumns(materialization.getLayoutInfo().getDisplayColumns())
               .setNumSubstitutions(substitutions.size())
               .setMillisTakenSubstituting(millisTaken)
-              .setPlan(toStringOrEmpty(materialization.getOriginal(), false))
+              .setPlan(toStringOrEmpty(materialization.getQueryRel(), false))
               .addNormalizedPlans(toProfilePlan(target))
               .setSnowflake(materialization.isSnowflake())
               .setDefaultReflection(defaultReflection);

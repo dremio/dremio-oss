@@ -17,12 +17,12 @@
 import { useEffect } from "react";
 import { useResourceSnapshot } from "smart-resource/react";
 
-import SQLFunctionsResource from "@app/resources/SQLFunctionsResource";
-import { ModifiedSQLFunction } from "@app/endpoints/SQLFunctions/listSQLFunctions";
+import SQLFunctionsResource from "#oss/resources/SQLFunctionsResource";
+import { ModifiedSQLFunction } from "#oss/endpoints/SQLFunctions/listSQLFunctions";
 
 export const useSqlFunctions = (): [
   sqlFunctions: ModifiedSQLFunction[] | null,
-  sqlFunctionsError: any
+  sqlFunctionsError: any,
 ] => {
   const [sqlFunctions, sqlFunctionsErr] =
     useResourceSnapshot(SQLFunctionsResource);

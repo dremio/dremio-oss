@@ -15,8 +15,7 @@
  */
 package com.dremio.dac.service.catalog;
 
-import com.dremio.common.util.Closeable;
-import com.dremio.dac.model.common.NamespacePath;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.service.collaboration.CollaborationTagStore;
 import com.dremio.dac.service.collaboration.CollaborationWikiStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -46,22 +45,28 @@ import com.dremio.services.pubsub.inprocess.InProcessPubSubClientProvider;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Timestamp;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Listens to catalog events, converts them to search documents and publishes the documents to
  * search index subscriber.
  */
 @Singleton
-public class CatalogSearchPublisherImpl implements CatalogSearchPublisher, Closeable {
+public class CatalogSearchPublisherImpl implements CatalogSearchPublisher {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(CatalogSearchPublisherImpl.class);
+
+  private static final int PATH_PREFIX_LIMIT = 15;
 
   private final Provider<NamespaceService> namespaceServiceProvider;
   private final LegacyKVStoreProvider legacyKVStoreProvider;
@@ -147,10 +152,14 @@ public class CatalogSearchPublisherImpl implements CatalogSearchPublisher, Close
         ImmutableList.builder();
     for (CatalogEventProto.CatalogEventMessage.CatalogEvent event :
         catalogEventMessage.getEventsList()) {
+      // Skip events for internal catalog objects.
+      if (isIgnoreEvent(event)) {
+        continue;
+      }
+
       // Document id contains only path for non-versioned catalog entities.
-      String path = NamespacePath.defaultImpl(event.getPathList()).toPathString();
-      SearchDocumentIdProto.SearchDocumentId documentId =
-          SearchDocumentIdProto.SearchDocumentId.newBuilder().setPath(path).build();
+      List<String> path = event.getPathList();
+      SearchDocumentIdProto.SearchDocumentId documentId = buildDocumentId(path);
       SearchDocumentMessageProto.SearchDocumentMessage searchDocumentMessage;
       switch (event.getEventType()) {
         case CATALOG_EVENT_TYPE_DELETED:
@@ -188,6 +197,21 @@ public class CatalogSearchPublisherImpl implements CatalogSearchPublisher, Close
     return resultListBuilder.build();
   }
 
+  protected SearchDocumentIdProto.SearchDocumentId buildDocumentId(List<String> path) {
+    return SearchDocumentIdProto.SearchDocumentId.newBuilder().addAllPath(path).build();
+  }
+
+  private static boolean isIgnoreEvent(CatalogEventProto.CatalogEventMessage.CatalogEvent event) {
+    if (event.getPathCount() == 0) {
+      logger.error("Empty path: {}", event);
+      return false;
+    }
+    String root = event.getPath(0);
+    return root.startsWith("__")
+        || "INFORMATION_SCHEMA".equalsIgnoreCase(root)
+        || "$scratch".equals(root);
+  }
+
   /**
    * Convert catalog event to search document. Allow derived classes to override to augment the doc.
    */
@@ -203,13 +227,17 @@ public class CatalogSearchPublisherImpl implements CatalogSearchPublisher, Close
     }
 
     SearchDocumentProto.CatalogObject.Builder catalogObjectBuilder =
-        SearchDocumentProto.CatalogObject.newBuilder()
-            .setPath(NamespacePath.defaultImpl(event.getPathList()).toPathString());
+        SearchDocumentProto.CatalogObject.newBuilder().addAllPath(event.getPathList());
+
+    // Generate sub_paths and add them to the proto.
+    List<String> subPaths = getSubPaths(event);
+    catalogObjectBuilder.addAllSubPaths(subPaths);
 
     // Get entity id, timestamps, and columns.
     String entityId;
     Long createdAt = null;
     Long lastModified = null;
+    SearchDocumentProto.SearchDocument.Category category;
     switch (container.getType()) {
       case FUNCTION:
         FunctionConfig functionConfig = container.getFunction();
@@ -220,10 +248,11 @@ public class CatalogSearchPublisherImpl implements CatalogSearchPublisher, Close
           // For search include function body only, int the example:
           //   CREATE FUNCTION multiply(INT x, INT y) RETURNS SELECT x*y
           // the text after RETURNS.
-          catalogObjectBuilder.setUdfSql(
+          catalogObjectBuilder.setFunctionSql(
               functionConfig.getFunctionDefinitionsList().get(0).getFunctionBody().getRawBody());
         }
-        catalogObjectBuilder.setType("UDF");
+        catalogObjectBuilder.setType("FUNCTION");
+        category = SearchDocumentProto.SearchDocument.Category.CATEGORY_UDF;
         break;
       case DATASET:
         DatasetConfig datasetConfig = container.getDataset();
@@ -232,12 +261,22 @@ public class CatalogSearchPublisherImpl implements CatalogSearchPublisher, Close
         lastModified = datasetConfig.getLastModified();
 
         // Column names from schema.
-        catalogObjectBuilder.addAllColumns(
-            CalciteArrowHelper.fromDataset(datasetConfig).getFields().stream()
-                .map(Field::getName)
-                .collect(Collectors.toUnmodifiableList()));
+        try {
+          catalogObjectBuilder.addAllColumns(
+              CalciteArrowHelper.fromDataset(datasetConfig).getFields().stream()
+                  .map(Field::getName)
+                  .collect(Collectors.toUnmodifiableList()));
+        } catch (IllegalStateException ignore) {
+          // Schema may not be set correctly until after metadata refresh.
+        }
 
-        catalogObjectBuilder.setType(datasetConfig.getVirtualDataset() != null ? "VIEW" : "TABLE");
+        if (datasetConfig.getVirtualDataset() != null) {
+          catalogObjectBuilder.setType("VIEW");
+          category = SearchDocumentProto.SearchDocument.Category.CATEGORY_VIEW;
+        } else {
+          catalogObjectBuilder.setType("TABLE");
+          category = SearchDocumentProto.SearchDocument.Category.CATEGORY_TABLE;
+        }
         break;
       case SOURCE:
         SourceConfig sourceConfig = container.getSource();
@@ -245,18 +284,22 @@ public class CatalogSearchPublisherImpl implements CatalogSearchPublisher, Close
         createdAt = sourceConfig.getCtime();
         lastModified = sourceConfig.getLastModifiedAt();
         catalogObjectBuilder.setType("SOURCE");
+        category = SearchDocumentProto.SearchDocument.Category.CATEGORY_SOURCE;
         break;
       case FOLDER:
         entityId = container.getFolder().getId().getId();
         catalogObjectBuilder.setType("FOLDER");
+        category = SearchDocumentProto.SearchDocument.Category.CATEGORY_FOLDER;
         break;
       case SPACE:
         entityId = container.getSpace().getId().getId();
         catalogObjectBuilder.setType("SPACE");
+        category = SearchDocumentProto.SearchDocument.Category.CATEGORY_SPACE;
         break;
       case HOME:
         entityId = container.getHome().getId().getId();
         catalogObjectBuilder.setType("SPACE");
+        category = SearchDocumentProto.SearchDocument.Category.CATEGORY_SPACE;
         break;
       default:
         // Throw NamespaceException to ack catalog event.
@@ -279,11 +322,36 @@ public class CatalogSearchPublisherImpl implements CatalogSearchPublisher, Close
         .ifPresent(wiki -> catalogObjectBuilder.setWiki(wiki.getText()));
     tagStore
         .getTagsForEntityId(entityId)
-        .ifPresent(labels -> catalogObjectBuilder.addAllLabels(labels.getTagsList()));
+        .flatMap(labelsContainer -> Optional.ofNullable(labelsContainer.getTagsList()))
+        .ifPresent(catalogObjectBuilder::addAllLabels);
 
     return SearchDocumentProto.SearchDocument.newBuilder()
+        .setCategory(category)
         .setCatalogObject(catalogObjectBuilder.build())
         .build();
+  }
+
+  @NotNull
+  private static List<String> getSubPaths(
+      CatalogEventProto.CatalogEventMessage.CatalogEvent event) {
+    List<String> pathList = event.getPathList();
+    List<String> subPaths = new ArrayList<>();
+    List<String> prefixList = new ArrayList<>();
+
+    for (int i = 0; i < pathList.size() && i < PATH_PREFIX_LIMIT; i++) {
+      String pathComponent = pathList.get(i);
+      // Add the literal.
+      String literal = PathUtils.constructFullPath(Collections.singletonList(pathComponent));
+      subPaths.add(literal);
+      // Add the component to prefixList for constructing the prefix.
+      prefixList.add(pathComponent);
+      // Only add the prefix to subPaths after the first component.
+      if (i > 0) {
+        String prefix = PathUtils.constructFullPath(prefixList);
+        subPaths.add(prefix);
+      }
+    }
+    return subPaths;
   }
 
   private static Timestamp timestampFromMillis(long epochMillis) {

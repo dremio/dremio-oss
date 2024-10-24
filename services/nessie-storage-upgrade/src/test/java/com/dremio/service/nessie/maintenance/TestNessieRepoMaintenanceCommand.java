@@ -21,9 +21,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.common.SuppressForbidden;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.datastore.api.IndexedStore;
 import com.dremio.service.embedded.catalog.EmbeddedUnversionedStore;
-import com.dremio.service.namespace.NamespaceServiceImpl.NamespaceStoreCreator;
+import com.dremio.service.namespace.NamespaceStore;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
@@ -91,8 +90,7 @@ class TestNessieRepoMaintenanceCommand {
                 ContentKey.of("dremio.internal", "test3/" + tableId3),
                 IcebergTable.of("t3", 0, 0, 0, 0))));
 
-    IndexedStore<String, NameSpaceContainer> namespace =
-        storeProvider.getStore(NamespaceStoreCreator.class);
+    NamespaceStore namespace = new NamespaceStore(() -> storeProvider);
     IcebergMetadata metadata = new IcebergMetadata();
     metadata.setTableUuid(tableId3);
     metadata.setMetadataFileLocation("test-location");

@@ -34,7 +34,7 @@ describe("DatasetOverviewForm", () => {
     const wrapper = shallow(
       <DatasetOverviewForm
         entity={Immutable.Map({ entityType: "VIRTUAL_DATASET" })}
-      />
+      />,
     );
     expect(wrapper.find(DatasetItemLabel)).to.have.length(1);
     expect(wrapper.find(FormBody)).to.have.length(1);

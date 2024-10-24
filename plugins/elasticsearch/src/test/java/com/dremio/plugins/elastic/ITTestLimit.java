@@ -627,7 +627,14 @@ public class ITTestLimit extends ElasticBaseTestQuery {
     ProfileGrabber grabber = new ProfileGrabber();
     getLocalQueryExecutor()
         .submitLocalQuery(
-            ExternalIdHelper.generateExternalId(), grabber, queryCmd, false, config, false, null);
+            ExternalIdHelper.generateExternalId(),
+            grabber,
+            queryCmd,
+            false,
+            config,
+            false,
+            null,
+            System.currentTimeMillis());
     QueryProfile profile = grabber.getProfile();
 
     profile =

@@ -22,8 +22,8 @@ import SummarySubHeader from "../DatasetSummary/components/SummarySubHeader/Summ
 import { getIconType } from "../DatasetSummary/datasetSummaryUtils";
 import RenderStat from "../DatasetSummary/components/SummaryStats/RenderStat";
 import { formatDateTimestampShortNoTZ } from "dremio-ui-common/utilities/formatDate.js";
-import { PureEntityIcon } from "@app/pages/HomePage/components/EntityIcon";
-import { ENTITY_TYPES } from "@app/constants/Constants";
+import { PureEntityIcon } from "#oss/pages/HomePage/components/EntityIcon";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
 import { Button, Skeleton } from "dremio-ui-lib/components";
 
 import * as summaryClasses from "../DatasetSummary/DatasetSummary.module.less";
@@ -57,7 +57,7 @@ const EntitySummary = ({
       <div
         className={clsx(
           summaryClasses["dataset-summary-top-section"],
-          summaryClasses["dataset-summary-sqleditor"]
+          summaryClasses["dataset-summary-sqleditor"],
         )}
       >
         {!isPanel && (

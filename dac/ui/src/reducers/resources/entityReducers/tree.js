@@ -22,7 +22,7 @@ import {
   resourceTreeNodeDecorator,
   clearResourcesByName,
   clearResourceTree,
-} from "@app/components/Tree/resourceTreeUtils";
+} from "#oss/components/Tree/resourceTreeUtils";
 
 export default (state, action) => {
   switch (action.type) {

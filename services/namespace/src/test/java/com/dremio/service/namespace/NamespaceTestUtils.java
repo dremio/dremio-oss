@@ -75,23 +75,21 @@ public final class NamespaceTestUtils {
   }
 
   public static void addDS(NamespaceService ns, String name) throws Exception {
-    final NamespaceKey dsPath = new NamespaceKey(PathUtils.parseFullPath(name));
-    final DatasetConfig ds = new DatasetConfig();
-    final VirtualDataset vds = new VirtualDataset();
-    vds.setVersion(DatasetVersion.newVersion());
-    ds.setType(DatasetType.VIRTUAL_DATASET);
-    ds.setVirtualDataset(vds);
-    ds.setFullPathList(dsPath.getPathComponents());
-    ds.setName(dsPath.getName());
-    ns.addOrUpdateDataset(dsPath, ds);
+    addDS(ns, name, null);
   }
 
   public static void addDS(NamespaceService ns, String name, String sql) throws Exception {
+    addDS(ns, name, sql, false);
+  }
+
+  public static void addDS(NamespaceService ns, String name, String sql, boolean schemaOutdated)
+      throws Exception {
     final NamespaceKey dsPath = new NamespaceKey(PathUtils.parseFullPath(name));
     final DatasetConfig ds = new DatasetConfig();
     final VirtualDataset vds = new VirtualDataset();
     vds.setVersion(DatasetVersion.newVersion());
     vds.setSql(sql);
+    vds.setSchemaOutdated(schemaOutdated);
     ds.setType(DatasetType.VIRTUAL_DATASET);
     ds.setVirtualDataset(vds);
     ds.setFullPathList(dsPath.getPathComponents());

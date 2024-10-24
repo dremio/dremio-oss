@@ -16,6 +16,7 @@
 package com.dremio.sabot.exec;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
@@ -25,7 +26,11 @@ import com.dremio.common.util.LoadingCacheWithExpiry;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.FragmentSetupException;
+import com.dremio.exec.maestro.FragmentSubmitListener;
+import com.dremio.exec.maestro.FragmentSubmitListener.FragmentSubmitFailures;
+import com.dremio.exec.maestro.FragmentSubmitListener.FragmentSubmitSuccess;
 import com.dremio.exec.planner.fragment.CachedFragmentReader;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
 import com.dremio.exec.proto.CoordExecRPC;
@@ -34,8 +39,10 @@ import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentSet;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
 import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.ExecRPC.DlrMessageType;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -46,11 +53,13 @@ import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.FragmentWorkManager.ExitCallback;
+import com.dremio.sabot.exec.context.DlrStatusHandler;
 import com.dremio.sabot.exec.context.HeapAllocatedMXBeanWrapper;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
+import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.memory.MemoryArbiter;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.TaskMonitorObserver;
@@ -66,6 +75,8 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Empty;
 import io.grpc.stub.StreamObserver;
+import io.micrometer.core.instrument.MultiGauge.Row;
+import io.micrometer.core.instrument.Tags;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -80,6 +91,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.arrow.memory.BufferAllocator;
 
@@ -90,6 +102,9 @@ public class FragmentExecutors
       org.slf4j.LoggerFactory.getLogger(FragmentExecutors.class);
   private static final int LOG_BUFFER_SIZE = 32 * 1024;
   private static final Response OK = new Response(RpcType.ACK, Acks.OK);
+
+  private static final long RPC_WAIT_IN_MSECS_PER_FRAGMENT = 5000L;
+  private static final long RPC_MIN_WAIT_IN_MSECS = 30000L;
 
   private final LoadingCacheWithExpiry<FragmentHandle, FragmentHandler> handlers;
   private final Set<FragmentHandle> fragmentsRequestingCancellation =
@@ -107,6 +122,7 @@ public class FragmentExecutors
   // pre-allocate a 1MB log buffer to log during low mem
   private final StringBuilder logBuffer;
   private final NodeDebugContextProvider nodeDebugContext;
+  private final QueriesClerk clerk;
 
   public FragmentExecutors(
       final BootStrapContext context,
@@ -151,8 +167,9 @@ public class FragmentExecutors
             sabotConfig, (DremioRootAllocator) this.allocator, this, clerk, options);
     this.pool.getTaskMonitor().addObserver(this);
     this.logBuffer = new StringBuilder(LOG_BUFFER_SIZE);
-    SchedulerMetrics.registerActiveFragmentsCurrentCount(this);
+    ExecutionMetrics.registerActiveFragmentsCurrentCount(this);
     this.nodeDebugContext = nodeDebugContext;
+    this.clerk = clerk;
   }
 
   @VisibleForTesting
@@ -177,7 +194,7 @@ public class FragmentExecutors
   }
 
   @Override
-  public void observeTaskMonitorEvent() {
+  public void observeTaskMonitorEvent(boolean statsUpdated) {
     // monitor cancelled fragments
     long currentTimeMs = System.currentTimeMillis();
     FragmentHandle[] cancelledFragments =
@@ -194,6 +211,25 @@ public class FragmentExecutors
       }
 
       fragmentExecutor.logDebugInfoForCancelledTasks(currentTimeMs);
+    }
+
+    if (statsUpdated) {
+      ExecutionMetrics.getFragmentStateGauge()
+          .register(
+              handlers.asMap().values().stream()
+                  .map(FragmentHandler::getExecutor)
+                  .filter(Predicates.<FragmentExecutor>notNull())
+                  .collect(
+                      Collectors.groupingBy(
+                          FragmentExecutor::getMetricState, Collectors.counting()))
+                  .entrySet() /* The map from the collect is a key per `getMetricState` with the       */
+                  .stream() /*   value as the count of FragmentExecutor objects that returned that key */
+                  .map((entry) -> Row.of(Tags.of("state", entry.getKey()), entry.getValue()))
+                  .collect(
+                      Collectors
+                          .toList()), /* This constructs a row per `getMetricState` key as the tag
+                                       * With the count as the metric value for that row. */
+              true /* this says to overwrite previous values */);
     }
   }
 
@@ -283,6 +319,134 @@ public class FragmentExecutors
     return handlers.getUnchecked(handle);
   }
 
+  public void sendMessage(
+      QueryId queryId,
+      TunnelProvider tunnelProvider,
+      NodeEndpoint endpoint,
+      DlrMessageType messageType,
+      ExtendedLatch latch,
+      FragmentSubmitFailures fragmentSubmitFailures,
+      FragmentSubmitSuccess fragmentSubmitSuccess) {
+    DynamicLoadRoutingMessage message =
+        new DynamicLoadRoutingMessage(queryId, messageType.getNumber());
+    final FragmentSubmitListener listener =
+        new FragmentSubmitListener(
+            null, endpoint, null, latch, fragmentSubmitFailures, fragmentSubmitSuccess, null, null);
+
+    DlrStatusHandler dlrStatusHandler = new DlrStatusHandler(listener);
+
+    tunnelProvider.getExecTunnelDlr(endpoint, dlrStatusHandler).sendDLRMessage(message);
+    logger.debug("nodepoint {}", endpoint.getAddress());
+  }
+
+  public void sendMessageToAllNodes(
+      QueryId queryId,
+      TunnelProvider tunnelProvider,
+      List<NodeEndpoint> endPointsIndexList,
+      DlrMessageType messageType) {
+    int numNodes = endPointsIndexList.size();
+    final ExtendedLatch endpointLatch = new ExtendedLatch(numNodes);
+    final FragmentSubmitFailures fragmentSubmitFailures = new FragmentSubmitFailures();
+    final FragmentSubmitSuccess fragmentSubmitSuccess = new FragmentSubmitSuccess();
+
+    for (NodeEndpoint endpoint : endPointsIndexList) {
+      sendMessage(
+          queryId,
+          tunnelProvider,
+          endpoint,
+          messageType,
+          endpointLatch,
+          fragmentSubmitFailures,
+          fragmentSubmitSuccess);
+    }
+
+    final long timeout =
+        Long.max(
+            RPC_WAIT_IN_MSECS_PER_FRAGMENT * numNodes,
+            Long.max(
+                RPC_MIN_WAIT_IN_MSECS,
+                this.options.getOption(ExecConstants.FRAGMENT_STARTER_TIMEOUT)));
+
+    try {
+      FragmentSubmitListener.awaitUninterruptibly(
+          endPointsIndexList,
+          endpointLatch,
+          fragmentSubmitFailures,
+          fragmentSubmitSuccess,
+          numNodes,
+          timeout);
+    } catch (Exception e) {
+      sendReleaseResourceTimeOut(
+          queryId,
+          tunnelProvider,
+          endPointsIndexList,
+          fragmentSubmitFailures,
+          fragmentSubmitSuccess);
+      throw e;
+    }
+
+    try {
+      FragmentSubmitListener.checkForExceptions(fragmentSubmitFailures);
+    } catch (Exception e) {
+      sendReleaseResourceException(
+          queryId,
+          tunnelProvider,
+          endPointsIndexList,
+          fragmentSubmitFailures,
+          fragmentSubmitSuccess);
+      throw e;
+    }
+  }
+
+  public void sendReleaseResourceException(
+      QueryId queryId,
+      TunnelProvider tunnelProvider,
+      List<NodeEndpoint> endPointsIndexList,
+      FragmentSubmitFailures fragmentSubmitFailures,
+      FragmentSubmitSuccess fragmentSubmitSuccess) {
+    for (final CoordinationProtos.NodeEndpoint ep : endPointsIndexList) {
+      if (fragmentSubmitSuccess.getSubmissionSuccesses().contains(ep)
+          && !fragmentSubmitFailures.listContains(ep)) {
+        logger.debug("Sending release resource to to {}", ep.getAddress());
+        sendMessage(queryId, tunnelProvider, ep, DlrMessageType.RELEASE_RESOURCE, null, null, null);
+      }
+    }
+  }
+
+  public void sendReleaseResourceTimeOut(
+      QueryId queryId,
+      TunnelProvider tunnelProvider,
+      List<NodeEndpoint> endPointsIndexList,
+      FragmentSubmitFailures fragmentSubmitFailures,
+      FragmentSubmitSuccess fragmentSubmitSuccess) {
+    for (final NodeEndpoint ep : endPointsIndexList) {
+      if (fragmentSubmitSuccess.getSubmissionSuccesses().contains(ep)) {
+        logger.debug("Sending release resource to {}", ep.getAddress());
+        sendMessage(queryId, tunnelProvider, ep, DlrMessageType.RELEASE_RESOURCE, null, null, null);
+      }
+    }
+  }
+
+  public synchronized void activateFragmentsDLR(QueryId queryId, QueriesClerk clerk) {
+    // TODO: any other way to get endpointsIndex?
+    EndpointsIndex e = clerk.getEndpointsIndex(queryId);
+    TunnelProvider tunnelProvider = clerk.getTunnelProvider(queryId);
+
+    try {
+      sendMessageToAllNodes(
+          queryId, tunnelProvider, e.getEndpoints(), DlrMessageType.RESERVE_RESOURCE);
+    } catch (Exception ex) {
+      throw ex;
+    }
+
+    try {
+      sendMessageToAllNodes(
+          queryId, tunnelProvider, e.getEndpoints(), DlrMessageType.ACTIVATE_FRAGMENTS);
+    } catch (Exception ex) {
+      throw ex;
+    }
+  }
+
   /**
    * Activate previously initialized fragments for the specified query. The fragments could have
    * already been activated if they received messages from other fragments.
@@ -292,6 +456,10 @@ public class FragmentExecutors
    */
   public void activateFragments(QueryId queryId, QueriesClerk clerk) {
     logger.debug("received activation for query {}", QueryIdHelper.getQueryId(queryId));
+    if (options.getOption(ExecConstants.ENABLE_DYNAMIC_LOAD_ROUTING)) {
+      activateFragmentsDLR(queryId, clerk);
+      return;
+    }
     for (FragmentTicket fragmentTicket : clerk.getFragmentTickets(queryId)) {
       activateFragment(fragmentTicket.getHandle());
     }
@@ -300,6 +468,10 @@ public class FragmentExecutors
   @VisibleForTesting
   void activateFragment(FragmentHandle handle) {
     handlers.getUnchecked(handle).activate();
+  }
+
+  TunnelProvider getTunnelProvider(FragmentHandle handle) {
+    return handlers.getUnchecked(handle).getTunnelProvider();
   }
 
   /*
@@ -412,6 +584,29 @@ public class FragmentExecutors
               .setMinorFragmentId(minorFragmentId)
               .build();
       handlers.getUnchecked(handle).handle(message);
+    }
+  }
+
+  public void handle(DynamicLoadRoutingMessage message) {
+    logger.error(
+        "queryid {} command {}",
+        QueryIdHelper.getQueryId(message.getQueryId()),
+        message.getCommand());
+    DlrMessageType dlrMessageType = DlrMessageType.values()[message.getCommand()];
+    switch (dlrMessageType) {
+      case ACTIVATE_FRAGMENTS:
+        for (FragmentTicket fragmentTicket : clerk.getFragmentTickets(message.getQueryId())) {
+          activateFragment(fragmentTicket.getHandle());
+        }
+        break;
+      case RESERVE_RESOURCE:
+        break;
+      case RELEASE_RESOURCE:
+        break;
+      case CANCEL_FRAGMENTS:
+        break;
+      default:
+        break;
     }
   }
 

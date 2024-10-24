@@ -15,7 +15,7 @@
  */
 
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-import { APIV3Call } from "@app/core/APICall";
+import { APIV3Call } from "#oss/core/APICall";
 
 type GetUserStatsParams = {
   end: number;
@@ -40,7 +40,7 @@ type UserStats = {
 };
 
 export const getUserStats = async (
-  params: GetUserStatsParams
+  params: GetUserStatsParams,
 ): Promise<UserStats> => {
   return getApiContext()
     .fetch(userStatsUrl(params))

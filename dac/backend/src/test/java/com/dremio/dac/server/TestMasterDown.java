@@ -55,6 +55,7 @@ import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
 import com.dremio.service.jobs.HybridJobsService;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.UserService;
@@ -292,6 +293,8 @@ public class TestMasterDown extends BaseClientUtils {
     OptionManager optionManager = currentDremioDaemon.getInstance(OptionManager.class);
     CatalogService catalogService = currentDremioDaemon.getInstance(CatalogService.class);
     UserService userService = currentDremioDaemon.getInstance(UserService.class);
+    CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider =
+        currentDremioDaemon.getInstance(CatalogEventMessagePublisherProvider.class);
     LegacyKVStoreProvider legacyKVStoreProvider =
         currentDremioDaemon.getInstance(LegacyKVStoreProvider.class);
 
@@ -326,6 +329,7 @@ public class TestMasterDown extends BaseClientUtils {
             currentDremioDaemon.getInstance(SearchService.class),
             userService,
             catalogService,
+            catalogEventMessagePublisherProvider,
             optionManager);
     SampleDataPopulator populator =
         new SampleDataPopulator(

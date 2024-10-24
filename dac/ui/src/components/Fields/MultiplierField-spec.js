@@ -50,30 +50,30 @@ describe("MultiplierField", () => {
 
   it("should render with proper units", () => {
     const wrapper = shallow(
-      <MultiplierField {...commonProps} value={1024 ** 3} />
+      <MultiplierField {...commonProps} value={1024 ** 3} />,
     );
     expect(wrapper.find("PrevalidatedTextField").props().value).to.equal(
-      "" + 1
+      "" + 1,
     );
     expect(wrapper.find("Select").props().value).to.equal("GB");
   });
 
   it("should render with lower units in cases where there would be a long decimal", () => {
     const wrapper = shallow(
-      <MultiplierField {...commonProps} value={1024 ** 3 + 1024 ** 2} />
+      <MultiplierField {...commonProps} value={1024 ** 3 + 1024 ** 2} />,
     );
     expect(wrapper.find("PrevalidatedTextField").props().value).to.equal(
-      "" + 1025
+      "" + 1025,
     );
     expect(wrapper.find("Select").props().value).to.equal("MB");
   });
 
   it("should render with proper units after external value change", () => {
     const wrapper = shallow(
-      <MultiplierField {...commonProps} value={1024 ** 4} />
+      <MultiplierField {...commonProps} value={1024 ** 4} />,
     );
     expect(wrapper.find("PrevalidatedTextField").props().value).to.equal(
-      "" + 1
+      "" + 1,
     );
     expect(wrapper.find("Select").props().value).to.equal("TB");
   });
@@ -87,7 +87,7 @@ describe("MultiplierField", () => {
     // stays in KB
     expect(wrapper.state().unit).to.equal("KB");
     expect(wrapper.find("PrevalidatedTextField").props().value).to.equal(
-      "" + 1024 ** 2
+      "" + 1024 ** 2,
     );
     expect(wrapper.find("Select").props().value).to.equal("KB");
   });
@@ -98,7 +98,7 @@ describe("MultiplierField", () => {
     expect(commonProps.onChange).to.have.been.calledWith(1024 ** 3);
     wrapper.setProps({ ...commonProps, value: 1024 ** 3 });
     expect(wrapper.find("PrevalidatedTextField").props().value).to.equal(
-      "" + 1
+      "" + 1,
     );
     expect(wrapper.find("Select").props().value).to.equal("GB");
   });
@@ -107,57 +107,57 @@ describe("MultiplierField", () => {
     it("0", () => {
       const wrapper = shallow(<MultiplierField {...commonProps} min={0} />);
       expect(wrapper.find("PrevalidatedTextField").props().value).to.equal(
-        "" + 1
+        "" + 1,
       );
       expect(wrapper.find("Select").props().value).to.equal("KB");
       expect(
         wrapper
           .find("Select")
           .props()
-          .items.map((e) => e.label)
+          .items.map((e) => e.label),
       ).to.eql([...MULTIPLIERS.keys()]);
     });
     it("1", () => {
       const wrapper = shallow(<MultiplierField {...commonProps} min={1} />);
       expect(wrapper.find("PrevalidatedTextField").props().value).to.equal(
-        "" + 1
+        "" + 1,
       );
       expect(wrapper.find("Select").props().value).to.equal("KB");
       expect(
         wrapper
           .find("Select")
           .props()
-          .items.map((e) => e.label)
+          .items.map((e) => e.label),
       ).to.eql([...MULTIPLIERS.keys()]);
     });
     it("Infinity", () => {
       const wrapper = shallow(
-        <MultiplierField {...commonProps} min={Infinity} />
+        <MultiplierField {...commonProps} min={Infinity} />,
       );
       expect(wrapper.find("PrevalidatedTextField").props().value).to.equal(
-        "0.00000000093132257462"
+        "0.00000000093132257462",
       );
       expect(wrapper.find("Select").props().value).to.equal("TB");
       expect(
         wrapper
           .find("Select")
           .props()
-          .items.map((e) => e.label)
+          .items.map((e) => e.label),
       ).to.eql([...MULTIPLIERS.keys()].slice(-1));
     });
     it("an exact multiplier", () => {
       const wrapper = shallow(
-        <MultiplierField {...commonProps} min={[...MULTIPLIERS.values()][1]} />
+        <MultiplierField {...commonProps} min={[...MULTIPLIERS.values()][1]} />,
       );
       expect(wrapper.find("PrevalidatedTextField").props().value).to.equal(
-        "" + 1
+        "" + 1,
       );
       expect(wrapper.find("Select").props().value).to.equal("KB");
       expect(
         wrapper
           .find("Select")
           .props()
-          .items.map((e) => e.label)
+          .items.map((e) => e.label),
       ).to.eql([...MULTIPLIERS.keys()].slice(1));
     });
     it("between two multipliers", () => {
@@ -165,17 +165,17 @@ describe("MultiplierField", () => {
         <MultiplierField
           {...commonProps}
           min={[...MULTIPLIERS.values()][1] + 1}
-        />
+        />,
       );
       expect(wrapper.find("PrevalidatedTextField").props().value).to.equal(
-        "" + 1
+        "" + 1,
       );
       expect(wrapper.find("Select").props().value).to.equal("KB");
       expect(
         wrapper
           .find("Select")
           .props()
-          .items.map((e) => e.label)
+          .items.map((e) => e.label),
       ).to.eql([...MULTIPLIERS.keys()].slice(1));
     });
   });

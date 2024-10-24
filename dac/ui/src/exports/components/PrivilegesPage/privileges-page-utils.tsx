@@ -23,10 +23,10 @@ import { renderPrivilegesColumns } from "dremio-ui-common/components/PrivilegesT
 import { Avatar } from "dremio-ui-lib/components";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
-import { nameToInitials } from "@app/exports/utilities/nameToInitials";
-import SettingsBtn from "@app/components/Buttons/SettingsBtn";
-import Menu from "@app/components/Menus/Menu";
-import MenuItem from "@app/components/Menus/MenuItem";
+import { nameToInitials } from "#oss/exports/utilities/nameToInitials";
+import SettingsBtn from "#oss/components/Buttons/SettingsBtn";
+import Menu from "#oss/components/Menus/Menu";
+import MenuItem from "#oss/components/Menus/MenuItem";
 import { GranteeData } from "./PrivilegesPage";
 
 import * as classes from "./PrivilegesPage.module.less";

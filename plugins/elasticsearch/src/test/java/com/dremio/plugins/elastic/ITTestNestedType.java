@@ -18,7 +18,6 @@ package com.dremio.plugins.elastic;
 import static com.dremio.TestBuilder.listOf;
 import static com.dremio.TestBuilder.mapOf;
 
-import com.dremio.exec.proto.UserBitShared;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import org.junit.Ignore;
@@ -56,8 +55,6 @@ public class ITTestNestedType extends ElasticBaseTestQuery {
             + "."
             + table
             + " t";
-
-    testRunAndPrint(UserBitShared.QueryType.SQL, sql);
 
     testBuilder()
         .sqlQuery(sql)
@@ -101,8 +98,6 @@ public class ITTestNestedType extends ElasticBaseTestQuery {
             + table
             + " t";
 
-    testRunAndPrint(UserBitShared.QueryType.SQL, sql);
-
     // TODO DX-4902 - this schema returned when this is pushed down is currently incorrect,
     // The test above that runs a select *, rather than referencing the fields individually returns
     // the correct schema
@@ -139,8 +134,6 @@ public class ITTestNestedType extends ElasticBaseTestQuery {
             + "."
             + table
             + " t";
-
-    testRunAndPrint(UserBitShared.QueryType.SQL, sql);
 
     testBuilder()
         .sqlQuery(sql)
@@ -205,8 +198,6 @@ public class ITTestNestedType extends ElasticBaseTestQuery {
             + table
             + " t";
 
-    testRunAndPrint(UserBitShared.QueryType.SQL, sql);
-
     // TODO DX-4902 - this schema returned when this is pushed down is currently incorrect,
     // The test above that runs a select *, rather than referencing the fields individually returns
     // the correct schema
@@ -248,8 +239,6 @@ public class ITTestNestedType extends ElasticBaseTestQuery {
             + table
             + " t"
             + " order by id ";
-
-    testRunAndPrint(UserBitShared.QueryType.SQL, sql);
 
     testBuilder()
         .sqlQuery(sql)

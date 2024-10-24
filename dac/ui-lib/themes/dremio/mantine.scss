@@ -33,7 +33,7 @@
 .mantine-TextInput-icon--text {
   .mantine-TextInput-icon {
     color: var(--text--primary);
-    background-color: var(--icon--primary);
+    background-color: var(--fill--secondary);
     inset: 1px;
     border-end-start-radius: var(--dremio--radius--1);
     border-start-start-radius: var(--dremio--radius--1);
@@ -65,7 +65,7 @@
   background-color: var(--fill--primary--selected);
 
   &:hover {
-    background-color: var(--fill--primary--hover);
+    background-color: var(--fill--primary--selected--hover);
   }
 }
 
@@ -79,6 +79,7 @@
   &:disabled {
     color: var(--text--disabled);
     background-color: var(--fill--disabled);
+    opacity: 1;
   }
 }
 
@@ -88,21 +89,46 @@
 
 .mantine-NumberInput-control {
   border: none;
+  color: var(--icon--primary);
+  &:not(:disabled):hover {
+    background-color: var(--fill--secondary);
+  }
+  &:disabled {
+    color: var(--icon--disabled);
+  }
 }
 
+.mantine-Checkbox-icon {
+  color: var(--fill--primary);
+}
 .mantine-Checkbox-input {
   border-color: var(--border--neutral--solid);
+  background-color: var(--fill--primary);
   &:hover {
     cursor: pointer;
     border-color: var(--border--hover);
   }
   &:checked {
+    background-color: var(--fill--toggle--checked);
+    border-color: var(--fill--toggle--checked);
     &:hover {
-      background-color: var(--fill--brand--solid);
-      border-color: var(--border--focused);
+      background-color: var(--fill--toggle--checked--hover);
+      border-color: var(--fill--toggle--checked--hover);
     }
   }
 }
 
-.dremio-dark {
+.mantine-Menu-dropdown {
+  background-color: var(--fill--popover);
+  border-color: transparent;
+  .mantine-Menu-item {
+    color: var(--text--primary);
+    background-color: inherit;
+    &:hover {
+      background-color: var(--fill--primary--hover);
+    }
+  }
+}
+.mantine-Menu-divider {
+  border-color: var(--border--neutral);
 }

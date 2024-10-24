@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import * as adminPaths from "dremio-ui-common/paths/admin.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 

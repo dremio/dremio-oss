@@ -31,9 +31,10 @@ export const methodTab = {
   height: 24,
   minWidth: 40,
   borderRadius: 2,
-  color: "black",
+  color: "var(--text--primary)",
   float: "left",
   cursor: "pointer",
+  textDecoration: "none",
 };
 
 export const formSectionTitle = {

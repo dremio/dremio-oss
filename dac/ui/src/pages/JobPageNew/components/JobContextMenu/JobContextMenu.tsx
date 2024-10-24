@@ -17,12 +17,12 @@
 // @ts-ignore
 import CopyToClipboard from "react-copy-to-clipboard";
 import { useCallback, useEffect } from "react";
-import MenuItemLink from "@app/components/Menus/MenuItemLink";
+import MenuItemLink from "#oss/components/Menus/MenuItemLink";
 import Menu from "components/Menus/Menu";
 import MenuItem from "components/Menus/MenuItem";
-import { addNotification } from "@app/actions/notification";
+import { addNotification } from "#oss/actions/notification";
 import { useDispatch } from "react-redux";
-import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
+import { MSG_CLEAR_DELAY_SEC } from "#oss/constants/Constants";
 import { useIntl } from "react-intl";
 import copy from "copy-to-clipboard";
 import * as jobPaths from "dremio-ui-common/paths/jobs.js";
@@ -67,7 +67,7 @@ const JobContextMenu = ({
         closeMenu();
       }
     },
-    [jobId, handleCopy, closeMenu]
+    [jobId, handleCopy, closeMenu],
   );
 
   useEffect(() => {

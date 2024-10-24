@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableAddPrimaryKey;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -28,9 +30,11 @@ import org.apache.calcite.sql.SqlNodeList;
 /** Adds primary key info to the table metadata */
 public class AddPrimaryKeyHandler extends SimpleDirectHandlerWithValidator {
   private final Catalog catalog;
+  private final UserSession userSession;
 
-  public AddPrimaryKeyHandler(Catalog catalog) {
+  public AddPrimaryKeyHandler(Catalog catalog, UserSession userSession) {
     this.catalog = catalog;
+    this.userSession = userSession;
   }
 
   @Override
@@ -40,7 +44,16 @@ public class AddPrimaryKeyHandler extends SimpleDirectHandlerWithValidator {
 
     NamespaceKey path = catalog.resolveSingle(sqlAddPrimaryKey.getTable());
 
-    validate(path);
+    VersionContext statementSourceVersion =
+        sqlAddPrimaryKey
+            .getSqlTableVersionSpec()
+            .getTableVersionSpec()
+            .getTableVersionContext()
+            .asVersionContext();
+    final VersionContext sessionVersion = userSession.getSessionVersionForSource(path.getRoot());
+    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+
+    validate(path, sourceVersion);
 
     catalog.addPrimaryKey(
         path,

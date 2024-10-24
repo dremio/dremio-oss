@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
+import { PageTypes } from "#oss/pages/ExplorePage/pageTypes";
 import { defaultPageTypeList, useShowWiki } from "./explorePageTypeUtils";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 
@@ -26,7 +26,7 @@ export const getAvailablePageTypes = (args: {
   const pageTypeList = [...defaultPageTypeList];
 
   const versionedContextForDataset = getVersionContextFromId(
-    dataset.get("entityId")
+    dataset.get("entityId"),
   );
 
   if (showWiki) {

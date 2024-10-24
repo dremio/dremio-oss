@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { APIV2Call } from "@app/core/APICall";
-import { store } from "@app/store/store";
-import { getRefQueryParamsFromPath } from "@app/utils/nessieUtils";
+import { APIV2Call } from "#oss/core/APICall";
+import { store } from "#oss/store/store";
+import { getRefQueryParamsFromPath } from "#oss/utils/nessieUtils";
 // @ts-ignore
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import { VersionContext } from "dremio-ui-common/types/VersionContext.types";
@@ -57,7 +57,7 @@ export const getEntitySummaryUrl = ({
 };
 
 export const getEntitySummary = async (
-  params: GetEntitySummaryParams
+  params: GetEntitySummaryParams,
 ): Promise<any> => {
   return getApiContext()
     .fetch(getEntitySummaryUrl(params))

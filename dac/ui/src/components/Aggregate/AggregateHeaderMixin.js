@@ -15,7 +15,6 @@
  */
 function AggregateFooterMixin(input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     checkToRenderClearAllConditionally() {
       return true;
     },

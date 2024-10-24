@@ -31,7 +31,6 @@ import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 import static org.junit.Assert.assertEquals;
 
 import com.dremio.PlanTestBase;
-import com.dremio.QueryTestUtil;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.store.CatalogService;
@@ -501,7 +500,6 @@ public class ElasticBaseTestQuery extends PlanTestBase {
    */
   public void verifyJsonInPlan(String query, String[] jsonExpectedInPlan) throws Exception {
     if (!ElasticsearchCluster.USE_EXTERNAL_ES5) {
-      query = QueryTestUtil.normalizeQuery(query);
       verifyJsonInPlanHelper(query, jsonExpectedInPlan, true);
       verifyJsonInPlanHelper(query, jsonExpectedInPlan, false);
     }

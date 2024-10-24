@@ -16,8 +16,9 @@
 import {
   DATASET_TYPES_TO_DREMIO_ICON,
   DATASET_TYPES_TO_ICEBERG_TYPES,
-} from "@app/constants/datasetTypes";
-import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
+} from "#oss/constants/datasetTypes";
+import { NESSIE, ARCTIC } from "@inject/constants/sourceTypes";
+import { getSourceIcon } from "@inject/utils/sourceUtils";
 import { formatMessage } from "./locale";
 
 const FILE_TYPES_TO_ICON_TYPES = {
@@ -67,21 +68,11 @@ const STATUSES_ICON_POSTFIX = {
   degraded: "-degraded",
 };
 
-const getSourceIcon = (sourceType) => {
-  if (NESSIE === sourceType) {
-    return "entities/nessie-source";
-  } else if (ARCTIC === sourceType) {
-    return "entities/arctic-source";
-  } else {
-    return "entities/datalake-source";
-  }
-};
-
 export function getIconStatusDatabase(status, sourceType) {
   return getSourceIcon(sourceType) + (STATUSES_ICON_POSTFIX[status] || "");
 }
 
-export function getIconByEntityType(type, isVersioned) {
+export function getIconByEntityType(type, isVersioned, isSpaceLocked) {
   switch (type && type.toUpperCase()) {
     case "DATASET":
     case "VIRTUAL":
@@ -101,7 +92,11 @@ export function getIconByEntityType(type, isVersioned) {
         return "entities/dataset-table";
       }
     case "SPACE":
-      return "entities/space";
+      if (isSpaceLocked) {
+        return "entities/space-locked";
+      } else {
+        return "entities/space";
+      }
     case "HOME":
       return "entities/home";
     case "FILE":

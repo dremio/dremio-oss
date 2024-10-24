@@ -23,7 +23,7 @@ export function isReqLoading(status: StatusCondition) {
 export function getViewStateFromReq(
   error: any,
   status: StatusCondition,
-  defaultError = "Failed to fetch"
+  defaultError = "Failed to fetch",
 ) {
   if (["PENDING", "INITIAL"].includes(status)) {
     return Immutable.Map({ isInProgress: true });

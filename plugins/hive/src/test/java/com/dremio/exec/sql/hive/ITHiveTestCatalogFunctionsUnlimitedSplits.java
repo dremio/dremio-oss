@@ -88,12 +88,12 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
     LazyDataGeneratingHiveTestBase.generateHiveWithoutData();
     finalIcebergMetadataLocation = getDfsTestTmpSchemaLocation();
     fs = setupLocalFS();
-    setSystemOption(REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL, "true");
+    setSystemOption(REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL, true);
   }
 
   @AfterClass
   public static void close() throws Exception {
-    resetSystemOption(REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL.getOptionName());
+    resetSystemOption(REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL);
   }
 
   @After
@@ -118,7 +118,7 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
       EntityExplorer entityExplorer = CatalogUtil.getSystemCatalogForReflections(getCatalogService());
 
       CatalogEntityKey catalogEntityKey = CatalogEntityKey.newBuilder()
-        .keyComponents(ImmutableList.of("hive", tableName))
+        .keyComponents("hive", tableName)
         .tableVersionContext(new TableVersionContext(
           TableVersionType.SNAPSHOT_ID,
           Long.toString(icebergTable.currentSnapshot().snapshotId())))
@@ -163,7 +163,7 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
         .build());
 
       CatalogEntityKey catalogEntityKey = CatalogEntityKey.newBuilder()
-        .keyComponents(ImmutableList.of("hive", tableName))
+        .keyComponents("hive", tableName)
         .tableVersionContext(new TableVersionContext(
           TableVersionType.SNAPSHOT_ID,
           Long.toString(snapshot1.snapshotId())))

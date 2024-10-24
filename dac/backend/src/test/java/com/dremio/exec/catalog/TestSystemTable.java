@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.catalog;
 
+import static com.dremio.exec.ExecConstants.ENABLE_DYNAMIC_LOAD_ROUTING;
+
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
 import com.dremio.common.expression.SchemaPath;
@@ -36,6 +38,8 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.LocalDateTime;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -46,6 +50,16 @@ public class TestSystemTable extends BaseTestQuery {
   public static final TestSysFlightResource SYS_FLIGHT_RESOURCE = new TestSysFlightResource();
 
   private static final int NUM_NODES = 3;
+
+  @Before
+  public void setup() throws Exception {
+    setSystemOption(ENABLE_DYNAMIC_LOAD_ROUTING, false);
+  }
+
+  @After
+  public void cleanup() throws Exception {
+    resetSystemOption(ENABLE_DYNAMIC_LOAD_ROUTING);
+  }
 
   @BeforeClass
   public static void setupMultiNodeCluster() throws Exception {

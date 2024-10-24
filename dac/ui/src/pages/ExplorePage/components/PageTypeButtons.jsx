@@ -18,16 +18,16 @@ import PropTypes from "prop-types";
 import classNames from "clsx";
 import Immutable from "immutable";
 import { withRouter } from "react-router";
-import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
-import { changePageTypeInUrl } from "@app/pages/ExplorePage/pageTypeUtils";
-import { formatMessage } from "@app/utils/locale";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import { PageTypes, pageTypesProp } from "#oss/pages/ExplorePage/pageTypes";
+import { changePageTypeInUrl } from "#oss/pages/ExplorePage/pageTypeUtils";
+import { formatMessage } from "#oss/utils/locale";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 import { buttonsContainer } from "./PageTypeButtons.less";
 import * as classes from "./PageTypeButtons.less";
 import { compose } from "redux";
 import { withAvailablePageTypes } from "dyn-load/utils/explorePageTypes";
 import { Tab, TabList, getControlledTabProps } from "dremio-ui-lib/components";
-import { PHYSICAL_DATASET } from "@app/constants/datasetTypes";
+import { PHYSICAL_DATASET } from "#oss/constants/datasetTypes";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 
 class ButtonController extends PureComponent {
@@ -194,5 +194,5 @@ export class PageTypeButtonsView extends PureComponent {
 
 export const PageTypeButtons = compose(
   withAvailablePageTypes,
-  withRouter
+  withRouter,
 )(PageTypeButtonsView);

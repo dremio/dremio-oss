@@ -18,7 +18,7 @@ import PropTypes from "prop-types";
 import classNames from "clsx";
 
 import Immutable from "immutable";
-import jobsUtils from "@app/utils/jobsUtils";
+import jobsUtils from "#oss/utils/jobsUtils";
 import timeUtils from "utils/timeUtils";
 import { getIconByEntityType } from "utils/iconUtils";
 import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
@@ -29,7 +29,7 @@ import { injectIntl, FormattedMessage } from "react-intl";
 import {
   flexColumnContainer,
   flexElementAuto,
-} from "@app/uiTheme/less/layout.less";
+} from "#oss/uiTheme/less/layout.less";
 
 import {
   getQueueName,
@@ -41,7 +41,7 @@ import ListItem from "./ListItem";
 import JobErrorLog from "./JobErrorLog";
 import ReflectionList from "./ReflectionList";
 import ReflectionBlock from "./ReflectionBlock";
-import { SqlViewer } from "@app/exports/components/MonacoWrappers/SqlViewer";
+import { SqlViewer } from "#oss/exports/components/MonacoWrappers/SqlViewer";
 
 @injectIntl
 class OverviewContent extends PureComponent {

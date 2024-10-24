@@ -65,6 +65,7 @@ export default class ProdErrorModal extends Component {
         <div style={{ ...modalContent, ...styles.wrapper }}>
           <div style={styles.leftSide}>
             <dremio-icon
+              class="icon-primary"
               name="engine-state/error"
               style={{ inlineSize: 60, blockSize: 60 }}
             ></dremio-icon>

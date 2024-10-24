@@ -51,6 +51,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.UserService;
@@ -94,6 +95,7 @@ public class TestResource {
   private final CatalogService catalogService;
   private final ReflectionServiceHelper reflectionHelper;
   private final OptionManager optionManager;
+  private final CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider;
   private final InstanceSerializer<QueryProfile> serializer;
   @Context private ResourceContext resourceContext;
 
@@ -109,7 +111,8 @@ public class TestResource {
       SecurityContext security,
       ConnectionReader connectionReader,
       CollaborationHelper collaborationService,
-      OptionManager optionManager) {
+      OptionManager optionManager,
+      CatalogEventMessagePublisherProvider catalogEventMessagePublisherProvider) {
     this.legacyKVStoreProvider = legacyKVStoreProvider;
     this.kvStoreProvider = kvStoreProvider;
     this.context = context;
@@ -121,6 +124,7 @@ public class TestResource {
     this.connectionReader = connectionReader;
     this.collaborationService = collaborationService;
     this.optionManager = optionManager;
+    this.catalogEventMessagePublisherProvider = catalogEventMessagePublisherProvider;
     this.serializer =
         ProtoSerializer.of(
             QueryProfile.class,
@@ -137,7 +141,9 @@ public class TestResource {
 
     // TODO: Clean up this mess
     SampleDataPopulator.addDefaultFirstUser(
-        userService, new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl()));
+        userService,
+        new NamespaceServiceImpl(
+            kvStoreProvider, new CatalogStatusEventsImpl(), catalogEventMessagePublisherProvider));
     NamespaceService nsWithAuth = context.getNamespaceService(DEFAULT_USER_NAME);
     DatasetVersionMutator ds =
         new DatasetVersionMutator(

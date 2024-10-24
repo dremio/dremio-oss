@@ -16,7 +16,7 @@
 import { RSAA } from "redux-api-middleware";
 
 import schemaUtils from "utils/apiUtils/schemaUtils";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const LOAD_EXPLORE_ENTITIES_STARTED = "LOAD_EXPLORE_ENTITIES_STARTED";
 export const LOAD_EXPLORE_ENTITIES_SUCCESS = "LOAD_EXPLORE_ENTITIES_SUCCESS";
@@ -41,7 +41,7 @@ function fetchEntities({
           LOAD_EXPLORE_ENTITIES_SUCCESS,
           schema,
           meta,
-          uiPropsForEntity
+          uiPropsForEntity,
         ),
         { type: LOAD_EXPLORE_ENTITIES_FAILURE, meta },
       ],
@@ -61,7 +61,7 @@ export const loadExploreEntities =
         viewId,
         uiPropsForEntity,
         invalidateViewIds,
-      })
+      }),
     );
 
 export const PERFORM_LOAD_DATASET = "PERFORM_LOAD_DATASET";
@@ -90,7 +90,7 @@ function loadCleanDataFetch(colName, dataset) {
   const meta = { viewId: CLEAN_DATA_VIEW_ID };
 
   const apiCall = new APIV2Call().paths(
-    `${dataset.getIn(["apiLinks", "self"])}/clean`
+    `${dataset.getIn(["apiLinks", "self"])}/clean`,
   );
 
   return {

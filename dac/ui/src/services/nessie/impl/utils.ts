@@ -19,5 +19,5 @@ import { DefaultApi } from "../client";
 //Fetch default branch and cache result
 export const fetchDefaultBranchMemo = moize.promise(
   (api: DefaultApi) => api.getDefaultBranch(),
-  { maxSize: 25 }
+  { maxSize: 25 },
 );

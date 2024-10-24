@@ -18,7 +18,7 @@ import { CALL_MOCK_API } from "mockApi";
 import { arrayOf, Schema } from "normalizr";
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import Immutable from "immutable";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import { ApiError } from "redux-api-middleware";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
 

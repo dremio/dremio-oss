@@ -65,6 +65,7 @@ Sonar.Scripts.BulkDelete.GenericError: One or more scripts could not be deleted.
 Sonar.Search: Search Spaces and Datasets
 Sonar.Source.Add: Add Source
 Sonar.Sql.Label: SQL Runner
+Sonar.Dataset.DataGraph.OutdatedWarning: The view is outdated due to schema changes in the underlying views/tables. Update the view definition and rerun the query or contact the owner of the view.
 Sonar.Description: Sonar is a lakehouse query engine that lets analysts explore data with sub-second query response times and allows data engineers to ingest and transform data with DML operations. Additionally, Sonar connects to external databases so you don't have to move all your data into object storage in order to query it.
 Sonar.Project.AddFirst: Add your first project
 Sonar.Project.UpdateRequired: Update required
@@ -112,3 +113,21 @@ Reflection.CurrentFootprint.Label: "<b>Current Footprint</b>"
 Reflection.CurrentFootprint.Hint: "Size of the current reflection."
 Reflection.TotalFootprint.Label: "<b>Total Footprint</b>"
 Reflection.TotalFootprint.Hint: "Total size of this reflection across all refreshes."
+Catalog.Search.Modal.Trigger.Placeholder: Search
+Catalog.Search.Modal.SearchTextInput.Placeholder: Start typing to find items in the catalog…
+Catalog.Search.Modal.TypeFilters.Title: I want to search…
+Catalog.Search.NoResultsFound.Title: No results found for “{searchText}”
+Catalog.Search.NoResultsFound.EmptyDescription: We couldn’t find any results based on your filter criteria.
+Catalog.Search.UnexpectedError: An unexpected error occurred when we tried to search the catalog.
+Catalog.Search.RecentSearches.Title: Recent searches
+Catalog.Reference.Type.DATASET_DIRECT.Label: Table
+Catalog.Reference.Type.DATASET_PROMOTED.Label: Promoted
+Catalog.Reference.Type.DATASET_VIRTUAL.Label: View
+Catalog.Reference.Type.FILE.Label: File
+Catalog.Reference.Type.FOLDER.Label: Folder
+Catalog.Reference.Type.FUNCTION.Label: Function
+Catalog.Reference.Type.HOME.Label: Home
+Catalog.Reference.Type.SOURCE.Label: Source
+Catalog.Reference.Type.SPACE.Label: Space
+Script.SaveAsDialog.Title: Save Script
+Script.SaveAsDialog.Field.Name.Label: Script name

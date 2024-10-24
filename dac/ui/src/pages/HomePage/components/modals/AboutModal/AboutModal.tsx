@@ -16,7 +16,7 @@
 
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
-import Modal from "@app/components/Modals/Modal";
+import Modal from "#oss/components/Modals/Modal";
 import AboutModalLogoPane from "./AboutModalLogoPane";
 import AboutModalInfoPane from "./AboutModalInfoPane";
 

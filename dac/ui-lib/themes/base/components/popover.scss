@@ -17,6 +17,7 @@
 .popover {
   z-index: 1000;
   background-color: var(--popover--background);
+  border-radius: var(--popover--radius);
   &--bottom {
     transform-origin: bottom;
   }

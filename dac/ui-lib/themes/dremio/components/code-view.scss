@@ -17,20 +17,18 @@
 @use "../../utilities/index";
 
 .code-view {
-  @extend .border;
-  @extend .border-solid;
-  @extend .border-neutral-50;
   @extend .rounded;
+  border: 1px solid var(--border--neutral);
 
   &__header {
-    @extend .bg-neutral-75;
     @extend .p-105;
     @extend .text-semibold;
+    background-color: var(--fill--tertiary);
   }
 
   &__content {
     @extend .p-105;
-    @extend .bg-neutral-50;
+    background-color: var(--fill--secondary);
   }
 }
 

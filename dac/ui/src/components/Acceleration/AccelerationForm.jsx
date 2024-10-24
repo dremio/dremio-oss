@@ -25,42 +25,42 @@ import {
   FormBody,
   ModalForm,
   modalFormProps,
-} from "@app/components/Forms";
-import reflectionActions from "@app/actions/resources/reflection";
-import { setReflectionRecommendations } from "@app/actions/resources/reflectionRecommendations";
-import { getRawRecommendation } from "@app/selectors/reflectionRecommendations";
-import { getListErrorsFromNestedReduxFormErrorEntity } from "@app/utils/validation";
+} from "#oss/components/Forms";
+import reflectionActions from "#oss/actions/resources/reflection";
+import { setReflectionRecommendations } from "#oss/actions/resources/reflectionRecommendations";
+import { getRawRecommendation } from "#oss/selectors/reflectionRecommendations";
+import { getListErrorsFromNestedReduxFormErrorEntity } from "#oss/utils/validation";
 import {
   areReflectionFormValuesBasic,
   areReflectionFormValuesUnconfigured,
   createReflectionFormValues,
   fixupReflection,
   forceChangesForDatasetChange,
-} from "@app/utils/accelerationUtils";
-import { fetchSupportFlags } from "@app/actions/supportFlags";
-import { getSupportFlags } from "@app/selectors/supportFlags";
+} from "#oss/utils/accelerationUtils";
+import { fetchSupportFlags } from "#oss/actions/supportFlags";
+import { getSupportFlags } from "#oss/selectors/supportFlags";
 import {
   ALLOW_REFLECTION_PARTITION_TRANFORMS,
   ALLOW_REFLECTION_REFRESH,
   MANUALLY_GENERATE_RECOMMENDATION,
-} from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import ApiUtils from "@app/utils/apiUtils/apiUtils";
+} from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import ApiUtils from "#oss/utils/apiUtils/apiUtils";
 
 import { DEFAULT_ERR_MSG } from "@inject/constants/errors";
 
-import "@app/uiTheme/less/commonModifiers.less";
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import "#oss/uiTheme/less/commonModifiers.less";
+import "#oss/uiTheme/less/Acceleration/Acceleration.less";
 import { AccelerationFormWithMixin } from "@inject/components/Acceleration/AccelerationFormMixin";
 import {
   formatPartitionFields,
   preparePartitionFieldsAsFormValues,
-} from "@app/exports/components/PartitionTransformation/PartitionTransformationUtils";
+} from "#oss/exports/components/PartitionTransformation/PartitionTransformationUtils";
 import Message from "../Message";
 import AccelerationBasic from "./Basic/AccelerationBasic";
 import AccelerationAdvanced from "./Advanced/AccelerationAdvanced";
-import { isNotSoftware } from "@app/utils/versionUtils";
+import { isNotSoftware } from "#oss/utils/versionUtils";
 import { REFLECTION_REFRESH_ENABLED } from "@inject/featureFlags/flags/REFLECTION_REFRESH_ENABLED";
-import { postDatasetReflectionRecommendations } from "@app/endpoints/Reflections/postDatasetReflectionRecommendations";
+import { postDatasetReflectionRecommendations } from "#oss/endpoints/Reflections/postDatasetReflectionRecommendations";
 
 const SECTIONS = [AccelerationBasic, AccelerationAdvanced];
 
@@ -636,7 +636,6 @@ export class AccelerationForm extends Component {
           !reflection.dimensionFields.length &&
           !reflection.measureFields.length
         ) {
-          // eslint-disable-line no-lonely-if
           errors[reflection.id] = laDeprecated(
             "At least one dimension or measure column per aggregation Reflection is required.",
           );

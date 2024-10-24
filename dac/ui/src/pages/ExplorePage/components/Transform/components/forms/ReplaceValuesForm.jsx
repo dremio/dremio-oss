@@ -20,8 +20,8 @@ import Immutable from "immutable";
 import { v4 as uuidv4 } from "uuid";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
 
-import { getExploreState } from "@app/selectors/explore";
-import { parseTextToDataType } from "@app/constants/DataTypes";
+import { getExploreState } from "#oss/selectors/explore";
+import { parseTextToDataType } from "#oss/constants/DataTypes";
 import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
 import filterMappers from "utils/mappers/ExplorePage/Transform/filterMappers";
 import NewFieldSection from "components/Forms/NewFieldSection";
@@ -73,7 +73,7 @@ export class ReplaceValuesForm extends Component {
       replaceNull = true;
     }
     replaceValues = [...replaceValuesSet].map((value) =>
-      parseTextToDataType(value, columnType)
+      parseTextToDataType(value, columnType),
     );
 
     if (!replaceValues.length && !replaceNull) {
@@ -104,11 +104,11 @@ export class ReplaceValuesForm extends Component {
         : {
             ...filterMappers.getCommonFilterValues(
               mapValues,
-              this.props.transform
+              this.props.transform,
             ),
             filter: filterMappers.mapFilterExcludeValues(
               mapValues,
-              this.props.columnType
+              this.props.columnType,
             ),
           };
 
@@ -175,5 +175,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(ReplaceValuesForm);

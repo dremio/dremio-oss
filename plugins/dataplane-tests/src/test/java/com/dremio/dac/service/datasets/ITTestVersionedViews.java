@@ -137,12 +137,14 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
     DatasetPath targetViewPath =
         new DatasetPath(tablePathWithSource(DATAPLANE_PLUGIN_NAME, viewPath));
     final DatasetUI createdDatasetUI =
-        createVersionedDatasetFromSQLAndSave(
-            targetViewPath,
-            selectStarQuery(tablePath),
-            emptyList(),
-            DATAPLANE_PLUGIN_NAME,
-            DEFAULT_BRANCH_NAME);
+        getHttpClient()
+            .getDatasetApi()
+            .createVersionedDatasetFromSQLAndSave(
+                targetViewPath,
+                selectStarQuery(tablePath),
+                emptyList(),
+                DATAPLANE_PLUGIN_NAME,
+                DEFAULT_BRANCH_NAME);
     UserExceptionMapper.ErrorMessageWithContext errorMessage =
         saveAsVersionedDatasetExpectError(
             targetViewPath,
@@ -179,21 +181,33 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
         DATAPLANE_PLUGIN_NAME,
         new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, DEFAULT_BRANCH_NAME));
     InitialPreviewResponse datasetCreateResponse1 =
-        createVersionedDatasetFromSQL(
-            selectStarQuery(tablePath), emptyList(), DATAPLANE_PLUGIN_NAME, DEFAULT_BRANCH_NAME);
+        getHttpClient()
+            .getDatasetApi()
+            .createVersionedDatasetFromSQL(
+                selectStarQuery(tablePath),
+                emptyList(),
+                DATAPLANE_PLUGIN_NAME,
+                DEFAULT_BRANCH_NAME);
     InitialPreviewResponse datasetCreateResponse2 =
-        createVersionedDatasetFromSQL(
-            selectCountQuery(tablePath, "c1"),
-            emptyList(),
-            DATAPLANE_PLUGIN_NAME,
-            DEFAULT_BRANCH_NAME);
+        getHttpClient()
+            .getDatasetApi()
+            .createVersionedDatasetFromSQL(
+                selectCountQuery(tablePath, "c1"),
+                emptyList(),
+                DATAPLANE_PLUGIN_NAME,
+                DEFAULT_BRANCH_NAME);
 
     // Assert
     // First save should work
-    saveAsInBranch(datasetCreateResponse1.getDataset(), targetViewPath, null, DEFAULT_BRANCH_NAME);
+    getHttpClient()
+        .getDatasetApi()
+        .saveAsInBranch(
+            datasetCreateResponse1.getDataset(), targetViewPath, null, DEFAULT_BRANCH_NAME);
     // Conflicting save with null tag should fail
-    saveAsInBranchExpectError(
-        datasetCreateResponse2.getDataset(), targetViewPath, null, DEFAULT_BRANCH_NAME);
+    getHttpClient()
+        .getDatasetApi()
+        .saveAsInBranchExpectError(
+            datasetCreateResponse2.getDataset(), targetViewPath, null, DEFAULT_BRANCH_NAME);
   }
 
   protected UserExceptionMapper.ErrorMessageWithContext saveAsVersionedDatasetExpectError(
@@ -206,9 +220,13 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
     references.put(
         pluginName, new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, branchName));
     InitialPreviewResponse datasetCreateResponse =
-        createVersionedDatasetFromSQL(sql, context, pluginName, branchName);
-    return saveAsInBranchExpectError(
-        datasetCreateResponse.getDataset(), datasetPath, null, branchName);
+        getHttpClient()
+            .getDatasetApi()
+            .createVersionedDatasetFromSQL(sql, context, pluginName, branchName);
+    return getHttpClient()
+        .getDatasetApi()
+        .saveAsInBranchExpectError(
+            datasetCreateResponse.getDataset(), datasetPath, null, branchName);
   }
 
   @Test
@@ -227,7 +245,7 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
     UserExceptionMapper.ErrorMessageWithContext errorMessage =
         createViewInSpaceFromQueryExpectError(viewQuery, DEFAULT_SPACE_NAME, newViewName);
     String expectedContains =
-        "Validation of view sql failed. Version context for table "
+        "Validation of view sql failed. Version context for entity "
             + fullyQualifiedTableName(DATAPLANE_PLUGIN_NAME, tablePath)
             + " must be specified using AT SQL syntax";
     assertThat(errorMessage.getErrorMessage()).contains(expectedContains);
@@ -281,7 +299,7 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
     UserExceptionMapper.ErrorMessageWithContext errorMessage =
         createViewInSpaceFromQueryExpectError(viewQuery, DEFAULT_SPACE_NAME, newViewName);
     String expectedContains =
-        "Validation of view sql failed. Version context for table "
+        "Validation of view sql failed. Version context for entity "
             + fullyQualifiedTableName(DATAPLANE_PLUGIN_NAME, table2Path)
             + " must be specified using AT SQL syntax";
     assertThat(errorMessage.getErrorMessage()).contains(expectedContains);
@@ -331,7 +349,7 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
     UserExceptionMapper.ErrorMessageWithContext errorMessage =
         createViewFromPublicAPIExpectError(dataset);
     String expectedContains =
-        "Validation of view sql failed. Version context for table "
+        "Validation of view sql failed. Version context for entity "
             + fullyQualifiedTableName(DATAPLANE_PLUGIN_NAME, table2Path)
             + " must be specified using AT SQL syntax";
     assertThat(errorMessage.getErrorMessage()).contains(expectedContains);
@@ -402,7 +420,7 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
     UserExceptionMapper.ErrorMessageWithContext errorMessage =
         updateViewFromPublicAPIExpectError(updatedDataset);
     String expectedContains =
-        "Validation of view sql failed. Version context for table "
+        "Validation of view sql failed. Version context for entity "
             + fullyQualifiedTableName(DATAPLANE_PLUGIN_NAME, table2Path)
             + " must be specified using AT SQL syntax";
     assertThat(errorMessage.getErrorMessage()).contains(expectedContains);
@@ -418,17 +436,26 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
     runQuery(insertTableQuery(tablePath));
     runQueryCheckResults(getJobsService(), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, null);
     InitialPreviewResponse createViewResponse =
-        createVersionedDatasetFromSQL(
-            selectStarQuery(tablePath), emptyList(), DATAPLANE_PLUGIN_NAME, DEFAULT_BRANCH_NAME);
+        getHttpClient()
+            .getDatasetApi()
+            .createVersionedDatasetFromSQL(
+                selectStarQuery(tablePath),
+                emptyList(),
+                DATAPLANE_PLUGIN_NAME,
+                DEFAULT_BRANCH_NAME);
     DatasetPath targetViewPath =
         new DatasetPath(tablePathWithSource(DATAPLANE_PLUGIN_NAME, viewPath));
     DatasetUIWithHistory datasetUIWithHistory =
-        saveAsInBranch(createViewResponse.getDataset(), targetViewPath, null, DEFAULT_BRANCH_NAME);
+        getHttpClient()
+            .getDatasetApi()
+            .saveAsInBranch(
+                createViewResponse.getDataset(), targetViewPath, null, DEFAULT_BRANCH_NAME);
     DatasetUI createdDataset = datasetUIWithHistory.getDataset();
-    delete(
-        resourcePath(createdDataset), createdDataset.getVersion(), "BRANCH", DEFAULT_BRANCH_NAME);
-    getDatasetWithVersionExpectError(
-        new DatasetPath(createdDataset.getFullPath()), "BRANCH", DEFAULT_BRANCH_NAME);
+    getHttpClient().getDatasetApi().deleteVersioned(createdDataset, "BRANCH", DEFAULT_BRANCH_NAME);
+    getHttpClient()
+        .getDatasetApi()
+        .getDatasetWithVersionExpectError(
+            new DatasetPath(createdDataset.getFullPath()), "BRANCH", DEFAULT_BRANCH_NAME);
   }
 
   @Test
@@ -446,16 +473,22 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
     runQueryCheckResults(
         getJobsService(), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, sessionId);
     InitialPreviewResponse createViewResponse =
-        createVersionedDatasetFromSQL(
-            selectStarQuery(tablePath), emptyList(), DATAPLANE_PLUGIN_NAME, devBranch);
+        getHttpClient()
+            .getDatasetApi()
+            .createVersionedDatasetFromSQL(
+                selectStarQuery(tablePath), emptyList(), DATAPLANE_PLUGIN_NAME, devBranch);
     DatasetPath targetViewPath =
         new DatasetPath(tablePathWithSource(DATAPLANE_PLUGIN_NAME, viewPath));
     DatasetUIWithHistory datasetUIWithHistory =
-        saveAsInBranch(createViewResponse.getDataset(), targetViewPath, null, devBranch);
+        getHttpClient()
+            .getDatasetApi()
+            .saveAsInBranch(createViewResponse.getDataset(), targetViewPath, null, devBranch);
     DatasetUI createdDataset = datasetUIWithHistory.getDataset();
-    delete(resourcePath(createdDataset), createdDataset.getVersion(), "BRANCH", devBranch);
-    getDatasetWithVersionExpectError(
-        new DatasetPath(createdDataset.getFullPath()), "BRANCH", devBranch);
+    getHttpClient().getDatasetApi().deleteVersioned(createdDataset, "BRANCH", devBranch);
+    getHttpClient()
+        .getDatasetApi()
+        .getDatasetWithVersionExpectError(
+            new DatasetPath(createdDataset.getFullPath()), "BRANCH", devBranch);
   }
 
   @Test
@@ -470,18 +503,27 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
 
     runQueryCheckResults(getJobsService(), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, null);
     InitialPreviewResponse createViewResponse =
-        createVersionedDatasetFromSQL(
-            selectStarQuery(tablePath), emptyList(), DATAPLANE_PLUGIN_NAME, DEFAULT_BRANCH_NAME);
+        getHttpClient()
+            .getDatasetApi()
+            .createVersionedDatasetFromSQL(
+                selectStarQuery(tablePath),
+                emptyList(),
+                DATAPLANE_PLUGIN_NAME,
+                DEFAULT_BRANCH_NAME);
     DatasetPath targetViewPath =
         new DatasetPath(tablePathWithSource(DATAPLANE_PLUGIN_NAME, viewPath));
     DatasetUIWithHistory datasetUIWithHistory =
-        saveAsInBranch(createViewResponse.getDataset(), targetViewPath, null, DEFAULT_BRANCH_NAME);
+        getHttpClient()
+            .getDatasetApi()
+            .saveAsInBranch(
+                createViewResponse.getDataset(), targetViewPath, null, DEFAULT_BRANCH_NAME);
     Map<String, VersionContextReq> references = new HashMap<>();
     references.put(
         DATAPLANE_PLUGIN_NAME,
         new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, DEFAULT_BRANCH_NAME));
     WebTarget webTarget =
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path(String.format("/datasets/summary/" + PathUtils.toFSPath(viewFullPath)))
             .queryParam("refType", "BRANCH")
             .queryParam("refValue", DEFAULT_BRANCH_NAME);
@@ -507,13 +549,17 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
     references.put(
         pluginName, new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, branchName));
     InitialPreviewResponse datasetCreateResponse =
-        createVersionedDatasetFromSQL(sql, context, pluginName, branchName);
-    saveAsInBranch(datasetCreateResponse.getDataset(), datasetPath, null, branchName);
+        getHttpClient()
+            .getDatasetApi()
+            .createVersionedDatasetFromSQL(sql, context, pluginName, branchName);
+    getHttpClient()
+        .getDatasetApi()
+        .saveAsInBranch(datasetCreateResponse.getDataset(), datasetPath, null, branchName);
   }
 
   protected void createSpace(String name) {
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/"))
+        getBuilder(getHttpClient().getCatalogApi())
             .buildPost(Entity.json(new com.dremio.dac.api.Space(null, name, null, null, null))),
         new GenericType<Space>() {});
   }
@@ -521,33 +567,37 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
   protected void dropSpace(String name) {
     com.dremio.dac.api.Space s =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path("/catalog/").path("by-path").path(name)).buildGet(),
+            getBuilder(getHttpClient().getCatalogApi().path("by-path").path(name)).buildGet(),
             new GenericType<com.dremio.dac.api.Space>() {});
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/").path(s.getId())).buildDelete());
+    expectSuccess(getBuilder(getHttpClient().getCatalogApi().path(s.getId())).buildDelete());
   }
 
   protected DatasetUI createViewInSpaceFromQuery(String query, String space, String viewName) {
     final DatasetPath datasetPath = new DatasetPath(ImmutableList.of(space, viewName));
-    return createDatasetFromSQLAndSave(datasetPath, query, Collections.emptyList());
+    return getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSave(datasetPath, query, Collections.emptyList());
   }
 
   protected UserExceptionMapper.ErrorMessageWithContext createViewInSpaceFromQueryExpectError(
       String query, String space, String viewName) {
     final DatasetPath datasetPath = new DatasetPath(ImmutableList.of(space, viewName));
-    return createDatasetFromSQLAndSaveExpectError(datasetPath, query, Collections.emptyList());
+    return getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSaveExpectError(datasetPath, query, Collections.emptyList());
   }
 
   private UserExceptionMapper.ErrorMessageWithContext createViewFromPublicAPIExpectError(
       com.dremio.dac.api.Dataset dataset) {
     final Invocation invocation =
-        getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(dataset));
+        getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(dataset));
 
     return expectError(CLIENT_ERROR, invocation, UserExceptionMapper.ErrorMessageWithContext.class);
   }
 
   private CatalogEntity createViewFromPublicAPI(com.dremio.dac.api.Dataset dataset) {
     final Invocation invocation =
-        getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(dataset));
+        getBuilder(getHttpClient().getCatalogApi()).buildPost(Entity.json(dataset));
 
     return expectSuccess(invocation, CatalogEntity.class);
   }
@@ -556,8 +606,8 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
       com.dremio.dac.api.Dataset dataset) {
     final Invocation invocation =
         getBuilder(
-                getPublicAPI(3)
-                    .path("catalog")
+                getHttpClient()
+                    .getCatalogApi()
                     .path(URLEncoder.encode(dataset.getId(), StandardCharsets.UTF_8)))
             .buildPut(Entity.json(dataset));
 
@@ -567,8 +617,8 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
   private CatalogEntity updateViewFromPublicAPI(com.dremio.dac.api.Dataset dataset) {
     final Invocation invocation =
         getBuilder(
-                getPublicAPI(3)
-                    .path("catalog")
+                getHttpClient()
+                    .getCatalogApi()
                     .path(URLEncoder.encode(dataset.getId(), StandardCharsets.UTF_8)))
             .buildPut(Entity.json(dataset));
 

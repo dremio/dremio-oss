@@ -20,8 +20,8 @@ import { createSelector } from "reselect";
 import { v4 as uuidv4 } from "uuid";
 import { isUnauthorisedReason } from "store/authMiddleware";
 import { showConfirmationDialog } from "actions/confirmation";
-import { resetQueryState } from "@app/actions/explore/view";
-import { KeyChangeTrigger } from "@app/components/KeyChangeTrigger";
+import { resetQueryState } from "#oss/actions/explore/view";
+import { KeyChangeTrigger } from "#oss/components/KeyChangeTrigger";
 
 /**
  * @typedef {Object} ChangesCheckResult
@@ -102,7 +102,7 @@ export class HookProviderView extends Component {
         this.props.showConfirmationDialog({
           title: laDeprecated("Unsaved Changes"),
           text: laDeprecated(
-            "Are you sure you want to leave without saving changes?"
+            "Are you sure you want to leave without saving changes?",
           ),
           confirmText: laDeprecated("Leave"),
           cancelText: laDeprecated("Stay"),
@@ -201,7 +201,7 @@ export const singleArgFnGenerator = (id, saveRemoveCallback) => {
       const removeCallback = fn(id, hasChangesCallback);
 
       saveRemoveCallback(removeCallback);
-    }
+    },
   );
 };
 
@@ -217,7 +217,7 @@ export class HookConsumer extends Component {
     uuidv4(), // generate a unique id for each consumer.
     (callback) => {
       this.removeCallback = callback;
-    }
+    },
   );
   removeCallback = null; // will store a remove callback
 
@@ -370,7 +370,7 @@ export const withRouteLeaveEvent = (ComponentToWrap) => {
 // if wrapped component has changes.
 export const withRouteLeaveSubscription = (
   ComponentToWrap,
-  /* optional */ fieldName
+  /* optional */ fieldName,
 ) => {
   return class extends Component {
     renderFn = ({ addCallback, doChangesCheck }) => {

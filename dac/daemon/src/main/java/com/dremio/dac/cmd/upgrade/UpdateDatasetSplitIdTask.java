@@ -27,6 +27,7 @@ import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.NamespaceStore;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -64,8 +65,7 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     final KVStoreProvider storeProvider = context.getKvStoreProvider();
-    final KVStore<String, NameSpaceContainer> namespace =
-        storeProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+    final NamespaceStore namespace = new NamespaceStore(() -> storeProvider);
     final KVStore<PartitionChunkId, PartitionChunk> partitionChunksStore =
         storeProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
 

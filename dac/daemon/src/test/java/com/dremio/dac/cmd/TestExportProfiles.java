@@ -154,7 +154,7 @@ public class TestExportProfiles extends BaseTestServer {
   public void testOnline() throws Exception {
     final String tmpPath = folder0.newFolder("testOnline").getAbsolutePath();
     expectSuccess(
-        getBuilder(getAPIv2().path("export-profiles"))
+        getBuilder(getHttpClient().getAPIv2().path("export-profiles"))
             .buildPost(
                 Entity.entity(
                     new ExportProfilesParams(

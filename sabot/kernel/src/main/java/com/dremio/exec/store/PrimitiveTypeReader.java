@@ -43,7 +43,8 @@ public class PrimitiveTypeReader implements AutoCloseable {
   private final Stopwatch gandivaCodeGenWatch;
   private final Map<String, VarcharTruncationReader> fixedLenVarCharMap =
       CaseInsensitiveMap.newHashMap();
-  private final NonVarcharCoercionReader nonVarcharCoercionReader;
+  protected NonVarcharCoercionReader nonVarcharCoercionReader;
+  protected final BatchSchema nonVarcharSchema;
 
   public PrimitiveTypeReader(
       SampleMutator mutator,
@@ -51,7 +52,8 @@ public class PrimitiveTypeReader implements AutoCloseable {
       TypeCoercion typeCoercion,
       Stopwatch javaCodeGenWatch,
       Stopwatch gandivaCodeGenWatch,
-      BatchSchema originalSchema) {
+      BatchSchema originalSchema,
+      int depth) {
     this.context = context;
     this.javaCodeGenWatch = javaCodeGenWatch;
     this.gandivaCodeGenWatch = gandivaCodeGenWatch;
@@ -66,7 +68,7 @@ public class PrimitiveTypeReader implements AutoCloseable {
       }
     }
 
-    BatchSchema nonVarcharSchema = schemaBuilder.build();
+    nonVarcharSchema = schemaBuilder.build();
     nonVarcharCoercionReader =
         new NonVarcharCoercionReader(
             mutator,
@@ -74,7 +76,8 @@ public class PrimitiveTypeReader implements AutoCloseable {
             nonVarcharSchema,
             typeCoercion,
             javaCodeGenWatch,
-            gandivaCodeGenWatch);
+            gandivaCodeGenWatch,
+            depth);
   }
 
   public void setupProjector(

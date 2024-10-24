@@ -31,22 +31,22 @@ import {
   openEditProvisionModal,
   editProvision,
   openAdjustWorkersModal,
-} from "@app/actions/resources/provisioning";
+} from "#oss/actions/resources/provisioning";
 import { extraProvisingPageMapDispatchToProps } from "@inject/actions/resources/provisioning";
-import { showConfirmationDialog } from "@app/actions/confirmation";
-import { addNotification } from "@app/actions/notification";
-import { getViewState } from "@app/selectors/resources";
-import { getAllProvisions } from "@app/selectors/provision";
+import { showConfirmationDialog } from "#oss/actions/confirmation";
+import { addNotification } from "#oss/actions/notification";
+import { getViewState } from "#oss/selectors/resources";
+import { getAllProvisions } from "#oss/selectors/provision";
 import { PROVISION_MANAGERS } from "dyn-load/constants/provisioningPage/provisionManagers";
-import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
-import SettingHeader from "@app/components/SettingHeader";
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
-import { page, pageContent } from "@app/uiTheme/radium/general";
-import ApiUtils from "@app/utils/apiUtils/apiUtils";
-import { SingleEngineView } from "@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineView";
-import SingleEngineHeader from "@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeader";
+import { MSG_CLEAR_DELAY_SEC } from "#oss/constants/Constants";
+import SettingHeader from "#oss/components/SettingHeader";
+import ViewStateWrapper from "#oss/components/ViewStateWrapper";
+import { page, pageContent } from "#oss/uiTheme/radium/general";
+import ApiUtils from "#oss/utils/apiUtils/apiUtils";
+import { SingleEngineView } from "#oss/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineView";
+import SingleEngineHeader from "#oss/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeader";
 import ProvisioningPageMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/ProvisioningPageMixin";
-import ClusterListView from "@app/pages/AdminPage/subpages/Provisioning/ClusterListView";
+import ClusterListView from "#oss/pages/AdminPage/subpages/Provisioning/ClusterListView";
 import {
   getRemoveFunction,
   getLoadProvisionFunction,

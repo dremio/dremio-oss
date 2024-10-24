@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store.dfs.copyinto;
 
-import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME;
-import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
@@ -27,6 +24,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.dfs.HistoryEventHandler;
 import com.dremio.exec.store.dfs.system.SystemIcebergTableManager;
 import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadata;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
 import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -78,7 +76,8 @@ public class CopyIntoHistoryEventHandler implements HistoryEventHandler<CopyInto
     Preconditions.checkNotNull(plugin, "system_iceberg_tables plugin must be not null");
     this.context = context;
     this.jobHistoryTableMetadata =
-        plugin.getTableMetadata(ImmutableList.of(COPY_JOB_HISTORY_TABLE_NAME));
+        plugin.getTableMetadata(
+            ImmutableList.of(SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName()));
     this.copyJobHistoryTable =
         Preconditions.checkNotNull(
             plugin.getTable(jobHistoryTableMetadata.getTableLocation()),
@@ -86,7 +85,8 @@ public class CopyIntoHistoryEventHandler implements HistoryEventHandler<CopyInto
     this.copyJobHistoryTableManager =
         new SystemIcebergTableManager(context, plugin, jobHistoryTableMetadata);
     this.fileHistoryTableMetadata =
-        plugin.getTableMetadata(ImmutableList.of(COPY_FILE_HISTORY_TABLE_NAME));
+        plugin.getTableMetadata(
+            ImmutableList.of(SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName()));
     this.copyFileHistoryTableManager =
         new SystemIcebergTableManager(context, plugin, fileHistoryTableMetadata);
     this.copyFileHistoryTable =

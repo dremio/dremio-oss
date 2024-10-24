@@ -29,7 +29,7 @@ export default class RealTimeTimer extends PureComponent {
     formatter: (data) => data,
   };
 
-  intervalId = null; // eslint-disable-line react/sort-comp
+  intervalId = null;
 
   componentDidMount() {
     this.startTimer();

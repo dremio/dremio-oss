@@ -18,34 +18,34 @@ import { useMemo, useState, useRef, useEffect, MutableRefObject } from "react";
 import { connect } from "react-redux";
 import classNames from "clsx";
 import { debounce } from "lodash";
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 import { injectIntl } from "react-intl";
 import { withRouter } from "react-router";
 import { useResourceSnapshot } from "smart-resource/react";
 import TextHighlight from "../TextHighlight";
-import SubHeaderTabs from "@app/components/SubHeaderTabs";
-import SortDropDownMenu from "@app/components/SortDropDownMenu";
+import SubHeaderTabs from "#oss/components/SubHeaderTabs";
+import SortDropDownMenu from "#oss/components/SortDropDownMenu";
 import { showConfirmationDialog } from "actions/confirmation";
 import {
   getScripts,
   getMineScripts,
   getActiveScript,
-} from "@app/selectors/scripts";
-import { getExploreState } from "@app/selectors/explore";
+} from "#oss/selectors/scripts";
+import { getExploreState } from "#oss/selectors/explore";
 import {
   fetchScripts,
   deleteScript,
   setActiveScript,
-} from "@app/actions/resources/scripts";
+} from "#oss/actions/resources/scripts";
 import {
   Avatar,
   ModalContainer,
   useModalContainer,
 } from "dremio-ui-lib/components";
-import { usePrevious } from "@app/utils/jobsUtils";
-import { resetQueryState } from "@app/actions/explore/view";
+import { usePrevious } from "#oss/utils/jobsUtils";
+import { resetQueryState } from "#oss/actions/explore/view";
 
-import { loadPrivilegesListData } from "@app/actions/resources/privilegesModalApiActions";
+import { loadPrivilegesListData } from "#oss/actions/resources/privilegesModalApiActions";
 import Menu, { styles } from "../Menus/Menu";
 import MenuItem from "../Menus/MenuItem";
 import SettingsBtn from "../Buttons/SettingsBtn";
@@ -63,7 +63,7 @@ import {
   handleOpenTabScript,
 } from "./sqlScriptsUtils";
 import { $SqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 
 import SQLScriptRenameDialog from "./components/SQLScriptRenameDialog/SQLScriptRenameDialog";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
@@ -81,12 +81,12 @@ import {
   ScriptSelectAllCheckbox,
   useSqlScriptsMultiSelect,
 } from "./components/SqlScriptsMultiSelect/SqlScriptsMultiSelect";
-import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+import { nameToInitials } from "#oss/exports/utilities/nameToInitials";
 import { SQLScriptsBulkDeleteDialog } from "./components/SQLScriptsBulkDeleteDialog/SQLScriptsBulkDeleteDialog";
 import { v4 as uuidv4 } from "uuid";
-import { useSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { ENABLED_SCRIPTS_API_V3 } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { deleteQuerySelectionsFromStorage } from "@app/sagas/utils/querySelections";
+import { useSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { ENABLED_SCRIPTS_API_V3 } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import { deleteQuerySelectionsFromStorage } from "#oss/sagas/utils/querySelections";
 
 export const VIEW_ID = "ScriptsPrivileges";
 const CE_PERMISSIONS = ["VIEW", "MODIFY", "DELETE"];

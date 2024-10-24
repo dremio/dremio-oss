@@ -23,7 +23,7 @@ export const obsolete = (props, propName, componentName) => {
   if (value !== null && value !== undefined) {
     return new Error(
       `'${propName}' is obsolete for component '${componentName}'. It should not be provided.
-You should check a usage of '${componentName}'`
+You should check a usage of '${componentName}'`,
     );
   }
 };

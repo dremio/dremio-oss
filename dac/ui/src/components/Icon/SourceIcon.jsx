@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import { getSrcPath } from "@app/utils/getIconPath";
+import { getSrcPath } from "#oss/utils/getIconPath";
 
 export default class SourceIcon extends Component {
   static propTypes = {
@@ -49,7 +49,7 @@ export default class SourceIcon extends Component {
           src={getSrcPath(
             // 'sources/ADX' get blocked by adblockers so need to fetch it as AZX
             dremioIcon === "sources/ADX" ? "sources/AZX" : dremioIcon,
-            dremioIcon === "sources/NETEZZA" ? "png" : "svg"
+            dremioIcon === "sources/NETEZZA" ? "png" : "svg",
           )}
           alt={dremioIcon.split("/")[1]}
           style={{

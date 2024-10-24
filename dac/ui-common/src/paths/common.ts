@@ -46,6 +46,7 @@ export const spaceFolder = space.extend(() => `folder/**`);
 /** Sources */
 export const sources = projectBase.extend(() => "sources");
 export const objectStorage = sources.extend(() => "objectStorage/list");
+export const lakehouse = sources.extend(() => "lakehouse/list");
 export const metastore = sources.extend(() => "metastore/list");
 export const external = sources.extend(() => "external/list");
 export const nessie = sources.extend(() => "nessie/list");

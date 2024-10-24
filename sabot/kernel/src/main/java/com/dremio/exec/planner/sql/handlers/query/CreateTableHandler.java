@@ -31,7 +31,7 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
 import com.dremio.exec.planner.sql.parser.SqlCreateTable;
-import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.io.file.FileSystem;
@@ -58,7 +58,6 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
     final SqlCreateTable sqlCreateTable = SqlNodeUtil.unwrap(sqlNode, SqlCreateTable.class);
     final Catalog catalog = config.getContext().getCatalog();
     final NamespaceKey path = catalog.resolveSingle(sqlCreateTable.getPath());
-    catalog.validatePrivilege(path, Privilege.CREATE_TABLE);
 
     // TODO: fix parser to disallow this
     if (sqlCreateTable.isSingleWriter() && !sqlCreateTable.getPartitionColumns(null).isEmpty()) {
@@ -68,6 +67,8 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
     }
 
     IcebergUtils.validateIcebergLocalSortIfDeclared(sql, config.getContext().getOptions());
+
+    IcebergUtils.validateIcebergAutoClusteringIfDeclared(sql, config.getContext().getOptions());
 
     // this map has properties specified using 'STORE AS' in sql
     // will be null if 'STORE AS' is not in query
@@ -79,6 +80,10 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
     final VersionContext sessionVersion =
         config.getContext().getSession().getSessionVersionForSource(sourceName);
     VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+
+    // TODO: DX-94683: Should use CAC::canPerformOperation
+    catalog.validatePrivilege(path, SqlGrant.Privilege.CREATE_TABLE);
+
     CatalogEntityKey catalogEntityKey =
         CatalogEntityKey.newBuilder()
             .keyComponents(path.getPathComponents())
@@ -153,8 +158,7 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
 
   public static CreateTableHandler create() {
     try {
-      final Class<?> cl =
-          Class.forName("com.dremio.exec.planner.sql.handlers.EnterpriseCreateTableHandler");
+      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.CreateTableHandler");
       final Constructor<?> ctor = cl.getConstructor();
       return (CreateTableHandler) ctor.newInstance();
     } catch (ClassNotFoundException e) {

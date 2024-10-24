@@ -40,7 +40,6 @@ import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.iceberg.IcebergTestTables;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.collect.ImmutableMap;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.calcite.rel.core.TableModify;
@@ -129,17 +128,15 @@ public abstract class TestTableManagementBase extends BaseTestQuery {
   }
 
   protected static List<RelDataTypeField> getOriginalFieldList() {
-    final String select =
-        "select * from " + IcebergTestTables.V2_ORDERS.get().getTableName() + " limit 1";
-    try {
+    try (IcebergTestTables.Table ordersTable = IcebergTestTables.V2_ORDERS.get()) {
+      final String select = "select * from " + ordersTable.getTableName() + " limit 1";
       final SqlNode node = converter.parse(select);
       final ConvertedRelNode convertedRelNode =
           SqlToRelTransformer.validateAndConvertForDml(config, node, null);
       return convertedRelNode.getValidatedRowType().getFieldList();
     } catch (Exception ex) {
-      fail(String.format("Query %s failed, exception: %s", select, ex));
+      throw new RuntimeException("getOriginalFieldList failed", ex);
     }
-    return Collections.emptyList();
   }
 
   protected void testResultColumnName(String query) throws Exception {

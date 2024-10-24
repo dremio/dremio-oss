@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/variables.less";
-@import "~@app/uiTheme/less/commonModifiers.less";
+@import "~#oss/uiTheme/less/variables.less";
+@import "~#oss/uiTheme/less/commonModifiers.less";
 
 :global {
   .--bgColor {
@@ -24,7 +24,7 @@
     }
 
     &-highlight {
-      background-color: var(--color--orange--50);
+      background-color: var(--fill--warning);
     }
 
     &-white {
@@ -325,7 +325,7 @@
       display: flex;
       height: 20px;
       align-items: center;
-      border: 1px solid var(--color--neutral--50);
+      border: 1px solid var(--border--neutral);
       background-color: var(--fill--primary);
     }
 

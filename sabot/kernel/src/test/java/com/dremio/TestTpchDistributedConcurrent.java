@@ -99,7 +99,8 @@ public class TestTpchDistributedConcurrent extends BaseTestQuery {
 
   private void submitRandomQuery() {
     final String filename = queryFile[random.nextInt(queryFile.length)];
-    final String query = QueryTestUtil.normalizeQuery(getFile(filename)).replace(';', ' ');
+    final String queryFromFile = getFile(filename);
+    final String query = TestTools.replaceWorkingPathPlaceholders(queryFromFile).replace(';', ' ');
     final UserResultsListener listener = new ChainingSilentListener(query);
     client.runQuery(UserBitShared.QueryType.SQL, query, listener);
     synchronized (this) {
@@ -169,7 +170,7 @@ public class TestTpchDistributedConcurrent extends BaseTestQuery {
 
   @Test
   public void testConcurrentQueries() throws Exception {
-    QueryTestUtil.testRunAndPrint(client, UserBitShared.QueryType.SQL, alterSession);
+    testSql(alterSession);
 
     testThread = Thread.currentThread();
     final QuerySubmitter querySubmitter = new QuerySubmitter();

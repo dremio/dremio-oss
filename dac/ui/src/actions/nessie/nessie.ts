@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Branch } from "@app/services/nessie/client";
-import { DremioV2Api as V2BetaApi } from "@app/types/nessie";
-import { store } from "@app/store/store";
-import { NessieRootState, Reference } from "@app/types/nessie";
+import { Branch } from "#oss/services/nessie/client";
+import { DremioV2Api as V2BetaApi } from "#oss/types/nessie";
+import { store } from "#oss/store/store";
+import { NessieRootState, Reference } from "#oss/types/nessie";
 import type { Script } from "dremio-ui-common/sonar/scripts/Script.type.js";
 
 export const INIT_REFS = "NESSIE_INIT_REFS";

@@ -664,9 +664,11 @@ public class AccelerationStoragePlugin
   public String sanitizePath(String location) {
     // first, get the URI to determine if any stripping needs to happen.
     URI pathUri = Path.of(location).toURI();
-    String scheme = pathUri.getScheme().toLowerCase(Locale.ROOT);
-    if (UriSchemes.HDFS_SCHEME.contains(scheme)) {
-      return pathUri.getPath();
+    if (pathUri.getScheme() != null) {
+      String scheme = pathUri.getScheme().toLowerCase(Locale.ROOT);
+      if (UriSchemes.HDFS_SCHEME.contains(scheme)) {
+        return pathUri.getPath();
+      }
     }
     return location;
   }

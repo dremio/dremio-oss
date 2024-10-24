@@ -42,7 +42,8 @@ public class TestSQLResource extends BaseTestServer {
         new CreateFromSQL("select * from sys.version", Collections.<String>emptyList());
     SQLResource.QueryDetails details =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(PATH)).buildPost(Entity.entity(create, JSON)),
+            getBuilder(getHttpClient().getAPIv3().path(PATH))
+                .buildPost(Entity.entity(create, JSON)),
             SQLResource.QueryDetails.class);
 
     Assert.assertNotNull(details.getId());
@@ -50,7 +51,8 @@ public class TestSQLResource extends BaseTestServer {
     while (true) {
       JobStatus status =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(JOB_PATH).path(details.getId())).buildGet(),
+              getBuilder(getHttpClient().getAPIv3().path(JOB_PATH).path(details.getId()))
+                  .buildGet(),
               JobStatus.class);
 
       JobState jobState = status.getJobState();
@@ -64,7 +66,12 @@ public class TestSQLResource extends BaseTestServer {
 
         JobResourceData.JobDataResults data =
             expectSuccess(
-                getBuilder(getPublicAPI(3).path(JOB_PATH).path(details.getId()).path("results"))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv3()
+                            .path(JOB_PATH)
+                            .path(details.getId())
+                            .path("results"))
                     .buildGet(),
                 JobResourceData.JobDataResults.class);
         Assert.assertEquals(data.getRowCount(), (long) status.getRowCount());
@@ -82,7 +89,8 @@ public class TestSQLResource extends BaseTestServer {
         new CreateFromSQL("select * from sys.versio", Collections.<String>emptyList());
     SQLResource.QueryDetails details =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(PATH)).buildPost(Entity.entity(create, JSON)),
+            getBuilder(getHttpClient().getAPIv3().path(PATH))
+                .buildPost(Entity.entity(create, JSON)),
             SQLResource.QueryDetails.class);
 
     Assert.assertNotNull(details.getId());
@@ -90,7 +98,8 @@ public class TestSQLResource extends BaseTestServer {
     while (true) {
       JobStatus status =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(JOB_PATH).path(details.getId())).buildGet(),
+              getBuilder(getHttpClient().getAPIv3().path(JOB_PATH).path(details.getId()))
+                  .buildGet(),
               JobStatus.class);
 
       JobState jobState = status.getJobState();
@@ -104,7 +113,8 @@ public class TestSQLResource extends BaseTestServer {
         // fetching details from a failed query should return 400
         expectStatus(
             Response.Status.BAD_REQUEST,
-            getBuilder(getPublicAPI(3).path(JOB_PATH).path(details.getId()).path("results"))
+            getBuilder(
+                    getHttpClient().getAPIv3().path(JOB_PATH).path(details.getId()).path("results"))
                 .buildGet());
 
         break;
@@ -120,7 +130,8 @@ public class TestSQLResource extends BaseTestServer {
         new CreateFromSQL("select * from sys.version", Collections.<String>emptyList());
     SQLResource.QueryDetails details =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(PATH)).buildPost(Entity.entity(create, JSON)),
+            getBuilder(getHttpClient().getAPIv3().path(PATH))
+                .buildPost(Entity.entity(create, JSON)),
             SQLResource.QueryDetails.class);
 
     Assert.assertNotNull(details.getId());
@@ -128,7 +139,8 @@ public class TestSQLResource extends BaseTestServer {
     while (true) {
       JobStatus status =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(JOB_PATH).path(details.getId())).buildGet(),
+              getBuilder(getHttpClient().getAPIv3().path(JOB_PATH).path(details.getId()))
+                  .buildGet(),
               JobStatus.class);
 
       JobState jobState = status.getJobState();
@@ -141,7 +153,8 @@ public class TestSQLResource extends BaseTestServer {
         expectStatus(
             Response.Status.BAD_REQUEST,
             getBuilder(
-                    getPublicAPI(3)
+                    getHttpClient()
+                        .getAPIv3()
                         .path(JOB_PATH)
                         .path(details.getId())
                         .path("results")
@@ -160,7 +173,8 @@ public class TestSQLResource extends BaseTestServer {
         new CreateFromSQL("GRANT SELECT ON system TO USER user1", Collections.<String>emptyList());
     SQLResource.QueryDetails details =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(PATH)).buildPost(Entity.entity(create, JSON)),
+            getBuilder(getHttpClient().getAPIv3().path(PATH))
+                .buildPost(Entity.entity(create, JSON)),
             SQLResource.QueryDetails.class);
 
     Assert.assertNotNull(details.getId());
@@ -168,7 +182,8 @@ public class TestSQLResource extends BaseTestServer {
     while (true) {
       JobStatus status =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(JOB_PATH).path(details.getId())).buildGet(),
+              getBuilder(getHttpClient().getAPIv3().path(JOB_PATH).path(details.getId()))
+                  .buildGet(),
               JobStatus.class);
 
       JobState jobState = status.getJobState();
@@ -194,7 +209,8 @@ public class TestSQLResource extends BaseTestServer {
             "REVOKE SELECT ON system FROM USER user1", Collections.<String>emptyList());
     SQLResource.QueryDetails details =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(PATH)).buildPost(Entity.entity(create, JSON)),
+            getBuilder(getHttpClient().getAPIv3().path(PATH))
+                .buildPost(Entity.entity(create, JSON)),
             SQLResource.QueryDetails.class);
 
     Assert.assertNotNull(details.getId());
@@ -202,7 +218,8 @@ public class TestSQLResource extends BaseTestServer {
     while (true) {
       JobStatus status =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(JOB_PATH).path(details.getId())).buildGet(),
+              getBuilder(getHttpClient().getAPIv3().path(JOB_PATH).path(details.getId()))
+                  .buildGet(),
               JobStatus.class);
 
       JobState jobState = status.getJobState();

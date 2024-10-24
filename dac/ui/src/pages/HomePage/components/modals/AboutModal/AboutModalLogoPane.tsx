@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import config from "dyn-load/utils/config";
 import clsx from "clsx";
 
 import * as classes from "./AboutModal.module.less";
@@ -22,16 +21,8 @@ import * as classes from "./AboutModal.module.less";
 const isBeta = process.env.DREMIO_BETA === "true";
 
 function AboutModalLogoPane() {
-  const shouldUseBetaStyles = isBeta && config.whiteLabelUrl === "dremio";
-
   return (
-    <div
-      className={clsx(
-        classes["logo-pane"],
-        shouldUseBetaStyles && classes["beta-logo-pane"],
-        "dremioLogoWithTextContainer",
-      )}
-    >
+    <div className={clsx(classes["logo-pane"], "dremioLogoWithTextContainer")}>
       <dremio-icon
         name={isBeta ? "corporate/dremio-beta-light" : "corporate/dremio"}
         alt="Dremio Narwhal"

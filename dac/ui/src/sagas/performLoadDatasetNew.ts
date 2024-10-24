@@ -15,26 +15,26 @@
  */
 
 import { call, put, race, select, spawn, take } from "redux-saga/effects";
-import { getLocation } from "@app/selectors/routing";
+import { getLocation } from "#oss/selectors/routing";
 import {
   cancelDataLoad,
   CANCEL_TABLE_DATA_LOAD,
   hideTableSpinner,
   resetTableViewStateOnPageLeave,
-} from "@app/sagas/performLoadDataset";
-import { DataLoadError, jobUpdateWatchers } from "@app/sagas/runDataset";
-import { loadDatasetMetadata } from "@app/sagas/runDatasetNew";
-import { newLoadExistingDataset } from "@app/actions/explore/datasetNew/edit";
-import { setExploreJobIdInProgress } from "@app/actions/explore/dataset/data";
-import { updateViewState } from "@app/actions/resources/index";
-import { TRANSFORM_PEEK_START } from "@app/actions/explore/dataset/peek";
-import { EXPLORE_TABLE_ID } from "@app/reducers/explore/view";
-import { getViewStateFromAction } from "@app/reducers/resources/view";
+} from "#oss/sagas/performLoadDataset";
+import { DataLoadError, jobUpdateWatchers } from "#oss/sagas/runDataset";
+import { loadDatasetMetadata } from "#oss/sagas/runDatasetNew";
+import { newLoadExistingDataset } from "#oss/actions/explore/datasetNew/edit";
+import { setExploreJobIdInProgress } from "#oss/actions/explore/dataset/data";
+import { updateViewState } from "#oss/actions/resources/index";
+import { TRANSFORM_PEEK_START } from "#oss/actions/explore/dataset/peek";
+import { EXPLORE_TABLE_ID } from "#oss/reducers/explore/view";
+import { getViewStateFromAction } from "#oss/reducers/resources/view";
 // @ts-ignore
 import { sonarEvents } from "dremio-ui-common/sonar/sonarEvents.js";
 import Immutable from "immutable";
 import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
-import { QueryRange } from "@app/utils/statements/statement";
+import { QueryRange } from "#oss/utils/statements/statement";
 
 const logger = getLoggingContext().createLogger(
   "sagas/performLoadDatasetNew.ts",

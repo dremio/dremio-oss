@@ -24,7 +24,7 @@ import { type Flag } from "../flags/Flag.type";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 export const useFeatureFlag = (
-  flag: Flag
+  flag: Flag,
 ): [result: boolean | null, loading: boolean] => {
   const [features] = useResourceSnapshot(FeaturesFlagsResource);
   const skipFetch = !getSonarContext()?.getSelectedProjectId;

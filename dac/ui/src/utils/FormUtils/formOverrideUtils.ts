@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import FormElementConfig from "@app/utils/FormUtils/FormElementConfig";
+import FormElementConfig from "#oss/utils/FormUtils/FormElementConfig";
 import FormUtils from "./FormUtils";
-import { TextField } from "@app/components/Fields";
+import { TextField } from "#oss/components/Fields";
 
 export const getJSONElementOverrides = (
   elements: Record<string, any>,

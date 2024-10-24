@@ -39,7 +39,7 @@ class RightPanel extends PureComponent {
         : [this.props.options.getIn(["range", "startMoment"]), date];
     this.props.handleChange(
       IntervalTypes.CUSTOM_INTERVAL,
-      Immutable.fromJS(nextRange)
+      Immutable.fromJS(nextRange),
     );
   }
 
@@ -53,7 +53,7 @@ class RightPanel extends PureComponent {
     if (!isInit && isDateChanged && isRange) {
       this.props.handleChange(
         IntervalTypes.CUSTOM_INTERVAL,
-        Immutable.fromJS([date.startDate, date.endDate])
+        Immutable.fromJS([date.startDate, date.endDate]),
       );
     }
   }

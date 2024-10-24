@@ -300,6 +300,7 @@ message JobResult {
   optional bool completed = 2 [default = true]; // because only "old" entries don't have this field, they are already completed
   optional SessionId sessionId = 3; // Store session id as value in the KVStore
   optional bool profileDetailsCapturedPostTermination = 4 [default = false]; // indicates whether job profile details were captured in store after job completed/failed/cancelled
+  optional bool results_cleaned = 5 [default = false];
 }
 
 message ExtraJobInfo {

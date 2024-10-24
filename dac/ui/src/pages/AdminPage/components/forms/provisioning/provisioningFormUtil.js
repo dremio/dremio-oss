@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FormUtils from "@app/utils/FormUtils/FormUtils";
+import FormUtils from "#oss/utils/FormUtils/FormUtils";
 
 import {
   AWS_INSTANCE_TYPE_OPTIONS,
@@ -26,7 +26,7 @@ import {
   EC2_AWS_PROPLIST_FIELDS,
   EC2_UI_FIELDS,
   EC2_FIELDS_MAP,
-} from "@app/constants/provisioningPage/provisioningConstants";
+} from "#oss/constants/provisioningPage/provisioningConstants";
 
 import { EC2_CLUSTER_FIELDS } from "dyn-load/constants/provisioningPage/provisioningConstants";
 
@@ -54,7 +54,7 @@ export function getInstanceTypeValue(label) {
 
 export function engineSizeValue(containerCount) {
   const matchingOption = ENGINE_SIZE_STANDARD_OPTIONS.find(
-    (option) => option.value === containerCount
+    (option) => option.value === containerCount,
   );
   return matchingOption ? containerCount : -1;
 }
@@ -76,35 +76,35 @@ export function getInitValuesFromProvision(provision, initValues = {}) {
     FormUtils.addInitValue(
       initValues,
       prop,
-      provision.getIn(["dynamicConfig", prop])
+      provision.getIn(["dynamicConfig", prop]),
     );
   });
   //engineSize selector does not have direct provision property, it is mapped to containerCount
   FormUtils.addInitValue(
     initValues,
     EC2_FIELDS_MAP.engineSize,
-    engineSizeValue(provision.getIn(["dynamicConfig", "containerCount"]))
+    engineSizeValue(provision.getIn(["dynamicConfig", "containerCount"])),
   );
 
   EC2_AWS_PROPS.forEach((prop) => {
     FormUtils.addInitValue(
       initValues,
       prop,
-      provision.getIn(["awsProps", prop])
+      provision.getIn(["awsProps", prop]),
     );
   });
   EC2_AWS_CONNECTION_PROPS.forEach((prop) => {
     FormUtils.addInitValue(
       initValues,
       prop,
-      provision.getIn(["awsProps", "connectionProps", prop])
+      provision.getIn(["awsProps", "connectionProps", prop]),
     );
   });
   EC2_AWS_PROPLIST_FIELDS.forEach((prop) => {
     FormUtils.addInitValue(
       initValues,
       prop,
-      getInitPropListValue(provision, prop)
+      getInitPropListValue(provision, prop),
     );
   });
 

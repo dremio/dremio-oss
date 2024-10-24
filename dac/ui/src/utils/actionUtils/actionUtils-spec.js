@@ -31,8 +31,8 @@ describe("actionUtils", () => {
     it("should accept Immutable map", () => {
       expect(
         actionUtils.shouldLoad(
-          Immutable.fromJS({ isInProgress: false, isInvalid: true })
-        )
+          Immutable.fromJS({ isInProgress: false, isInvalid: true }),
+        ),
       ).to.be.true;
     });
   });
@@ -40,7 +40,7 @@ describe("actionUtils", () => {
     it("should return function on first call", () => {
       const errorMessage = "error";
       expect(actionUtils.humanizeNotificationMessage(errorMessage)).to.be.a(
-        "function"
+        "function",
       );
     });
 
@@ -53,7 +53,7 @@ describe("actionUtils", () => {
         level: "error",
       };
       expect(
-        actionUtils.humanizeNotificationMessage(errorMessage)(payload)
+        actionUtils.humanizeNotificationMessage(errorMessage)(payload),
       ).to.be.eql(result);
     });
 
@@ -65,7 +65,7 @@ describe("actionUtils", () => {
         level: "error",
       };
       expect(actionUtils.humanizeNotificationMessage()(payload)).to.be.eql(
-        result
+        result,
       );
     });
 
@@ -77,7 +77,7 @@ describe("actionUtils", () => {
         level: "error",
       };
       expect(actionUtils.humanizeNotificationMessage()(payload)).to.be.eql(
-        result
+        result,
       );
     });
 
@@ -94,7 +94,7 @@ describe("actionUtils", () => {
         level: "error",
       };
       expect(
-        actionUtils.humanizeNotificationMessage(errorMessage)(payload)
+        actionUtils.humanizeNotificationMessage(errorMessage)(payload),
       ).to.be.eql(result);
     });
   });

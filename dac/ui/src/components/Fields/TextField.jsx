@@ -30,10 +30,10 @@ import {
   numberInputWrapperFocused,
   numberInputWrapperDisabled,
   inputWrapperAdvanced,
-} from "@app/uiTheme/less/forms.less";
+} from "#oss/uiTheme/less/forms.less";
 
 import forms from "uiTheme/radium/forms";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 import * as classes from "./TextField.module.less";
 
@@ -137,7 +137,7 @@ class TextField extends Component {
       wrapperClassName === "input-wrapper-advanced"
         ? inputWrapperAdvanced
         : null,
-      className
+      className,
     );
 
     const numberInputClass = classNames(
@@ -145,7 +145,7 @@ class TextField extends Component {
       { [numberInputDisabled]: disabled },
       wrapperClassName === "input-wrapper-advanced"
         ? inputWrapperAdvanced
-        : null
+        : null,
     );
 
     const handleBlur = (e) => {
@@ -161,7 +161,7 @@ class TextField extends Component {
     const handleChange = (event) => {
       typeof onChange === "function" &&
         onChange(
-          Number(initializeValue(event.target.value.replaceAll(/\D/g, "")))
+          Number(initializeValue(event.target.value.replaceAll(/\D/g, ""))),
         );
     };
 
@@ -171,7 +171,7 @@ class TextField extends Component {
         onChange(
           maxValue != null
             ? Math.min(maxValue, initialValue + step)
-            : initialValue + step
+            : initialValue + step,
         );
     };
 
@@ -181,7 +181,7 @@ class TextField extends Component {
         onChange(
           minValue != null
             ? Math.max(minValue, initialValue - step)
-            : initialValue - step
+            : initialValue - step,
         );
     };
 

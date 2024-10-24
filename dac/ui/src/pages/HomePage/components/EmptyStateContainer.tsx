@@ -15,18 +15,19 @@
  */
 
 import classNames from "clsx";
-import { intl } from "@app/utils/intl";
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import { intl } from "#oss/utils/intl";
+import LinkWithRef from "#oss/components/LinkWithRef/LinkWithRef";
 import * as classes from "./EmptyStateContainer.module.less";
 
 type EmptyStateContainerProps = {
-  title: string;
+  title?: string;
   className?: string;
   icon?: string;
   linkInfo?: {
     href: string;
     "data-qa": string;
     label: string;
+    className?: string;
   };
   children?: React.ReactNode;
   titleValues?: any;
@@ -47,14 +48,20 @@ const EmptyStateContainer = (props: EmptyStateContainerProps) => {
   return (
     <div className={classNames(classes["empty-state-container"], className)}>
       {icon && <dremio-icon class={classes["empty-state-icon"]} name={icon} />}
-      <span
-        className={classNames(classes["empty-state-title"], titleClassName)}
-      >
-        {formatMessage({ id: title }, titleValues)}
-      </span>
+      {title && (
+        <span
+          className={classNames(classes["empty-state-title"], titleClassName)}
+        >
+          {formatMessage({ id: title }, titleValues)}
+        </span>
+      )}
       {linkInfo && (
         // @ts-ignore
-        <LinkWithRef to={linkInfo.href} data-qa={linkInfo["data-qa"]}>
+        <LinkWithRef
+          to={linkInfo.href}
+          data-qa={linkInfo["data-qa"]}
+          className={linkInfo["className"]}
+        >
           {formatMessage({ id: linkInfo.label })}
         </LinkWithRef>
       )}

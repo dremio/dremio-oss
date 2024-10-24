@@ -93,7 +93,7 @@ public final class CreateFunctionHandler extends SimpleDirectHandler {
     NamespaceKey functionKey = catalog.resolveSingle(createFunction.getPath());
     CatalogEntityKey catalogEntityKey =
         CatalogEntityKeyUtil.buildCatalogEntityKey(
-            functionKey,
+            functionKey.getPathComponents(),
             createFunction.getSqlTableVersionSpec(),
             context.getSession().getSessionVersionForSource(functionKey.getRoot()));
     boolean exists = doesFunctionExist(userDefinedFunctionCatalog, catalogEntityKey);

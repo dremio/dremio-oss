@@ -13,6 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { getData } from "@app/reducers/modulesState";
+import { getData } from "#oss/reducers/modulesState";
 export const getModuleState = (state: Record<string, any>, moduleKey: string) =>
   getData(state.modulesState, moduleKey);

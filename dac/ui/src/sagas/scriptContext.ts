@@ -17,11 +17,11 @@
 import Immutable from "immutable";
 import { put, select } from "redux-saga/effects";
 import { updateContext } from "dremio-ui-common/sonar/scripts/endpoints/updateContext.js";
-import { setQueryContext } from "@app/actions/explore/view";
-import { setRefsFromScript } from "@app/actions/nessie/nessie";
-import { addNotification } from "@app/actions/notification";
-import { getExploreState } from "@app/selectors/explore";
-import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
+import { setQueryContext } from "#oss/actions/explore/view";
+import { setRefsFromScript } from "#oss/actions/nessie/nessie";
+import { addNotification } from "#oss/actions/notification";
+import { getExploreState } from "#oss/selectors/explore";
+import { MSG_CLEAR_DELAY_SEC } from "#oss/constants/Constants";
 
 /**
  * @description Send a successful job's sessionId to /update_context to
@@ -46,7 +46,7 @@ export function* updateScriptContext(sessionId?: string): any {
         yield put(
           setQueryContext({
             context: Immutable.fromJS(updatedScript.context),
-          })
+          }),
         );
       }
 
@@ -54,7 +54,11 @@ export function* updateScriptContext(sessionId?: string): any {
     }
   } catch (e: any) {
     yield put(
-      addNotification(e.responseBody.errorMessage, "error", MSG_CLEAR_DELAY_SEC)
+      addNotification(
+        e.responseBody.errorMessage,
+        "error",
+        MSG_CLEAR_DELAY_SEC,
+      ),
     );
   }
 }

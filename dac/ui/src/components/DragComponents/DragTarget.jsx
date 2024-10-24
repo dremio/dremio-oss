@@ -18,7 +18,7 @@ import PropTypes from "prop-types";
 import { DropTarget } from "react-dnd";
 import { findDOMNode } from "react-dom";
 import classNames from "clsx";
-import { base } from "@app/uiTheme/less/DragComponents/DragTarget.less";
+import { base } from "#oss/uiTheme/less/DragComponents/DragTarget.less";
 
 const DEFAULT_TYPE = "groupBy";
 
@@ -41,7 +41,7 @@ const target = {
     if (dragIndex === hoverIndex) {
       return;
     }
-    const hoverBoundingRect = findDOMNode(component).getBoundingClientRect(); // eslint-disable-line react/no-find-dom-node
+    const hoverBoundingRect = findDOMNode(component).getBoundingClientRect();
     const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
     const clientOffset = monitor.getClientOffset();
     const hoverClientY = clientOffset.y - hoverBoundingRect.top;
@@ -103,7 +103,7 @@ export default class DragTargetWrap extends Component {
     return this.props.connectDropTarget(
       <div onDragOver={this.props.onDragOver} className={classname}>
         {this.props.children}
-      </div>
+      </div>,
     );
   }
 }

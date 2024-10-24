@@ -33,8 +33,10 @@ import com.dremio.sabot.op.sort.external.VectorSorter.SortState;
 import com.dremio.sabot.op.spi.Operator.ShrinkableOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Stopwatch;
 import java.util.EnumSet;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 
@@ -91,6 +93,9 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
   public int oobDropWrongState;
   public int oobDropUnderThreshold;
   public int oobSpills;
+  private final Stopwatch produceDataWatch = Stopwatch.createUnstarted();
+  private final Stopwatch consumeDataWatch = Stopwatch.createUnstarted();
+  private final Stopwatch noMoreToConsumeWatch = Stopwatch.createUnstarted();
 
   @Override
   public State getState() {
@@ -143,13 +148,17 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
 
   @Override
   public void consumeData(int records) throws Exception {
+    consumeDataWatch.start();
     vectorSorter.consumeData(records);
+    consumeDataWatch.stop();
     updateStats(false);
   }
 
   @Override
   public void noMoreToConsume() throws Exception {
+    noMoreToConsumeWatch.start();
     vectorSorter.noMoreToConsume();
+    noMoreToConsumeWatch.stop();
     updateStats(false);
   }
 
@@ -180,18 +189,23 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
 
   @Override
   public int outputData() throws Exception {
+    produceDataWatch.start();
     vectorSorter.getState().is(State.CAN_PRODUCE);
 
     if (vectorSorter.handleIfSpillInProgress()) {
+      produceDataWatch.stop();
       return 0;
     }
 
     if (vectorSorter.handleIfCannotCopy()) {
+      produceDataWatch.stop();
       updateStats(false);
       return 0;
     }
 
-    return vectorSorter.outputData();
+    int noOfOutputRecords = vectorSorter.outputData();
+    produceDataWatch.stop();
+    return noOfOutputRecords;
   }
 
   /** When this operator starts spilling, notify others if the triggering is enabled. */
@@ -377,6 +391,18 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
           ExternalSortStats.Metric.SPILL_COPY_NANOS,
           vectorSorterStats.get(ExternalSortStats.Metric.SPILL_COPY_NANOS.name()));
     }
+    stats.setLongStat(
+        ExternalSortStats.Metric.CAN_PRODUCE_MILLIS,
+        produceDataWatch.elapsed(TimeUnit.MILLISECONDS));
+    stats.setLongStat(
+        ExternalSortStats.Metric.CAN_CONSUME_MILLIS,
+        consumeDataWatch.elapsed(TimeUnit.MILLISECONDS));
+    stats.setLongStat(
+        ExternalSortStats.Metric.SETUP_MILLIS,
+        vectorSorterStats.get(ExternalSortStats.Metric.SETUP_MILLIS.name()));
+    stats.setLongStat(
+        ExternalSortStats.Metric.NO_MORE_TO_CONSUME_MILLIS,
+        noMoreToConsumeWatch.elapsed(TimeUnit.MILLISECONDS));
   }
 
   @Override

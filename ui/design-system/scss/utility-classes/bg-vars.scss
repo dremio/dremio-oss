@@ -85,3 +85,9 @@
   --text: var(--text--disabled);
   --text--hovered: var(--text--disabled);
 }
+
+.bg-vars--popover {
+  --bg: var(--fill--popover);
+  --border--color: transparent;
+  --text: var(--text--primary);
+}

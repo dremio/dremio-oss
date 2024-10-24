@@ -21,6 +21,7 @@ import com.dremio.exec.catalog.DremioSchema;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.DremioTranslatableTable;
 import com.dremio.exec.catalog.SimpleCatalog;
+import com.dremio.exec.planner.sql.SqlVersionedIdentifier;
 import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacro;
 import com.dremio.exec.tablefunctions.VersionedTableMacro;
 import com.dremio.service.namespace.NamespaceKey;
@@ -238,10 +239,20 @@ public class DremioCatalogReader
     if (null == paramSqlFunctionCategory || null == paramSqlIdentifier) {
       return;
     }
-    findFunctions(
-            CatalogEntityKey.fromNamespaceKey(new NamespaceKey(paramSqlIdentifier.names)),
-            paramSqlFunctionCategory)
-        .stream()
+
+    CatalogEntityKey functionKey;
+    if (paramSqlIdentifier instanceof SqlVersionedIdentifier) {
+      SqlVersionedIdentifier identifier = (SqlVersionedIdentifier) paramSqlIdentifier;
+      functionKey =
+          CatalogEntityKey.newBuilder()
+              .keyComponents(paramSqlIdentifier.names)
+              .tableVersionContext(identifier.getSqlTableVersionSpec().getTableVersionContext())
+              .build();
+    } else {
+      functionKey = CatalogEntityKey.fromNamespaceKey(new NamespaceKey(paramSqlIdentifier.names));
+    }
+
+    findFunctions(functionKey, paramSqlFunctionCategory).stream()
         .map(input -> toOp(paramSqlIdentifier, input))
         .forEach(paramList::add);
   }

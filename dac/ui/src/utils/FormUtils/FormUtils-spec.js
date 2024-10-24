@@ -44,7 +44,7 @@ describe("FormUtils", () => {
     it("should add missing trailing brackets", () => {
       expect(FormUtils.addTrailingBrackets("a")).to.equal("a[]");
       expect(FormUtils.addTrailingBrackets("a.b.@@@###.c")).to.equal(
-        "a.b.@@@###.c[]"
+        "a.b.@@@###.c[]",
       );
     });
   });
@@ -83,25 +83,25 @@ describe("FormUtils", () => {
 
     it("should find field by simple name", () => {
       expect(FormUtils.getFieldByComplexPropName({ a: "a" }, "a")).to.equal(
-        "a"
+        "a",
       );
       expect(
-        FormUtils.getFieldByComplexPropName({ a: { b: "b" } }, "a")
+        FormUtils.getFieldByComplexPropName({ a: { b: "b" } }, "a"),
       ).to.eql({ b: "b" });
     });
 
     it("should find field by compound name", () => {
       expect(
-        FormUtils.getFieldByComplexPropName({ a: { b: "b" } }, "a.b")
+        FormUtils.getFieldByComplexPropName({ a: { b: "b" } }, "a.b"),
       ).to.equal("b");
       expect(
-        FormUtils.getFieldByComplexPropName({ a: { b: { c: "c" } } }, "a.b")
+        FormUtils.getFieldByComplexPropName({ a: { b: { c: "c" } } }, "a.b"),
       ).to.eql({ c: "c" });
     });
 
     it("should find field by name with brackets", () => {
       expect(
-        FormUtils.getFieldByComplexPropName({ a: { b: { c: "c" } } }, "a.b[]")
+        FormUtils.getFieldByComplexPropName({ a: { b: { c: "c" } } }, "a.b[]"),
       ).to.eql({ c: "c" });
     });
   });
@@ -185,12 +185,12 @@ describe("FormUtils", () => {
     });
     it("shoud return array of paths in nested props", () => {
       expect(
-        FormUtils.findFieldsWithError({ a: { 1: "a1", 2: "a2" }, b: "2" })
+        FormUtils.findFieldsWithError({ a: { 1: "a1", 2: "a2" }, b: "2" }),
       ).to.eql(["a.1", "a.2", "b"]);
       expect(
         FormUtils.findFieldsWithError({
           a: { 1: "a1", 2: { 3: "a23", 4: "a24" }, b: "2" },
-        })
+        }),
       ).to.eql(["a.1", "a.2.3", "a.2.4", "a.b"]);
     });
     it("should apply prefix", () => {
@@ -199,7 +199,7 @@ describe("FormUtils", () => {
         "p.b",
       ]);
       expect(
-        FormUtils.findFieldsWithError({ a: { 1: "a1", 2: "a2" }, b: "2" }, "p")
+        FormUtils.findFieldsWithError({ a: { 1: "a1", 2: "a2" }, b: "2" }, "p"),
       ).to.eql(["p.a.1", "p.a.2", "p.b"]);
     });
   });
@@ -222,25 +222,25 @@ describe("FormUtils", () => {
 
     it("should return first tab if selected name is not specified", () => {
       expect(FormUtils.findTabWithError(formconfig, [], "").getName()).to.equal(
-        "tabA"
+        "tabA",
       );
     });
 
     it("should return selected tab if no errors", () => {
       expect(
-        FormUtils.findTabWithError(formconfig, [], "tabB").getName()
+        FormUtils.findTabWithError(formconfig, [], "tabB").getName(),
       ).to.equal("tabB");
     });
 
     it("should return selected tab if it has errors", () => {
       const tabHasErrorStub = sinon.stub(
         FormUtils,
-        "tabFieldsIncludeErrorFields"
+        "tabFieldsIncludeErrorFields",
       );
       tabHasErrorStub.returns(true);
 
       expect(
-        FormUtils.findTabWithError(formconfig, ["a", "b"], "tabB").getName()
+        FormUtils.findTabWithError(formconfig, ["a", "b"], "tabB").getName(),
       ).to.equal("tabB");
       tabHasErrorStub.restore();
     });
@@ -253,7 +253,7 @@ describe("FormUtils", () => {
         ],
       });
       expect(
-        FormUtils.findTabWithError(formconfig, ["a", "b"], "tabB").getName()
+        FormUtils.findTabWithError(formconfig, ["a", "b"], "tabB").getName(),
       ).to.equal("tabA");
     });
 
@@ -265,7 +265,7 @@ describe("FormUtils", () => {
         ],
       });
       expect(
-        FormUtils.findTabWithError(formconfig, ["a", "b"], "tabB").getName()
+        FormUtils.findTabWithError(formconfig, ["a", "b"], "tabB").getName(),
       ).to.equal("tabB");
     });
   });
@@ -435,7 +435,7 @@ describe("FormUtils", () => {
     });
     it("should return a function", () => {
       expect(
-        typeof FormUtils.getValidationsFromConfig({ form: formConfig })
+        typeof FormUtils.getValidationsFromConfig({ form: formConfig }),
       ).to.equal("function");
     });
   });

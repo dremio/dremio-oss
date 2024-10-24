@@ -35,7 +35,7 @@ export const useResourceSnapshotDeep = <T>(resource: SmartResource<T>) => {
       (err: any) => {
         setSnapshot(null);
         setError(err);
-      }
+      },
     ).unsubscribe;
   }, [resource]);
 

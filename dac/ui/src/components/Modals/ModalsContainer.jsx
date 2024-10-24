@@ -17,7 +17,7 @@ import { createElement, PureComponent, Fragment } from "react";
 import $ from "jquery";
 import PropTypes from "prop-types";
 import { withLocation } from "containers/dremioLocation";
-import { MODAL_CLOSE_ANIMATION_DURATION } from "@app/components/Modals/Modal";
+import { MODAL_CLOSE_ANIMATION_DURATION } from "#oss/components/Modals/Modal";
 
 class ModalsContainer extends PureComponent {
   static contextTypes = {

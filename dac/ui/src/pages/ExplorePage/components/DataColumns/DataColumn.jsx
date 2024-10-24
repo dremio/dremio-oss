@@ -20,7 +20,7 @@ import { formatMessage } from "utils/locale";
 import {
   typeToIconType,
   typeToFormatMessageId,
-} from "@app/constants/DataTypes";
+} from "#oss/constants/DataTypes";
 import {
   name as nameCls,
   icon as iconCls,
@@ -58,7 +58,7 @@ export class DataColumn extends Component {
           name={label}
           data-qa={label}
           alt={formatMessage(alt)}
-          class={detailsView ? iconWiki : iconCls}
+          class={`icon-primary ${detailsView ? iconWiki : iconCls}`}
         />
         <div className={detailsView ? nameWiki : nameCls}>
           <HighlightedColumnName columnName={name} searchTerm={searchTerm} />

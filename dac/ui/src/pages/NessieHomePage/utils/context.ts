@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { NessieRootState, NessieState } from "@app/types/nessie";
-import { selectState } from "@app/selectors/nessie/nessie";
-import { DefaultApi } from "@app/services/nessie/client";
-import { DremioV2Api as V2BetaApi } from "@app/types/nessie";
-import { getTreeApi, getApiV2 } from "@app/services/nessie/impl/TreeApi";
+import { NessieRootState, NessieState } from "#oss/types/nessie";
+import { selectState } from "#oss/selectors/nessie/nessie";
+import { DefaultApi } from "#oss/services/nessie/client";
+import { DremioV2Api as V2BetaApi } from "#oss/types/nessie";
+import { getTreeApi, getApiV2 } from "#oss/services/nessie/impl/TreeApi";
 import { createContext, useContext } from "react";
 
 type SourceInfo = {
@@ -48,7 +48,7 @@ export function createNessieContext(
   source: SourceInfo,
   state: NessieRootState,
   prefix = "",
-  baseUrl = ""
+  baseUrl = "",
 ): NessieContextType {
   const stateKey = `${prefix}${source.name}`;
   return {

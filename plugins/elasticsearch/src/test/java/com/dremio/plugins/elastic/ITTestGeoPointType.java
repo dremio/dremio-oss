@@ -17,7 +17,6 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.GEO_POINT;
 
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
@@ -139,9 +138,7 @@ public class ITTestGeoPointType extends ElasticBaseTestQuery {
     logger.info("--> mapping:\n{}", elastic.mapping(schema, table));
     logger.info("--> search:\n{}", elastic.search(schema, table));
 
-    testRunAndPrint(
-        UserBitShared.QueryType.SQL,
-        "select t.location_field from elasticsearch." + schema + "." + table + " t");
+    testSql("select t.location_field from elasticsearch." + schema + "." + table + " t");
 
     testBuilder()
         .sqlQuery(

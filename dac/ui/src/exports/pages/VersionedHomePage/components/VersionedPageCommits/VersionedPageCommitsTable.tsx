@@ -15,17 +15,17 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { LogEntryV2 as LogEntry } from "@app/services/nessie/client";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
-import { Reference } from "@app/types/nessie";
-import NewBranchDialog from "@app/pages/NessieHomePage/components/NewBranchDialog/NewBranchDialog";
-import NewTagDialog from "@app/pages/NessieHomePage/components/NewTagDialog/NewTagDialog";
-import { VersionedPageTabsType } from "@app/exports/pages/VersionedHomePage/VersionedHomePage";
+import { LogEntryV2 as LogEntry } from "#oss/services/nessie/client";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
+import { Reference } from "#oss/types/nessie";
+import NewBranchDialog from "#oss/pages/NessieHomePage/components/NewBranchDialog/NewBranchDialog";
+import NewTagDialog from "#oss/pages/NessieHomePage/components/NewTagDialog/NewTagDialog";
+import { VersionedPageTabsType } from "#oss/exports/pages/VersionedHomePage/VersionedHomePage";
 import { useResourceSnapshot } from "smart-resource/react";
 import { ArcticCatalogPrivilegesResource } from "@inject/arctic/resources/ArcticCatalogPrivilegesResource";
 import { SmartResource } from "smart-resource1";
-import { CatalogCommitsTable } from "@app/exports/pages/VersionedHomePage/components/VersionedPageCommits/CatalogCommitsTable/CatalogCommitsTable";
-import { catalogCommitsTableColumns } from "@app/exports/pages/VersionedHomePage/components/VersionedPageCommits/CatalogCommitsTable/catalogCommitsTableColumns";
+import { CatalogCommitsTable } from "#oss/exports/pages/VersionedHomePage/components/VersionedPageCommits/CatalogCommitsTable/CatalogCommitsTable";
+import { catalogCommitsTableColumns } from "#oss/exports/pages/VersionedHomePage/components/VersionedPageCommits/CatalogCommitsTable/catalogCommitsTableColumns";
 
 const INITIAL_BRANCH_STATE_VALUE = {
   openDialog: false,

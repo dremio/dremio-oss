@@ -23,7 +23,7 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 
-class CombinedSizer implements Sizer {
+public class CombinedSizer implements Sizer {
 
   private final ImmutableList<Sizer> sizers;
 
@@ -64,6 +64,37 @@ class CombinedSizer implements Sizer {
   @Override
   public int getEstimatedRecordSizeInBits() {
     return sizers.stream().mapToInt(Sizer::getEstimatedRecordSizeInBits).sum();
+  }
+
+  public int getMaxRowLengthInBatch(int numOfRecords) {
+    int maxRowLen = 0;
+    try {
+      if ((long) sizers.size() == 0) {
+        return 0;
+      }
+
+      for (int index = 0; index < numOfRecords; index++) {
+        maxRowLen = Math.max(maxRowLen, getDataLengthFromIndex(index, 1));
+      }
+    } catch (Exception e) {
+      // ignore
+    }
+
+    return maxRowLen;
+  }
+
+  /**
+   * Get data length of certain number of entries starting from a given index
+   *
+   * @param startIndex start offset from where caller wants the data length for
+   * @param numberOfEntries number of entries for which caller wants the length for
+   * @return
+   */
+  @Override
+  public int getDataLengthFromIndex(int startIndex, int numberOfEntries) {
+    return sizers.stream()
+        .mapToInt(s -> s.getDataLengthFromIndex(startIndex, numberOfEntries))
+        .sum();
   }
 
   private static class CombinedCopier implements Copier {

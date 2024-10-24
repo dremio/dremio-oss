@@ -64,7 +64,7 @@ describe("JobsFilters", () => {
         wrapper.instance().addInfoToFilter("foo", "bar");
         const result = commonProps.queryState.setIn(
           ["filters", "foo"],
-          Immutable.List(["bar"])
+          Immutable.List(["bar"]),
         );
         expect(commonProps.onUpdateQueryState.getCall(0).args[0].equals(result))
           .to.be.true;
@@ -85,7 +85,7 @@ describe("JobsFilters", () => {
 
         const result = commonProps.queryState.setIn(
           ["filters", "qt"],
-          Immutable.List(["EXTERNAL"])
+          Immutable.List(["EXTERNAL"]),
         );
         expect(commonProps.onUpdateQueryState.getCall(0).args[0].equals(result))
           .to.be.true;
@@ -97,14 +97,14 @@ describe("JobsFilters", () => {
         instance.toggleSortDirection();
         const result = commonProps.queryState.set("order", "ASCENDING");
         expect(commonProps.onUpdateQueryState.getCall(0).args[0].toJS()).to.eql(
-          result.toJS()
+          result.toJS(),
         );
 
         wrapper.setProps({ queryState: result });
         instance.toggleSortDirection();
         const result2 = commonProps.queryState.set("order", "DESCENDING");
         expect(commonProps.onUpdateQueryState.getCall(1).args[0].toJS()).to.eql(
-          result2.toJS()
+          result2.toJS(),
         );
       });
     });
@@ -116,7 +116,7 @@ describe("JobsFilters", () => {
           .set("sort", "id")
           .set("order", "DESCENDING");
         expect(commonProps.onUpdateQueryState.getCall(0).args[0].toJS()).to.eql(
-          result.toJS()
+          result.toJS(),
         );
       });
     });
@@ -126,10 +126,10 @@ describe("JobsFilters", () => {
         instance.handleEnterText("text");
         const result = commonProps.queryState.setIn(
           ["filters", "contains"],
-          Immutable.List(["text"])
+          Immutable.List(["text"]),
         );
         expect(commonProps.onUpdateQueryState.getCall(0).args[0].toJS()).to.eql(
-          result.toJS()
+          result.toJS(),
         );
 
         instance.handleEnterText("");
@@ -138,7 +138,7 @@ describe("JobsFilters", () => {
           "contains",
         ]);
         expect(commonProps.onUpdateQueryState.getCall(1).args[0].toJS()).to.eql(
-          result2.toJS()
+          result2.toJS(),
         );
       });
     });
@@ -147,7 +147,7 @@ describe("JobsFilters", () => {
       it("should delete st if ALL_TIME_INTERVAL is used", () => {
         commonProps.queryState.setIn(
           ["filters", "st"],
-          Immutable.List(["text"])
+          Immutable.List(["text"]),
         );
         instance.handleStartTimeChange(IntervalTypes.ALL_TIME_INTERVAL, []);
         expect(commonProps.queryState.get("filters").has("st")).to.eql(false);
@@ -167,12 +167,12 @@ describe("JobsFilters", () => {
       });
       const instance = wrapper.instance();
       expect(
-        instance.getAllFilters().filter((filter) => filter.value === "usr")
+        instance.getAllFilters().filter((filter) => filter.value === "usr"),
       ).to.have.length(1);
 
       wrapper.setContext({ loggedInUser: { admin: false } });
       expect(
-        instance.getAllFilters().filter((filter) => filter.value === "usr")
+        instance.getAllFilters().filter((filter) => filter.value === "usr"),
       ).to.have.length(0);
     });
   });

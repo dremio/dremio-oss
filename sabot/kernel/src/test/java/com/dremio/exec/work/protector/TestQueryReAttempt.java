@@ -148,18 +148,18 @@ public class TestQueryReAttempt extends BaseTestQuery {
 
   @BeforeClass
   public static void enableReAttempts() {
-    setSessionOption(ExecConstants.ENABLE_VECTORIZED_HASHAGG, "false");
-    setSessionOption(ExecConstants.ENABLE_REATTEMPTS.getOptionName(), "true");
-    setSessionOption(ExecConstants.ENABLE_REATTEMPTS_ON_OOM.getOptionName(), "true");
-    setSessionOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName(), "false");
+    setSessionOption(ExecConstants.ENABLE_VECTORIZED_HASHAGG, false);
+    setSessionOption(ExecConstants.ENABLE_REATTEMPTS, true);
+    setSessionOption(ExecConstants.ENABLE_REATTEMPTS_ON_OOM, true);
+    setSessionOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED, false);
   }
 
   @AfterClass
   public static void resetReAttempts() {
     resetSessionOption(ExecConstants.ENABLE_VECTORIZED_HASHAGG);
-    resetSessionOption(ExecConstants.ENABLE_REATTEMPTS.getOptionName());
-    resetSessionOption(ExecConstants.ENABLE_REATTEMPTS_ON_OOM.getOptionName());
-    resetSessionOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName());
+    resetSessionOption(ExecConstants.ENABLE_REATTEMPTS);
+    resetSessionOption(ExecConstants.ENABLE_REATTEMPTS_ON_OOM);
+    resetSessionOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED);
   }
 
   /** Injects an OOM in HashAgg and confirm that the query succeeds anyway */

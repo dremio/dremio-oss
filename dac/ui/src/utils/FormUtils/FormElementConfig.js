@@ -21,8 +21,8 @@ import SelectWrapper from "components/Forms/Wrappers/SelectWrapper";
 import RadioWrapper from "components/Forms/Wrappers/RadioWrapper";
 import DurationWrapper from "components/Forms/Wrappers/DurationWrapper";
 import ByteWrapper from "components/Forms/Wrappers/ByteWrapper";
-import NullWrapper from "@app/components/Forms/Wrappers/NullWrapper";
-import ArcticCatalogSelectWrapper from "@app/components/Forms/Wrappers/SourceWrappers/ARCTIC/ArcticCatalogSelect/ArcticCatalogSelect";
+import NullWrapper from "#oss/components/Forms/Wrappers/NullWrapper";
+import ArcticCatalogSelectWrapper from "#oss/components/Forms/Wrappers/SourceWrappers/ARCTIC/ArcticCatalogSelect/ArcticCatalogSelect";
 
 /**
  * Base class for configuration of complex form elements and used as is for simple elements

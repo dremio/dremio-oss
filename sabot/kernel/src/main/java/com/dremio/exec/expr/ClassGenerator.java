@@ -424,13 +424,31 @@ public class ClassGenerator<T> {
     Preconditions.checkArgument(
         count >= 0 && count < MAX_EXPECTED_FUNCTIONS_IN_SINGLE_EXPRESSION,
         "Encountered unexpected function error count corruption");
-    while (count > 0) {
+    for (int i = 0; i < count; ++i) {
       FunctionErrorContext errorContext = null;
       errorContext = FunctionErrorContextBuilder.builder().build();
       codeGenerator.getFunctionContext().registerFunctionErrorContext(errorContext);
-      count--;
+      registerFieldIdToErrorContext(i, errorContext);
     }
     expressionEvalInfos.clear();
+  }
+
+  /*
+   * Expressions of query plans are cached i.e. the generated Projector class instances can be
+   * reused, but they don't retain any state of ErrorContext instances. ErrorContext's are rather
+   * recreated separately in this code snippet, so we need to register the output field ID of
+   * ValueVectorWriteExpressions in the caching case here too.
+   */
+  private void registerFieldIdToErrorContext(int index, FunctionErrorContext errorContext) {
+    if (expressionEvalInfos.size() > index) {
+      ExpressionEvalInfo evalInfo = expressionEvalInfos.get(index);
+      if (evalInfo.getExp() instanceof ValueVectorWriteExpression) {
+        TypedFieldId typedFieldId = ((ValueVectorWriteExpression) evalInfo.getExp()).getFieldId();
+        if (typedFieldId != null && typedFieldId.getFieldIds().length > 0) {
+          errorContext.registerOutputFieldId(typedFieldId.getFieldIds()[0]);
+        }
+      }
+    }
   }
 
   public void lazyAddExp(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods) {

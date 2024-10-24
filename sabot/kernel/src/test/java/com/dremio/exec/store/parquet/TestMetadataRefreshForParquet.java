@@ -36,8 +36,7 @@ public class TestMetadataRefreshForParquet extends BaseTestQuery {
                 + "from %s t1",
             DATAFILE);
 
-    try (AutoCloseable closeable =
-        setSystemOptionWithAutoReset("store.plugin.max_metadata_leaf_columns", "2")) {
+    try (AutoCloseable ignored = setMaxLeafColumns(2)) {
       test(query);
       fail("query should have failed");
     } catch (UserException e) {

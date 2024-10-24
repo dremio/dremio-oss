@@ -33,7 +33,7 @@ public enum AzureAuthenticationType {
     }
   },
   @Tag(2)
-  @DisplayMetadata(label = "Azure Active Directory")
+  @DisplayMetadata(label = "Microsoft Entra ID")
   AZURE_ACTIVE_DIRECTORY {
     @Override
     public List<String> getUniqueProperties() {

@@ -17,18 +17,23 @@ package com.dremio.exec.store.dfs.system;
 
 import static com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFileState.FULLY_LOADED;
 import static com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFileState.IN_PROGRESS;
-import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME;
-import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME;
 
 import com.dremio.exec.store.dfs.copyinto.CopyFileHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
+import com.dremio.exec.store.dfs.copyinto.systemtable.schema.ColumnDefinition;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
+import com.dremio.exec.store.dfs.system.SystemIcebergViewMetadataFactory.SupportedSystemIcebergView;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A builder class for generating SQL queries for system Iceberg views based on the schema version
  * and view name.
  */
 public class SystemIcebergViewQueryBuilder {
+
+  private static final String SELECT_QUERY_TEMPLATE = "select %s from %s";
 
   private final long schemaVersion;
   private final String viewName;
@@ -66,68 +71,82 @@ public class SystemIcebergViewQueryBuilder {
    * @throws UnsupportedOperationException If the view name or schema version is not supported.
    */
   public String getViewQuery() {
-    if (viewName.equalsIgnoreCase(COPY_JOB_HISTORY_TABLE_NAME)
-        || viewName.equalsIgnoreCase(COPY_FILE_HISTORY_TABLE_NAME)) {
-      return "SELECT * FROM " + namespaceKey;
-    } else if (viewName.equalsIgnoreCase(
-        SystemIcebergViewMetadataFactory.COPY_ERRORS_HISTORY_VIEW_NAME)) {
-      if (schemaVersion <= 2) {
+    if (viewName.equalsIgnoreCase(SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName())) {
+      CopyFileHistoryTableSchemaProvider schemaProvider =
+          new CopyFileHistoryTableSchemaProvider(schemaVersion);
+      return String.format(
+          SELECT_QUERY_TEMPLATE, getSelectClause(schemaProvider.getColumns()), namespaceKey);
+    }
+
+    if (viewName.equalsIgnoreCase(SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName())) {
+      CopyJobHistoryTableSchemaProvider schemaProvider =
+          new CopyJobHistoryTableSchemaProvider(schemaVersion);
+      return String.format(
+          SELECT_QUERY_TEMPLATE, getSelectClause(schemaProvider.getColumns()), namespaceKey);
+    }
+
+    if (viewName.equalsIgnoreCase(SupportedSystemIcebergView.COPY_ERRORS_HISTORY.getViewName())) {
+      if (schemaVersion <= 3) {
+        CopyJobHistoryTableSchemaProvider copyJobHistoryTableSchemaProvider =
+            new CopyJobHistoryTableSchemaProvider(schemaVersion);
+        CopyFileHistoryTableSchemaProvider copyFileHistoryTableSchemaProvider =
+            new CopyFileHistoryTableSchemaProvider(schemaVersion);
         String query =
             "SELECT"
                 + " jh.\""
-                + CopyJobHistoryTableSchemaProvider.getExecutedAtColName()
+                + copyJobHistoryTableSchemaProvider.getExecutedAtColName()
                 + "\","
                 + " jh.\""
-                + CopyJobHistoryTableSchemaProvider.getJobIdColName()
+                + copyJobHistoryTableSchemaProvider.getJobIdColName()
                 + "\","
                 + " jh.\""
-                + CopyJobHistoryTableSchemaProvider.getTableNameColName()
+                + copyJobHistoryTableSchemaProvider.getTableNameColName()
                 + "\","
                 + " jh.\""
-                + CopyJobHistoryTableSchemaProvider.getUserNameColName()
+                + copyJobHistoryTableSchemaProvider.getUserNameColName()
                 + "\","
                 + " jh.\""
-                + CopyJobHistoryTableSchemaProvider.getBaseSnapshotIdColName()
+                + copyJobHistoryTableSchemaProvider.getBaseSnapshotIdColName()
                 + "\","
                 + " jh.\""
-                + CopyJobHistoryTableSchemaProvider.getStorageLocationColName()
+                + copyJobHistoryTableSchemaProvider.getStorageLocationColName()
                 + "\","
                 + " fh.\""
-                + CopyFileHistoryTableSchemaProvider.getFilePathColName()
+                + copyFileHistoryTableSchemaProvider.getFilePathColName()
                 + "\","
                 + " fh.\""
-                + CopyFileHistoryTableSchemaProvider.getFileStateColName()
+                + copyFileHistoryTableSchemaProvider.getFileStateColName()
                 + "\","
                 + " fh.\""
-                + CopyFileHistoryTableSchemaProvider.getRecordsLoadedColName()
+                + copyFileHistoryTableSchemaProvider.getRecordsLoadedColName()
                 + "\","
                 + " fh.\""
-                + CopyFileHistoryTableSchemaProvider.getRecordsRejectedColName()
+                + copyFileHistoryTableSchemaProvider.getRecordsRejectedColName()
                 + "\""
                 + " FROM sys.\""
-                + COPY_JOB_HISTORY_TABLE_NAME
+                + SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName()
                 + "\" AS jh"
                 + " INNER JOIN sys.\""
-                + COPY_FILE_HISTORY_TABLE_NAME
+                + SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName()
                 + "\" AS fh"
                 + " ON jh.\""
-                + CopyJobHistoryTableSchemaProvider.getJobIdColName()
+                + copyJobHistoryTableSchemaProvider.getJobIdColName()
                 + "\" = fh.\""
-                + CopyFileHistoryTableSchemaProvider.getJobIdColName()
+                + copyFileHistoryTableSchemaProvider.getJobIdColName()
                 + "\""
                 + " WHERE fh.\""
-                + CopyFileHistoryTableSchemaProvider.getFileStateColName()
-                + "\" != \'"
+                + copyFileHistoryTableSchemaProvider.getFileStateColName()
+                + "\" != '"
                 + FULLY_LOADED.name()
-                + "\' AND fh.\""
-                + CopyFileHistoryTableSchemaProvider.getFileStateColName()
-                + "\" != \'"
+                + "' AND fh.\""
+                + copyFileHistoryTableSchemaProvider.getFileStateColName()
+                + "\" != '"
                 + IN_PROGRESS.name()
-                + "\'";
+                + "'";
         if (!canReadAllRecords) {
           query +=
               " AND jh.\""
-                  + CopyJobHistoryTableSchemaProvider.getUserNameColName()
+                  + copyJobHistoryTableSchemaProvider.getUserNameColName()
                   + "\" = '"
                   + userName
                   + "'";
@@ -137,5 +156,13 @@ public class SystemIcebergViewQueryBuilder {
     }
     throw new UnsupportedOperationException(
         String.format("Cannot provide view query for schema version %s", schemaVersion));
+  }
+
+  private String getSelectClause(List<ColumnDefinition> columns) {
+    return columns.stream()
+        .filter(c -> !c.isHidden())
+        .map(ColumnDefinition::getName)
+        .map(name -> "\"" + name + "\"")
+        .collect(Collectors.joining(", "));
   }
 }

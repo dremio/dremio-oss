@@ -267,6 +267,38 @@ public class TestSQLCreateEmptyTable {
     }
   }
 
+  @Test
+  public void testParseMalformedQueriesWithClusterKeys() throws Exception {
+    List<String> malformedQueries =
+        new ArrayList<String>() {
+          {
+            add("create table s (a BIGINT) CLUSTER BY ()");
+            add("create table s (a BIGINT) CLUSTER BY");
+            add("create table s (a BIGINT) CLUSTER BY (C1,)");
+            add("create table s (a BIGINT) CLUSTER BY (,C2)");
+          }
+        };
+
+    for (String malformedQuery : malformedQueries) {
+      parseAndVerifyMalFormat(malformedQuery);
+    }
+  }
+
+  @Test
+  public void testParseWellformedQueriesWithClusterKey() throws Exception {
+    List<String> wellformedQueries =
+        new ArrayList<String>() {
+          {
+            add("create table s (a BIGINT) CLUSTER BY (C1)");
+            add("create table s (a BIGINT) CLUSTER BY (C1,C2)");
+          }
+        };
+
+    for (String wellformedQuery : wellformedQueries) {
+      parseAndVerifyWellFormat(wellformedQuery);
+    }
+  }
+
   private void parseAndVerifyWellFormat(String sql) {
     SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     Assert.assertTrue(sqlNode instanceof SqlCreateEmptyTable);
@@ -289,6 +321,16 @@ public class TestSQLCreateEmptyTable {
     SqlCreateEmptyTable sqlCreateEmptyTable = (SqlCreateEmptyTable) sqlNode;
 
     assertThat(expected).usingRecursiveComparison().isEqualTo(sqlCreateEmptyTable.getSortColumns());
+  }
+
+  @Test
+  public void testClusterKeyNoTransforms() {
+    List<String> expected = ImmutableList.of("col1");
+    String sql = "CREATE TABLE t1 (col1 int, col2 date) CLUSTER BY (col1)";
+    SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    SqlCreateEmptyTable sqlCreateEmptyTable = (SqlCreateEmptyTable) sqlNode;
+
+    assertThat(expected).usingRecursiveComparison().isEqualTo(sqlCreateEmptyTable.getClusterKeys());
   }
 
   private List<PartitionTransform> parseAndGetPartitionTransforms(String sql) {

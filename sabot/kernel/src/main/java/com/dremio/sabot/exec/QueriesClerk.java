@@ -15,9 +15,11 @@
  */
 package com.dremio.sabot.exec;
 
+import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
 import com.dremio.exec.proto.UserBitShared.QueryId;
+import com.dremio.sabot.exec.rpc.TunnelProvider;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -118,5 +120,25 @@ public class QueriesClerk {
       }
     }
     return fragmentTickets;
+  }
+
+  TunnelProvider getTunnelProvider(QueryId queryId) {
+    for (WorkloadTicket workloadTicket : getWorkloadTickets()) {
+      QueryTicket queryTicket = workloadTicket.getQueryTicket(queryId);
+      if (queryTicket != null) {
+        return queryTicket.getTunnelProvider();
+      }
+    }
+    return null;
+  }
+
+  EndpointsIndex getEndpointsIndex(QueryId queryId) {
+    for (WorkloadTicket workloadTicket : getWorkloadTickets()) {
+      QueryTicket queryTicket = workloadTicket.getQueryTicket(queryId);
+      if (queryTicket != null) {
+        return queryTicket.getEndpointsIndex();
+      }
+    }
+    return null;
   }
 }

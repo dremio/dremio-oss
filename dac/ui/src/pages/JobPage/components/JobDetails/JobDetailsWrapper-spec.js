@@ -76,7 +76,7 @@ describe("JobDetailsWrapper", () => {
             payload: {
               status: 404,
             },
-          })
+          }),
         ),
         updateViewState: () => {
           // we expect updateViewState to get called

@@ -60,7 +60,7 @@ export type ActionTypes =
 
 export function AboutModalReducer(
   state: AboutModalState,
-  action: ActionTypes
+  action: ActionTypes,
 ): AboutModalState {
   switch (action.type) {
     case "SET_ACTIVE_TAB":

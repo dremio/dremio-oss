@@ -24,6 +24,7 @@ import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_METADAT
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_METADATA_SCHEMA_STRING;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_PROTOCOL;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_TIMESTAMP;
+import static com.dremio.exec.store.deltalake.DeltaConstants.FORMAT_NOT_SUPPORTED_VERSION;
 import static com.dremio.exec.store.deltalake.DeltaConstants.OP;
 import static com.dremio.exec.store.deltalake.DeltaConstants.OP_METRICS;
 import static com.dremio.exec.store.deltalake.DeltaConstants.OP_NUM_ADDED_BYTES;
@@ -44,7 +45,6 @@ import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STATS;
 import static com.dremio.exec.store.deltalake.DeltaLogReaderUtils.parseStatsFromJson;
 
 import com.dremio.connector.metadata.DatasetSplit;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.io.FSInputStream;
@@ -96,9 +96,7 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
       throws IOException {
     final boolean fullRowCountEnabled =
         DeltaLogReaderUtils.isFullRowCountEnabled(context.getOptionManager());
-    final boolean isColumnMappingEnabled =
-        context.getOptionManager().getOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING);
-    final int minReaderVersionSupported = isColumnMappingEnabled ? 2 : 1;
+    final int minReaderVersionSupported = 2;
 
     final Path commitFilePath = fileAttributes.get(0).getPath();
     try (final FSInputStream commitFileIs = fs.open(commitFilePath);
@@ -129,7 +127,7 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
           if (minReaderVersion > minReaderVersionSupported) {
             throw new IOException(
                 String.format(
-                    "Protocol version %s is incompatible for Dremio plugin", minReaderVersion));
+                    FORMAT_NOT_SUPPORTED_VERSION, minReaderVersion, minReaderVersionSupported));
           }
         } else if (json.has(DELTA_FIELD_COMMIT_INFO)) {
           snapshot = OBJECT_MAPPER.readValue(nextLine, DeltaLogSnapshot.class);

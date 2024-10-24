@@ -16,10 +16,12 @@
 
 package com.dremio.exec.store.deltalake;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertTrue;
 
 import com.dremio.PlanTestBase;
 import com.dremio.TestBuilder;
+import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
@@ -134,6 +136,10 @@ public class TestDeltaScan extends PlanTestBase {
     copyFromJar(
         "deltalake/partitionedLongCheckpoint",
         java.nio.file.Paths.get(testRootPath + "/partitionedLongCheckpoint"));
+    copyFromJar("deltalake/test_v3", java.nio.file.Paths.get(testRootPath + "/test_v3"));
+    copyFromJar(
+        "deltalake/test_v3_checkpoint",
+        java.nio.file.Paths.get(testRootPath + "/test_v3_checkpoint"));
   }
 
   @AfterClass
@@ -693,91 +699,81 @@ public class TestDeltaScan extends PlanTestBase {
 
   @Test
   public void testColumnMapping() throws Exception {
-    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, true)) {
-      final String sql = "SELECT * FROM dfs.tmp.deltalake.columnMapping";
-      testBuilder()
-          .sqlQuery(sql)
-          .unOrdered()
-          .baselineColumns("c_int", "c_str2")
-          .baselineValues(1, "a")
-          .baselineValues(2, "b")
-          .baselineValues(3, "c")
-          .baselineValues(4, "d")
-          .go();
-    }
+    final String sql = "SELECT * FROM dfs.tmp.deltalake.columnMapping";
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("c_int", "c_str2")
+        .baselineValues(1, "a")
+        .baselineValues(2, "b")
+        .baselineValues(3, "c")
+        .baselineValues(4, "d")
+        .go();
   }
 
   @Test
   public void testColumnMappingComplexTypes() throws Exception {
-    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, true)) {
-      // id                  int
-      // c_array             array<string>
-      // c_map               map<string,int>
-      // c_struct            struct<i:int,s:string>
-      final String sql =
-          "SELECT id, c_array[0] as a0, c_array[1] as a1, c_map['a'] as ma, c_map['b'] as mb, c_map['c'] as mc, c_struct['i'] as si, c_struct['s'] as ss FROM dfs.tmp.deltalake.columnMappingComplexTypes";
-      testBuilder()
-          .sqlQuery(sql)
-          .unOrdered()
-          .baselineColumns("id", "a0", "a1", "ma", "mb", "mc", "si", "ss")
-          .baselineValues(1, "a", "b", 11, 12, null, 1, "a")
-          .baselineValues(2, "c", "d", 21, 22, null, 2, "c")
-          .baselineValues(3, "e", "f", 31, 32, null, 3, "e")
-          .baselineValues(4, "g", "h", 41, null, 42, 4, "g")
-          .go();
-    }
+    // id                  int
+    // c_array             array<string>
+    // c_map               map<string,int>
+    // c_struct            struct<i:int,s:string>
+    final String sql =
+        "SELECT id, c_array[0] as a0, c_array[1] as a1, c_map['a'] as ma, c_map['b'] as mb, c_map['c'] as mc, c_struct['i'] as si, c_struct['s'] as ss FROM dfs.tmp.deltalake.columnMappingComplexTypes";
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("id", "a0", "a1", "ma", "mb", "mc", "si", "ss")
+        .baselineValues(1, "a", "b", 11, 12, null, 1, "a")
+        .baselineValues(2, "c", "d", 21, 22, null, 2, "c")
+        .baselineValues(3, "e", "f", 31, 32, null, 3, "e")
+        .baselineValues(4, "g", "h", 41, null, 42, 4, "g")
+        .go();
   }
 
   @Test
   public void testColumnMappingNestedTypes() throws Exception {
-    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, true)) {
-      // id                  int
-      // c_array             array<map<string,int>>
-      // c_map               map<string,int>
-      // c_struct            array<struct<i:int,s:string>>
-      final String sql =
-          "SELECT id, c_array[0]['b'] as c_array, c_map['a'] as c_map, c_struct[0]['i'] as c_struct FROM dfs.tmp.deltalake.columnMappingNestedTypes";
-      testBuilder()
-          .sqlQuery(sql)
-          .unOrdered()
-          .baselineColumns("id", "c_array", "c_map", "c_struct")
-          .baselineValues(1, 12, 11, 1)
-          .baselineValues(2, 22, 21, 2)
-          .go();
-    }
+    // id                  int
+    // c_array             array<map<string,int>>
+    // c_map               map<string,int>
+    // c_struct            array<struct<i:int,s:string>>
+    final String sql =
+        "SELECT id, c_array[0]['b'] as c_array, c_map['a'] as c_map, c_struct[0]['i'] as c_struct FROM dfs.tmp.deltalake.columnMappingNestedTypes";
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("id", "c_array", "c_map", "c_struct")
+        .baselineValues(1, 12, 11, 1)
+        .baselineValues(2, 22, 21, 2)
+        .go();
   }
 
   @Test
   public void testColumnMappingConvertedIceberg() throws Exception {
-    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, true)) {
-      // converted table has id-based column mapping
-      final String sql = "SELECT * FROM dfs.tmp.deltalake.columnMappingConvertedIceberg";
-      testBuilder()
-          .sqlQuery(sql)
-          .unOrdered()
-          .baselineColumns("id", "str")
-          .baselineValues(1, "ab")
-          .baselineValues(2, "cd")
-          .baselineValues(3, "ef")
-          .baselineValues(4, "gh")
-          .go();
-    }
+    // converted table has id-based column mapping
+    final String sql = "SELECT * FROM dfs.tmp.deltalake.columnMappingConvertedIceberg";
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("id", "str")
+        .baselineValues(1, "ab")
+        .baselineValues(2, "cd")
+        .baselineValues(3, "ef")
+        .baselineValues(4, "gh")
+        .go();
   }
 
   @Test
   public void testColumnMappingWithPartitions() throws Exception {
-    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, true)) {
-      final String sql = "SELECT * FROM dfs.tmp.deltalake.columnMappingPartitions";
-      testBuilder()
-          .sqlQuery(sql)
-          .unOrdered()
-          .baselineColumns("id", "str", "key")
-          .baselineValues(1, "a", 10)
-          .baselineValues(2, "b", 10)
-          .baselineValues(3, "c", 20)
-          .baselineValues(4, "d", 20)
-          .go();
-    }
+    final String sql = "SELECT * FROM dfs.tmp.deltalake.columnMappingPartitions";
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("id", "str", "key")
+        .baselineValues(1, "a", 10)
+        .baselineValues(2, "b", 10)
+        .baselineValues(3, "c", 20)
+        .baselineValues(4, "d", 20)
+        .go();
   }
 
   @Test
@@ -796,5 +792,19 @@ public class TestDeltaScan extends PlanTestBase {
         .baselineValues("ghi", 254L)
         .baselineValues("jkl", 262L)
         .go();
+  }
+
+  @Test
+  public void testUnsupportedProtocolVersion() {
+    assertThatThrownBy(() -> test("SELECT count(*) FROM dfs.tmp.deltalake.test_v3"))
+        .isInstanceOf(UserRemoteException.class)
+        .hasMessageContaining("Deltalake format version 3 is not supported. Please use version 2.");
+  }
+
+  @Test
+  public void testUnsupportedProtocolVersionInCheckpoint() {
+    assertThatThrownBy(() -> test("SELECT count(*) FROM dfs.tmp.deltalake.test_v3_checkpoint"))
+        .isInstanceOf(UserRemoteException.class)
+        .hasMessageContaining("Deltalake format version 3 is not supported. Please use version 2.");
   }
 }

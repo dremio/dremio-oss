@@ -15,3 +15,4 @@
  */
 export * from "./parser/index.js";
 export * from "./parseQueryText.js";
+export * from "./SemanticSearchInput.js";

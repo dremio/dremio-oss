@@ -18,6 +18,7 @@ package com.dremio.exec.store.iceberg;
 import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
+import static org.apache.iceberg.DremioTableProperties.NESSIE_GC_ENABLED;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -41,7 +42,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 import java.io.File;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -101,7 +101,7 @@ public class TestIcebergLocationFinderTableFunction extends BaseTestTableFunctio
             th(SystemSchemas.TABLE_LOCATION),
             tr("/tmp/empty_iceberg"),
             tr("/tmp/iceberg"),
-            tr("/tmp/iceberg-test-tables/v2/orders"));
+            tr(IcebergTestTables.V2_ORDERS_FULL_PATH));
 
     validateSingle(getPop(), TableFunctionOperator.class, input, output, 3);
   }
@@ -146,7 +146,7 @@ public class TestIcebergLocationFinderTableFunction extends BaseTestTableFunctio
                 pluginId,
                 SystemSchemas.TABLE_LOCATION_SCHEMA,
                 ImmutableList.of(SchemaPath.getSimplePath(SystemSchemas.TABLE_LOCATION)),
-                ImmutableMap.of(TableProperties.GC_ENABLED, Boolean.FALSE.toString()),
+                ImmutableMap.of(NESSIE_GC_ENABLED, Boolean.FALSE.toString()),
                 continueOnError)));
   }
 }

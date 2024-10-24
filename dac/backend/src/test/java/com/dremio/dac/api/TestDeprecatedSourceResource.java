@@ -52,7 +52,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
   public void testListSources() throws Exception {
     ResponseList<DeprecatedSourceResource.SourceDeprecated> sources =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(SOURCES_PATH)).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(SOURCES_PATH)).buildGet(),
             new GenericType<ResponseList<DeprecatedSourceResource.SourceDeprecated>>() {});
     assertEquals(sources.getData().size(), getSourceService().getSources().size());
   }
@@ -69,7 +69,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
 
     DeprecatedSourceResource.SourceDeprecated source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(SOURCES_PATH))
+            getBuilder(getHttpClient().getAPIv3().path(SOURCES_PATH))
                 .buildPost(Entity.entity(newSource, JSON)),
             DeprecatedSourceResource.SourceDeprecated.class);
     assertEquals(source.getName(), newSource.getName());
@@ -99,7 +99,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
 
     DeprecatedSourceResource.SourceDeprecated source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(SOURCES_PATH))
+            getBuilder(getHttpClient().getAPIv3().path(SOURCES_PATH))
                 .buildPost(Entity.entity(newSource, JSON)),
             DeprecatedSourceResource.SourceDeprecated.class);
     assertEquals(source.getName(), newSource.getName());
@@ -127,7 +127,8 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
     newSource.setType("NAS");
     expectStatus(
         Response.Status.BAD_REQUEST,
-        getBuilder(getPublicAPI(3).path(SOURCES_PATH)).buildPost(Entity.entity(newSource, JSON)));
+        getBuilder(getHttpClient().getAPIv3().path(SOURCES_PATH))
+            .buildPost(Entity.entity(newSource, JSON)));
   }
 
   @Test
@@ -156,7 +157,11 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
 
     DeprecatedSourceResource.SourceDeprecated source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId()))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(SOURCES_PATH)
+                        .path(createdSourceConfig.getId().getId()))
                 .buildPut(Entity.entity(updatedSource, JSON)),
             DeprecatedSourceResource.SourceDeprecated.class);
 
@@ -222,14 +227,18 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
     // test updating non-existent source
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("badid"))
+        getBuilder(getHttpClient().getAPIv3().path(SOURCES_PATH).path("badid"))
             .buildPut(Entity.entity(updatedSource, JSON)));
 
     // test wrong tag
     updatedSource.setTag("badtag");
     expectStatus(
         Response.Status.CONFLICT,
-        getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId()))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv3()
+                    .path(SOURCES_PATH)
+                    .path(createdSourceConfig.getId().getId()))
             .buildPut(Entity.entity(updatedSource, JSON)));
 
     deleteSource(updatedSource.getName());
@@ -270,7 +279,11 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
 
     DeprecatedSourceResource.SourceDeprecated source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId()))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(SOURCES_PATH)
+                        .path(createdSourceConfig.getId().getId()))
                 .buildPut(Entity.entity(updatedSource, JSON)),
             DeprecatedSourceResource.SourceDeprecated.class);
     assertEquals(
@@ -334,7 +347,11 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
 
     DeprecatedSourceResource.SourceDeprecated source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId()))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(SOURCES_PATH)
+                        .path(createdSourceConfig.getId().getId()))
                 .buildGet(),
             DeprecatedSourceResource.SourceDeprecated.class);
 
@@ -346,7 +363,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
   public void testGetNonExistingSource() throws Exception {
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("badid")).buildGet());
+        getBuilder(getHttpClient().getAPIv3().path(SOURCES_PATH).path("badid")).buildGet());
   }
 
   @Test
@@ -363,7 +380,11 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
     SourceConfig createdSourceConfig = getSourceService().registerSourceWithRuntime(sourceConfig);
 
     expectSuccess(
-        getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId()))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv3()
+                    .path(SOURCES_PATH)
+                    .path(createdSourceConfig.getId().getId()))
             .buildDelete());
   }
 
@@ -371,7 +392,8 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
   public void testDeleteNoneExistingSource() throws Exception {
     expectStatus(
         Response.Status.NOT_FOUND,
-        getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("nonexistandid")).buildDelete());
+        getBuilder(getHttpClient().getAPIv3().path(SOURCES_PATH).path("nonexistandid"))
+            .buildDelete());
   }
 
   @Test
@@ -401,7 +423,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
   public void testSourcesByType() throws Exception {
     ResponseList<SourceTypeTemplate> types =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("type")).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(SOURCES_PATH).path("type")).buildGet(),
             new GenericType<ResponseList<SourceTypeTemplate>>() {});
 
     Boolean found = false;
@@ -417,7 +439,12 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
       } else {
         // test that we can load each source type that is discoverable
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("type").path(type.getSourceType()))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(SOURCES_PATH)
+                        .path("type")
+                        .path(type.getSourceType()))
                 .buildGet(),
             SourceTypeTemplate.class);
       }
@@ -430,7 +457,8 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
   public void testSourceByType() throws Exception {
     SourceTypeTemplate type =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("type").path("FAKESOURCE"))
+            getBuilder(
+                    getHttpClient().getAPIv3().path(SOURCES_PATH).path("type").path("FAKESOURCE"))
                 .buildGet(),
             SourceTypeTemplate.class);
 
@@ -504,7 +532,11 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
 
       expectStatus(
           Response.Status.BAD_REQUEST,
-          getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId()))
+          getBuilder(
+                  getHttpClient()
+                      .getAPIv3()
+                      .path(SOURCES_PATH)
+                      .path(createdSourceConfig.getId().getId()))
               .buildPut(Entity.entity(updatedSource, JSON)));
     } finally {
       deleteSource(createdSourceConfig.getName());

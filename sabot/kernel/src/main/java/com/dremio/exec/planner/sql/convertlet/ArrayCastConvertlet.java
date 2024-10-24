@@ -19,7 +19,7 @@ import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CASE;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CAST;
 import static org.apache.calcite.sql.type.SqlTypeName.ARRAY;
 
-import com.dremio.exec.planner.logical.RelDataTypeEqualityUtil;
+import com.dremio.exec.planner.logical.RelDataTypeEqualityComparer;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -45,7 +45,15 @@ public final class ArrayCastConvertlet extends RexCallConvertlet {
     RelDataType arrayType = call.getOperands().get(0).getType();
     RelDataType castType = call.getType();
 
-    boolean castingNeeded = !RelDataTypeEqualityUtil.areEquals(castType, arrayType, false, false);
+    boolean castingNeeded =
+        !RelDataTypeEqualityComparer.areEquals(
+            castType,
+            arrayType,
+            RelDataTypeEqualityComparer.Options.builder()
+                .withConsiderNullability(false)
+                .withConsiderPrecision(false)
+                .withConsiderScale(false)
+                .build());
 
     return castingNeeded;
   }

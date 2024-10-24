@@ -28,7 +28,7 @@
             display: block;
             width: 2px;
             height: 100%;
-            background: var(--color--red--500);
+            background: var(--fill--danger--solid);
           }
         }
 
@@ -205,17 +205,17 @@
 
           .main {
             .left {
-              color: var(--text--primary) !important;
+              color: var(--color--neutral--800) !important;
 
               .label-name {
                 .highlight {
-                  color: var(--text--primary) !important;
+                  color: var(--color--neutral--800) !important;
                 }
               }
             }
 
             .right {
-              color: var(--text--primary);
+              color: var(--color--neutral--800);
             }
           }
         }
@@ -223,7 +223,7 @@
 
       // dark mode
       &.vs-dark .suggest-widget {
-        background-color: var(--color--neutral--800);
+        background-color: var(--color--neutral--700);
 
         .monaco-list-row {
           &.focused,
@@ -231,7 +231,7 @@
             background-color: #2a2d2e !important;
 
             .left .label-name {
-              color: white;
+              color: var(--color--neutral--100);
             }
           }
 

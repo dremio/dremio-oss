@@ -16,9 +16,9 @@
 import { useSelector, useDispatch } from "react-redux";
 import classNames from "clsx";
 
-import { stopPropagation } from "@app/utils/reactEventUtils";
-import { setEntityActiveState as toggleActivePin } from "@app/reducers/home/pinnedEntities";
-import { isEntityPinned } from "@app/selectors/home";
+import { stopPropagation } from "#oss/utils/reactEventUtils";
+import { setEntityActiveState as toggleActivePin } from "#oss/reducers/home/pinnedEntities";
+import { isEntityPinned } from "#oss/selectors/home";
 import { IconButton } from "dremio-ui-lib/components";
 
 import "./ResourcePin.less";

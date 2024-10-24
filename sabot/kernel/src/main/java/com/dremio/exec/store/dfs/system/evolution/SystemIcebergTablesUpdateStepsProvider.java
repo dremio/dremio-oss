@@ -18,7 +18,7 @@ package com.dremio.exec.store.dfs.system.evolution;
 import com.dremio.exec.store.dfs.copyinto.CopyFileHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadata;
-import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
 import com.dremio.exec.store.dfs.system.evolution.SystemIcebergTablesUpdateStepsProvider.UpdateSteps;
 import com.dremio.exec.store.dfs.system.evolution.step.ImmutableSystemIcebergTablePropertyUpdateStep;
 import com.dremio.exec.store.dfs.system.evolution.step.SystemIcebergTablePartitionUpdateStep;
@@ -45,21 +45,23 @@ public class SystemIcebergTablesUpdateStepsProvider implements Iterator<UpdateSt
       String tableName, long currentSchemaVersion, long updateSchemaVersion) {
     numberOfSteps = updateSchemaVersion - currentSchemaVersion;
 
-    if (SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME.equals(tableName)) {
+    if (SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName().equals(tableName)) {
       for (long i = currentSchemaVersion + 1; i <= updateSchemaVersion; i++) {
-        schemaEvolutionSteps.add(CopyJobHistoryTableSchemaProvider.getSchemaEvolutionStep(i));
-        partitionEvolutionSteps.add(CopyJobHistoryTableSchemaProvider.getPartitionEvolutionStep(i));
+        CopyJobHistoryTableSchemaProvider schemaProvider = new CopyJobHistoryTableSchemaProvider(i);
+        schemaEvolutionSteps.add(schemaProvider.getSchemaEvolutionStep());
+        partitionEvolutionSteps.add(schemaProvider.getPartitionEvolutionStep());
         propertyUpdateSteps.add(
             new ImmutableSystemIcebergTablePropertyUpdateStep.Builder()
                 .putProperties(
                     SystemIcebergTableMetadata.SCHEMA_VERSION_PROPERTY, String.valueOf(i))
                 .build());
       }
-    } else if (SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME.equals(tableName)) {
+    } else if (SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName().equals(tableName)) {
       for (long i = currentSchemaVersion + 1; i <= updateSchemaVersion; i++) {
-        schemaEvolutionSteps.add(CopyFileHistoryTableSchemaProvider.getSchemaEvolutionStep(i));
-        partitionEvolutionSteps.add(
-            CopyFileHistoryTableSchemaProvider.getPartitionEvolutionStep(i));
+        CopyFileHistoryTableSchemaProvider schemaProvider =
+            new CopyFileHistoryTableSchemaProvider(i);
+        schemaEvolutionSteps.add(schemaProvider.getSchemaEvolutionStep());
+        partitionEvolutionSteps.add(schemaProvider.getPartitionEvolutionStep());
         propertyUpdateSteps.add(
             new ImmutableSystemIcebergTablePropertyUpdateStep.Builder()
                 .putProperties(

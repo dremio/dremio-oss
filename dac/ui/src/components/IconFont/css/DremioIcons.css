@@ -15,7 +15,8 @@
  */
 @font-face {
   font-family: "DremioIcons";
-  src: url("../dremioFonts/DremioIcons.woff2?otwrev") format("woff2"),
+  src:
+    url("../dremioFonts/DremioIcons.woff2?otwrev") format("woff2"),
     url("../dremioFonts/DremioIcons.woff?otwrev") format("woff");
   font-weight: normal;
   font-style: normal;

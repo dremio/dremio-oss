@@ -40,8 +40,10 @@ import com.dremio.service.reflection.proto.Failure;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.MaterializationState;
+import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.store.MaterializationStore;
+import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
@@ -154,19 +156,22 @@ class MaterializationCache {
   private final CatalogService catalogService;
   private final OptionManager optionManager;
   private final MaterializationStore materializationStore;
+  private final ReflectionEntriesStore entriesStore;
 
   MaterializationCache(
       CacheHelper provider,
       ReflectionStatusService reflectionStatusService,
       CatalogService catalogService,
       OptionManager optionManager,
-      MaterializationStore materializationStore) {
+      MaterializationStore materializationStore,
+      ReflectionEntriesStore entriesStore) {
     this.provider = Preconditions.checkNotNull(provider, "materialization provider required");
     this.reflectionStatusService =
         Preconditions.checkNotNull(reflectionStatusService, "reflection status service required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalog service required");
     this.optionManager = Preconditions.checkNotNull(optionManager, "option manager required");
     this.materializationStore = materializationStore;
+    this.entriesStore = entriesStore;
     latch = new CountDownLatch(1);
     syncHistogram =
         Timer.builder(ReflectionMetrics.createName(ReflectionMetrics.MAT_CACHE_SYNC))
@@ -476,6 +481,9 @@ class MaterializationCache {
         try {
           materializationStore.save(update);
           incrementCounter(retryFailedCounter, e);
+          ReflectionEntry entry = entriesStore.get(update.getReflectionId());
+          entry.setLastFailure(new Failure().setMessage(failureMsg));
+          entriesStore.save(entry);
         } catch (ConcurrentModificationException e2) {
           // ignore in case another coordinator also tries to mark the materialization as failed
         }
@@ -532,34 +540,6 @@ class MaterializationCache {
       // update the cache.
       exchanged = cached.compareAndSet(old, updated);
     } while (!exchanged);
-  }
-
-  /**
-   * Used by reflection manager to immediately update the materialization cache when RM is on the
-   * same coordinator. Otherwise, on other coordinators, there could be a materialization cache sync
-   * delay.
-   */
-  void update(Materialization m) throws CacheException, InterruptedException {
-    // Let initial cold cache sync complete first so that we don't risk causing the compareAndSet to
-    // fail there.
-    latch.await(10, TimeUnit.MINUTES);
-
-    // Do expansion (including deserialization) out of the do-while loop, so that in case it takes
-    // long time
-    // the update loop does not race with MaterializationCache.refresh() and falls into infinite
-    // loop.
-    final ExpandedMaterializationDescriptor descriptor =
-        provider.expand(m, CatalogUtil.getSystemCatalogForMaterializationCache(catalogService));
-    if (descriptor != null) {
-      boolean exchanged;
-      do {
-        Map<String, ExpandedMaterializationDescriptor> old = cached.get();
-        Map<String, ExpandedMaterializationDescriptor> updated =
-            Maps.newHashMap(old); // copy over everything
-        updated.put(m.getId().getId(), descriptor);
-        exchanged = cached.compareAndSet(old, updated); // update the cache.
-      } while (!exchanged);
-    }
   }
 
   /**

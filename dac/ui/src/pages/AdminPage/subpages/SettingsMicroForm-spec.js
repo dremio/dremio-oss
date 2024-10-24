@@ -67,23 +67,23 @@ describe("SettingsMicroForm", () => {
     it.skip("when field is not dirty", () => {
       const wrapper = shallow(<SettingsMicroForm {...commonProps} />);
       expect(wrapper.find("SimpleButton").props().style.visibility).to.be.equal(
-        "hidden"
+        "hidden",
       );
     });
 
     it.skip("when field is dirty", () => {
       const wrapper = shallow(
-        <SettingsMicroForm {...commonProps} fields={dirtyFields} />
+        <SettingsMicroForm {...commonProps} fields={dirtyFields} />,
       );
       expect(wrapper.find("SimpleButton").props().style.visibility).to.be.equal(
-        "visible"
+        "visible",
       );
     });
 
     it.skip("with reset", () => {
       const resetSetting = () => {};
       const wrapper = shallow(
-        <SettingsMicroForm {...commonProps} resetSetting={resetSetting} />
+        <SettingsMicroForm {...commonProps} resetSetting={resetSetting} />,
       );
       expect(wrapper.find("SimpleButton").length).to.be.equal(2);
 
@@ -105,7 +105,9 @@ describe("SettingsMicroForm", () => {
       wrapper.setProps({
         setting: commonProps.setting.set("type", "INTEGER"),
       });
-      expect(shallow(instance.renderField()).props().children[0].props.type).to.be.eql("text");
+      expect(
+        shallow(instance.renderField()).props().children[0].props.type,
+      ).to.be.eql("text");
       expect(instance.renderField().type.displayName).to.be.eql("TextField");
     });
 
@@ -126,7 +128,7 @@ describe("SettingsMicroForm", () => {
   describe("#submit", () => {
     it("when not dirty", () => {
       const instance = shallow(
-        <SettingsMicroForm {...commonProps} />
+        <SettingsMicroForm {...commonProps} />,
       ).instance();
       instance.submit();
       expect(commonProps.putSetting).to.not.have.been.called;
@@ -134,12 +136,12 @@ describe("SettingsMicroForm", () => {
 
     it("with non-numeric type", () => {
       const instance = shallow(
-        <SettingsMicroForm {...commonProps} fields={dirtyFields} />
+        <SettingsMicroForm {...commonProps} fields={dirtyFields} />,
       ).instance();
       const promise = instance.submit({ value: "foo" });
       expect(commonProps.putSetting).to.have.been.calledWith(
         { ...commonProps.setting.toJS(), value: "foo" },
-        { viewId: "view-id" }
+        { viewId: "view-id" },
       );
       return promise;
     });
@@ -148,12 +150,12 @@ describe("SettingsMicroForm", () => {
       commonProps.setting = commonProps.setting.set("type", "FLOAT");
 
       const instance = shallow(
-        <SettingsMicroForm {...commonProps} fields={dirtyFields} />
+        <SettingsMicroForm {...commonProps} fields={dirtyFields} />,
       ).instance();
       const promise = instance.submit({ value: "1.1" });
       expect(commonProps.putSetting).to.have.been.calledWith(
         { ...commonProps.setting.toJS(), value: 1.1 },
-        { viewId: "view-id" }
+        { viewId: "view-id" },
       );
       return promise;
     });

@@ -20,20 +20,20 @@ import Immutable from "immutable";
 import { injectIntl } from "react-intl";
 import { withRouter } from "react-router";
 import { compose } from "redux";
-import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
-import FinderNav from "@app/components/FinderNav";
-import SpacesLoader from "@app/pages/HomePage/components/SpacesLoader";
+import EmptyStateContainer from "#oss/pages/HomePage/components/EmptyStateContainer";
+import FinderNav from "#oss/components/FinderNav";
+import SpacesLoader from "#oss/pages/HomePage/components/SpacesLoader";
 import ViewStateWrapper, {
   viewStatePropType,
-} from "@app/components/ViewStateWrapper";
-import { ALL_SPACES_VIEW_ID } from "@app/actions/resources/spaces";
-import { getViewState } from "@app/selectors/resources";
-import { getSortedSpaces } from "@app/selectors/home";
-import { FLEX_COL_START } from "@app/uiTheme/radium/flexStyle";
-import { spacesSourcesListSpinnerStyle } from "@app/pages/HomePage/HomePageConstants";
+} from "#oss/components/ViewStateWrapper";
+import { ALL_SPACES_VIEW_ID } from "#oss/actions/resources/spaces";
+import { getViewState } from "#oss/selectors/resources";
+import { getSortedSpaces } from "#oss/selectors/home";
+import { FLEX_COL_START } from "#oss/uiTheme/radium/flexStyle";
+import { spacesSourcesListSpinnerStyle } from "#oss/pages/HomePage/HomePageConstants";
 
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
-import * as VersionUtils from "@app/utils/versionUtils";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
+import * as VersionUtils from "#oss/utils/versionUtils";
 import { getAdminStatus } from "dyn-load/pages/HomePage/components/modals/SpaceModalMixin";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
@@ -138,5 +138,5 @@ export class SpacesSection extends PureComponent {
 export default compose(
   connect(mapStateToProps),
   withRouter,
-  injectIntl
+  injectIntl,
 )(SpacesSection);

@@ -24,10 +24,10 @@ export default class ValueListConfig extends FormElementConfig {
     this._renderer = ValueListWrapper;
     // adding brackets to the name, so the wrapper will get field prop as an array
     this._config.propertyName = FormUtils.addTrailingBrackets(
-      this._config.propertyName
+      this._config.propertyName,
     );
     this._config.propName = FormUtils.addTrailingBrackets(
-      this._config.propName
+      this._config.propName,
     );
   }
 
@@ -45,7 +45,7 @@ export default class ValueListConfig extends FormElementConfig {
 
   addValidators(validations) {
     validations.functions.push(
-      SourceProperties.getValidators(super.getConfig())
+      SourceProperties.getValidators(super.getConfig()),
     );
     return validations;
   }

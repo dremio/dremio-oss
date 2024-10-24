@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-const withEnginePrivileges = (WrappedComponent) => (props) =>
-  <WrappedComponent {...props} canCreate />;
+const withEnginePrivileges = (WrappedComponent) => (props) => (
+  <WrappedComponent {...props} canCreate />
+);
 
 export default withEnginePrivileges;

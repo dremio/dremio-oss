@@ -20,9 +20,9 @@ import NewFieldSection from "components/Forms/NewFieldSection";
 import { FieldWithError, TextField } from "components/Fields";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
 import { formSectionTitle } from "uiTheme/radium/exploreTransform";
-import { inputForRadio, radioStacked } from "@app/uiTheme/less/forms.less";
-import { sectionMargin } from "@app/uiTheme/less/layout.less";
-import { intl } from "@app/utils/intl";
+import { inputForRadio, radioStacked } from "#oss/uiTheme/less/forms.less";
+import { sectionMargin } from "#oss/uiTheme/less/layout.less";
+import { intl } from "#oss/utils/intl";
 import { isRequired, applyValidators } from "utils/validation";
 import TransformForm, { formWrapperProps } from "../../forms/TransformForm";
 import { transformProps } from "./../../forms/TransformationPropTypes";
@@ -135,5 +135,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(NonMatchingForm);

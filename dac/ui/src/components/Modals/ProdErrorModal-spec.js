@@ -43,7 +43,7 @@ describe("ProdErrorModal", () => {
 
   it.skip("should render reload", () => {
     expect(wrapper.find("SimpleButton").first().props().children).to.contain(
-      "Reload"
+      "Reload",
     );
   });
 
@@ -52,7 +52,7 @@ describe("ProdErrorModal", () => {
     wrapper.setProps({ showGoHome: true });
     expect(wrapper.find("SimpleButton").length).to.equal(2);
     expect(wrapper.find("SimpleButton").at(0).props().children).to.contain(
-      "Go Home"
+      "Go Home",
     );
   });
 });

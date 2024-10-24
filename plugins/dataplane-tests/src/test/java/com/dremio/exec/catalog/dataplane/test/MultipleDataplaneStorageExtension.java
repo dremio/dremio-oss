@@ -86,7 +86,7 @@ public class MultipleDataplaneStorageExtension
     populateFields(extensionContext, extensionContext.getRequiredTestInstance());
   }
 
-  private void populateFields(ExtensionContext extensionContext, Object instance) {
+  protected void populateFields(ExtensionContext extensionContext, Object instance) {
     populateAnnotatedFields(
         extensionContext,
         instance,
@@ -95,7 +95,7 @@ public class MultipleDataplaneStorageExtension
         f -> dataplaneStorageForContext(extensionContext));
   }
 
-  private DataplaneStorage dataplaneStorageForContext(ExtensionContext extensionContext) {
+  protected DataplaneStorage dataplaneStorageForContext(ExtensionContext extensionContext) {
     DataplaneStorage dataplaneStorage =
         extensionContext
             .getStore(JUNIT_NAMESPACE)
@@ -109,7 +109,7 @@ public class MultipleDataplaneStorageExtension
     return dataplaneStorage;
   }
 
-  private DataplaneStorage dataplaneStorageFactory(StorageType storageType) {
+  protected DataplaneStorage dataplaneStorageFactory(StorageType storageType) {
     switch (storageType) {
       case AWS_S3_MOCK:
         return new S3MockDataplaneStorage();

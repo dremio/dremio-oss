@@ -43,7 +43,7 @@ class SortMultiply extends Component {
 
   getNamesOfColumnsInDragArea() {
     return Immutable.Set(
-      this.props.columnsField.map((item) => item.name.value)
+      this.props.columnsField.map((item) => item.name.value),
     );
   }
 

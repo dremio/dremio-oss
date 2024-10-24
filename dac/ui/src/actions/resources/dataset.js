@@ -17,9 +17,9 @@ import { RSAA } from "redux-api-middleware";
 import summaryDatasetSchema from "schemas/v2/summaryDataset";
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import { Schema } from "normalizr";
-import APICall, { APIV2Call } from "@app/core/APICall";
-import { store } from "@app/store/store";
-import { getRefQueryParamsFromPath } from "@app/utils/nessieUtils";
+import APICall, { APIV2Call } from "#oss/core/APICall";
+import { store } from "#oss/store/store";
+import { getRefQueryParamsFromPath } from "#oss/utils/nessieUtils";
 
 export const LOAD_SUMMARY_DATASET_START = "LOAD_SUMMARY_DATASET_START";
 export const LOAD_SUMMARY_DATASET_SUCCESS = "LOAD_SUMMARY_DATASET_SUCCESS";
@@ -32,13 +32,13 @@ function fetchSummaryDataset(
   storageName,
   nodeExpanded,
   currNode,
-  versionContext
+  versionContext,
 ) {
   const meta = {
     viewId,
     fullPath,
     errorMessage: laDeprecated(
-      "Cannot provide more information about this dataset."
+      "Cannot provide more information about this dataset.",
     ),
     isSummaryDatasetResponse: storageName ? true : false,
     nodeExpanded,
@@ -72,7 +72,7 @@ function fetchSummaryDataset(
               : LOAD_SUMMARY_DATASET_SUCCESS
           }`,
           summaryDatasetSchema,
-          meta
+          meta,
         ),
         {
           type: `${
@@ -113,8 +113,8 @@ export const loadSummaryDataset =
         storageName,
         nodeExpanded,
         currNode,
-        versionContext
-      )
+        versionContext,
+      ),
     );
   };
 
@@ -134,7 +134,7 @@ function fetchDataset(id, viewId) {
     viewId,
     id,
     errorMessage: laDeprecated(
-      "Cannot provide more information about this dataset."
+      "Cannot provide more information about this dataset.",
     ),
   };
 
@@ -147,7 +147,7 @@ function fetchDataset(id, viewId) {
         schemaUtils.getSuccessActionTypeWithSchema(
           LOAD_DATASET_SUCCESS,
           datasetSchema,
-          meta
+          meta,
         ),
         { type: LOAD_DATASET_FAILURE, meta },
       ],

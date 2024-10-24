@@ -35,7 +35,11 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 import org.junit.Assert;
 
-public class RefreshDatasetTestUtils {
+public final class RefreshDatasetTestUtils {
+
+  private RefreshDatasetTestUtils() {
+    // utility class
+  }
 
   public static void fsDelete(FileSystem fs, Path path) throws IOException {
     FileStatus[] statuses = fs.listStatus(path);

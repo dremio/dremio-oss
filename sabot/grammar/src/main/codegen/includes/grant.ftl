@@ -56,7 +56,9 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
   SqlIdentifier refValue = null;
   boolean isGrantOnCatalog = true;
   boolean isScript = false;
-  boolean isGrantOnAll = false;
+  boolean isGrantOnAllDatasets = false;
+  boolean isGrantOnAllFolders = false;
+  boolean isGrantOnReference = false;
   boolean isGrantOnProjectEntities = false;
   boolean isGrantCatalog = false;
 }
@@ -195,38 +197,60 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
       }
       |
       <ALL> <FOLDERS> <IN>
-        (<CATALOG> | <FOLDER>) {
-          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
+      (
+        (
+          <CATALOG> {
+            grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.CATALOG, getPos()));
+          }
+          |
+          <FOLDER> {
+            grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
+          }
+        ) {
           entity = CompoundIdentifier();
-          isGrantOnAll = true;
-          isGrantOnProjectEntities = true;
+          isGrantOnAllFolders  = true;
         }
+      )
       |
       <ALL> <DATASETS> <IN>
       (
-        (<FOLDER> | <SCHEMA>) {
-          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
+        (
+          (<FOLDER> | <SCHEMA>) {
+            grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
+          }
+          |
+          <SOURCE> {
+            grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.SOURCE, getPos()));
+          }
+          |
+          <SPACE> {
+            grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.SPACE, getPos()));
+          }
+          |
+          <CATALOG> {
+            grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.CATALOG, getPos()));
+          }
+        ) {
           entity = CompoundIdentifier();
-          isGrantOnAll = true;
+          isGrantOnAllDatasets  = true;
         }
-        |
-        <SOURCE> {
-          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.SOURCE, getPos()));
+      )
+      |
+      (
+        <BRANCH> refValue = SimpleIdentifier()
+        <IN> <CATALOG> {
           entity = SimpleIdentifier();
-          isGrantOnAll = true;
+          refType = ReferenceType.BRANCH;
+          isGrantOnReference = true;
         }
-        |
-        <SPACE> {
-          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.SPACE, getPos()));
+      )
+      |
+      (
+        <TAG> refValue = SimpleIdentifier()
+        <IN> <CATALOG> {
           entity = SimpleIdentifier();
-          isGrantOnAll = true;
-        }
-        |
-        <CATALOG> {
-          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.CATALOG, getPos()));
-          entity = SimpleIdentifier();
-          isGrantOnAll = true;
-          isGrantOnProjectEntities = true;
+          refType = ReferenceType.TAG;
+          isGrantOnReference = true;
         }
       )
     )
@@ -238,13 +262,16 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
         return new SqlGrantCatalog(pos, privilegeList, grantCatalog.getType(), entity, granteeType, grantee);
       }
       if (isGrantOnProjectEntities) {
-        if (isGrantOnAll) {
-          return new SqlGrantOnAllCatalogChildren(pos, privilegeList, grant.getType(), entity, granteeType, grantee);
-        }
         return new SqlGrantOnProjectEntities(pos, privilegeList, grantOnProjectEntities.getType(), entity, granteeType, grantee);
       }
-      if (isGrantOnAll) {
+      if (isGrantOnAllDatasets) {
         return new SqlGrantOnAllDatasets(pos, privilegeList, grant.getType(), entity, granteeType, grantee);
+      }
+      if (isGrantOnAllFolders) {
+        return new SqlGrantOnAllFolders(pos, privilegeList, grant.getType(), entity, granteeType, grantee);
+      }
+      if (isGrantOnReference) {
+        return new SqlGrantOnReference(pos, privilegeList, refType, refValue, entity, granteeType, grantee);
       }
       if (isGrantOnCatalog) {
         return new SqlGrantOnCatalog(pos, privilegeList, grant.getType(), entity, granteeType, grantee, refType, refValue);
@@ -449,7 +476,9 @@ SqlNode SqlRevoke() :
   ReferenceType refType = null;
   SqlIdentifier refValue = null;
   boolean isGrantOnCatalog = true;
-  boolean isGrantOnAll = false;
+  boolean isRevokeOnAllDatasets = false;
+  boolean isRevokeOnAllFolders = false;
+  boolean isRevokeOnReference = false;
   boolean isGrantOnProjectEntities = false;
   boolean isScript = false;
   boolean isGrantCatalog = false;
@@ -589,38 +618,60 @@ SqlNode SqlRevoke() :
       }
       |
       <ALL> <FOLDERS> <IN>
-        (<CATALOG> | <FOLDER>) {
-          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
+      (
+        (
+          <CATALOG> {
+            grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.CATALOG, getPos()));
+          }
+          |
+          <FOLDER> {
+            grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
+          }
+        ) {
           entity = CompoundIdentifier();
-          isGrantOnAll = true;
-          isGrantOnProjectEntities = true;
+          isRevokeOnAllFolders  = true;
         }
+      )
       |
       <ALL> <DATASETS> <IN>
       (
-        (<FOLDER> | <SCHEMA>) {
-          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
+        (
+          (<FOLDER> | <SCHEMA>) {
+            grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
+          }
+          |
+          <SOURCE> {
+            grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.SOURCE, getPos()));
+          }
+          |
+          <SPACE> {
+            grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.SPACE, getPos()));
+          }
+          |
+          <CATALOG> {
+            grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.CATALOG, getPos()));
+          }
+        ) {
           entity = CompoundIdentifier();
-          isGrantOnAll = true;
+          isRevokeOnAllDatasets  = true;
         }
-        |
-        <SOURCE> {
-          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.SOURCE, getPos()));
+      )
+      |
+      (
+        <BRANCH> refValue = SimpleIdentifier()
+        <IN> <CATALOG> {
           entity = SimpleIdentifier();
-          isGrantOnAll = true;
+          refType = ReferenceType.BRANCH;
+          isRevokeOnReference = true;
         }
-        |
-        <SPACE> {
-          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.SPACE, getPos()));
+      )
+      |
+      (
+        <TAG> refValue = SimpleIdentifier()
+        <IN> <CATALOG> {
           entity = SimpleIdentifier();
-          isGrantOnAll = true;
-        }
-        |
-        <CATALOG> {
-          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.CATALOG, getPos()));
-          entity = SimpleIdentifier();
-          isGrantOnAll = true;
-          isGrantOnProjectEntities = true;
+          refType = ReferenceType.TAG;
+          isRevokeOnReference = true;
         }
       )
     )
@@ -632,13 +683,16 @@ SqlNode SqlRevoke() :
         return new SqlRevokeCatalog(pos, privilegeList, revokeCatalog.getType(), entity, granteeType, grantee);
       }
       if (isGrantOnProjectEntities) {
-        if (isGrantOnAll) {
-          return new SqlRevokeOnAllCatalogChildren(pos, privilegeList, grant.getType(), entity, granteeType, grantee);
-        }
         return new SqlRevokeOnProjectEntities(pos, privilegeList, revokeOnProjectEntities.getType(), entity, granteeType, grantee);
       }
-      if (isGrantOnAll) {
+      if (isRevokeOnAllDatasets) {
         return new SqlRevokeOnAllDatasets(pos, privilegeList, grant.getType(), entity, granteeType, grantee);
+      }
+      if (isRevokeOnAllFolders) {
+        return new SqlRevokeOnAllFolders(pos, privilegeList, grant.getType(), entity, granteeType, grantee);
+      }
+      if (isRevokeOnReference) {
+        return new SqlRevokeOnReference(pos, privilegeList, refType, refValue, entity, granteeType, grantee);
       }
       if (isGrantOnCatalog) {
         return new SqlRevokeOnCatalog(pos, privilegeList, grant.getType(), entity, granteeType, grantee, refType, refValue);
@@ -658,6 +712,8 @@ SqlNode SqlGrantOwnership(SqlParserPos pos) :
   SqlIdentifier entity;
   SqlIdentifier grantee;
   SqlLiteral granteeType;
+  ReferenceType refType = null;
+  SqlIdentifier refValue = null;
   SqlGrantCatalogOwnership.Grant grantCatalog = null;
   boolean isGrantOnCatalog = false;
 }
@@ -669,25 +725,57 @@ SqlNode SqlGrantOwnership(SqlParserPos pos) :
       entity = SimpleIdentifier();
     }
     |
-    (<PDS> | <TABLE>) {
-      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.PDS, getPos()));
-      entity = CompoundIdentifier();
-    }
+    (
+      (<PDS> | <TABLE>) {
+        grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.PDS, getPos()));
+        entity = CompoundIdentifier();
+      }
+      [
+        <AT> {
+          refType = ParseReferenceType();
+          refValue = SimpleIdentifier();
+        }
+      ]
+    )
     |
-    (<VDS> | <VIEW>) {
-      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.VDS, getPos()));
-      entity = CompoundIdentifier();
-    }
+    (
+      (<VDS> | <VIEW>) {
+        grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.VDS, getPos()));
+        entity = CompoundIdentifier();
+      }
+      [
+        <AT> {
+          refType = ParseReferenceType();
+          refValue = SimpleIdentifier();
+        }
+      ]
+    )
     |
-    (<FUNCTION>) {
-      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.FUNCTION, getPos()));
-      entity = CompoundIdentifier();
-    }
+    (
+      (<FUNCTION>) {
+        grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.FUNCTION, getPos()));
+        entity = CompoundIdentifier();
+      }
+      [
+        <AT> {
+          refType = ParseReferenceType();
+          refValue = SimpleIdentifier();
+        }
+      ]
+    )
     |
-    (<FOLDER> | <SCHEMA>) {
-      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.FOLDER, getPos()));
-      entity = CompoundIdentifier();
-    }
+    (
+      (<FOLDER> | <SCHEMA>) {
+        grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.FOLDER, getPos()));
+        entity = CompoundIdentifier();
+      }
+      [
+        <AT> {
+          refType = ParseReferenceType();
+          refValue = SimpleIdentifier();
+        }
+      ]
+    )
     |
     <SPACE> {
       grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.SPACE, getPos()));
@@ -744,7 +832,24 @@ SqlNode SqlGrantOwnership(SqlParserPos pos) :
       grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.EXTERNAL_TOKENS_PROVIDER, getPos()));
       entity = SimpleIdentifier();
     }
-
+    |
+    (
+      <BRANCH> refValue = SimpleIdentifier()
+      <IN> <CATALOG> {
+        grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.BRANCH, getPos()));
+        entity = SimpleIdentifier();
+        refType = ReferenceType.BRANCH;
+      }
+    )
+    |
+    (
+      <TAG> refValue = SimpleIdentifier()
+      <IN> <CATALOG> {
+        grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.TAG, getPos()));
+        entity = SimpleIdentifier();
+        refType = ReferenceType.TAG;
+      }
+    )
   )
   <TO>
     granteeType = ParseGranteeType()
@@ -753,7 +858,7 @@ SqlNode SqlGrantOwnership(SqlParserPos pos) :
       if (isGrantOnCatalog) {
         return new SqlGrantCatalogOwnership(pos, entity, grantCatalog.getType(), grantee, granteeType);
       }
-      return new SqlGrantOwnership(pos, entity, grant.getType(), grantee, granteeType);
+      return new SqlGrantOwnership(pos, entity, grant.getType(), grantee, granteeType, refType, refValue);
     }
 }
 

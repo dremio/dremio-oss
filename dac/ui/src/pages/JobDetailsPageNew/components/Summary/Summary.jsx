@@ -16,7 +16,7 @@
 import { injectIntl } from "react-intl";
 import PropTypes from "prop-types";
 import { Tooltip } from "dremio-ui-lib";
-import EllipsedText from "@app/components/EllipsedText";
+import EllipsedText from "#oss/components/EllipsedText";
 import "./Summary.less";
 
 const Summary = ({ jobSummary, intl: { formatMessage } }) => {

@@ -79,5 +79,5 @@ export default injectIntl(
     form: "addFolder",
     fields: FIELDS,
     validate,
-  })(AddFolderForm)
+  })(AddFolderForm),
 );

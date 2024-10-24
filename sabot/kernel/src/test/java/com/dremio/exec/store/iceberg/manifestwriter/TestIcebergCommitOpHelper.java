@@ -398,6 +398,7 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
         false,
         true,
         mock(TableFormatWriterOptions.class),
+        null,
         null);
   }
 

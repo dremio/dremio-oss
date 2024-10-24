@@ -19,30 +19,35 @@ import { useMemo } from "react";
 import { useDetectScroll } from "dremio-ui-lib/components";
 
 export const StoreSubscriber = (Component: any) => {
-    return function WrappedComponent(props: any) {
-        const enginesTable = useMemo(() => {
-            return createTable([
-                columnSorting(),
-                (config: any) => ({
-                    ...config,
-                    getRowProps: (props: any) => {
-                        return {
-                            ...props
-                        };
-                    },
-                }),
-            ]);
-        }, []);
-        const { scrolledDirections, scrollContainerRef } = useDetectScroll(["left"]);
-        const sortedColumns = useExternalStoreState(enginesTable.store, (state: any) => state.sortedColumns);
-        return (
-            <Component
-                {...props}
-                enginesTable={enginesTable}
-                sortedColumns={sortedColumns}
-                scrolledDirections={scrolledDirections}
-                scrollContainerRef={scrollContainerRef}
-            />
-        );
-    }
-}
+  return function WrappedComponent(props: any) {
+    const enginesTable = useMemo(() => {
+      return createTable([
+        columnSorting(),
+        (config: any) => ({
+          ...config,
+          getRowProps: (props: any) => {
+            return {
+              ...props,
+            };
+          },
+        }),
+      ]);
+    }, []);
+    const { scrolledDirections, scrollContainerRef } = useDetectScroll([
+      "left",
+    ]);
+    const sortedColumns = useExternalStoreState(
+      enginesTable.store,
+      (state: any) => state.sortedColumns,
+    );
+    return (
+      <Component
+        {...props}
+        enginesTable={enginesTable}
+        sortedColumns={sortedColumns}
+        scrolledDirections={scrolledDirections}
+        scrollContainerRef={scrollContainerRef}
+      />
+    );
+  };
+};

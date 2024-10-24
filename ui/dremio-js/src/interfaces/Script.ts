@@ -14,42 +14,35 @@
  * limitations under the License.
  */
 
-import type { Result } from "ts-results-es";
+import type { Ownable } from "./Ownable.js";
 import type { Query } from "../common/Query.js";
+import type { Result } from "ts-results-es";
 
-export type CommunityScriptProperties = {
-  readonly createdAt: Date;
+export type ScriptProperties = {
+  readonly createdAt: Temporal.Instant;
   readonly createdBy: string;
   readonly id: string;
-  readonly modifiedAt: Date;
+  readonly modifiedAt: Temporal.Instant;
   readonly modifiedBy: Date;
   readonly name: string;
   readonly query: Query;
 };
 
-export type CommunityScriptMethods = {
+export type ScriptMethods = {
   delete(): Promise<Result<void, unknown>>;
   save(properties: {
-    name?: CommunityScriptProperties["name"];
-    query?: CommunityScriptProperties["query"];
-  }): Promise<Result<CommunityScript, unknown>>;
-};
-
-export type CommunityScript = CommunityScriptProperties &
-  CommunityScriptMethods;
-
-export type EnterpriseScriptProperties = CommunityScriptProperties & {
-  owner: string;
+    name?: ScriptProperties["name"];
+    query?: ScriptProperties["query"];
+  }): Promise<Result<Script, unknown>>;
 };
 
 export type EnterpriseScriptMethods = {
-  save(properties: {
-    name?: CommunityScriptProperties["name"];
-    owner?: EnterpriseScriptProperties["owner"];
-    query?: CommunityScriptProperties["query"];
-  }): Promise<Result<CommunityScript, unknown>>;
   delete(): Promise<Result<void, unknown>>;
+  save(
+    properties: Parameters<ScriptMethods["save"]>[0] & Partial<Ownable>,
+  ): Promise<Result<EnterpriseScript, unknown>>;
 };
 
-export type EnterpriseScript = EnterpriseScriptProperties &
-  EnterpriseScriptMethods;
+export type Script = ScriptProperties & ScriptMethods;
+export type CommunityScript = Script;
+export type EnterpriseScript = Script & Ownable & EnterpriseScriptMethods;

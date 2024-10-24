@@ -43,7 +43,7 @@ export default class DurationWrapper extends Component {
       disableIf &&
       FormUtils.getFieldByComplexPropName(
         this.props.fields,
-        disableIf.propName
+        disableIf.propName,
       );
     const isDisabled =
       disabled ||

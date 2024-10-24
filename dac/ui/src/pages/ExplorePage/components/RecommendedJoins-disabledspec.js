@@ -79,14 +79,14 @@ describe("RecommendedJoins", () => {
 
   it("should render RecommendedJoinItems", () => {
     expect(wrapper.find(RecommendedJoinItem)).to.have.length(
-      recommendedJoins.length
+      recommendedJoins.length,
     );
   });
 
   it("should handle recommendations=undefined", () => {
     wrapper = shallow(
       <RecommendedJoins {...commonProps} recommendedJoins={undefined} />,
-      { context }
+      { context },
     );
     expect(wrapper.find(RecommendedJoinItem)).to.have.length(0);
   });
@@ -105,7 +105,7 @@ describe("RecommendedJoins", () => {
         .componentDidMount();
       expect(RecommendedJoins.prototype.selectJoin).to.be.calledWith(
         commonProps.recommendedJoins.first(),
-        false
+        false,
       );
     });
   });
@@ -168,7 +168,7 @@ describe("RecommendedJoins", () => {
       instance.selectJoin(activeRecommendation, false);
       expect(instance.updateFormFields).to.be.calledWith(activeRecommendation);
       expect(instance.props.setActiveRecommendedJoin).to.be.calledWith(
-        activeRecommendation
+        activeRecommendation,
       );
       expect(instance.loadRecommendedTable).to.not.be.called;
     });
@@ -186,7 +186,7 @@ describe("RecommendedJoins", () => {
       instance.selectJoin(activeRecommendation, true);
       expect(instance.updateFormFields).to.be.calledWith(activeRecommendation);
       expect(instance.loadRecommendedTable).to.be.calledWith(
-        activeRecommendation
+        activeRecommendation,
       );
       expect(instance.props.setActiveRecommendedJoin).to.not.be.called;
     });

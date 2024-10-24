@@ -43,6 +43,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.exec.store.parquet.ParquetSubScan;
@@ -56,6 +57,8 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
+import com.dremio.sabot.op.join.vhash.spill.slicer.CombinedSizer;
+import com.dremio.sabot.op.join.vhash.spill.slicer.Sizer;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.values.EmptyValuesCreator.EmptyRecordReader;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -95,9 +98,14 @@ public class ScanOperator implements ProducerOperator {
   private static final Logger logger = LoggerFactory.getLogger(ScanOperator.class);
   protected static final ControlsInjector injector =
       ControlsInjectorFactory.getInjector(ScanOperator.class);
+  public long warnThreshold;
+  private long maxAvgRowSize = 0;
 
   /** Main collection of fields' value vectors. */
   protected final VectorContainer outgoing;
+
+  private CombinedSizer sizer;
+  private int maxRowSize;
 
   public enum Metric implements MetricDef {
     @Deprecated
@@ -344,6 +352,8 @@ public class ScanOperator implements ProducerOperator {
 
     this.foremanEndpoint = foremanEndpoint;
     this.queryContextInfo = queryContextInformation;
+    this.warnThreshold =
+        context.getOptions().getOption(ExecConstants.WARN_MAX_BATCH_SIZE_THRESHOLD);
   }
 
   @Override
@@ -354,6 +364,7 @@ public class ScanOperator implements ProducerOperator {
     setupReader(currentReader);
 
     state = State.CAN_PRODUCE;
+    createSizer();
     return outgoing;
   }
 
@@ -465,7 +476,24 @@ public class ScanOperator implements ProducerOperator {
     stats.batchReceived(0, recordCount, VectorUtil.getSize(outgoing));
     stats.setReadIOStats();
     checkAndLearnSchema();
-    return outgoing.setAllCount(recordCount);
+    outgoing.setAllCount(recordCount);
+    int incomingBatchAvgRowSize = Sizer.getAverageRowSize(outgoing, recordCount);
+    if (recordCount > 0
+        && incomingBatchAvgRowSize > warnThreshold
+        && incomingBatchAvgRowSize > maxAvgRowSize) {
+      maxRowSize = Math.max(maxRowSize, sizer.getMaxRowLengthInBatch(recordCount));
+      maxAvgRowSize = incomingBatchAvgRowSize;
+    }
+    return recordCount;
+  }
+
+  private void createSizer() {
+    List<Sizer> sizerList = new ArrayList<>();
+
+    for (VectorWrapper<?> vectorWrapper : outgoing) {
+      sizerList.add(Sizer.get(vectorWrapper.getValueVector()));
+    }
+    this.sizer = new CombinedSizer(sizerList);
   }
 
   @Override
@@ -728,6 +756,9 @@ public class ScanOperator implements ProducerOperator {
     operatorStats.setScanRuntimeFilterDetailsInProfile();
     operatorStats.setParquetDecodingDetailsInfosInProfile();
     onScanDone();
+    if (maxRowSize >= warnThreshold) {
+      logger.warn("Max row size scanned by this Scan Operator #" + this + " - " + maxRowSize);
+    }
   }
 
   protected void onScanDone() {

@@ -47,8 +47,8 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
         public SqlCall createCall(
             SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           Preconditions.checkArgument(
-              operands.length == 14,
-              "SqlCreateEmptyTable.createCall() " + "has to get 14 operands!");
+              operands.length == 15,
+              "SqlCreateEmptyTable.createCall() " + "has to get 15 operands!");
 
           if (((SqlNodeList) operands[1]).getList().size() == 0) {
             throw UserException.parseError()
@@ -81,7 +81,8 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
               (SqlPolicy) operands[10],
               (SqlNodeList) operands[11],
               (SqlNodeList) operands[12],
-              (SqlTableVersionSpec) operands[13]);
+              (SqlTableVersionSpec) operands[13],
+              (SqlNodeList) operands[14]);
         }
       };
 
@@ -99,6 +100,7 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
   protected final SqlNodeList tablePropertyNameList;
   protected final SqlNodeList tablePropertyValueList;
   protected final SqlTableVersionSpec sqlTableVersionSpec;
+  protected final SqlNodeList clusterKeys;
 
   public SqlCreateEmptyTable(
       SqlParserPos pos,
@@ -115,7 +117,8 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
       SqlPolicy policy,
       SqlNodeList tablePropertyNameList,
       SqlNodeList tablePropertyValueList,
-      SqlTableVersionSpec sqlTableVersionSpec) {
+      SqlTableVersionSpec sqlTableVersionSpec,
+      SqlNodeList clusterKeys) {
     super(pos);
     this.tblName = tblName;
     this.fieldList = fieldList;
@@ -131,6 +134,7 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     this.tablePropertyNameList = tablePropertyNameList;
     this.tablePropertyValueList = tablePropertyValueList;
     this.sqlTableVersionSpec = sqlTableVersionSpec;
+    this.clusterKeys = clusterKeys;
   }
 
   @Override
@@ -155,6 +159,7 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     ops.add(tablePropertyNameList);
     ops.add(tablePropertyValueList);
     ops.add(sqlTableVersionSpec);
+    ops.add(clusterKeys);
     return ops;
   }
 
@@ -195,6 +200,11 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
       writer.keyword("LOCALSORT");
       writer.keyword("BY");
       SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, sortColumns);
+    }
+    if (clusterKeys.size() > 0) {
+      writer.keyword("CLUSTER");
+      writer.keyword("BY");
+      SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, clusterKeys);
     }
     if (formatOptions.size() > 0) {
       writer.keyword("STORE");
@@ -259,6 +269,15 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
       columnNames.add(node.toString());
     }
     return columnNames;
+  }
+
+  @Override
+  public List<String> getClusterKeys() {
+    List<String> clusterKeyNames = Lists.newArrayList();
+    for (SqlNode node : clusterKeys.getList()) {
+      clusterKeyNames.add(node.toString());
+    }
+    return clusterKeyNames;
   }
 
   @Override

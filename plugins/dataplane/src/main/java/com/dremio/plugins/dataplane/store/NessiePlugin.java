@@ -17,60 +17,49 @@ package com.dremio.plugins.dataplane.store;
 
 import static com.dremio.exec.store.DataplanePluginOptions.DATAPLANE_OAUTH_CLIENT_AUTH_ENABLED;
 import static com.dremio.exec.store.DataplanePluginOptions.NESSIE_PLUGIN_ENABLED;
-import static com.dremio.plugins.dataplane.NessiePluginConfigConstants.MINIMUM_NESSIE_SPECIFICATION_VERSION;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.NessieAuthType;
 import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.ConnectionRefusedException;
-import com.dremio.exec.store.HttpClientRequestException;
-import com.dremio.exec.store.InvalidNessieApiVersionException;
-import com.dremio.exec.store.InvalidSpecificationVersionException;
-import com.dremio.exec.store.InvalidURLException;
-import com.dremio.exec.store.NoDefaultBranchException;
-import com.dremio.exec.store.SemanticVersionParserException;
-import com.dremio.exec.store.UnAuthenticatedException;
 import com.dremio.nessiemetadata.cache.NessieDataplaneCacheProvider;
 import com.dremio.nessiemetadata.storeprovider.NessieDataplaneCacheStoreProvider;
 import com.dremio.plugins.NessieClient;
+import com.dremio.plugins.NessieClientImpl;
+import com.dremio.plugins.UsernameAwareNessieClientImpl;
 import com.dremio.service.namespace.SourceState;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import java.net.URI;
 import javax.inject.Provider;
-import org.apache.parquet.SemanticVersion;
 import org.jetbrains.annotations.Nullable;
 import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.client.auth.oauth2.OAuth2Exception;
-import org.projectnessie.client.http.NessieApiCompatibilityException;
-import org.projectnessie.model.NessieConfiguration;
+import org.projectnessie.client.auth.NessieAuthentication;
+import org.projectnessie.client.auth.oauth2.OAuth2AuthenticationProvider;
+import org.projectnessie.client.auth.oauth2.OAuth2AuthenticatorConfig;
 
 public class NessiePlugin extends DataplanePlugin {
   private static final org.slf4j.Logger LOGGER =
       org.slf4j.LoggerFactory.getLogger(NessiePlugin.class);
+  private static final String SERVER_NAME = "Nessie";
 
   private final String name;
   private final NessiePluginConfig pluginConfig;
+  private final NessieClient nessieClient;
 
   public NessiePlugin(
       NessiePluginConfig pluginConfig,
       SabotContext context,
       String name,
       Provider<StoragePluginId> idProvider,
-      NessieClient nessieClient,
       NessieDataplaneCacheProvider cacheProvider,
       @Nullable NessieDataplaneCacheStoreProvider nessieDataplaneCacheStoreProvider) {
     super(
-        pluginConfig,
-        context,
-        name,
-        idProvider,
-        nessieClient,
-        cacheProvider,
-        nessieDataplaneCacheStoreProvider);
+        pluginConfig, context, name, idProvider, cacheProvider, nessieDataplaneCacheStoreProvider);
     this.name = name;
     this.pluginConfig = pluginConfig;
+    this.nessieClient = getNessieClient(name, context, pluginConfig);
   }
 
   @Override
@@ -123,64 +112,8 @@ public class NessiePlugin extends DataplanePlugin {
 
   @Override
   public SourceState getState(NessieClient nessieClient, String name, SabotContext context) {
-    validateStorageProviderTypeEnabled(context.getOptionManager());
-    try {
-      this.validateConnectionToNessieRepository(nessieClient, name, context);
-      this.validateNessieSpecificationVersion(nessieClient, name);
-    } catch (NoDefaultBranchException e) {
-      return SourceState.badState(
-          "Check your Nessie server",
-          String.format(
-              "Could not connect to [%s]. No default branch exists in the Nessie server.", name));
-    } catch (UnAuthenticatedException e) {
-      return SourceState.badState(
-          "Make sure that the token is valid and not expired",
-          String.format(
-              "Could not connect to [%s]. Unable to authenticate to the Nessie server.", name));
-    } catch (ConnectionRefusedException e) {
-      return SourceState.badState(
-          "Make sure that the Nessie server is up and running",
-          String.format(
-              "Could not connect to [%s]. Connection refused while connecting to the Nessie Server.",
-              name));
-    } catch (InvalidURLException e) {
-      return SourceState.badState(
-          String.format(
-              "Make sure that Nessie endpoint URL [%s] is valid.",
-              pluginConfig.getNessieEndpoint()),
-          String.format("Could not connect to [%s].", name));
-    } catch (InvalidSpecificationVersionException e) {
-      return SourceState.badState(
-          String.format(
-              "Nessie Server should comply with Nessie specification version %s or later. Also make sure that Nessie endpoint URL is valid.",
-              MINIMUM_NESSIE_SPECIFICATION_VERSION),
-          String.format("Could not connect to [%s].", name));
-    } catch (SemanticVersionParserException e) {
-      return SourceState.badState(
-          String.format(
-              "Nessie Server should comply with Nessie specification version %s or later.",
-              MINIMUM_NESSIE_SPECIFICATION_VERSION),
-          String.format(
-              "Could not connect to [%s]. Cannot parse Nessie specification version.", name));
-    } catch (InvalidNessieApiVersionException e) {
-      return SourceState.badState(
-          String.format(
-              "Invalid API version. Make sure that Nessie endpoint URL [%s] has a valid API version.",
-              pluginConfig.getNessieEndpoint()),
-          String.format("Could not connect to [%s].", name));
-    } catch (HttpClientRequestException e) {
-      if (e.getCause() instanceof OAuth2Exception) {
-        return SourceState.badState(
-            "Make sure that the Oauth2 ClientID, Client Secret and OAuth2 token endpoint URI are valid.",
-            String.format("Could not connect to [%s].", name));
-      }
-    } catch (Exception e) {
-      // For any unknowns
-      return SourceState.badState(
-          "Check your settings, credentials and Nessie server",
-          String.format("Could not connect to [%s].", name));
-    }
-    return SourceState.GOOD;
+    return NessiePluginUtils.getState(
+        nessieClient, name, pluginConfig.getNessieEndpoint(), SERVER_NAME);
   }
 
   @Override
@@ -201,67 +134,90 @@ public class NessiePlugin extends DataplanePlugin {
   @Override
   public void validateConnectionToNessieRepository(
       NessieClient nessieClient, String name, SabotContext context) {
-    nessieClient.getDefaultBranch();
+    NessiePluginUtils.validateConnectionToNessieRepository(nessieClient);
   }
 
   @Override
-  public void validateNessieSpecificationVersion(NessieClient nessieClient, String name) {
-    NessieApiV2 nessieApi = nessieClient.getNessieApi();
-    NessieConfiguration nessieConfiguration = getNessieConfig(nessieApi);
-    validateNessieSpecificationVersionHelper(nessieConfiguration.getSpecVersion());
+  public void validateNessieSpecificationVersion(NessieClient nessieClient) {
+    NessiePluginUtils.validateNessieSpecificationVersion(
+        nessieClient, pluginConfig.getNessieEndpoint(), SERVER_NAME);
   }
 
   @VisibleForTesting
-  NessieConfiguration getNessieConfig(NessieApiV2 nessieApiV2) {
-    try {
-      return nessieApiV2.getConfig();
-    } catch (NessieApiCompatibilityException e) {
-      throw new InvalidNessieApiVersionException(
-          e,
-          "Invalid API version. "
-              + "Make sure that Nessie endpoint URL [%s] has a valid API version. Expected version is 2.",
-          pluginConfig.getNessieEndpoint());
-    } catch (OAuth2Exception e) {
-      throw new UnAuthenticatedException(
-          e,
-          "Make sure that the Oauth2 ClientID, Client Secret and OAuth2 token endpoint URI are valid.");
-    } catch (Exception e) {
-      // IllegalArgumentException, HttpClientException and NessieServiceException are seen when we
-      // provide wrong urls in the Nessie endpoint
-      throw new InvalidURLException(
-          e, "Make sure that Nessie endpoint URL [%s] is valid.", pluginConfig.getNessieEndpoint());
+  NessieClient getNessieClient(
+      String name, SabotContext sabotContext, NessiePluginConfig pluginConfig) {
+    NessieApiV2 nessieApiV2;
+    switch (pluginConfig.getNessieAuthType()) {
+      case BEARER:
+        nessieApiV2 =
+            getNessieRestClientWithBearer(
+                name, pluginConfig.getNessieEndpoint(), pluginConfig.getNessieAccessToken());
+        break;
+      case NONE:
+        nessieApiV2 = getNessieRestClientWithNoAuth(name, pluginConfig.getNessieEndpoint());
+        break;
+      case OAUTH2:
+        nessieApiV2 =
+            getNessieRestClientWithOAuth2(
+                name,
+                pluginConfig.getNessieEndpoint(),
+                pluginConfig.getOauth2TokenEndpointURI(),
+                pluginConfig.getOauth2ClientId(),
+                pluginConfig.getOauth2ClientSecret());
+        break;
+      default:
+        throw new UnsupportedOperationException();
     }
-  }
-
-  @VisibleForTesting
-  void validateNessieSpecificationVersionHelper(String specificationVersion) {
-    if (specificationVersion == null) {
-      // This happens when you are using the older server, or you are trying to pass the v1 endpoint
-      // for supported OSS Nessie sever (which supports v2)
-      throw new InvalidSpecificationVersionException(
-          "Nessie Server should comply with Nessie specification version %s or later."
-              + " Also make sure that Nessie endpoint URL is valid.",
-          MINIMUM_NESSIE_SPECIFICATION_VERSION);
+    NessieClient nessieClient = new NessieClientImpl(nessieApiV2, sabotContext.getOptionManager());
+    if (sabotContext.isCoordinator()) {
+      return new UsernameAwareNessieClientImpl(nessieClient, sabotContext.getUserService());
     } else {
-      int result;
-      try {
-        result =
-            SemanticVersion.parse(specificationVersion)
-                .compareTo(SemanticVersion.parse(MINIMUM_NESSIE_SPECIFICATION_VERSION));
-      } catch (SemanticVersion.SemanticVersionParseException ex) {
-        throw new SemanticVersionParserException(
-            ex,
-            "Cannot parse Nessie specification version %s. "
-                + "Nessie Server should comply with Nessie specification version %s or later.",
-            specificationVersion,
-            MINIMUM_NESSIE_SPECIFICATION_VERSION);
-      }
-      if (result < 0) {
-        throw new InvalidSpecificationVersionException(
-            "Nessie Server should comply with Nessie specification version %s or later."
-                + " Also make sure that Nessie endpoint URL is valid.",
-            MINIMUM_NESSIE_SPECIFICATION_VERSION);
-      }
+      // DO NOT USE UsernameAwareNessieClientImpl (as Executor doesn't have UserService)
+      // IcebergNessieVersionedTableOperations is wrapped up with UserContext to pass the userId
+      // for
+      // talking to Nessie and userName is supplied too via the param which will be picked by
+      // NessieClient#commitOperationHelper from param (if supplied) so we don't need
+      // UsernameAwareNessieClientImpl
+      return nessieClient;
     }
+  }
+
+  private NessieApiV2 getNessieRestClientWithBearer(
+      String name, String nessieEndpoint, SecretRef nessieAccessToken) {
+    NessieAuthentication nessieAuthentication = new SecureBearerAuthentication(nessieAccessToken);
+    return NessiePluginUtils.getNessieRestClient(name, nessieEndpoint, nessieAuthentication);
+  }
+
+  private NessieApiV2 getNessieRestClientWithNoAuth(String name, String nessieEndpoint) {
+    return NessiePluginUtils.getNessieRestClient(name, nessieEndpoint, null);
+  }
+
+  private NessieApiV2 getNessieRestClientWithOAuth2(
+      String name,
+      String nessieEndpoint,
+      String oauth2TokenEndpointURI,
+      String oauth2ClientId,
+      SecretRef oauth2ClientSecret) {
+    try {
+      final OAuth2AuthenticatorConfig oauth2AuthenticatorConfig =
+          OAuth2AuthenticatorConfig.builder()
+              .clientId(oauth2ClientId)
+              .clientSecret(oauth2ClientSecret.get())
+              .tokenEndpoint(URI.create(oauth2TokenEndpointURI))
+              .build();
+      NessieAuthentication nessieAuthentication =
+          OAuth2AuthenticationProvider.create(oauth2AuthenticatorConfig);
+      return NessiePluginUtils.getNessieRestClient(name, nessieEndpoint, nessieAuthentication);
+    } catch (UnsupportedOperationException e) { // thrown by oAuth2ClientSecret.get()
+      throw UserException.resourceError(e)
+          .message(
+              "Unable to create or access source [%s], " + "OAuth2 credentials are not valid", name)
+          .build(LOGGER);
+    }
+  }
+
+  @Override
+  public NessieClient getNessieClient() {
+    return nessieClient;
   }
 }

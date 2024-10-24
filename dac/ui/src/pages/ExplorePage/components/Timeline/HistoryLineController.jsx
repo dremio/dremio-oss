@@ -19,8 +19,8 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 
 import { getHistoryItems } from "selectors/explore";
-import exploreUtils from "@app/utils/explore/exploreUtils";
-import { memoOne } from "@app/utils/memoUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
+import { memoOne } from "#oss/utils/memoUtils";
 import { cloneDeep } from "lodash";
 import { pageTypesProp } from "../../pageTypes";
 
@@ -71,7 +71,7 @@ function mapStateToProps(state, ownProps) {
     history,
     historyItem,
     datasetUI,
-    version
+    version,
   );
 
   let historyItems = getHistoryItems(state, version);

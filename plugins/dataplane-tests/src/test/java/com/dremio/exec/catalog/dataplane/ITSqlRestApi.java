@@ -329,9 +329,9 @@ public class ITSqlRestApi extends ITBaseTestVersioned {
   private static WebTarget getApiForVersion(EndpointVersion endpointVersion) {
     switch (endpointVersion) {
       case API_V2:
-        return getAPIv2();
+        return getHttpClient().getAPIv2();
       case API_V3:
-        return getPublicAPI(3);
+        return getHttpClient().getAPIv3();
       default:
         throw new IllegalStateException("Unexpected value: " + endpointVersion);
     }

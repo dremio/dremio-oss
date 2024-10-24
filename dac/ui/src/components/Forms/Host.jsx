@@ -24,7 +24,7 @@ import {
   description as descriptionStyle,
 } from "uiTheme/radium/forms";
 import { applyValidators, isRequired, isWholeNumber } from "utils/validation";
-import { rowOfInputsSpacing } from "@app/uiTheme/less/forms.less";
+import { rowOfInputsSpacing } from "#oss/uiTheme/less/forms.less";
 
 export default class Host extends Component {
   static getFields() {

@@ -24,12 +24,16 @@
     }
     &__checkBox {
       border-radius: 2px;
-      background: white;
-      border: 1.5px solid var(--border--neutral--solid);
+      background: var(--fill--primary);
+      border: 1px solid var(--border--neutral--solid);
       &.--disabled {
         border-radius: 2px;
-        background: var(--color--neutral--150);
-        border: 1.5px solid var(--border--neutral--solid);
+        background: var(--fill--toggle);
+        border: 1px solid var(--fill--toggle);
+        &:hover {
+          background: var(--fill--toggle);
+          border: 1px solid var(--fill--toggle);
+        }
       }
     }
 

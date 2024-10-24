@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import SearchItem from "@app/components/HeaderItemsTypes/SearchItem";
+import SearchItem from "#oss/components/HeaderItemsTypes/SearchItem";
 
 import "./HomePageTop.less";
 

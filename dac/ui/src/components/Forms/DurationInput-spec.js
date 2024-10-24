@@ -73,7 +73,7 @@ describe("DurationInput", () => {
         DurationInput.convertToMilliseconds({
           duration: 15,
           unit: "MINUTES",
-        })
+        }),
       ).to.be.eql(15 * minute);
     });
 
@@ -82,7 +82,7 @@ describe("DurationInput", () => {
         DurationInput.convertToMilliseconds({
           duration: 1,
           unit: "HOURS",
-        })
+        }),
       ).to.be.eql(60 * minute);
     });
 
@@ -91,7 +91,7 @@ describe("DurationInput", () => {
         DurationInput.convertToMilliseconds({
           duration: 22,
           unit: "HOURS",
-        })
+        }),
       ).to.be.eql(22 * hour);
     });
 
@@ -100,7 +100,7 @@ describe("DurationInput", () => {
         DurationInput.convertToMilliseconds({
           duration: 1,
           unit: "DAYS",
-        })
+        }),
       ).to.be.eql(24 * hour);
     });
 
@@ -109,7 +109,7 @@ describe("DurationInput", () => {
         DurationInput.convertToMilliseconds({
           duration: 3,
           unit: "DAYS",
-        })
+        }),
       ).to.be.eql(3 * day);
     });
 
@@ -118,7 +118,7 @@ describe("DurationInput", () => {
         DurationInput.convertToMilliseconds({
           duration: 1,
           unit: "WEEKS",
-        })
+        }),
       ).to.be.eql(7 * day);
     });
 
@@ -127,7 +127,7 @@ describe("DurationInput", () => {
         DurationInput.convertToMilliseconds({
           duration: 5,
           unit: "WEEKS",
-        })
+        }),
       ).to.be.eql(5 * week);
     });
   });

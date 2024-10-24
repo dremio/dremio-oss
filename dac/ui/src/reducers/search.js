@@ -28,7 +28,7 @@ export default function search(state = initialState, action) {
     case ActionTypes.SEARCH_SUCCESS:
       return state.set(
         "searchDatasets",
-        Immutable.List(action.payload.get("result").toArray())
+        Immutable.List(action.payload.get("result").toArray()),
       );
     // This is a synchronous action.
     case ActionTypes.HIDE_BAR_REQUEST:

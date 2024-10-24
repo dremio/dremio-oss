@@ -64,14 +64,15 @@ export default compose(withRouter, LoginFormMixin)(LoginFormContainer);
 const styles = {
   base: {
     position: "relative",
-    backgroundColor: "#344253",
+    backgroundColor: "var(--fill--login--foreground)",
     minWidth: 775,
-    height: 430,
+    height: 350,
     maxWidth: 775,
-    maxHeight: 430,
+    maxHeight: 350,
     overflow: "hidden",
     padding: 40,
     display: "flex",
+    borderRadius: "8px",
     flexDirection: "column",
   },
 };

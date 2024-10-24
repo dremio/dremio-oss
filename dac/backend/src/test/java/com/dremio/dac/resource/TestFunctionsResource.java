@@ -39,7 +39,8 @@ public class TestFunctionsResource extends BaseTestServer {
   public FunctionsListService.Response getFunctions() throws Exception {
     final String endpoint = "/sql/functions";
 
-    Response response = expectSuccess(getBuilder(getAPIv2().path(endpoint)).buildGet());
+    Response response =
+        expectSuccess(getBuilder(getHttpClient().getAPIv2().path(endpoint)).buildGet());
     String stringResponse = response.readEntity(String.class);
 
     ObjectMapper objectMapper =

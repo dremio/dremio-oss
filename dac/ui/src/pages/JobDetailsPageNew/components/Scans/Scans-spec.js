@@ -60,7 +60,7 @@ describe("Scans", () => {
     ]);
     const intl = { formatMessage: Sinon.spy() };
     const wrapper = mount(
-      <Scans scansForFilter={scansForFilter} scans={scans} intl={intl} />
+      <Scans scansForFilter={scansForFilter} scans={scans} intl={intl} />,
     );
     const account = wrapper
       .find('[data-qa="dropdown-customer"]')

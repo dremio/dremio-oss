@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import Immutable from "immutable";
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 
 import serverStatus from "reducers/serverStatus";
 import {

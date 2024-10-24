@@ -112,7 +112,8 @@ public class OptimizeManifestsTableFunction extends AbstractTableFunction {
             tableProps.getTableLocation(), opProps.getUserName(), context)) {
       FileIO fileIO = icebergMutablePlugin.createIcebergFileIO(fs, null, null, null, null);
       IcebergModel icebergModel =
-          icebergMutablePlugin.getIcebergModel(tableProps, opProps.getUserName(), context, fileIO);
+          icebergMutablePlugin.getIcebergModel(
+              tableProps, opProps.getUserName(), context, fileIO, null);
       icebergModel.refreshVersionContext();
       IcebergTableIdentifier icebergTableIdentifier =
           icebergModel.getTableIdentifier(tableProps.getTableLocation());

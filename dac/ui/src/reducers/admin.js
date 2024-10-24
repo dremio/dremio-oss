@@ -42,14 +42,14 @@ export default function admins(state = initialState, action) {
         Immutable.fromJS({
           nodes: state.getIn(["sourceNodesList", "nodes"]),
           isInProgress: Object.keys(action.meta).length > 0 ? true : false,
-        })
+        }),
       );
     case ActionTypes.SOURCE_NODES_SUCCESS:
       return state.set(
         "sourceNodesList",
         Immutable.fromJS({
           nodes: adminMapper.mapSourceNodesList(action.payload),
-        })
+        }),
       );
     case ActionTypes.LOAD_FILTERED_USER_SUCCESS:
       return state.set("users", action.payload.getIn(["result", "users"]));
@@ -59,7 +59,7 @@ export default function admins(state = initialState, action) {
     case LOAD_ACCELERATIONS_SUCCESS:
       return state.set(
         "accelerations",
-        action.payload.getIn(["result", "accelerationList"])
+        action.payload.getIn(["result", "accelerationList"]),
       );
 
     case DELETE_ACCELERATION_SUCCESS:
@@ -67,7 +67,7 @@ export default function admins(state = initialState, action) {
         "accelerations",
         state
           .get("accelerations")
-          .filter((id) => id !== action.meta.accelerationId)
+          .filter((id) => id !== action.meta.accelerationId),
       );
 
     default:

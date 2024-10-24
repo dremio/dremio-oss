@@ -147,6 +147,7 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   parseReferenceType: RuleType.Command,
   aTVersionSpec: RuleType.Command,
   writeableAtVersionSpec: RuleType.Command,
+  aTVersionSpecWithoutTimeTravel: RuleType.Command,
   qualifyOpt: RuleType.Command,
   sqlShowCreate: RuleType.Command,
   sqlShowTableProperties: RuleType.Command,
@@ -154,8 +155,8 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   sqlCreatePipe: RuleType.Command,
   sqlDescribePipe: RuleType.Command,
   sqlDropPipe: RuleType.Command,
-  sqlShowPipes: RuleType.Command,
   sqlTriggerPipe: RuleType.Command,
+  sqlAlterEngine: RuleType.Command,
 
   // These comprise identifier tokens
   // Note: Identifier list rules should not be added here
@@ -240,6 +241,8 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   privilegeCommaList: RuleType.Other,
   privilege: RuleType.Other,
   tableWithVersionContext: RuleType.Other,
+  functionWithVersionContext: RuleType.Other,
+  tableFunctionWithVersionContext: RuleType.Other,
   whenMatchedClause: RuleType.Other,
   whenNotMatchedClause: RuleType.Other,
   selectList: RuleType.Other,

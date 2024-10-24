@@ -20,7 +20,6 @@ import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.ARRAY_AGG;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -39,36 +38,12 @@ public final class UnsupportedQueryPlanVisitor extends StatelessRelShuttleImpl {
 
   @Override
   public RelNode visit(LogicalAggregate aggregate) {
-    checkArrayAggContainsOrdering(aggregate);
     checkArrayAggWithRollup(aggregate);
     return super.visit(aggregate);
   }
 
   public static void checkForUnsupportedQueryPlan(RelNode queryPlan) {
     queryPlan.accept(INSTANCE);
-  }
-
-  private static void checkArrayAggContainsOrdering(LogicalAggregate aggregate) {
-    aggregate.getAggCallList().forEach(UnsupportedQueryPlanVisitor::checkArrayAggContainsOrdering);
-  }
-
-  private static void checkArrayAggWithRollup(LogicalAggregate aggregate) {
-    if (aggregate.getGroupSets().size() > 1) {
-      if (aggregate.getAggCallList().stream().anyMatch(x -> ARRAY_AGG.equals(x.getAggregation()))) {
-        throw UserException.planError()
-            .message("ARRAY_AGG with ROLLUP is currently not supported.")
-            .buildSilently();
-      }
-    }
-  }
-
-  private static void checkArrayAggContainsOrdering(AggregateCall aggCall) {
-    if (aggCall.getAggregation() == ARRAY_AGG
-        && !aggCall.getCollation().getFieldCollations().isEmpty()) {
-      throw UserException.planError()
-          .message("ARRAY_AGG currently does not support ordering within group.")
-          .buildSilently();
-    }
   }
 
   private static void checkOrderByArray(LogicalSort sort) {
@@ -79,6 +54,16 @@ public final class UnsupportedQueryPlanVisitor extends StatelessRelShuttleImpl {
       throw UserException.planError()
           .message("Sorting by arrays is not supported.")
           .buildSilently();
+    }
+  }
+
+  private static void checkArrayAggWithRollup(LogicalAggregate aggregate) {
+    if (aggregate.getGroupSets().size() > 1) {
+      if (aggregate.getAggCallList().stream().anyMatch(x -> ARRAY_AGG.equals(x.getAggregation()))) {
+        throw UserException.planError()
+            .message("ARRAY_AGG with ROLLUP is currently not supported.")
+            .buildSilently();
+      }
     }
   }
 }

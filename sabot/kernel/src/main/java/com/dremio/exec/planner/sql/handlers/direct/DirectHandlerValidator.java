@@ -15,8 +15,11 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.service.namespace.NamespaceKey;
 
 public interface DirectHandlerValidator {
-  void validate(NamespaceKey key);
+  default void validate(NamespaceKey key, VersionContext versionContext) {
+    // no-op
+  }
 }

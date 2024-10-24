@@ -22,8 +22,8 @@ import { injectIntl } from "react-intl";
 
 import Modal from "components/Modals/Modal";
 import Message from "components/Message";
-import { denormalizeFile } from "@app/reducers/home/content";
-import { MAX_UPLOAD_FILE_SIZE } from "@app/constants/Constants";
+import { denormalizeFile } from "#oss/reducers/home/content";
+import { MAX_UPLOAD_FILE_SIZE } from "#oss/constants/Constants";
 import NumberFormatUtils from "utils/numberFormatUtils";
 
 import {
@@ -35,7 +35,7 @@ import {
 } from "actions/modals/addFileModal";
 
 import ApiUtils from "utils/apiUtils/apiUtils";
-import { getHomeEntity } from "@app/selectors/home";
+import { getHomeEntity } from "#oss/selectors/home";
 import { getViewState } from "selectors/resources";
 import { resetViewState } from "actions/resources";
 
@@ -68,8 +68,8 @@ export class AddFileModal extends Component {
 
   tooLargeMsg = laDeprecated(
     `The file is too large. Dremio UI supports file uploads up to ${NumberFormatUtils.formatMemoryInMB(
-      MAX_UPLOAD_FILE_SIZE
-    )}.`
+      MAX_UPLOAD_FILE_SIZE,
+    )}.`,
   );
 
   constructor(props) {
@@ -118,7 +118,7 @@ export class AddFileModal extends Component {
     this.props.resetFileFormatPreview();
 
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.uploadFileToPath(file, { name }, extension)
+      this.props.uploadFileToPath(file, { name }, extension),
     ).then(() => {
       this.goToPage(1);
       return null;
@@ -130,7 +130,7 @@ export class AddFileModal extends Component {
     if (this.checkIfFileIsTooLarge(file)) return;
 
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.uploadFinish(file, values, PREVIEW_VIEW_ID)
+      this.props.uploadFinish(file, values, PREVIEW_VIEW_ID),
     ).then(() => {
       this.onHide(true);
       return null;
@@ -143,7 +143,7 @@ export class AddFileModal extends Component {
     this.props.loadFilePreview(
       file.getIn(["links", "format_preview"]),
       values,
-      PREVIEW_VIEW_ID
+      PREVIEW_VIEW_ID,
     );
   };
 

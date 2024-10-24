@@ -323,11 +323,12 @@ public class TableFunctionUtil {
       NamespaceKey namespaceKey,
       StoragePluginId storagePluginId,
       List<SchemaPath> columns,
-      ByteString extendedProperty) {
+      ByteString extendedProperty,
+      boolean isSchemaImposedOutput) {
     UserDefinedSchemaSettings schemaSettings =
         new UserDefinedSchemaSettings()
             .setSchemaLearningEnabled(false)
-            .setSchemaImposedOutput(true);
+            .setSchemaImposedOutput(isSchemaImposedOutput);
     return new TableFunctionContext(
         sourceFormatSettings,
         targetSchema,

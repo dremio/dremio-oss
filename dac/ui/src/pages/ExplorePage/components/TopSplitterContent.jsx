@@ -17,7 +17,7 @@ import Immutable from "immutable";
 import { Component } from "react";
 import { compose } from "redux";
 import { connect } from "react-redux";
-import Message from "@app/components/Message";
+import Message from "#oss/components/Message";
 import PropTypes from "prop-types";
 import { getActiveScriptPermissions } from "selectors/scripts";
 import {
@@ -27,8 +27,8 @@ import {
 } from "./../../../actions/explore/ui";
 import { showNavCrumbs } from "@inject/components/NavCrumbs/NavCrumbs";
 import SqlEditorController from "./SqlEditor/SqlEditorController";
-import { withIsMultiTabEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
-import { intl } from "@app/utils/intl";
+import { withIsMultiTabEnabled } from "#oss/components/SQLScripts/useMultiTabIsEnabled";
+import { intl } from "#oss/utils/intl";
 import "./TopSplitterContent.less";
 
 const MIN_SQL_HEIGHT = 80;
@@ -144,6 +144,8 @@ export class TopSplitterContent extends Component {
   }
 
   startDrag(e) {
+    e.preventDefault(); // Do not allow text selection while dragging
+
     this.props.setResizeProgressState(true);
     this.setState({
       isDragInProgress: true,
@@ -234,7 +236,7 @@ export default compose(
       toggleExploreSql,
     },
     null,
-    { forwardRef: true }
+    { forwardRef: true },
   ),
-  withIsMultiTabEnabled
+  withIsMultiTabEnabled,
 )(TopSplitterContent);

@@ -58,7 +58,7 @@ describe("NewFieldSection", () => {
 
   it("should not render drop source Checkbox if showDropSource = false", () => {
     wrapper = shallow(
-      <NewFieldSection {...commonProps} showDropSource={false} />
+      <NewFieldSection {...commonProps} showDropSource={false} />,
     );
     expect(wrapper.find("Checkbox")).to.have.length(0);
   });
@@ -73,7 +73,7 @@ describe("NewFieldSection", () => {
     it("should append newFieldName with _1 if newFieldName has not been changed when unchecking dropSourceField", () => {
       instance.handleCheckboxChange({ target: { checked: false } });
       expect(commonProps.fields.newFieldName.onChange).to.be.calledWith(
-        intialNewFieldName + "_1"
+        intialNewFieldName + "_1",
       );
     });
 
@@ -89,7 +89,7 @@ describe("NewFieldSection", () => {
       });
       instance.handleCheckboxChange({ target: { checked: true } });
       expect(commonProps.fields.newFieldName.onChange).to.be.calledWith(
-        intialNewFieldName
+        intialNewFieldName,
       );
     });
   });

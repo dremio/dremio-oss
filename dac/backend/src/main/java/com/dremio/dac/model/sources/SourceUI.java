@@ -28,6 +28,7 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.RefreshPolicyType;
+import com.dremio.service.namespace.source.proto.SourceChangeState;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -87,6 +88,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   private Boolean accelerationNeverRefresh;
   private Boolean allowCrossSourceSelection;
   private Boolean disableMetadataValidityCheck;
+  private SourceChangeState sourceChangeState;
 
   public SourceUI setConfig(ConnectionConf<?, ?> sourceConfig) {
     this.config = sourceConfig;
@@ -299,6 +301,14 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     this.disableMetadataValidityCheck = disableMetadataValidityCheck;
   }
 
+  public SourceChangeState getSourceChangeState() {
+    return sourceChangeState;
+  }
+
+  public void setSourceChangeState(SourceChangeState sourceChangeState) {
+    this.sourceChangeState = sourceChangeState;
+  }
+
   public Map<String, String> getLinks() {
     Map<String, String> links = new HashMap<>();
     String resourcePath = new SourcePath(new SourceName(name)).toUrlPath();
@@ -339,6 +349,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     }
     c.setAllowCrossSourceSelection(Boolean.TRUE.equals(allowCrossSourceSelection));
     c.setDisableMetadataValidityCheck(Boolean.TRUE.equals(disableMetadataValidityCheck));
+    c.setSourceChangeState(sourceChangeState);
     return c;
   }
 
@@ -388,6 +399,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     source.setId(sourceConfig.getId().getId());
     source.setAllowCrossSourceSelection(sourceConfig.getAllowCrossSourceSelection());
     source.setDisableMetadataValidityCheck(sourceConfig.getDisableMetadataValidityCheck());
+    source.setSourceChangeState(sourceConfig.getSourceChangeState());
     return source;
   }
 

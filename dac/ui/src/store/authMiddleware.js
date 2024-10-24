@@ -22,7 +22,7 @@ import {
 import { push } from "react-router-redux";
 import { get } from "lodash/object";
 
-import { LOGIN_PATH, getLoginUrl, SIGNUP_PATH } from "@app/sagas/loginLogout";
+import { LOGIN_PATH, getLoginUrl, SIGNUP_PATH } from "#oss/sagas/loginLogout";
 
 export const UNAUTHORIZED_URL_PARAM = "reason=401";
 
@@ -42,7 +42,7 @@ export function handleUnauthorized(payload, next, action) {
     if (!atLogin) {
       setTimeout(() => {
         window.location.assign(
-          `${getLoginUrl(true)}&${UNAUTHORIZED_URL_PARAM}`
+          `${getLoginUrl(true)}&${UNAUTHORIZED_URL_PARAM}`,
         );
       }, 0);
     }
@@ -57,7 +57,7 @@ export function handleUnauthorized(payload, next, action) {
     const atSignup = window.location.pathname === SIGNUP_PATH;
     if (!atSignup) {
       // avoid multiple history entries
-      next(push(SIGNUP_PATH)); // eslint-disable-line callback-return
+      next(push(SIGNUP_PATH));
     }
     return next(noUsersError()); // stop further handling and signal socket closing, etc
   }

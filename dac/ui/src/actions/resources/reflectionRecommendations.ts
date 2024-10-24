@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { ReflectionRecommendations } from "@app/components/Acceleration/ReflectionRecommendations.types";
+import { ReflectionRecommendations } from "#oss/components/Acceleration/ReflectionRecommendations.types";
 
 export const SET_REFLECTION_RECOMMENDATIONS = "SET_REFLECTION_RECOMMENDATIONS";
 
 export const setReflectionRecommendations = (
-  reflections: ReflectionRecommendations
+  reflections: ReflectionRecommendations,
 ) => {
   return { type: SET_REFLECTION_RECOMMENDATIONS, reflections };
 };

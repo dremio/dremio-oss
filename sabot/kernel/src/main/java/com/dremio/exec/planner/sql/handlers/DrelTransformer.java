@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import static com.dremio.exec.planner.physical.PlannerSettings.USE_LEGACY_DECORRELATOR;
+
 import com.dremio.exec.calcite.logical.JdbcCrel;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.PlannerType;
@@ -25,11 +27,13 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.common.JdbcRelImpl;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.common.PlannerMetrics;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.DremioRelDecorrelator;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.EnhancedFilterJoinRule;
+import com.dremio.exec.planner.logical.LegacyDremioRelDecorrelator;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
@@ -137,13 +141,14 @@ public final class DrelTransformer {
       final RelNode sampledPlan = addSampling(config, logical);
       final RelNode rowCountAdjusted = adjustRowCount(config, sampledPlan);
       final RelNode trimmedGroupKeys = rewriteConstantGroupKey(rowCountAdjusted);
-      final RelNode decorrelatedRel = decorrelate(trimmedGroupKeys);
+      final RelNode decorrelatedRel = decorrelate(config, trimmedGroupKeys);
       final RelNode jdbcPushDownRel = pushDownJdbcQuery(config, decorrelatedRel);
       final RelNode nestedProjectPushdown = nestedProjectPushdown(config, jdbcPushDownRel);
       final RelNode aggJoinPushed = pushDownAggregates(config, nestedProjectPushdown);
       final RelNode fixedGroupKeys = fixGroupKeys(aggJoinPushed);
       final RelNode trimmedAggJoinPushed = trimLogical(config, fixedGroupKeys);
       // Do Join Planning.
+
       final RelNode preConvertedRelNode = planMultiJoin(config, trimmedAggJoinPushed);
       final RelNode convertedRelNode = optimizeJoins(config, preConvertedRelNode);
       final RelNode postJoinOptimizationRelNode = postJoinOptimize(config, convertedRelNode);
@@ -360,10 +365,15 @@ public final class DrelTransformer {
     }
   }
 
-  private static RelNode decorrelate(RelNode relNode) {
+  private static RelNode decorrelate(SqlHandlerConfig config, RelNode relNode) {
     RelBuilder relBuilder = DremioRelFactories.LOGICAL_BUILDER.create(relNode.getCluster(), null);
-    final RelNode decorrelatedQuery =
-        DremioRelDecorrelator.decorrelateQuery(relNode, relBuilder, true);
+    final RelNode decorrelatedQuery;
+    if (config.getContext().getPlannerSettings().options.getOption(USE_LEGACY_DECORRELATOR)) {
+      decorrelatedQuery = LegacyDremioRelDecorrelator.decorrelateQuery(relNode, relBuilder, true);
+    } else {
+      decorrelatedQuery = DremioRelDecorrelator.decorrelateQuery(relNode, relBuilder, true);
+    }
+
     return decorrelatedQuery;
   }
 
@@ -471,6 +481,10 @@ public final class DrelTransformer {
       final Optional<SubstitutionInfo> acceleration = findUsedMaterializations(config, rel);
       if (acceleration.isPresent()) {
         config.getObserver().planAccelerated(acceleration.get());
+      } else {
+        PlannerMetrics.ACCELERATED_QUERIES_COUNTER
+            .withTag(PlannerMetrics.TAG_TARGET, "not_accelerated")
+            .increment();
       }
     }
   }

@@ -17,12 +17,12 @@ package com.dremio.exec.store.hive;
 
 import java.util.Set;
 
+import com.dremio.exec.store.hive.exec.FileSystemConfUtil;
 import org.apache.hadoop.mapred.JobConf;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.AsyncStreamConf;
 import com.dremio.exec.store.dfs.CacheProperties;
-import com.dremio.exec.store.hive.exec.AsyncReaderUtils;
 import com.dremio.options.OptionManager;
 import com.google.common.collect.ImmutableSet;
 
@@ -51,18 +51,18 @@ public final class HiveAsyncStreamConf implements AsyncStreamConf {
       return false;
     }
 
-    if (AsyncReaderUtils.S3_FILE_SYSTEM.contains(fsScheme)) {
+    if (FileSystemConfUtil.S3_FILE_SYSTEM.contains(fsScheme)) {
       // s3 async option defined in com.dremio.plugins.s3.store.S3Options
       return optionManager.getOption("store.s3.async").getBoolVal();
     }
 
-    if (AsyncReaderUtils.AZURE_FILE_SYSTEM.contains(fsScheme)) {
+    if (FileSystemConfUtil.AZURE_FILE_SYSTEM.contains(fsScheme)) {
       // azure storage async option defined in com.dremio.plugins.azure.AzureStorageOptions
       return !azureStorageV1Schemes.contains(fsScheme) &&
               optionManager.getOption("store.azure.async").getBoolVal();
     }
 
-    if (AsyncReaderUtils.GCS_FILE_SYSTEM.contains(fsScheme)) {
+    if (FileSystemConfUtil.GCS_FILE_SYSTEM.contains(fsScheme)) {
       // gcs storage async option defined in com.dremio.plugins.gcs.GCSOptions
       return optionManager.getOption("store.gcs.async").getBoolVal();
     }
@@ -79,19 +79,19 @@ public final class HiveAsyncStreamConf implements AsyncStreamConf {
     @Override
     public boolean isCachingEnabled(OptionManager optionManager) {
 
-      if (AsyncReaderUtils.HDFS_FILE_SYSTEM.contains(fsScheme)) {
+      if (FileSystemConfUtil.HDFS_FILE_SYSTEM.contains(fsScheme)) {
         return jobConf.getBoolean(HiveConfFactory.HIVE_ENABLE_CACHE_FOR_HDFS, false);
       }
 
-      if (AsyncReaderUtils.S3_FILE_SYSTEM.contains(fsScheme)) {
+      if (FileSystemConfUtil.S3_FILE_SYSTEM.contains(fsScheme)) {
         return jobConf.getBoolean(HiveConfFactory.HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE, true);
       }
 
-      if (AsyncReaderUtils.AZURE_FILE_SYSTEM.contains(fsScheme)) {
+      if (FileSystemConfUtil.AZURE_FILE_SYSTEM.contains(fsScheme)) {
         return jobConf.getBoolean(HiveConfFactory.HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE, true);
       }
 
-      if (AsyncReaderUtils.GCS_FILE_SYSTEM.contains(fsScheme)) {
+      if (FileSystemConfUtil.GCS_FILE_SYSTEM.contains(fsScheme)) {
         return jobConf.getBoolean(HiveConfFactory.HIVE_ENABLE_CACHE_FOR_GCS, true);
       }
 

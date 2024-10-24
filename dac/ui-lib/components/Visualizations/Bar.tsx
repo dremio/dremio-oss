@@ -44,8 +44,11 @@ const withBarTooltip =
       <Popover
         content={() => (
           <div
-            className="drop-shadow-lg bg-primary"
-            style={{ padding: "8px", borderRadius: "4px" }}
+            className="drop-shadow-lg"
+            style={{
+              padding: "8px",
+              borderRadius: "4px",
+            }}
           >
             {tooltip()}
           </div>

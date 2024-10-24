@@ -17,11 +17,11 @@
 import Immutable from "immutable";
 import { Skeleton } from "dremio-ui-lib/components";
 import { Wiki } from "../Wiki/Wiki";
-import { getIconType } from "@app/components/DatasetSummary/datasetSummaryUtils";
+import { getIconType } from "#oss/components/DatasetSummary/datasetSummaryUtils";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
-import exploreUtils from "@app/utils/explore/exploreUtils";
-import { ENTITY_TYPES } from "@app/constants/Constants";
-import { PureEntityIcon } from "@app/pages/HomePage/components/EntityIcon";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
+import { PureEntityIcon } from "#oss/pages/HomePage/components/EntityIcon";
 import {
   isEntityWikiEditAllowed,
   getEntityTypeFromObject,
@@ -43,7 +43,7 @@ export const EntityDetailsPanel = (props: EntityDetailsPanelProps) => {
 
   const entityStatus = useEntityPanelDetails(
     entityDetails,
-    props.handleEntityDetails
+    props.handleEntityDetails,
   );
   const isLoadingDetails = entityStatus === "pending";
 

@@ -190,7 +190,11 @@ public class IcebergCommitOpHelper implements AutoCloseable {
         (SupportsIcebergMutablePlugin) config.getPlugin();
     icebergModel =
         icebergMutablePlugin.getIcebergModel(
-            icebergTableProps, config.getProps().getUserName(), context, fileIO);
+            icebergTableProps,
+            config.getProps().getUserName(),
+            context,
+            fileIO,
+            config.getUserId());
     icebergTableIdentifier =
         icebergModel.getTableIdentifier(icebergMutablePlugin.getTableLocation(icebergTableProps));
 
@@ -244,7 +248,8 @@ public class IcebergCommitOpHelper implements AutoCloseable {
                         (deserializedJsonAsSchema(icebergTableProps.getIcebergSchema())),
                         icebergTableProps.getSortOrder())
                     : null,
-                icebergTableProps.getTableProperties());
+                icebergTableProps.getTableProperties(),
+                icebergTableProps.getTableLocation());
         break;
       case INSERT:
         icebergOpCommitter =

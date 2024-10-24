@@ -15,7 +15,7 @@
  */
 import { PureComponent, Fragment } from "react";
 import PropTypes from "prop-types";
-import FilterSelectMenuWrapper from "@app/components/Fields/FilterSelectMenuWrapper";
+import FilterSelectMenuWrapper from "#oss/components/Fields/FilterSelectMenuWrapper";
 import EnginesFilterMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/components/EnginesFilterMixin";
 
 import {

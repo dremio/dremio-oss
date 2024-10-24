@@ -77,41 +77,34 @@ public class WriterTests extends BaseTestQuery {
 
   @BeforeClass
   public static void setUp() throws Exception {
+    setSessionOption(ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_DML, true);
+    setSessionOption(ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_OPTIMIZE, true);
     setSessionOption(
-        ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_DML.getOptionName(), "true");
-    setSessionOption(
-        ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_OPTIMIZE.getOptionName(), "true");
-    setSessionOption(
-        ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_PARTITIONED_TABLE_WRITES
-            .getOptionName(),
-        "true");
-    setSessionOption(ExecConstants.ADAPTIVE_HASH.getOptionName(), "true");
+        ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_PARTITIONED_TABLE_WRITES, true);
+    setSessionOption(ExecConstants.ADAPTIVE_HASH, true);
   }
 
   @AfterClass
   public static void cleanup() throws Exception {
-    resetSystemOption(ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_DML.getOptionName());
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_DML);
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_OPTIMIZE);
     resetSystemOption(
-        ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_OPTIMIZE.getOptionName());
-    resetSystemOption(
-        ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_PARTITIONED_TABLE_WRITES
-            .getOptionName());
-    resetSystemOption(ExecConstants.ADAPTIVE_HASH.getOptionName());
+        ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_PARTITIONED_TABLE_WRITES);
+    resetSystemOption(ExecConstants.ADAPTIVE_HASH);
   }
 
   @Before
   public void setUpTest() {
     // for first-round writing. Many small files will ge generated with following settings
-    setSessionOption(ExecConstants.PARQUET_MIN_RECORDS_FOR_FLUSH_VALIDATOR.getOptionName(), "100");
+    setSessionOption(ExecConstants.PARQUET_MIN_RECORDS_FOR_FLUSH_VALIDATOR, 100);
   }
 
   @After
   public void cleanUpTest() {
-    resetSystemOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR.getOptionName());
-    resetSystemOption(ExecConstants.SMALL_PARQUET_BLOCK_SIZE_RATIO.getOptionName());
-    resetSystemOption(ExecConstants.PARQUET_MIN_RECORDS_FOR_FLUSH_VALIDATOR.getOptionName());
-    resetSystemOption(
-        ExecConstants.TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE_VALIDATOR.getOptionName());
+    resetSystemOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR);
+    resetSystemOption(ExecConstants.SMALL_PARQUET_BLOCK_SIZE_RATIO);
+    resetSystemOption(ExecConstants.PARQUET_MIN_RECORDS_FOR_FLUSH_VALIDATOR);
+    resetSystemOption(ExecConstants.TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE_VALIDATOR);
   }
 
   private static long getAvgFileSize(String tableFqn, BufferAllocator allocator) throws Exception {
@@ -184,15 +177,13 @@ public class WriterTests extends BaseTestQuery {
       long expectedDataFileCount,
       long avgExpectedGeneratedDataFileSizeLowerBound)
       throws Exception {
+    setSessionOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR, firstRoundWritingTargetFileSize);
     setSessionOption(
-        ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR.getOptionName(),
-        firstRoundWritingTargetFileSize.toString());
+        ExecConstants.SMALL_PARQUET_BLOCK_SIZE_RATIO,
+        smallFileThreshold / (double) firstRoundWritingTargetFileSize);
     setSessionOption(
-        ExecConstants.SMALL_PARQUET_BLOCK_SIZE_RATIO.getOptionName(),
-        String.valueOf(smallFileThreshold / (double) firstRoundWritingTargetFileSize));
-    setSessionOption(
-        ExecConstants.TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE_VALIDATOR.getOptionName(),
-        secondRoundWritingTargetFileSize.toString());
+        ExecConstants.TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE_VALIDATOR,
+        secondRoundWritingTargetFileSize);
     try (DmlQueryTestUtils.Table table = createBasicTable(SOURCE, columnCount, rowCount)) {
       Object[][] expectedData = table.originalData;
 
@@ -342,14 +333,10 @@ public class WriterTests extends BaseTestQuery {
 
   @Test
   public void testWithParquetAutoCorrectDatesFlag() throws Exception {
-    try {
-      setSessionOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES, "true");
-
+    try (AutoCloseable ignored =
+        withOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR, true)) {
       // unparitioned table
       testCombiningSmallFiles(3000L, 2000L, 30000L, null, 3, 1000, 1, 1L, 10000);
-
-    } finally {
-      resetSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES);
     }
   }
 
@@ -364,17 +351,14 @@ public class WriterTests extends BaseTestQuery {
       long expectedDataFileCount,
       long avgExpectedGeneratedDataFileSizeLowerBound)
       throws Exception {
+    setSessionOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR, smallFileTargetFileSize);
     setSessionOption(
-        ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR.getOptionName(),
-        smallFileTargetFileSize.toString());
-    setSessionOption(
-        ExecConstants.SMALL_PARQUET_BLOCK_SIZE_RATIO.getOptionName(),
-        String.valueOf(smallFileThreshold / (double) smallFileTargetFileSize));
+        ExecConstants.SMALL_PARQUET_BLOCK_SIZE_RATIO,
+        smallFileThreshold / (double) smallFileTargetFileSize);
     // set target small file size the same as PARQUET_BLOCK_SIZE. thus, no small file combination
     // happened
     setSessionOption(
-        ExecConstants.TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE_VALIDATOR.getOptionName(),
-        smallFileTargetFileSize.toString());
+        ExecConstants.TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE_VALIDATOR, smallFileTargetFileSize);
     try (DmlQueryTestUtils.Table table = createBasicTable(SOURCE, columnCount, rowCount)) {
       Object[][] expectedData = table.originalData;
 

@@ -59,7 +59,7 @@ public class TestSystemAutoPromotionBase extends BaseTestServer {
 
     // Create the source
     expectSuccess(
-        getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(source)),
+        getBuilder(getHttpClient().getAPIv3().path("/catalog/")).buildPost(Entity.json(source)),
         new GenericType<Source>() {});
 
     String random = UUID.randomUUID().toString();

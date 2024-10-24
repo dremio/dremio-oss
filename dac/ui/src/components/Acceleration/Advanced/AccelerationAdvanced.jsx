@@ -18,16 +18,16 @@ import { connect } from "react-redux";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
 
-import { getSupportFlags } from "@app/selectors/supportFlags";
-import { ALLOW_REFLECTION_PARTITION_TRANFORMS } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getSupportFlags } from "#oss/selectors/supportFlags";
+import { ALLOW_REFLECTION_PARTITION_TRANFORMS } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 import {
   getAggregationRecommendation,
   getRawRecommendation,
-} from "@app/selectors/reflectionRecommendations";
+} from "#oss/selectors/reflectionRecommendations";
 
 import AccelerationAggregation from "./AccelerationAggregation";
 import AccelerationRaw from "./AccelerationRaw";
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import "#oss/uiTheme/less/Acceleration/Acceleration.less";
 
 export class AccelerationAdvanced extends Component {
   static propTypes = {
@@ -79,7 +79,7 @@ export class AccelerationAdvanced extends Component {
     const { updateDirtyState, values, initialValues } = this.props;
     const { updateFormDirtyState } = newProps;
     const aggregationReflections = Immutable.fromJS(
-      values.aggregationReflections
+      values.aggregationReflections,
     );
     const rawReflections = Immutable.fromJS(values.rawReflections);
     this.initialReflections = Immutable.fromJS({
@@ -96,16 +96,16 @@ export class AccelerationAdvanced extends Component {
     updateFormDirtyState(
       !this.areAdvancedReflectionsFieldsEqual(
         aggregationReflections,
-        rawReflections
-      )
+        rawReflections,
+      ),
     ); // ! is needed. Returned value of true means not dirty, but would mean to dirty to updateDirtyState
 
     // This updates the canSubmit state by updating the dirty state in <AccelerationForm />, do not remove.
     updateDirtyState(
       !this.areAdvancedReflectionsFieldsEqual(
         aggregationReflections,
-        rawReflections
-      )
+        rawReflections,
+      ),
     );
   }
 
@@ -116,7 +116,7 @@ export class AccelerationAdvanced extends Component {
     if (!layoutId) return "RAW";
 
     const found = this.props.values.aggregationReflections.some(
-      (reflection) => reflection.id === layoutId
+      (reflection) => reflection.id === layoutId,
     );
 
     return found ? "AGGREGATION" : "RAW";
@@ -161,12 +161,12 @@ export class AccelerationAdvanced extends Component {
 
           if (layoutDetailsName === "sortFields") {
             return !layoutDetails.equals(
-              initialLayoutDetails.get(layoutDetailsName)
+              initialLayoutDetails.get(layoutDetailsName),
             );
           }
 
           return !sortByName(layoutDetails).equals(
-            sortByName(initialLayoutDetails.get(layoutDetailsName))
+            sortByName(initialLayoutDetails.get(layoutDetailsName)),
           );
         });
       });

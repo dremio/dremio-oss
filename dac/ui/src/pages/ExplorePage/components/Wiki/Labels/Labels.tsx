@@ -17,16 +17,17 @@ import { useRef, useState } from "react";
 //@ts-ignore
 import ImmutablePropTypes from "react-immutable-proptypes";
 import classNames from "clsx";
-import keyCodes from "@app/constants/Keys.json";
+import keyCodes from "#oss/constants/Keys.json";
 import * as classes from "./Labels.module.less";
-import { Tag } from "@app/pages/ExplorePage/components/TagsEditor/Tag";
+import { Tag } from "#oss/pages/ExplorePage/components/TagsEditor/Tag";
 import { TagList } from "dremio-ui-lib";
-import { IconButton } from "dremio-ui-lib/components";
+import { IconButton, Spinner } from "dremio-ui-lib/components";
 import AdditionalLabelControls from "@inject/shared/AdditionalLabelControls";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import { useClickOutside } from "@mantine/hooks";
 
 interface TagsViewProps {
+  tagsSaving?: boolean;
   placeholder?: string;
   tags: ImmutablePropTypes<string>;
   tagsVersion: string | null;
@@ -56,6 +57,7 @@ const TagsView = ({
   setOriginalTags,
   fullPath,
   entityId,
+  tagsSaving,
 }: TagsViewProps) => {
   const [value, setValue] = useState<string>("");
   const [selectedTagIndex, setSelectedTagIndex] = useState<number>(-1);
@@ -91,6 +93,8 @@ const TagsView = ({
     }
     setValue("");
     setHasError(Boolean(isDuplicateTag));
+
+    setEditEnabled(false);
   };
 
   const showInputField = () => !!onAddTag;
@@ -104,6 +108,10 @@ const TagsView = ({
     let preventDefault = false; // indicates if we should cancel a default behaviour for current key
 
     switch (e.keyCode) {
+      case keyCodes.ESCAPE:
+        setEditEnabled(false);
+        setHasError(false);
+        break;
       case keyCodes.ENTER:
         addTag(value);
         break;
@@ -301,18 +309,24 @@ const TagsView = ({
           {isEditAllowed && editEnabled && tagElements}
           {isEditAllowed && !editEnabled && (
             <div className="flex">
-              <IconButton
-                tooltip={intl.formatMessage({ id: "Common.Edit" })}
-                onClick={onEditClick}
-                tooltipPlacement="top"
-                className={classNames("gutter-left", classes["editTag"])}
-                data-qa="edit-labels"
-              >
-                <dremio-icon
-                  name="interface/edit"
-                  class={classes["editTagsIcon"]}
-                />
-              </IconButton>
+              {!tagsSaving ? (
+                <IconButton
+                  tooltip={intl.formatMessage({ id: "Common.Edit" })}
+                  onClick={onEditClick}
+                  tooltipPlacement="top"
+                  className={classNames("gutter-left", classes["editTag"])}
+                  data-qa="edit-labels"
+                >
+                  <dremio-icon
+                    name="interface/edit"
+                    class={classes["editTagsIcon"]}
+                  />
+                </IconButton>
+              ) : (
+                <div className="h-full flex items-center">
+                  <Spinner style={{ "--dremio--spinner--size": "26px" }} />
+                </div>
+              )}
               <AdditionalLabelControls
                 tags={tags.toJS()}
                 tagsVersion={tagsVersion}
@@ -324,6 +338,7 @@ const TagsView = ({
           )}
           {showInputField() && editEnabled && (
             <input
+              disabled={tagsSaving}
               type="text"
               tabIndex={0}
               ref={onInputRef}

@@ -52,7 +52,7 @@ const styles = {
     Container: {
       cursor: "pointer",
       borderRadius: 100,
-      backgroundColor: "var(--color--neutral--100)",
+      backgroundColor: "var(--fill--tertiary)",
       zIndex: 9000,
     },
     Icon: {

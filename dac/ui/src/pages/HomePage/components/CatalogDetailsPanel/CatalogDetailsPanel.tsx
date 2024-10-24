@@ -17,17 +17,17 @@
 import Immutable from "immutable";
 
 import { PureEntityIcon } from "../EntityIcon";
-import { getIconType } from "@app/components/DatasetSummary/datasetSummaryUtils";
+import { getIconType } from "#oss/components/DatasetSummary/datasetSummaryUtils";
 import {
   getEntityTypeFromObject,
   isEntityWikiEditAllowed,
 } from "dyn-load/utils/entity-utils";
 import { IconButton } from "dremio-ui-lib/components";
-import { Wiki } from "@app/pages/ExplorePage/components/Wiki/Wiki";
-import { ENTITY_TYPES } from "@app/constants/Constants";
+import { Wiki } from "#oss/pages/ExplorePage/components/Wiki/Wiki";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import { getExtraSummaryPanelIcon } from "dyn-load/utils/summary-utils";
-import { isNotSoftware } from "@app/utils/versionUtils";
+import { isNotSoftware } from "#oss/utils/versionUtils";
 
 import * as classes from "./CatalogDetailsPanel.module.less";
 

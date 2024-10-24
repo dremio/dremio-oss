@@ -23,6 +23,7 @@ import com.dremio.datastore.api.IndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.NamespaceStore;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.UnsafeDatasetSplitIdHelper;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -47,8 +48,7 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
         new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false)) {
       kvStoreProvider.start();
       final LegacyKVStoreProvider legacyKVStoreProvider = kvStoreProvider.asLegacy();
-      final IndexedStore<String, NameSpaceContainer> namespace =
-          kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+      final NamespaceStore namespace = new NamespaceStore(() -> kvStoreProvider);
       final IndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore =
           kvStoreProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
 
@@ -150,7 +150,7 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
   }
 
   private DatasetConfig addDataset(
-      IndexedStore<String, NameSpaceContainer> namespace,
+      NamespaceStore namespace,
       IndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore,
       String id,
       List<String> path,

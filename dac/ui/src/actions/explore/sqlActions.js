@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 import { RSAA } from "redux-api-middleware";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from "pages/HomePage/subpages/HomeContents";
 
 import sqlFunctions from "customData/sqlFunctions.json";
-import { constructFullPath } from "@app/utils/pathUtils";
+import { constructFullPath } from "#oss/utils/pathUtils";
 
 export const CREATE_DATASET_START = "CREATE_DATASET_START";
 export const CREATE_DATASET_SUCCESS = "CREATE_DATASET_SUCCESS";
@@ -124,7 +124,7 @@ export function loadHelpGridData(pattern) {
           func.name.toLowerCase().indexOf(pattern.toLowerCase()) !== -1 ||
           (func.tags &&
             func.tags.find(
-              (tag) => tag.toLowerCase().indexOf(pattern.toLowerCase()) !== -1
+              (tag) => tag.toLowerCase().indexOf(pattern.toLowerCase()) !== -1,
             ))
         );
       })

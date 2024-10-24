@@ -29,22 +29,22 @@ describe("dataset resourcePath util", () => {
   it("should convert to fullPath", () => {
     expect(dataset.toFullPath(resourcePath)).to.eql("myspace.folder.ds1");
     expect(dataset.toFullPath(homeResourcePath)).to.eql(
-      '"@test_user".folder.ds1'
+      '"@test_user".folder.ds1',
     );
   });
 
   it("should convert to href", () => {
     expect(dataset.toHref(resourcePath)).to.eql("/space/myspace.folder/ds1");
     expect(dataset.toHref(homeResourcePath)).to.eql(
-      '/space/"@test_user".folder/ds1'
+      '/space/"@test_user".folder/ds1',
     );
   });
 
   it("should convert to href v2", () => {
     expect(dataset.toHrefV2(datasetFullPath)).to.eql(
       `/space/${datasetFullPath.get(0)}/${datasetFullPath.get(
-        1
-      )}.${datasetFullPath.get(2)}.${datasetFullPath.get(3)}`
+        1,
+      )}.${datasetFullPath.get(2)}.${datasetFullPath.get(3)}`,
     );
   });
 });

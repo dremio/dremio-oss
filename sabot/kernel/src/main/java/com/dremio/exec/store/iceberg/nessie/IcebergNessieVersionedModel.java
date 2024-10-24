@@ -37,6 +37,7 @@ public class IcebergNessieVersionedModel extends IcebergBaseModel {
   private final String userName;
   private final IcebergNessieFilePathSanitizer pathSanitizer;
   private ResolvedVersionContext version;
+  private final @Nullable String nessieCommitUserId;
 
   public IcebergNessieVersionedModel(
       List<String> tableKey,
@@ -48,12 +49,14 @@ public class IcebergNessieVersionedModel extends IcebergBaseModel {
       ResolvedVersionContext version,
       SupportsIcebergMutablePlugin plugin,
       String userName,
+      @Nullable String nessieCommitUserId,
       IcebergNessieFilePathSanitizer pathSanitizer) {
     super(null, fsConf, fileIO, operatorContext, null, plugin);
 
     this.tableKey = tableKey;
     this.nessieClient = nessieClient;
     this.userName = userName;
+    this.nessieCommitUserId = nessieCommitUserId;
 
     Preconditions.checkNotNull(version);
     this.version = version;
@@ -71,9 +74,29 @@ public class IcebergNessieVersionedModel extends IcebergBaseModel {
             ((IcebergNessieVersionedTableIdentifier) tableIdentifier),
             commitOrigin,
             getJobId(),
-            userName);
+            userName,
+            nessieCommitUserId);
     return new IcebergNessieVersionedCommand(
         tableIdentifier, configuration, tableOperations, currentQueryId());
+  }
+
+  @Override
+  protected IcebergCommand getIcebergCommand(
+      IcebergTableIdentifier tableIdentifier,
+      String tableLocation,
+      @Nullable IcebergCommitOrigin commitOrigin) {
+    IcebergNessieVersionedTableOperations tableOperations =
+        new IcebergNessieVersionedTableOperations(
+            operatorContext == null ? null : operatorContext.getStats(),
+            fileIO,
+            nessieClient,
+            ((IcebergNessieVersionedTableIdentifier) tableIdentifier),
+            commitOrigin,
+            getJobId(),
+            userName,
+            nessieCommitUserId);
+    return new IcebergNessieVersionedCommand(
+        tableLocation, configuration, tableOperations, currentQueryId());
   }
 
   @Override

@@ -50,11 +50,11 @@ export default class ReflectionList extends PureComponent {
             // protect against pre-1.3 materializations
             const age = jobsUtils.msToHHMMSS(
               this.props.jobDetails.get("startTime") -
-                materialization.refreshChainStartTime
+                materialization.refreshChainStartTime,
             );
             desc = this.props.intl.formatMessage(
               { id: "Reflection.Age" },
-              { age }
+              { age },
             );
           }
         } else if (relationship === "MATCHED") {
@@ -108,7 +108,7 @@ export default class ReflectionList extends PureComponent {
             <div>{desc}</div>
           </li>
         );
-      }
+      },
     );
 
     return <ul className={reflectionList}>{items}</ul>;

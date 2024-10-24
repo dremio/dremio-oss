@@ -52,7 +52,7 @@ describe("DefaultWizardFooter", () => {
 
   it.skip("should render Apply and Cancel button when isPreviewAvailable is false", () => {
     const wrapper = shallow(
-      <DefaultWizardFooter {...commonProps} isPreviewAvailable={false} />
+      <DefaultWizardFooter {...commonProps} isPreviewAvailable={false} />,
     );
     expect(wrapper.find("SimpleButton")).to.have.length(2);
     expect(getButtonText(wrapper, 0)).to.eql("Apply");
@@ -89,7 +89,7 @@ describe("DefaultWizardFooter", () => {
   describe.skip("submitting", () => {
     it("should set submitting on submitState button and disable the other button", () => {
       const wrapper = shallow(
-        <DefaultWizardFooter {...commonProps} submitting />
+        <DefaultWizardFooter {...commonProps} submitting />,
       );
       expect(getApplyProps(wrapper).submitting).to.be.false;
       // do not block apply button even a preview is in progress

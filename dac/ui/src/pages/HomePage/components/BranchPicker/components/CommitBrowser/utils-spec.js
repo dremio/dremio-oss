@@ -28,14 +28,14 @@ describe("CommitBrowser - Utils", () => {
       numRows: 3,
     };
     expect(reducer(initialState, { type: "SET_DATA", value })).to.deep.equal(
-      result
+      result,
     );
 
     expect(
       reducer(initialState, {
         type: "SET_DATA",
         value: { ...value, hasMore: false },
-      })
+      }),
     ).to.deep.equal({
       ...result,
       data: { ...result.data, hasMore: false },

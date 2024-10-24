@@ -343,7 +343,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
             new TableFilesFunctionScanPrule(pluginType),
             new FileSystemTableOptimizePrule(optimizerContext),
             new FileSystemVacuumTablePrule(optimizerContext),
-            new VacuumCatalogPrule());
+            new VacuumCatalogPrule(optimizerContext));
 
       default:
         return ImmutableSet.<RelOptRule>of();

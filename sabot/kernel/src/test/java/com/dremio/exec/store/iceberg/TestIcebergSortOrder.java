@@ -57,7 +57,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.arrow.memory.BufferAllocator;
@@ -93,12 +92,9 @@ public class TestIcebergSortOrder extends BaseTestQuery {
   private FileSystem fs;
   private SampleMutator mutator;
 
-  protected final List<AutoCloseable> testCloseables = new ArrayList<>();
+  private final List<AutoCloseable> testCloseables = new ArrayList<>();
 
-  protected static final String TEMP_SCHEMA = "dfs_test";
-
-  public static Supplier<IcebergTestTables.Table> NATION =
-      () -> getTable("iceberg/nation", "dfs_hadoop", "/tmp/iceberg");
+  private static final String TEMP_SCHEMA = "dfs_test";
 
   private static final String COL_1 = "col1";
   private static final String COL_2 = "col2";
@@ -266,12 +262,12 @@ public class TestIcebergSortOrder extends BaseTestQuery {
 
   @BeforeClass
   public static void setup() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, true);
   }
 
   @AfterClass
   public static void reset() {
-    resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getOptionName());
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER);
   }
 
   @Before
@@ -289,7 +285,7 @@ public class TestIcebergSortOrder extends BaseTestQuery {
     AutoCloseables.close(testCloseables);
   }
 
-  public String getColumnsForCreate(List<String> columns) {
+  private String getColumnsForCreate(List<String> columns) {
     return String.join(", ", columns);
   }
 
@@ -310,9 +306,7 @@ public class TestIcebergSortOrder extends BaseTestQuery {
       if (currFile.getName().endsWith("metadata.json")) {
         // We'll only have one metadata.json file as this is the first transaction for table
         // temp_table0
-        metadataJson =
-            new String(
-                Files.readAllBytes(Paths.get(currFile.getPath())), StandardCharsets.US_ASCII);
+        metadataJson = Files.readString(Paths.get(currFile.getPath()), StandardCharsets.US_ASCII);
         break;
       }
     }
@@ -935,7 +929,7 @@ public class TestIcebergSortOrder extends BaseTestQuery {
   }
 
   public static void testDisabledFeatureFlag(String source) {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "false");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, false);
     String tableName = "badTable";
     String query =
         String.format("CREATE TABLE %s.%s (col1 INT) LOCALSORT BY (col1)", source, tableName);
@@ -946,7 +940,7 @@ public class TestIcebergSortOrder extends BaseTestQuery {
             })
         .isInstanceOf(UserException.class) // Replace with your actual exception class
         .hasMessageContaining("Iceberg Sort Order Operations are disabled");
-    resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getOptionName());
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER);
   }
 
   protected static File createTempLocation() {
@@ -990,21 +984,6 @@ public class TestIcebergSortOrder extends BaseTestQuery {
 
     testCloseables.add(reader);
     return reader;
-  }
-
-  private static IcebergTestTables.Table getTable(
-      String resourcePath, String source, String location) {
-    return getTable(resourcePath, source, "", location);
-  }
-
-  private static IcebergTestTables.Table getTable(
-      String resourcePath, String source, String sourceRoot, String location) {
-    try {
-      return new IcebergTestTables.Table(resourcePath, source, sourceRoot, location);
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return null;
-    }
   }
 
   public List<String> scanFolders(String tableName) throws IOException {
@@ -1067,5 +1046,41 @@ public class TestIcebergSortOrder extends BaseTestQuery {
         null,
         null,
         null);
+  }
+
+  private void validateSortOrderViaDescribeTable(String tableName, boolean expectSortOrder)
+      throws Exception {
+    String query = String.format("DESCRIBE TABLE %s.%s", TEMP_SCHEMA, tableName);
+    Object[] baselineValues =
+        expectSortOrder
+            ? new Object[] {"a", "BOOLEAN", "YES", null, null, "[]", null, 1}
+            : new Object[] {"a", "BOOLEAN", "YES", null, null, "[]", null, null};
+    testBuilder()
+        .unOrdered()
+        .sqlQuery(query)
+        .baselineColumns(
+            "COLUMN_NAME",
+            "DATA_TYPE",
+            "IS_NULLABLE",
+            "NUMERIC_PRECISION",
+            "NUMERIC_SCALE",
+            "EXTENDED_PROPERTIES",
+            "MASKING_POLICY",
+            "SORT_ORDER_PRIORITY")
+        .baselineValues(baselineValues)
+        .go();
+  }
+
+  @Test
+  public void testDropSortOrder() throws Exception {
+    String tableName = "testDropSortOrder";
+    runSQL(
+        String.format(
+            "CREATE TABLE %s.%s (%s) LOCALSORT BY (%s)", TEMP_SCHEMA, tableName, "a BOOLEAN", "a"));
+    // Validate that SortOrder get set via describe table command
+    validateSortOrderViaDescribeTable(tableName, true);
+    runSQL(String.format("ALTER TABLE %s.%s DROP LOCALSORT", TEMP_SCHEMA, tableName));
+    // Validate that SortOrder get unset via describe table command
+    validateSortOrderViaDescribeTable(tableName, false);
   }
 }

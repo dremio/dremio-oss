@@ -131,6 +131,8 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
   private FixedBlockVector pivotFixedBlock;
   private VariableBlockVector pivotVarBlock;
   private JoinRecursiveReplayer joinReplayer;
+  private final Stopwatch setUpWatch = Stopwatch.createUnstarted();
+  private final Stopwatch spillWatch = Stopwatch.createUnstarted();
 
   private enum InternalState {
     BUILD,
@@ -199,6 +201,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
   public VectorAccessible setup(VectorAccessible left, VectorAccessible right) throws Exception {
     state.is(State.NEEDS_SETUP);
 
+    setUpWatch.start();
     outgoing.addSchema(right.getSchema());
     outgoing.addSchema(left.getSchema());
     outgoing.buildSchema(SelectionVectorMode.NONE);
@@ -472,6 +475,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
     reservedPreallocation = Math.max(allocator.getAllocatedMemory(), MIN_RESERVE);
 
     computeExternalState(InternalState.BUILD);
+    setUpWatch.stop();
     return outgoing;
   }
 
@@ -716,8 +720,10 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
     // highest priority to memory releasers.
     MultiMemoryReleaser releaser = joinSetupParams.getMultiMemoryReleaser();
     if (!releaser.isFinished()) {
+      spillWatch.start();
       releaser.run();
       computeExternalState();
+      spillWatch.stop();
       return 0;
     }
 
@@ -727,12 +733,14 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
 
     if (internalState == InternalState.REPLAY) {
       // if all incoming data has been processed, do spill replay.
+      spillWatch.start();
       int ret = joinReplayer.run();
       Preconditions.checkState(ret >= 0);
 
       outgoing.setAllCount(ret);
       outputRecords += ret;
       computeExternalState(joinReplayer.isFinished() ? InternalState.DONE : InternalState.REPLAY);
+      spillWatch.stop();
       return ret;
     } else if (internalState == InternalState.PROBE_OUT
         || internalState == InternalState.PROBE_PIVOT_AND_OUT) {
@@ -986,6 +994,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
     // time taken related to spill
     stats.setLongStat(Metric.SPILL_WR_NANOS, spillStats.getWriteNanos());
     stats.setLongStat(Metric.SPILL_RD_NANOS, spillStats.getReadNanos());
+    stats.setLongStat(Metric.SETUP_TIME, setUpWatch.elapsed(ns));
 
     if (spillStats.getSpillCount() != 0) {
       stats.setLongStat(Metric.SPILL_COUNT, spillStats.getSpillCount());
@@ -1013,6 +1022,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
       stats.setLongStat(Metric.OOB_DROP_LOCAL, oobDropLocal);
       stats.setLongStat(Metric.OOB_DROP_LOCAL, oobDropWrongState);
       stats.setLongStat(Metric.OOB_SPILL, oobSpills);
+      stats.setLongStat(Metric.SPILL_NANOS, spillWatch.elapsed(ns) + partition.getSpillNanos());
     }
   }
 

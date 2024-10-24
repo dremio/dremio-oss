@@ -18,18 +18,18 @@ import { connect } from "react-redux";
 import { withRouter } from "react-router";
 import { compose } from "redux";
 
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
-import RealTimeTimer from "@app/components/RealTimeTimer";
-import SampleDataMessage from "@app/pages/ExplorePage/components/SampleDataMessage";
-import jobsUtils from "@app/utils/jobsUtils";
-import { getExploreState, getImmutableTable } from "@app/selectors/explore";
-import { getAllJobDetails, getJobSummaries } from "@app/selectors/exploreJobs";
-import { intl } from "@app/utils/intl";
+import LinkWithRef from "#oss/components/LinkWithRef/LinkWithRef";
+import RealTimeTimer from "#oss/components/RealTimeTimer";
+import SampleDataMessage from "#oss/pages/ExplorePage/components/SampleDataMessage";
+import jobsUtils from "#oss/utils/jobsUtils";
+import { getExploreState, getImmutableTable } from "#oss/selectors/explore";
+import { getAllJobDetails, getJobSummaries } from "#oss/selectors/exploreJobs";
+import { intl } from "#oss/utils/intl";
 import { Tooltip } from "dremio-ui-lib";
 import * as jobPaths from "dremio-ui-common/paths/jobs.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
-import { JobDetails } from "@app/exports/types/JobDetails.type";
-import { JobSummary } from "@app/exports/types/JobSummary.type";
+import { JobDetails } from "#oss/exports/types/JobDetails.type";
+import { JobSummary } from "#oss/exports/types/JobSummary.type";
 
 import "./ExploreTableJobStatus.less";
 

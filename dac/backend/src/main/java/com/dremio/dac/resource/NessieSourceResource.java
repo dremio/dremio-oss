@@ -24,7 +24,7 @@ import com.dremio.dac.service.errors.NessieSourceNotValidException;
 import com.dremio.dac.service.errors.NessieSourceResourceException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.NessieApiProvider;
+import com.dremio.exec.store.NessieConnectionProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.services.nessie.proxy.ProxyV2TreeResource;
@@ -57,7 +57,7 @@ public class NessieSourceResource {
   @Path("/")
   public ProxyV2TreeResource handle(@PathParam("sourceName") String sourceName) {
     if (optionManager.getOption(NESSIE_SOURCE_API)) {
-      NessieApiProvider provider;
+      NessieConnectionProvider provider;
       try {
         provider = catalogService.getSource(sourceName);
       } catch (UserException namespaceNotFoundException) {

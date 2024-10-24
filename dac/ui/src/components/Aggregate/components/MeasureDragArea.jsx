@@ -18,7 +18,7 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import classNames from "clsx";
 
-import { dragContentBase } from "@app/uiTheme/less/commonStyles.less";
+import { dragContentBase } from "#oss/uiTheme/less/commonStyles.less";
 import ExploreDragArea from "pages/ExplorePage/components/ExploreDragArea";
 import ColumnDragItem from "utils/ColumnDragItem";
 

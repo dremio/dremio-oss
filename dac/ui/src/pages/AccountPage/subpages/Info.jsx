@@ -17,9 +17,9 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 
-import EditUserForm from "@app/pages/AdminPage/components/forms/EditUserForm";
-import { modalFormProps } from "@app/components/Forms";
-import SettingHeader from "@app/components/SettingHeader";
+import EditUserForm from "#oss/pages/AdminPage/components/forms/EditUserForm";
+import { modalFormProps } from "#oss/components/Forms";
+import SettingHeader from "#oss/components/SettingHeader";
 
 import "./Info.less";
 

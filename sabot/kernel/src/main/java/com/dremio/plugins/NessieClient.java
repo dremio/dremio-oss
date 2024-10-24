@@ -38,6 +38,9 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.model.MergeResponse;
+import org.projectnessie.model.RepositoryConfig;
+import org.projectnessie.model.RepositoryConfigResponse;
+import org.projectnessie.model.UpdateRepositoryConfigResponse;
 
 /** Client interface to communicate with Nessie. */
 public interface NessieClient extends AutoCloseable {
@@ -304,6 +307,22 @@ public interface NessieClient extends AutoCloseable {
       List<String> catalogKey, ResolvedVersionContext version, String jobId);
 
   NessieApiV2 getNessieApi();
+
+  /**
+   * Returns the configuration object for a specific type of repository.
+   *
+   * @param type the type of repository
+   * @return the configuration object for the specified repository type
+   */
+  RepositoryConfigResponse getRepositoryConfig(RepositoryConfig.Type type);
+
+  /**
+   * Updates the configuration of a repository with the provided settings.
+   *
+   * @param update the RepositoryConfig object representing the updated configuration
+   * @return the response indicating the success or failure of the update
+   */
+  UpdateRepositoryConfigResponse updateRepositoryConfig(RepositoryConfig update);
 
   /** Call within the NessieClient context */
   <T> T callWithContext(String jobId, Callable<T> callable) throws Exception;

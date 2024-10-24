@@ -38,12 +38,12 @@ export default function jobList(state = initialState, action) {
         state,
         ["jobList"],
         action.payload,
-        jobsMapper.mapJobs
+        jobsMapper.mapJobs,
       )
         .set("filters", new Immutable.Map())
         .set(
           "orderedColumn",
-          new Immutable.Map({ columnName: null, order: "desc" })
+          new Immutable.Map({ columnName: null, order: "desc" }),
         );
     case ActionTypes.FILTER_JOBS_LIST_FAILURE: {
       return StateUtils.failed(state, ["jobList"]).set("isFailed", true);
@@ -51,7 +51,7 @@ export default function jobList(state = initialState, action) {
     case ActionTypes.ITEMS_FOR_FILTER_JOBS_LIST_SUCCESS:
       return state.setIn(
         ["dataForFilter", action.meta.tag],
-        action.payload.items
+        action.payload.items,
       );
     case ActionTypes.SET_JOB_LIST_CLUSTER_TYPE:
       return state

@@ -64,10 +64,10 @@ describe("Checkbox", () => {
   describe("#renderDummyCheckbox", () => {
     it("should render ✔ only if isChecked", () => {
       expect(
-        shallow(instance.renderDummyCheckbox(false)).html()
+        shallow(instance.renderDummyCheckbox(false)).html(),
       ).to.not.contain("Checkbox-selected");
       expect(shallow(instance.renderDummyCheckbox(true)).html()).to.contain(
-        "Checkbox-selected"
+        "Checkbox-selected",
       );
     });
   });

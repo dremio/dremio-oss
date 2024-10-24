@@ -75,14 +75,16 @@ class JoinColumnMenu extends PureComponent {
 }
 
 const styles = {
-  base: {},
+  base: {
+    borderLeft: "1px solid var(--border--neutral)",
+  },
   titleWrap: {
     display: "flex",
     width: 275,
     position: "relative",
     justifyContent: "flex-start",
     padding: "0 10px",
-    backgroundColor: "#f3f3f3",
+    backgroundColor: "var(--fill--secondary)",
     height: 30,
     alignItems: "center",
   },

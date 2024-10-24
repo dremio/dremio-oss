@@ -17,15 +17,15 @@ import { PureComponent } from "react";
 import { injectIntl } from "react-intl";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import SettingHeader from "@app/components/SettingHeader";
-import { YARN_NODE_TAG_PROPERTY } from "@app/pages/AdminPage/subpages/Provisioning/ClusterListView";
+import SettingHeader from "#oss/components/SettingHeader";
+import { YARN_NODE_TAG_PROPERTY } from "#oss/pages/AdminPage/subpages/Provisioning/ClusterListView";
 import {
   isYarn,
   getEntityName,
   getIsInReadOnlyState,
-} from "@app/pages/AdminPage/subpages/Provisioning/provisioningUtils";
-import { StartStopButton } from "@app/pages/AdminPage/subpages/Provisioning/components/EngineActionCell";
-import { CLUSTER_STATE } from "@app/constants/provisioningPage/provisioningConstants";
+} from "#oss/pages/AdminPage/subpages/Provisioning/provisioningUtils";
+import { StartStopButton } from "#oss/pages/AdminPage/subpages/Provisioning/components/EngineActionCell";
+import { CLUSTER_STATE } from "#oss/constants/provisioningPage/provisioningConstants";
 import SingleEngineHeaderMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeaderMixin";
 
 export const VIEW_ID = "EngineHeader";
@@ -106,7 +106,7 @@ export default injectIntl(SingleEngineHeader);
 const styles = {
   lefChildren: {
     display: "flex",
-    color: "#333",
+    color: "var(--text--primary)",
   },
   doubleCaret: {
     padding: "0 6px",
@@ -123,9 +123,9 @@ const styles = {
     height: 32,
     fontSize: 13,
     boxShadow: "none",
-    border: "1px solid #D9D9D9",
+    border: "1px solid var(--border--neutral--solid)",
     outline: "none",
-    backgroundColor: "#F2F2F2",
+    backgroundColor: "var(--fill--secondary)",
     borderRadius: 4,
     width: 100,
   },

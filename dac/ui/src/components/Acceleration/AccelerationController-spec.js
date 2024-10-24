@@ -91,7 +91,7 @@ describe.skip("AccelerationController", () => {
   describe("#componentWillUnmount", function () {
     it("stopPollingAccelerationData should be called", function () {
       const instance = shallow(
-        <AccelerationController {...commonProps} />
+        <AccelerationController {...commonProps} />,
       ).instance();
       sinon.stub(instance, "stopPollingAccelerationData");
       instance.componentWillUnmount();
@@ -103,7 +103,7 @@ describe.skip("AccelerationController", () => {
     beforeEach(() => {
       sinon.stub(
         AccelerationController.prototype,
-        "startPollingAccelerationDataWhileNew"
+        "startPollingAccelerationDataWhileNew",
       );
     });
 
@@ -113,7 +113,7 @@ describe.skip("AccelerationController", () => {
 
     it("startPollingAccelerationDataWhileNew should be called if there is no #entity", function () {
       const instance = shallow(
-        <AccelerationController {...commonProps} entity={null} />
+        <AccelerationController {...commonProps} entity={null} />,
       ).instance();
       expect(instance.startPollingAccelerationDataWhileNew).to.be.calledOnce;
       expect(commonProps.createEmptyAcceleration).to.not.have.been.called;
@@ -121,7 +121,7 @@ describe.skip("AccelerationController", () => {
 
     it("createEmptyAcceleration should be called if there is an #entity", function () {
       const instance = shallow(
-        <AccelerationController {...commonProps} />
+        <AccelerationController {...commonProps} />,
       ).instance();
       expect(commonProps.createEmptyAcceleration).to.be.calledOnce;
       expect(instance.startPollingAccelerationDataWhileNew).to.not.have.been
@@ -138,7 +138,7 @@ describe.skip("AccelerationController", () => {
     it("updateAcceleration should be called", function () {
       sinon.spy(ApiUtils, "attachFormSubmitHandlers");
       const instance = shallow(
-        <AccelerationController {...commonProps} />
+        <AccelerationController {...commonProps} />,
       ).instance();
       instance.submit([]);
       expect(commonProps.updateAcceleration).to.be.calledWith([]);
@@ -150,7 +150,7 @@ describe.skip("AccelerationController", () => {
   describe("#startPollingAccelerationDataWhileNew", function () {
     it("stopPollingAccelerationData should be called", function () {
       const instance = shallow(
-        <AccelerationController {...commonProps} />
+        <AccelerationController {...commonProps} />,
       ).instance();
       sinon.spy(instance, "stopPollingAccelerationData");
       instance.pollId = null;
@@ -163,7 +163,7 @@ describe.skip("AccelerationController", () => {
   describe("#pollAccelerationData", function () {
     it("acceleration record should be loaded, and stop polling if not NEW", function () {
       const instance = shallow(
-        <AccelerationController {...commonProps} />
+        <AccelerationController {...commonProps} />,
       ).instance();
       const promise = instance.pollAccelerationData();
       expect(commonProps.loadAccelerationById).to.be.calledOnce;
@@ -176,13 +176,13 @@ describe.skip("AccelerationController", () => {
     it("acceleration record should be loaded, and should queue another poll only if NEW", function () {
       loadResponse.payload = loadResponse.payload.setIn(
         ["entities", "acceleration", "the-id", "state"],
-        "NEW"
+        "NEW",
       );
 
       clock = sinon.useFakeTimers();
 
       const instance = shallow(
-        <AccelerationController {...commonProps} />
+        <AccelerationController {...commonProps} />,
       ).instance();
       const promise = instance.pollAccelerationData();
       sinon.stub(instance, "pollAccelerationData");
@@ -201,7 +201,7 @@ describe.skip("AccelerationController", () => {
     let instance;
     beforeEach(() => {
       wrapper = shallow(
-        <AccelerationController {...commonProps} entity={null} />
+        <AccelerationController {...commonProps} entity={null} />,
       );
       instance = wrapper.instance();
     });
@@ -220,7 +220,7 @@ describe.skip("AccelerationController", () => {
     let instance;
     beforeEach(() => {
       instance = shallow(
-        <AccelerationController {...commonProps} entity={null} />
+        <AccelerationController {...commonProps} entity={null} />,
       ).instance();
     });
 
@@ -228,7 +228,7 @@ describe.skip("AccelerationController", () => {
       expect(
         instance.getAccelerationVersion({
           acceleration: Immutable.fromJS({ version: 1 }),
-        })
+        }),
       ).to.be.eql(1);
     });
 
@@ -238,7 +238,7 @@ describe.skip("AccelerationController", () => {
       expect(
         instance.getAccelerationVersion({
           acceleration: Immutable.fromJS({ version: 0 }),
-        })
+        }),
       ).to.be.undefined;
     });
   });

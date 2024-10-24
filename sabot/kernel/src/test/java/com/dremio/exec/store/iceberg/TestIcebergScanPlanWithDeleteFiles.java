@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.common.AutoCloseables;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -32,8 +33,7 @@ public class TestIcebergScanPlanWithDeleteFiles extends BaseTestIcebergScanPlan 
 
   @AfterClass
   public static void cleanupTables() throws Exception {
-    orders.close();
-    ordersWithDeletes.close();
+    AutoCloseables.close(orders, ordersWithDeletes);
   }
 
   @Test

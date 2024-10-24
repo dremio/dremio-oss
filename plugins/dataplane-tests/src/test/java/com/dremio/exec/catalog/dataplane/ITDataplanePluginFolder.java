@@ -290,7 +290,7 @@ public class ITDataplanePluginFolder extends ITDataplanePluginTestSetup {
       case IMPLICIT_FOLDER:
         break;
       case EXPLICIT_FOLDER:
-        getNessieClient()
+        getNessieApi()
             .createNamespace()
             .namespace(Namespace.of(container.getPathWithoutRoot()))
             .refName("main")

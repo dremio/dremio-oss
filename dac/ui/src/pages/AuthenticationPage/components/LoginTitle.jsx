@@ -56,7 +56,7 @@ const styles = {
     marginBottom: 40,
   },
   subtitle: {
-    color: "#43B8C9",
+    color: "var(--text--brand)",
     fontSize: 27,
   },
   mainTitle: {

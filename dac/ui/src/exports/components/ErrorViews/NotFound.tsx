@@ -16,7 +16,7 @@
 
 import { Link } from "react-router";
 import { Button } from "dremio-ui-lib/components";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import { ErrorView } from "./ErrorView";
 import * as orgPaths from "dremio-ui-common/paths/organization.js";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
@@ -45,7 +45,7 @@ export const NotFound = ({
       action={
         <>
           {organizationLanding ? (
-            action ?? (
+            (action ?? (
               <Button
                 as={Link}
                 variant="primary"
@@ -53,7 +53,7 @@ export const NotFound = ({
               >
                 {formatMessage({ id: "404.GoToConsole" })}
               </Button>
-            )
+            ))
           ) : (
             <Button
               as={Link}

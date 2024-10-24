@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 import { minimalFormProps } from "testUtil";
-import EditUserForm from "@app/pages/AdminPage/components/forms/EditUserForm";
+import EditUserForm from "#oss/pages/AdminPage/components/forms/EditUserForm";
 import { Info } from "./Info";
 
 describe("Info", () => {

@@ -15,7 +15,7 @@
  */
 import _ from "lodash";
 import { List } from "immutable";
-import { humanSorter, getSortValue } from "@app/utils/sort";
+import { humanSorter, getSortValue } from "#oss/utils/sort";
 
 export const SortDirection = {
   ASC: "ASC",
@@ -40,17 +40,17 @@ export const findDeepestChild = (parent: any) => {
 export const getSortedTableData = (
   tableData: any,
   sortBy: string,
-  sortDirection: string
+  sortDirection: string,
 ) => {
   if (List.isList(tableData)) {
     return sortBy
       ? tableData
           .sortBy(
             (item: any) => getSortValue(item, sortBy, sortDirection),
-            humanSorter
+            humanSorter,
           )
           .update((table: any) =>
-            sortDirection === SortDirection.DESC ? table.reverse() : table
+            sortDirection === SortDirection.DESC ? table.reverse() : table,
           )
       : tableData;
   }
@@ -59,7 +59,7 @@ export const getSortedTableData = (
       .sort((val1, val2) => {
         return humanSorter(
           getSortValue(val1, sortBy, sortDirection),
-          getSortValue(val2, sortBy, sortDirection)
+          getSortValue(val2, sortBy, sortDirection),
         );
       });
     return sortDirection === SortDirection.DESC

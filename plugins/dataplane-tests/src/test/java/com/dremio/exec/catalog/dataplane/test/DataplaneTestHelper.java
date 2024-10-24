@@ -17,7 +17,6 @@ package com.dremio.exec.catalog.dataplane.test;
 
 import static com.dremio.catalog.model.VersionContext.NOT_SPECIFIED;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.*;
-import static com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup.getNessieClient;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.BaseTestQueryJunit5;
@@ -42,12 +41,13 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.iceberg.io.FileIO;
+import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergView;
 
 /** Dataplane test common helper class */
-public class DataplaneTestHelper extends BaseTestQueryJunit5 {
+public abstract class DataplaneTestHelper extends BaseTestQueryJunit5 {
 
   public void assertTableHasExpectedNumRows(List<String> tablePath, long expectedNumRows)
       throws Exception {
@@ -247,10 +247,10 @@ public class DataplaneTestHelper extends BaseTestQueryJunit5 {
   public String getMetadataLocationForViewKey(List<String> viewKey) throws NessieNotFoundException {
     ContentKey key = ContentKey.of(viewKey);
     return ((IcebergView)
-            getNessieClient()
+            getNessieApi()
                 .getContent()
                 .key(key)
-                .reference(getNessieClient().getDefaultBranch())
+                .reference(getNessieApi().getDefaultBranch())
                 .get()
                 .get(key))
         .getMetadataLocation();
@@ -410,4 +410,26 @@ public class DataplaneTestHelper extends BaseTestQueryJunit5 {
     Collections.reverse(commitLogMessages);
     assertThat(commitLogMessages).endsWith(expectedCommitMessages);
   }
+
+  protected void assertUdfContent(
+      final List<String> functionKey,
+      final String branchName,
+      String functionType,
+      final String function)
+      throws Exception {
+    assertUdfContentWithSql(
+        describeUdfQueryWithAt(functionKey, branchName), functionType, function);
+  }
+
+  protected void assertUdfContentWithSql(String sql, String functionType, final String function)
+      throws Exception {
+    List<String> result = runSqlWithResults(sql).get(0);
+    assertThat(result).hasSize(7);
+    assertThat(result.get(2)).isEqualTo(functionType);
+    assertThat(result.get(3)).contains(function);
+  }
+
+  public abstract NessieApiV2 getNessieApi();
+
+  public abstract DataplaneStorage getDataplaneStorage();
 }

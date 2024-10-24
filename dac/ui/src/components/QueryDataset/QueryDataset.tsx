@@ -22,7 +22,7 @@ import { useDispatch } from "react-redux";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 // @ts-ignore
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
-import { expandExploreSql } from "@app/actions/explore/ui";
+import { expandExploreSql } from "#oss/actions/explore/ui";
 import Immutable from "immutable";
 
 type QueryDatasetProps = {
@@ -58,7 +58,7 @@ const QueryDataset = ({
     : "";
 
   const newQueryUrlParams = `?context="${encodeURIComponent(
-    resourceId
+    resourceId,
   )}"&queryPath=${encodeURIComponent(stringifiedFullPath)}${versionedDataset}`;
   const { formatMessage } = useIntl();
   const handleClick = (e: any) => {

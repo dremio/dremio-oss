@@ -40,8 +40,7 @@ public class TestOutOfMemoryException extends BaseTestQuery {
 
   @Test
   public void testIncomingBuffersOOM() throws Exception {
-    setSessionOption(ExecConstants.SLICE_TARGET, "10");
-
+    AutoCloseable customSliceTarget = withOption(ExecConstants.SLICE_TARGET_OPTION, 10);
     // refresh the table beforehand so that excpetions can be injected during select query
     test("ALTER TABLE cp.\"tpch/lineitem.parquet\" REFRESH METADATA");
 
@@ -76,14 +75,14 @@ public class TestOutOfMemoryException extends BaseTestQuery {
               .mapToLong(t -> t.getAllocator().getAllocatedMemory())
               .sum();
       Assert.assertEquals(0, totalAllocatedMemory);
+    } finally {
+      customSliceTarget.close();
     }
   }
 
   @Test
   @Ignore
   public void testFragmentExecutorOOM() throws Exception {
-    setSessionOption(ExecConstants.SLICE_TARGET, "10");
-
     final String controlsString =
         Controls.newBuilder()
             .addException(
@@ -94,7 +93,7 @@ public class TestOutOfMemoryException extends BaseTestQuery {
     String query =
         "select l_orderkey from cp.\"tpch/lineitem.parquet\" group by l_orderkey having sum(l_quantity) > 300";
 
-    try {
+    try (AutoCloseable ignored = withOption(ExecConstants.SLICE_TARGET_OPTION, 10)) {
       test(query);
 
       // Should never reach here.
@@ -114,8 +113,6 @@ public class TestOutOfMemoryException extends BaseTestQuery {
   @Test
   @Ignore
   public void testFragmentExecutorBuildOOM() throws Exception {
-    setSessionOption(ExecConstants.SLICE_TARGET, "10");
-
     final String controlsString =
         Controls.newBuilder()
             .addException(
@@ -128,7 +125,7 @@ public class TestOutOfMemoryException extends BaseTestQuery {
     String query =
         "select l_orderkey from cp.\"tpch/lineitem.parquet\" group by l_orderkey having sum(l_quantity) > 300";
 
-    try {
+    try (AutoCloseable ignored = withOption(ExecConstants.SLICE_TARGET_OPTION, 10)) {
       test(query);
 
       // Should never reach here.

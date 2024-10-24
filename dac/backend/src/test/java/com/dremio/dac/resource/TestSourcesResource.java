@@ -31,7 +31,11 @@ public class TestSourcesResource extends BaseTestServer {
     doc("includeDatasetCount is true");
     String sources =
         expectSuccess(
-            getBuilder(getAPIv2().path(SOURCES_PATH).queryParam("includeDatasetCount", true))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path(SOURCES_PATH)
+                        .queryParam("includeDatasetCount", true))
                 .buildGet(),
             String.class);
 
@@ -45,7 +49,11 @@ public class TestSourcesResource extends BaseTestServer {
     doc("includeDatasetCount is false");
     sources =
         expectSuccess(
-            getBuilder(getAPIv2().path(SOURCES_PATH).queryParam("includeDatasetCount", false))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path(SOURCES_PATH)
+                        .queryParam("includeDatasetCount", false))
                 .buildGet(),
             String.class);
 
@@ -57,7 +65,9 @@ public class TestSourcesResource extends BaseTestServer {
         sources.contains("datasetCountBounded"));
 
     doc("includeDatasetCount is not set");
-    sources = expectSuccess(getBuilder(getAPIv2().path(SOURCES_PATH)).buildGet(), String.class);
+    sources =
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path(SOURCES_PATH)).buildGet(), String.class);
 
     assertTrue(
         "the numberOfDatasets field should be in the response, if includeDatasetCount is not set",

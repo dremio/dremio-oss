@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from "enzyme";
-import { Popover } from "@app/components/Popover";
+import { Popover } from "#oss/components/Popover";
 import { SelectView } from "./SelectView";
 import { select as selectCls } from "./SelectView.less";
 

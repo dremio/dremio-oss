@@ -18,12 +18,12 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import classNames from "clsx";
 
-import { dragContentBase } from "@app/uiTheme/less/commonStyles.less";
+import { dragContentBase } from "#oss/uiTheme/less/commonStyles.less";
 import ExploreDragArea from "pages/ExplorePage/components/ExploreDragArea";
 import { isAlreadySelected } from "utils/explore/aggregateUtils";
 import ColumnDragItem from "utils/ColumnDragItem";
-import { rowMargin } from "@app/uiTheme/less/forms.less";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import { rowMargin } from "#oss/uiTheme/less/forms.less";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 
 import DragAreaColumn from "../../DragComponents/DragAreaColumn";
 
@@ -75,7 +75,7 @@ class ColumnDragArea extends Component {
     const isFromDifferentArea = dragItem.dragOrigin !== dragOrigin;
     if (!canUseFieldAsBothDimensionAndMeasure) {
       const column = this.props.allColumns.find(
-        (col) => col.get("name") === columnName
+        (col) => col.get("name") === columnName,
       );
       if (column) {
         return !column.get("disabled");

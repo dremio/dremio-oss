@@ -175,23 +175,25 @@ public class TokenManagerImpl implements TokenManager {
       final String username,
       final String clientAddress,
       final long issuedAt,
-      final long expiresAt,
+      final long expiresAtEpochMs,
       final String path,
-      final List<QueryParam> queryParams) {
+      final List<QueryParam> queryParams,
+      final List<String> scopes) {
     final String token = newToken();
     final SessionState state =
         new SessionState()
             .setUsername(username)
             .setClientAddress(clientAddress)
             .setIssuedAt(issuedAt)
-            .setExpiresAt(expiresAt)
+            .setExpiresAt(expiresAtEpochMs)
             .setPath(path)
-            .setQueryParamsList(queryParams);
+            .setQueryParamsList(queryParams)
+            .setScopesList(scopes);
 
     tokenStore.put(token, state);
     tokenCache.put(token, state);
     debugLogForToken("Generated Dremio token with identifier: {} for user: {}", token, username);
-    return TokenDetails.of(token, username, expiresAt);
+    return TokenDetails.of(token, username, expiresAtEpochMs, null, scopes);
   }
 
   @VisibleForTesting
@@ -228,7 +230,29 @@ public class TokenManagerImpl implements TokenManager {
                 optionManagerProvider.get().getOption(TOKEN_EXPIRATION_TIME_MINUTES),
                 TimeUnit.MINUTES);
 
-    return createToken(username, clientAddress, now, expires, null, null);
+    return createToken(username, clientAddress, now, expires, null, null, null);
+  }
+
+  @Override
+  public TokenDetails createToken(
+      final String username,
+      final String clientAddress,
+      final long expiresAtEpochMs,
+      final List<String> scopes) {
+    return createToken(
+        username, clientAddress, System.currentTimeMillis(), expiresAtEpochMs, null, null, scopes);
+  }
+
+  @Override
+  public TokenDetails createJwt(String username, String clientAddress) {
+    throw new UnsupportedOperationException(
+        "This method is not available on the legacy TokenManager implementation");
+  }
+
+  @Override
+  public TokenDetails createJwt(String username, String clientAddress, long expiresAtEpochMs) {
+    throw new UnsupportedOperationException(
+        "This method is not available on the legacy TokenManager implementation");
   }
 
   @Override
@@ -263,7 +287,7 @@ public class TokenManagerImpl implements TokenManager {
             .map(e -> new QueryParam().setKey(e.getKey()).setValuesList(e.getValue()))
             .collect(Collectors.toList());
 
-    return createToken(username, "", now, expires, path, queryParamsList);
+    return createToken(username, "", now, expires, path, queryParamsList, null);
   }
 
   private SessionState getSessionState(final String token) {

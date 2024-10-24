@@ -52,7 +52,7 @@ describe("JobPage", () => {
       instance.receiveProps({ ...minimalProps, queryState: newQS });
       expect(minimalProps.filterJobsData).to.have.been.calledWith(
         newQS,
-        "JOB_PAGE_VIEW_ID"
+        "JOB_PAGE_VIEW_ID",
       );
       expect(minimalProps.updateQueryState).to.have.not.been.called;
     });

@@ -23,6 +23,8 @@ import static org.mockito.Mockito.when;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.MaterializedDatasetTable;
@@ -86,9 +88,10 @@ public class TestMaterializedDatasetTableProvider {
     datasetConfig.setRecordSchema(ByteString.copyFrom(schema.serialize()));
 
     StoragePlugin storagePlugin = mock(StoragePlugin.class);
-    when(storagePlugin.getDatasetMetadata(any(), any(), any()))
+    when(storagePlugin.getDatasetMetadata(any(), any(), any(GetMetadataOption[].class)))
         .thenReturn(DatasetMetadata.of(DatasetStats.of(1), schema));
-    when(storagePlugin.listPartitionChunks(any(), any())).thenReturn(Collections::emptyIterator);
+    when(storagePlugin.listPartitionChunks(any(), any(ListPartitionChunkOption[].class)))
+        .thenReturn(Collections::emptyIterator);
     RelOptTable.ToRelContext toRelContext =
         mock(RelOptTable.ToRelContext.class, Mockito.RETURNS_DEEP_STUBS);
     when(toRelContext.getCluster().getTypeFactory()).thenReturn(SqlTypeFactoryImpl.INSTANCE);

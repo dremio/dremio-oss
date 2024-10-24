@@ -112,5 +112,5 @@ export default connectComplexForm(
   },
   [NewFieldSection],
   mapStateToProps,
-  null
+  null,
 )(CalculatedFieldContent);

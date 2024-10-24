@@ -24,12 +24,9 @@ option java_outer_classname = "SearchDocumentIdProto";
 // or may not support long ids like paths. Implementation converts this
 // structure to a unique id for identifying documents in the index.
 message SearchDocumentId {
+  // Optional context fields pertinent to all document types.
+  map<string, string> context = 1;
+
   // Catalog object path in dot notation.
-  optional string path = 1;
-
-  // Catalog object branch.
-  optional string branch = 2;
-
-  // Versioned catalog content id, job id, etc.
-  optional string object_id = 3;
+  repeated string path = 2;
 }

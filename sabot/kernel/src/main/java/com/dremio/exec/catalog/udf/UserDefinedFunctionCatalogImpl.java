@@ -19,14 +19,16 @@ import static com.dremio.exec.catalog.CatalogOptions.VERSIONED_SOURCE_UDF_ENABLE
 import static com.dremio.exec.store.sys.udf.UserDefinedFunctionSerde.fromProto;
 
 import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.catalog.VersionedPlugin;
-import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.exec.store.sys.udf.UserDefinedFunctionSerde;
@@ -35,25 +37,32 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.function.proto.FunctionConfig;
+import com.google.common.collect.Iterators;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class UserDefinedFunctionCatalogImpl implements UserDefinedFunctionCatalog {
-  private final QueryContext queryContext;
+  private final SchemaConfig schemaConfig;
   private final OptionManager optionManager;
   private final NamespaceService userNamespaceService;
   private final SourceCatalog sourceCatalog;
+  private final CatalogService catalogService;
 
   public UserDefinedFunctionCatalogImpl(
-      QueryContext queryContext,
+      SchemaConfig schemaConfig,
       OptionManager optionManager,
       NamespaceService userNamespaceService,
+      CatalogService catalogService,
       SourceCatalog sourceCatalog) {
-    this.queryContext = queryContext;
+    this.schemaConfig = schemaConfig;
     this.optionManager = optionManager;
     this.userNamespaceService = userNamespaceService;
     this.sourceCatalog = sourceCatalog;
+    this.catalogService = catalogService;
   }
 
   @Override
@@ -70,17 +79,26 @@ public class UserDefinedFunctionCatalogImpl implements UserDefinedFunctionCatalo
       CatalogEntityKey key, UserDefinedFunction userDefinedFunction, boolean isUpdate) {
     // TODO - Block any path that is not in a space or home space.
     try {
-      if (CatalogUtil.requestedPluginSupportsVersionedTables(key.toNamespaceKey(), sourceCatalog)) {
+      StoragePlugin plugin = null;
+      try {
+        plugin = sourceCatalog.getSource(key.getRootEntity());
+      } catch (UserException ue) {
+        // ignored.
+      }
+      if (plugin != null && plugin.isWrapperFor(VersionedPlugin.class)) {
         MutablePlugin mutablePlugin = null;
-        if (optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)) {
-          StoragePlugin plugin = sourceCatalog.getSource(key.getRootEntity());
-          if (plugin != null && plugin.isWrapperFor(MutablePlugin.class)) {
-            mutablePlugin = plugin.unwrap(MutablePlugin.class);
-          }
+        if (optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)
+            && plugin.isWrapperFor(MutablePlugin.class)) {
+          mutablePlugin = plugin.unwrap(MutablePlugin.class);
         }
         if (mutablePlugin != null) {
-          mutablePlugin.createFunction(
-              getKeyWithVersionContext(key), queryContext.getSchemaConfig(), userDefinedFunction);
+          if (!isUpdate) {
+            mutablePlugin.createFunction(
+                getKeyWithVersionContext(key), schemaConfig, userDefinedFunction);
+          } else {
+            mutablePlugin.updateFunction(
+                getKeyWithVersionContext(key), schemaConfig, userDefinedFunction);
+          }
         } else {
           throw UserException.unsupportedError()
               .message(
@@ -127,16 +145,20 @@ public class UserDefinedFunctionCatalogImpl implements UserDefinedFunctionCatalo
   @Override
   public void dropFunction(CatalogEntityKey key) {
     try {
-      if (CatalogUtil.requestedPluginSupportsVersionedTables(key.toNamespaceKey(), sourceCatalog)) {
+      StoragePlugin plugin = null;
+      try {
+        plugin = sourceCatalog.getSource(key.getRootEntity());
+      } catch (UserException ue) {
+        // ignored.
+      }
+      if (plugin != null && plugin.isWrapperFor(VersionedPlugin.class)) {
         MutablePlugin mutablePlugin = null;
-        if (optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)) {
-          StoragePlugin plugin = sourceCatalog.getSource(key.getRootEntity());
-          if (plugin != null && plugin.isWrapperFor(MutablePlugin.class)) {
-            mutablePlugin = plugin.unwrap(MutablePlugin.class);
-          }
+        if (optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)
+            && plugin.isWrapperFor(MutablePlugin.class)) {
+          mutablePlugin = plugin.unwrap(MutablePlugin.class);
         }
         if (mutablePlugin != null) {
-          mutablePlugin.dropFunction(getKeyWithVersionContext(key), queryContext.getSchemaConfig());
+          mutablePlugin.dropFunction(getKeyWithVersionContext(key), schemaConfig);
         } else {
           throw UserException.unsupportedError()
               .message("Drop function in source '%s' not supported.", key.getRootEntity())
@@ -156,25 +178,35 @@ public class UserDefinedFunctionCatalogImpl implements UserDefinedFunctionCatalo
   public UserDefinedFunction getFunction(CatalogEntityKey key) {
     try {
       VersionedPlugin versionedPlugin;
-      if (CatalogUtil.requestedPluginSupportsVersionedTables(key.toNamespaceKey(), sourceCatalog)
-          && optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)) {
-        StoragePlugin plugin = sourceCatalog.getSource(key.getRootEntity());
-        if (plugin != null && plugin.isWrapperFor(VersionedPlugin.class)) {
-          versionedPlugin = plugin.unwrap(VersionedPlugin.class);
-          Optional<FunctionConfig> function =
-              versionedPlugin.getFunction(getKeyWithVersionContext(key));
-          if (function.isPresent()) {
-            return fromProto(function.get());
+      if (optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)) {
+        try {
+          StoragePlugin plugin = sourceCatalog.getSource(key.getRootEntity());
+          if (plugin != null && plugin.isWrapperFor(VersionedPlugin.class)) {
+            versionedPlugin = plugin.unwrap(VersionedPlugin.class);
+            Optional<FunctionConfig> function =
+                versionedPlugin.getFunction(getKeyWithVersionContext(key));
+            if (function.isPresent()) {
+              return fromProto(function.get());
+            }
+            if (key.hasTableVersionContext()) {
+              throw UserException.resourceError()
+                  .message("Cannot find function with name %s", key)
+                  .buildSilently();
+            }
           }
-          throw UserException.resourceError()
-              .message("Cannot find function with name %s", key)
-              .buildSilently();
+        } catch (UserException ue) {
+          // ignored when source is not found
+          if (ue.getErrorType() != UserBitShared.DremioPBError.ErrorType.VALIDATION) {
+            throw ue;
+          }
         }
       }
       ensureNoVersionContext(key);
       return fromProto(userNamespaceService.getFunction(key.toNamespaceKey()));
     } catch (NamespaceNotFoundException e) {
-      return null;
+      throw UserException.resourceError()
+          .message("Cannot find function with name %s.", key)
+          .buildSilently();
     } catch (NamespaceException e) {
       // TODO
       throw new RuntimeException(e);
@@ -183,9 +215,33 @@ public class UserDefinedFunctionCatalogImpl implements UserDefinedFunctionCatalo
 
   @Override
   public Iterable<UserDefinedFunction> getAllFunctions() {
-    return userNamespaceService.getFunctions().stream()
-        .map(UserDefinedFunctionSerde::fromProto)
-        .collect(Collectors.toList());
+    List<Iterator<UserDefinedFunction>> functionList = new ArrayList<>();
+    functionList.add(
+        userNamespaceService.getFunctions().stream()
+            .map(UserDefinedFunctionSerde::fromProto)
+            .iterator());
+    if (optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)) {
+      Stream<VersionedPlugin> versionedPlugins = catalogService.getAllVersionedPlugins();
+      versionedPlugins.forEach(
+          v -> {
+            try {
+              functionList.add(
+                  getFunctions(v).stream().map(UserDefinedFunctionSerde::fromProto).iterator());
+            } catch (UnsupportedOperationException ex) {
+              // ignore
+            }
+          });
+    }
+    return () -> Iterators.concat(functionList.iterator());
+  }
+
+  protected List<FunctionConfig> getFunctions(VersionedPlugin versionedPlugin) {
+    try {
+      return versionedPlugin.getFunctions(VersionContext.NOT_SPECIFIED);
+    } catch (UnsupportedOperationException ex) {
+      // ignore
+    }
+    return List.of();
   }
 
   private CatalogEntityKey getKeyWithVersionContext(CatalogEntityKey key) {
@@ -199,7 +255,19 @@ public class UserDefinedFunctionCatalogImpl implements UserDefinedFunctionCatalo
     return key;
   }
 
-  private void ensureNoVersionContext(CatalogEntityKey key) {
+  protected OptionManager getOptionManager() {
+    return optionManager;
+  }
+
+  protected SourceCatalog getCatalog() {
+    return sourceCatalog;
+  }
+
+  protected NamespaceService getNamespaceService() {
+    return userNamespaceService;
+  }
+
+  protected void ensureNoVersionContext(CatalogEntityKey key) {
     if (key.hasTableVersionContext()) {
       throw UserException.validationError()
           .message(

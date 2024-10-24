@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Branch, Tag, V2BetaApi } from "@app/services/nessie/client";
+import { Branch, Tag, V2BetaApi } from "#oss/services/nessie/client";
 
 export type DremioV2Api = V2BetaApi & {
   memoGetDefaultReference: () => ReturnType<V2BetaApi["getReferenceByNameV2"]>;

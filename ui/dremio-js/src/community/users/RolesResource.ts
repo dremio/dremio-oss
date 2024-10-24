@@ -17,18 +17,25 @@
 import { Err, Ok, type Result } from "ts-results-es";
 import type { SonarV3Config } from "../../_internal/types/Config.js";
 import { Role } from "./Role.js";
+import type { SignalParam } from "../../_internal/types/Params.js";
 
 export const RolesResource = (config: SonarV3Config) => {
   return {
-    retrieve: (id: string): Promise<Result<Role, unknown>> =>
+    retrieve: (
+      id: string,
+      { signal }: SignalParam = {},
+    ): Promise<Result<Role, unknown>> =>
       config
-        .sonarV3Request(`role/${id}`)
+        .sonarV3Request(`role/${id}`, { signal })
         .then((res) => res.json())
         .then((properties) => Ok(Role.fromResource(properties)))
         .catch((e) => Err(e)),
-    retrieveByName: (name: string): Promise<Result<Role, unknown>> =>
+    retrieveByName: (
+      name: string,
+      { signal }: SignalParam = {},
+    ): Promise<Result<Role, unknown>> =>
       config
-        .sonarV3Request(`role/by-name/${name}`)
+        .sonarV3Request(`role/by-name/${name}`, { signal })
         .then((res) => res.json())
         .then((properties) => Ok(Role.fromResource(properties)))
         .catch((e) => Err(e)),

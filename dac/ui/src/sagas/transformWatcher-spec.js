@@ -23,11 +23,11 @@ import { hideConfirmationDialog } from "actions/confirmation";
 import {
   startDatasetMetadataLoad,
   completeDatasetMetadataLoad,
-} from "@app/actions/explore/view";
+} from "#oss/actions/explore/view";
 import {
   stopExplorePageListener,
   startExplorePageListener,
-} from "@app/actions/explore/dataset/data";
+} from "#oss/actions/explore/dataset/data";
 
 import { unwrapAction } from "./utils";
 
@@ -57,7 +57,7 @@ describe("transformWatcher saga", () => {
 
     next = gen.next();
     expect(next.value).to.eql(
-      call(performWatchedTransform, "action", "viewId")
+      call(performWatchedTransform, "action", "viewId"),
     );
   });
 
@@ -171,7 +171,7 @@ describe("transformWatcher saga", () => {
       expect(next.value.CALL.fn).to.equal(delay);
       next = gen.next();
       expect(unwrapAction(next.value.PUT.action).type).to.equal(
-        SHOW_CONFIRMATION_DIALOG
+        SHOW_CONFIRMATION_DIALOG,
       );
       next = gen.next();
       next = gen.next();

@@ -41,7 +41,7 @@ describe("downloadDataset saga", () => {
       };
       next = gen.next({ response });
       expect(next.value).to.eql(
-        call([socket, socket.startListenToJobProgress], "fooId")
+        call([socket, socket.startListenToJobProgress], "fooId"),
       );
 
       next = gen.next();
@@ -54,7 +54,7 @@ describe("downloadDataset saga", () => {
       expect(next.value.PUT).to.not.be.undefined; // hide modal
       next = gen.next();
       expect(next.value).to.eql(
-        call(handleDownloadFile, { meta: { url: "fooUrl" } })
+        call(handleDownloadFile, { meta: { url: "fooUrl" } }),
       );
       next = gen.next();
       expect(next.done).to.be.true;
@@ -71,7 +71,7 @@ describe("downloadDataset saga", () => {
       };
       next = gen.next({ response });
       expect(next.value).to.eql(
-        call([socket, socket.startListenToJobProgress], "fooId")
+        call([socket, socket.startListenToJobProgress], "fooId"),
       );
 
       next = gen.next();
@@ -82,7 +82,7 @@ describe("downloadDataset saga", () => {
       expect(next.value.TAKE).to.not.be.undefined; // getJobDoneActionFilter
       next = gen.next();
       expect(next.value).to.eql(
-        call(handleDownloadFile, { meta: { url: "fooUrl" } })
+        call(handleDownloadFile, { meta: { url: "fooUrl" } }),
       );
       next = gen.next();
       expect(next.done).to.be.true;
@@ -97,7 +97,7 @@ describe("downloadDataset saga", () => {
       };
       next = gen.next({ response });
       expect(next.value).to.eql(
-        call([socket, socket.startListenToJobProgress], "fooId")
+        call([socket, socket.startListenToJobProgress], "fooId"),
       ); //ws listens
       next = gen.next(); //ws response jobDone
       expect(typeof next.value.RACE.jobDone).to.not.be.undefined;

@@ -145,23 +145,23 @@ describe("ReflectionList", () => {
 
   it("should render with minimal props without exploding", () => {
     expect(
-      shallow(<ReflectionList {...minimalProps} />, { context })
+      shallow(<ReflectionList {...minimalProps} />, { context }),
     ).to.have.length(1);
   });
 
   it("no link if not admin", () => {
     expect(
-      shallow(<ReflectionList {...commonProps} />, { context }).find("Link")
+      shallow(<ReflectionList {...commonProps} />, { context }).find("Link"),
     ).to.have.length(4);
     context.loggedInUser.admin = false;
     expect(
-      shallow(<ReflectionList {...commonProps} />, { context }).find("Link")
+      shallow(<ReflectionList {...commonProps} />, { context }).find("Link"),
     ).to.have.length(0);
     expect(
       shallow(<ReflectionList {...commonProps} />, { context })
         .find("EllipsedText")
         .first()
-        .props()
+        .props(),
     ).to.eql({
       children: false,
       text: '{"0":{"id":"Reflection.UnnamedReflection"}}',

@@ -249,13 +249,13 @@ describe("AccelerationForm", () => {
       values.rawReflections[0].shouldDelete = true;
       return instance.submitForm(values).then(() => {
         expect(commonProps.putReflection).to.have.been.calledWith(
-          values.aggregationReflections[0]
+          values.aggregationReflections[0],
         );
         expect(commonProps.postReflection).to.have.been.calledWith(
-          values.aggregationReflections[1]
+          values.aggregationReflections[1],
         );
         expect(commonProps.deleteReflection).to.have.been.calledWith(
-          values.rawReflections[0]
+          values.rawReflections[0],
         );
         return null;
       });
@@ -277,7 +277,7 @@ describe("AccelerationForm", () => {
         reflections: Immutable.fromJS({
           a: Immutable.fromJS(values.aggregationReflections[0]).set(
             "status",
-            Immutable.fromJS({})
+            Immutable.fromJS({}),
           ),
         }),
       });
@@ -292,7 +292,7 @@ describe("AccelerationForm", () => {
         reflections: Immutable.fromJS({
           a: Immutable.fromJS(values.aggregationReflections[0]).set(
             "status",
-            Immutable.fromJS({})
+            Immutable.fromJS({}),
           ),
         }),
       });
@@ -306,7 +306,7 @@ describe("AccelerationForm", () => {
         reflections: Immutable.fromJS({
           a: Immutable.fromJS(values.aggregationReflections[0]).set(
             "status",
-            Immutable.fromJS({ config: "INVALID" })
+            Immutable.fromJS({ config: "INVALID" }),
           ),
         }),
       });
@@ -321,7 +321,7 @@ describe("AccelerationForm", () => {
         reflections: Immutable.fromJS({
           a: Immutable.fromJS(values.aggregationReflections[0]).set(
             "status",
-            Immutable.fromJS({ config: "INVALID" })
+            Immutable.fromJS({ config: "INVALID" }),
           ),
         }),
       });
@@ -332,13 +332,13 @@ describe("AccelerationForm", () => {
   describe("formIsDirty", () => {
     it("should be initially set to false", () => {
       const instance = shallow(
-        <AccelerationForm {...commonProps} />
+        <AccelerationForm {...commonProps} />,
       ).instance();
       expect(instance.state.formIsDirty).to.equal(false);
     });
     it("should be true after value change", () => {
       const instance = shallow(
-        <AccelerationForm {...commonProps} />
+        <AccelerationForm {...commonProps} />,
       ).instance();
       instance.componentDidUpdate({
         ...commonProps,
@@ -348,7 +348,7 @@ describe("AccelerationForm", () => {
     });
     it("should be false after revert&submit/updateInitialValues", () => {
       const instance = shallow(
-        <AccelerationForm {...commonProps} />
+        <AccelerationForm {...commonProps} />,
       ).instance();
       instance.componentDidUpdate({
         ...commonProps,

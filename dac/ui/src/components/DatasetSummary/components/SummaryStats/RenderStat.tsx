@@ -15,10 +15,10 @@
  */
 import { useState } from "react";
 import { useIntl } from "react-intl";
-import LoadingBar from "@app/components/LoadingBar/LoadingBar";
+import { Skeleton } from "dremio-ui-lib/components";
 import { Avatar, Tooltip } from "dremio-ui-lib/components";
 import * as classes from "./RenderStat.module.less";
-import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+import { nameToInitials } from "#oss/exports/utilities/nameToInitials";
 
 const RenderData = ({
   data,
@@ -65,7 +65,7 @@ const RenderStat = ({
               {data || data === 0 ? (
                 <RenderData data={data} showAvatar={showAvatar} />
               ) : (
-                <LoadingBar width={143} height={12} />
+                <Skeleton width="12ch" className="ml-1" />
               )}
             </dd>
           </Tooltip>
@@ -81,7 +81,7 @@ const RenderStat = ({
             {data || data === 0 ? (
               <RenderData data={data} showAvatar={showAvatar} />
             ) : (
-              <LoadingBar width={143} height={12} />
+              <Skeleton width="12ch" className="ml-1" />
             )}
           </dd>
         )}

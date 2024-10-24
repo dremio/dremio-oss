@@ -18,6 +18,7 @@ package com.dremio.exec.catalog.udf;
 import static com.dremio.common.expression.CompleteType.VARBINARY;
 import static com.dremio.exec.catalog.CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED;
 import static com.dremio.exec.store.sys.udf.UserDefinedFunctionSerde.toProto;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,6 +37,7 @@ import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.options.OptionManager;
@@ -44,11 +46,12 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.function.proto.FunctionConfig;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.Test;
 
 public class TestUserDefinedFunctionCatalogImpl {
@@ -57,6 +60,7 @@ public class TestUserDefinedFunctionCatalogImpl {
   private final NamespaceService userNamespaceService = mock(NamespaceService.class);
 
   private final SourceCatalog sourceCatalog = mock(SourceCatalog.class);
+  private final CatalogService catalogService = mock(CatalogService.class);
 
   private final long created_at = 1L;
   private final long modified_at = 2L;
@@ -76,7 +80,11 @@ public class TestUserDefinedFunctionCatalogImpl {
 
   private UserDefinedFunctionCatalog newUDFCatalog() {
     return new UserDefinedFunctionCatalogImpl(
-        queryContext, optionManager, userNamespaceService, sourceCatalog);
+        queryContext.getSchemaConfig(),
+        optionManager,
+        userNamespaceService,
+        catalogService,
+        sourceCatalog);
   }
 
   @Test
@@ -132,7 +140,7 @@ public class TestUserDefinedFunctionCatalogImpl {
 
     CatalogEntityKey catalogEntityKey =
         CatalogEntityKey.newBuilder()
-            .keyComponents(ImmutableList.of(sourceName))
+            .keyComponents(sourceName)
             .tableVersionContext(TableVersionContext.of(testBranchVersionContext))
             .build();
     newUDFCatalog().createFunction(catalogEntityKey, userDefinedFunction);
@@ -166,6 +174,21 @@ public class TestUserDefinedFunctionCatalogImpl {
     assertEquals(function.getCreatedAt(), udf1.getCreatedAt());
     assertEquals(function.getModifiedAt(), udf1.getModifiedAt());
     verifyNoInteractions(userNamespaceService);
+  }
+
+  @Test
+  public void testGetAllFunctions_NoThrow() {
+    when(optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)).thenReturn(true);
+    MockVersionedPlugin mockVersionedPlugin = mock(MockVersionedPlugin.class);
+    when(mockVersionedPlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(mockVersionedPlugin.unwrap(VersionedPlugin.class)).thenReturn(mockVersionedPlugin);
+    when(mockVersionedPlugin.getFunctions(any())).thenThrow(new UnsupportedOperationException());
+
+    Stream<VersionedPlugin> plugins =
+        Lists.newArrayList(mockVersionedPlugin.unwrap(VersionedPlugin.class)).stream();
+    when(catalogService.getAllVersionedPlugins()).thenReturn(plugins);
+
+    assertThatNoException().isThrownBy(() -> newUDFCatalog().getAllFunctions());
   }
 
   private interface MockVersionedPlugin extends VersionedPlugin, MutablePlugin {}

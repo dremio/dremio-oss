@@ -16,8 +16,8 @@
 import { Component, Fragment } from "react";
 import { createSelector } from "reselect";
 import { connect } from "react-redux";
-import { loadUser } from "@app/actions/modals/editUserModal";
-import { DataLoader } from "@app/components/DataLoader";
+import { loadUser } from "#oss/actions/modals/editUserModal";
+import { DataLoader } from "#oss/components/DataLoader";
 
 import PropTypes from "prop-types";
 
@@ -27,14 +27,14 @@ import UserForm from "components/Forms/UserForm";
 import usersDetails, {
   getUserInfo,
   moduleKey,
-} from "@app/reducers/modules/usersDetails";
-import { editUser } from "@app/actions/modals/editUserModal";
-import { getModuleState } from "@app/selectors/moduleState";
+} from "#oss/reducers/modules/usersDetails";
+import { editUser } from "#oss/actions/modals/editUserModal";
+import { getModuleState } from "#oss/selectors/moduleState";
 import { formBody } from "uiTheme/less/forms.less";
-import { moduleStateHOC } from "@app/containers/ModuleStateContainer";
+import { moduleStateHOC } from "#oss/containers/ModuleStateContainer";
 import { compose } from "redux";
-import LoadingOverlay from "@app/components/LoadingOverlay";
-import * as VersionUtils from "@app/utils/versionUtils";
+import LoadingOverlay from "#oss/components/LoadingOverlay";
+import * as VersionUtils from "#oss/utils/versionUtils";
 
 const getPair = (formFieldName, entityFieldName) => ({
   form: formFieldName,
@@ -168,7 +168,7 @@ export class EditUserForm extends Component {
 
 const getInitialValues = createSelector(
   (userConfig) => userConfig,
-  (userConfig) => mapFields(userConfig, entityToForm)
+  (userConfig) => mapFields(userConfig, entityToForm),
 );
 
 function mapStateToProps(state) {
@@ -194,8 +194,8 @@ export default compose(
     mapStateToProps,
     {
       editUser,
-    }
-  )
+    },
+  ),
 )(EditUserForm);
 
 @connect(null, {

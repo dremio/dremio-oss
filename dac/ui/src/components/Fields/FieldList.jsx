@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { cloneElement, Children, Component } from "react";
-import spring from "react-motion/lib/spring";
 import { injectIntl } from "react-intl";
 
 import PropTypes from "prop-types";
@@ -113,8 +112,8 @@ export default class FieldList extends Component {
       key: getKey(item),
       data: item,
       style: {
-        height: spring(itemHeight),
-        opacity: spring(1),
+        height: itemHeight,
+        opacity: 1,
       },
     }));
   };
@@ -140,8 +139,8 @@ export default class FieldList extends Component {
 
   willLeave() {
     return {
-      height: spring(0),
-      opacity: spring(0),
+      height: 0,
+      opacity: 0,
     };
   }
 

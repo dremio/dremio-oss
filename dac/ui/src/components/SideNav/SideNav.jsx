@@ -35,10 +35,10 @@ import {
   useArcticCatalogPrivileges,
 } from "@inject/utils/sideNavUtils";
 import AccountMenu from "./AccountMenu";
-import "@app/components/IconFont/css/DremioIcons-old.css";
-import "@app/components/IconFont/css/DremioIcons.css";
+import "#oss/components/IconFont/css/DremioIcons-old.css";
+import "#oss/components/IconFont/css/DremioIcons.css";
 import { Avatar } from "dremio-ui-lib/components";
-import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+import { nameToInitials } from "#oss/exports/utilities/nameToInitials";
 import { isActive } from "./SideNavUtils";
 import HelpMenu from "./HelpMenu";
 import { TopAction } from "./components/TopAction";
@@ -55,7 +55,7 @@ import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { getSessionContext } from "dremio-ui-common/contexts/SessionContext.js";
 import { WalkthroughMenu } from "@inject/tutorials/components/WalkthroughMenu/WalkthroughMenu";
 import { useDefaultContext } from "@inject/utils/queryContextUtils";
-import { LeftNavPopover } from "@app/exports/components/LeftNav/LeftNavPopover";
+import { LeftNavPopover } from "#oss/exports/components/LeftNav/LeftNavPopover";
 import {
   DremioUserAvatar,
   DremioUserTooltip,
@@ -105,6 +105,16 @@ const SideNav = (props) => {
         resourceId: rest.context,
       }),
     });
+  };
+
+  const skipToContent = (e) => {
+    if (e.code === "Enter" || e.code === "Space") {
+      const parent = document.body.querySelector(".sideNav")?.parentElement;
+      parent?.children?.[1]?.setAttribute("tabindex", "0");
+      parent?.children?.[1]?.setAttribute("aria-label", "Main");
+      parent?.children?.[1]?.focus();
+      parent?.children?.[1]?.setAttribute("tabindex", "-1");
+    }
   };
 
   const LogoAction = headerAction || (
@@ -160,8 +170,16 @@ const SideNav = (props) => {
   }
 
   return (
-    <div className={clsx("sideNav", className)}>
-      <div className="sideNav__topSection">
+    <nav className={clsx("sideNav", className)}>
+      <button
+        tabIndex={0}
+        aria-label={intl.formatMessage({ id: "SideNav.SkipToContent" })}
+        onKeyPress={(e) => skipToContent(e)}
+        className="skipToContent drop-shadow-lg"
+      >
+        {intl.formatMessage({ id: "SideNav.SkipToContent" })}
+      </button>
+      <ul className="sideNav__topSection">
         {LogoAction}
         {actions}
         {actions === null && !isProjectInactive && (
@@ -206,9 +224,9 @@ const SideNav = (props) => {
             )}
           </>
         )}
-      </div>
+      </ul>
 
-      <div className="sideNav__bottomSection">
+      <ul className="sideNav__bottomSection">
         {!organizationLanding && <SideNavExtra />}
         {organizationLanding && (
           <LeftNavPopover
@@ -247,8 +265,8 @@ const SideNav = (props) => {
           portal={false}
         />
         {renderUserAccount()}
-      </div>
-    </div>
+      </ul>
+    </nav>
   );
 };
 

@@ -61,7 +61,7 @@ describe("DragAreaColumn", () => {
     //DX-28985
     xit("should do nothing if canSelectColumn returns false", () => {
       const instance = shallow(
-        <DragAreaColumn {...commonProps} canSelectColumn={() => false} />
+        <DragAreaColumn {...commonProps} canSelectColumn={() => false} />,
       ).instance();
       instance.selectColumn({ columnName: "col1" });
       expect(commonProps.field.onChange).to.not.have.been.called;
@@ -80,7 +80,7 @@ describe("DragAreaColumn", () => {
       let filteredColumns = instance.filterColumns();
       expect(filteredColumns).to.have.size(1);
       expect(filteredColumns).to.eql(
-        Immutable.fromJS([{ name: "col1", type: "TEXT" }])
+        Immutable.fromJS([{ name: "col1", type: "TEXT" }]),
       );
 
       wrapper.setProps({
@@ -95,7 +95,7 @@ describe("DragAreaColumn", () => {
       filteredColumns = instance.filterColumns();
       expect(filteredColumns).to.have.size(1);
       expect(filteredColumns).to.eql(
-        Immutable.fromJS([{ name: "FOO", type: "TEXT" }])
+        Immutable.fromJS([{ name: "FOO", type: "TEXT" }]),
       );
     });
   });

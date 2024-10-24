@@ -157,7 +157,7 @@ public class S3MockDataplaneStorage implements DataplaneStorage {
   }
 
   @Override
-  public NessiePluginConfig preparePluginConfig(
+  public NessiePluginConfig prepareNessiePluginConfig(
       BucketSelection bucketSelection, String nessieEndpoint) {
     NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
     nessiePluginConfig.nessieEndpoint = nessieEndpoint;

@@ -17,12 +17,12 @@ import { cloneElement, Component } from "react";
 import PropTypes from "prop-types";
 import classNames from "clsx";
 
-import { flexColumnContainer, fullHeight } from "@app/uiTheme/less/layout.less";
-import { Suspense } from "@app/components/Lazy";
+import { flexColumnContainer, fullHeight } from "#oss/uiTheme/less/layout.less";
+import { Suspense } from "#oss/components/Lazy";
 
 import { page } from "uiTheme/radium/general";
 import { pageContent } from "./Page.less";
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
+import { SonarSideNav } from "#oss/exports/components/SideNav/SonarSideNav";
 
 //todo (DX-17781) we should migrate all the pages to use MainMasterPage
 export default class Page extends Component {

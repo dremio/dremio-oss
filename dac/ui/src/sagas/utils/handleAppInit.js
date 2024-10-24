@@ -16,9 +16,9 @@
 import { call, put, select } from "redux-saga/effects";
 import { replace } from "react-router-redux";
 
-import { log } from "@app/utils/logger";
-import { getLocation } from "@app/selectors/routing";
-import socket from "@app/utils/socket";
+import { log } from "#oss/utils/logger";
+import { getLocation } from "#oss/selectors/routing";
+import socket from "#oss/utils/socket";
 import { LOGIN_PATH, SIGNUP_PATH, SSO_LANDING_PATH } from "../loginLogout";
 
 export default function* handleAppInit() {

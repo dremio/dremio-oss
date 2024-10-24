@@ -101,7 +101,7 @@ const styles = {
   base: {
     display: "flex",
     flexDirection: "column",
-    border: "1px solid #E0E0E0",
+    border: "1px solid var(--border--neutral)",
     overflowY: "auto", // this overflow is needed for FF. "flex: 1" doesn't correct work with overflow in FF
   },
   datasetList: {

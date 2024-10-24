@@ -29,14 +29,14 @@ public class ITOptimizeV2TableWithPositionalDeletes extends BaseTestQuery {
     OptimizeTestWithDeletes.setup();
 
     // Vectorized parquet read is not available in OSS
-    setSystemOption(ExecConstants.PARQUET_READER_VECTORIZE, "false");
+    setSystemOption(ExecConstants.PARQUET_READER_VECTORIZE, false);
   }
 
   @AfterClass
   public static void tearDown() throws Exception {
-    setSystemOption(
-        ExecConstants.PARQUET_READER_VECTORIZE,
-        ExecConstants.PARQUET_READER_VECTORIZE.getDefault().getBoolVal().toString());
+    OptimizeTestWithDeletes.cleanup();
+
+    resetSystemOption(ExecConstants.PARQUET_READER_VECTORIZE);
   }
 
   @Test

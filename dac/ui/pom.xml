@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>25.1.1-202409260159070462-716c0676</version>
+    <version>${revision}</version>
   </parent>
   <artifactId>dremio-dac-ui</artifactId>
   <packaging>jar</packaging>
@@ -107,6 +107,7 @@
                 <exclude>.pnpmfile.cjs</exclude>
                 <exclude>**/*.gitkeep</exclude>
                 <exclude>**/*.lottie</exclude>
+                <exclude>.prettierignore</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
@@ -182,6 +183,16 @@
             <configuration>
               <arguments>run overwrite-sourcemaps --output-path=${project.build.outputDirectory}/rest/dremio_static</arguments>
               <skip>${skip.uibundle}</skip>
+            </configuration>
+          </execution>
+          <execution>
+            <id>prettier-check</id>
+            <goals>
+              <goal>pnpm</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <arguments>exec prettier ${project.basedir}/src --check</arguments>
             </configuration>
           </execution>
         </executions>

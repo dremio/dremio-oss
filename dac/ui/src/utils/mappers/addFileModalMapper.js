@@ -30,8 +30,8 @@ class AddFileModalMapper {
         JSON.stringify(fileData)
           .replace(/\\n/g, "\\\\n")
           .replace(/\\r/g, "\\\\r")
-          .replace(/\\t/g, "\\\\t")
-      )
+          .replace(/\\t/g, "\\\\t"),
+      ),
     );
 
   unescapeFilePayload = (fileData) =>

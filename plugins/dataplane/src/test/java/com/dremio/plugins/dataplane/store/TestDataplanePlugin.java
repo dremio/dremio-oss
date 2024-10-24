@@ -15,6 +15,8 @@
  */
 package com.dremio.plugins.dataplane.store;
 
+import static com.dremio.catalog.model.VersionContext.NOT_SPECIFIED;
+import static com.dremio.exec.store.DataplanePluginOptions.DATAPLANE_AWS_STORAGE_ENABLED;
 import static com.dremio.nessiemetadata.cache.NessieMetadataCacheOptions.BYPASS_DATAPLANE_CACHE;
 import static com.dremio.nessiemetadata.cache.NessieMetadataCacheOptions.DATAPLANE_ICEBERG_METADATA_CACHE_EXPIRE_AFTER_ACCESS_MINUTES;
 import static com.dremio.nessiemetadata.cache.NessieMetadataCacheOptions.DATAPLANE_ICEBERG_METADATA_CACHE_SIZE_ITEMS;
@@ -89,7 +91,7 @@ public class TestDataplanePlugin {
   @Mock private SabotContext sabotContext;
   @Mock private OptionManager optionManager;
   @Mock private Provider<StoragePluginId> idProvider;
-  @Mock private NessieClient nessieClient;
+  @Mock private static NessieClient nessieClient;
 
   // Can't @InjectMocks a String, so initialization is done in @BeforeEach
   private DataplanePlugin dataplanePlugin;
@@ -101,7 +103,6 @@ public class TestDataplanePlugin {
         SabotContext context,
         String name,
         Provider<StoragePluginId> idProvider,
-        NessieClient nessieClient,
         NessieDataplaneCacheProvider cacheProvider,
         @Nullable NessieDataplaneCacheStoreProvider nessieDataplaneCacheStoreProvider) {
       super(
@@ -109,7 +110,6 @@ public class TestDataplanePlugin {
           context,
           name,
           idProvider,
-          nessieClient,
           cacheProvider,
           nessieDataplaneCacheStoreProvider);
     }
@@ -131,8 +131,13 @@ public class TestDataplanePlugin {
     }
 
     @Override
-    public void validateNessieSpecificationVersion(NessieClient nessieClient, String name) {
+    public void validateNessieSpecificationVersion(NessieClient nessieClient) {
       // no-op
+    }
+
+    @Override
+    public NessieClient getNessieClient() {
+      return nessieClient;
     }
   }
 
@@ -151,13 +156,7 @@ public class TestDataplanePlugin {
 
     dataplanePlugin =
         new DataplanePluginMockImpl(
-            pluginConfig,
-            sabotContext,
-            DATAPLANE_PLUGIN_NAME,
-            idProvider,
-            nessieClient,
-            cacheProvider,
-            null);
+            pluginConfig, sabotContext, DATAPLANE_PLUGIN_NAME, idProvider, cacheProvider, null);
   }
 
   @Test
@@ -213,8 +212,7 @@ public class TestDataplanePlugin {
 
   @Test
   public void testValidateCallsDuringSetup() {
-    when(pluginConfig.getStorageProvider()).thenReturn(StorageProviderType.AWS);
-    when(pluginConfig.getRootPath()).thenReturn("/bucket/folder");
+    setupAWSStorageAndProvider();
     dataplanePlugin = spy(dataplanePlugin);
     // Act
     try {
@@ -226,21 +224,21 @@ public class TestDataplanePlugin {
     }
 
     // Assert
+    verify(dataplanePlugin).validateStorageProviderTypeEnabled(optionManager);
     verify(dataplanePlugin).validatePluginEnabled(sabotContext);
     verify(dataplanePlugin).validateRootPath();
     verify(dataplanePlugin)
         .validateConnectionToNessieRepository(nessieClient, DATAPLANE_PLUGIN_NAME, sabotContext);
-    verify(dataplanePlugin).validateNessieSpecificationVersion(nessieClient, DATAPLANE_PLUGIN_NAME);
+    verify(dataplanePlugin).validateNessieSpecificationVersion(nessieClient);
   }
 
   @Test
   public void testInvalidURLErrorWhileValidatingNessieSpecVersion() {
-    when(pluginConfig.getStorageProvider()).thenReturn(StorageProviderType.AWS);
-    when(pluginConfig.getRootPath()).thenReturn("/bucket/folder");
+    setupAWSStorageAndProvider();
     dataplanePlugin = spy(dataplanePlugin);
-    doThrow(new InvalidURLException())
+    doThrow(new InvalidURLException("Make sure that Nessie endpoint URL is valid"))
         .when(dataplanePlugin)
-        .validateNessieSpecificationVersion(nessieClient, DATAPLANE_PLUGIN_NAME);
+        .validateNessieSpecificationVersion(nessieClient);
 
     // Act + Assert
     assertThatThrownBy(() -> dataplanePlugin.start())
@@ -250,12 +248,11 @@ public class TestDataplanePlugin {
 
   @Test
   public void testIncompatibleNessieApiInEndpointURL() {
-    when(pluginConfig.getStorageProvider()).thenReturn(StorageProviderType.AWS);
-    when(pluginConfig.getRootPath()).thenReturn("/bucket/folder");
+    setupAWSStorageAndProvider();
     dataplanePlugin = spy(dataplanePlugin);
-    doThrow(new InvalidNessieApiVersionException())
+    doThrow(new InvalidNessieApiVersionException("Invalid API version."))
         .when(dataplanePlugin)
-        .validateNessieSpecificationVersion(nessieClient, DATAPLANE_PLUGIN_NAME);
+        .validateNessieSpecificationVersion(nessieClient);
 
     // Act + Assert
     assertThatThrownBy(() -> dataplanePlugin.start())
@@ -265,12 +262,13 @@ public class TestDataplanePlugin {
 
   @Test
   public void testInvalidSpecificationVersionErrorWhileValidatingNessieSpecVersion() {
-    when(pluginConfig.getStorageProvider()).thenReturn(StorageProviderType.AWS);
-    when(pluginConfig.getRootPath()).thenReturn("/bucket/folder");
+    setupAWSStorageAndProvider();
     dataplanePlugin = spy(dataplanePlugin);
-    doThrow(new InvalidSpecificationVersionException())
+    doThrow(
+            new InvalidSpecificationVersionException(
+                "Nessie Server should comply with Nessie specification version"))
         .when(dataplanePlugin)
-        .validateNessieSpecificationVersion(nessieClient, DATAPLANE_PLUGIN_NAME);
+        .validateNessieSpecificationVersion(nessieClient);
 
     // Act + Assert
     assertThatThrownBy(() -> dataplanePlugin.start())
@@ -280,12 +278,11 @@ public class TestDataplanePlugin {
 
   @Test
   public void testSemanticParserErrorWhileValidatingNessieSpecVersion() {
-    when(pluginConfig.getStorageProvider()).thenReturn(StorageProviderType.AWS);
-    when(pluginConfig.getRootPath()).thenReturn("/bucket/folder");
+    setupAWSStorageAndProvider();
     dataplanePlugin = spy(dataplanePlugin);
-    doThrow(new SemanticVersionParserException())
+    doThrow(new SemanticVersionParserException("Cannot parse Nessie specification version"))
         .when(dataplanePlugin)
-        .validateNessieSpecificationVersion(nessieClient, DATAPLANE_PLUGIN_NAME);
+        .validateNessieSpecificationVersion(nessieClient);
 
     // Act + Assert
     assertThatThrownBy(() -> dataplanePlugin.start())
@@ -497,5 +494,28 @@ public class TestDataplanePlugin {
                 .addEntries(entry)
                 .setPageToken(pageToken)
                 .build());
+  }
+
+  @Test
+  public void testGetFunctionsNessieForbiddenException() {
+    doThrow(
+            new NessieForbiddenException(
+                ImmutableNessieError.builder()
+                    .errorCode(ErrorCode.FORBIDDEN)
+                    .reason("No one shall pass!")
+                    .message("You shall not pass!")
+                    .status(403)
+                    .build()))
+        .when(nessieClient)
+        .resolveVersionContext(any());
+
+    assertThat(dataplanePlugin.getFunctions(NOT_SPECIFIED)).isEmpty();
+  }
+
+  private void setupAWSStorageAndProvider() {
+    when(optionManager.getOption(DATAPLANE_AWS_STORAGE_ENABLED)).thenReturn(true);
+    when(sabotContext.getOptionManager()).thenReturn(optionManager);
+    when(pluginConfig.getStorageProvider()).thenReturn(StorageProviderType.AWS);
+    when(pluginConfig.getRootPath()).thenReturn("/bucket/folder");
   }
 }

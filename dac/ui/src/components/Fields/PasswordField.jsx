@@ -63,8 +63,8 @@ class PasswordField extends Component {
               <dremio-icon
                 name={
                   this.state.showPass
-                    ? "sql-editor/panel-show"
-                    : "sql-editor/panel-hide"
+                    ? "sql-editor/panel-hide"
+                    : "sql-editor/panel-show"
                 }
               ></dremio-icon>
             </IconButton>

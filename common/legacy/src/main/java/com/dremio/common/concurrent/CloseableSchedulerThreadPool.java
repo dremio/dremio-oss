@@ -42,7 +42,7 @@ public class CloseableSchedulerThreadPool extends ScheduledThreadPoolExecutor
   }
 
   @Override
-  public void close() throws Exception {
+  public void close() {
     close(this, logger);
   }
 

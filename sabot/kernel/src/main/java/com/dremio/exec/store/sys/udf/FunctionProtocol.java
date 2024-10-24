@@ -26,7 +26,6 @@ import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.PhysicalConnection;
 import com.google.protobuf.ByteString;
@@ -34,7 +33,6 @@ import com.google.protobuf.MessageLite;
 import io.netty.buffer.ByteBuf;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 
 public class FunctionProtocol implements FabricProtocol {
@@ -44,15 +42,13 @@ public class FunctionProtocol implements FabricProtocol {
 
   private final BufferAllocator allocator;
   private final RpcConfig config;
-  private final Provider<NamespaceService> namespaceServiceProvider;
+  private final UserDefinedFunctionService udfService;
 
   public FunctionProtocol(
-      BufferAllocator allocator,
-      SabotConfig config,
-      Provider<NamespaceService> namespaceServiceProvider) {
+      BufferAllocator allocator, SabotConfig config, UserDefinedFunctionService udfService) {
     this.allocator = allocator;
     this.config = getMapping(config);
-    this.namespaceServiceProvider = namespaceServiceProvider;
+    this.udfService = udfService;
   }
 
   @Override
@@ -98,9 +94,7 @@ public class FunctionProtocol implements FabricProtocol {
       case FunctionRPC.RpcType.REQ_FUNCTION_INFO_VALUE:
         {
           Iterable<UserDefinedFunctionService.FunctionInfo> FunctionInfos =
-              namespaceServiceProvider.get().getFunctions().stream()
-                  .map(UserDefinedFunctionService::getFunctionInfoFromConfig)
-                  .collect(Collectors.toList());
+              this.udfService.getFunctions();
           FunctionRPC.FunctionInfoResp resp =
               FunctionRPC.FunctionInfoResp.newBuilder()
                   .addAllFunctionInfo(

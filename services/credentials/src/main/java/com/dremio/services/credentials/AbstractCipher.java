@@ -15,17 +15,13 @@
  */
 package com.dremio.services.credentials;
 
-import static com.dremio.config.DremioConfig.CREDENTIALS_KEYSTORE_PASSWORD;
-
 import com.dremio.config.DremioConfig;
 import com.dremio.security.SecurityFolder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
-import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URI;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -65,10 +61,6 @@ public abstract class AbstractCipher implements Cipher {
   private static final String SECURE_LOOKUP_URI_SPLITTER = "\\.";
   private static final Base64.Decoder DECODER = Base64.getUrlDecoder();
   private static final Base64.Encoder ENCODER = Base64.getUrlEncoder();
-
-  // This is the default Dremio keystore password. An external password should be used to provide
-  // more security.
-  private static final String DEFAULT_KEYSTORE_PASSWORD = "unsecurepassword";
 
   private static final String ILLEGAL_ARGUMENT_ERROR_MESSAGE = "Unknown encrypted secret format";
 
@@ -215,28 +207,7 @@ public abstract class AbstractCipher implements Cipher {
 
   /** Lookup keystore password from password URI */
   private char[] getKeystorePassword() throws CredentialsException {
-    final String keystorePasswordUri = getConfig().getString(CREDENTIALS_KEYSTORE_PASSWORD);
-    if (Strings.isNullOrEmpty(keystorePasswordUri)) {
-      return DEFAULT_KEYSTORE_PASSWORD.toCharArray();
-    }
-
-    URI uri;
-    try {
-      uri = CredentialsServiceUtils.safeURICreate(keystorePasswordUri);
-    } catch (IllegalArgumentException e) {
-      logger.debug("The string used to locate secret is not a valid URI.");
-      return keystorePasswordUri.toCharArray();
-    }
-
-    final String scheme = uri.getScheme();
-    if (scheme == null) {
-      return keystorePasswordUri.toCharArray();
-    }
-
-    if (getScheme().equalsIgnoreCase(scheme)) {
-      throw new SecretCredentialsException("Cannot use secret URI for Dremio keystore password.");
-    }
-    return getCredentialsService().lookup(keystorePasswordUri).toCharArray();
+    return CredentialsServiceUtils.getKeystorePassword(getConfig(), getCredentialsService());
   }
 
   /** Look up secret key in Dremio Keystore */

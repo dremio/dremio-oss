@@ -27,7 +27,7 @@ TestRenderer.propTypes = {
 };
 const getSelectViewContent = (wrapper) => {
   return shallow(
-    <TestRenderer>{wrapper.find("SelectView").prop("content")}</TestRenderer>
+    <TestRenderer>{wrapper.find("SelectView").prop("content")}</TestRenderer>,
   );
 };
 
@@ -65,7 +65,7 @@ describe("FilterSelectMenu", () => {
     expect(getSelectViewContent(wrapper).find("span")).to.have.length(1);
     wrapper.setProps({ selectedValues: Immutable.List() });
     expect(getSelectViewContent(wrapper).find("span").first().text()).to.eql(
-      commonProps.label
+      commonProps.label,
     );
   });
 
@@ -80,12 +80,12 @@ describe("FilterSelectMenu", () => {
       expect(
         wrapper
           .instance()
-          .getSelectedItems(commonProps.items, commonProps.selectedValues)
+          .getSelectedItems(commonProps.items, commonProps.selectedValues),
       ).to.eql([commonProps.items[0], commonProps.items[1]]);
 
       wrapper.setProps({ selectedValues: Immutable.List([1]) });
       expect(
-        wrapper.instance().getSelectedItems(commonProps.items, [1])
+        wrapper.instance().getSelectedItems(commonProps.items, [1]),
       ).to.eql([commonProps.items[2]]);
     });
   });
@@ -96,18 +96,22 @@ describe("FilterSelectMenu", () => {
       expect(
         wrapper
           .instance()
-          .getUnselectedItems(commonProps.items, commonProps.selectedValues, "")
+          .getUnselectedItems(
+            commonProps.items,
+            commonProps.selectedValues,
+            "",
+          ),
       ).to.eql([commonProps.items[2]]);
 
       wrapper.setProps({ selectedValues: Immutable.List([1]) });
       expect(
-        wrapper.instance().getUnselectedItems(commonProps.items, [1], "")
+        wrapper.instance().getUnselectedItems(commonProps.items, [1], ""),
       ).to.eql([commonProps.items[1], commonProps.items[0]]);
     });
 
     it("should filter results based on pattern and case insensitive", () => {
       const wrapper = shallow(
-        <FilterSelectMenu {...commonProps} selectedValues={Immutable.List()} />
+        <FilterSelectMenu {...commonProps} selectedValues={Immutable.List()} />,
       );
       const instance = wrapper.instance();
       wrapper.setState({ pattern: "item2" });

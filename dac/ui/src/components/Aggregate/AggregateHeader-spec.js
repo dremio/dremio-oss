@@ -56,7 +56,7 @@ describe("AggregateHeader", () => {
       const wrapper = shallow(
         shallow(<AggregateHeader {...commonProps} />)
           .instance()
-          .renderClearAll(() => {})
+          .renderClearAll(() => {}),
       );
       expect(wrapper).to.have.length(1);
     });
@@ -66,7 +66,7 @@ describe("AggregateHeader", () => {
       expect(
         shallow(<AggregateHeader {...minimalProps} />)
           .instance()
-          .renderClearAll()
+          .renderClearAll(),
       ).to.be.null;
     });
 

@@ -38,7 +38,9 @@ public class CopyFileHistoryTableMetadata extends SystemIcebergTableMetadata {
       String pluginPath,
       String tableName) {
     super(schemaVersion, commitRetryCount, pluginName, pluginPath, tableName);
-    this.schema = CopyFileHistoryTableSchemaProvider.getSchema(schemaVersion);
-    this.partitionSpec = CopyFileHistoryTableSchemaProvider.getPartitionSpec(schemaVersion);
+    CopyFileHistoryTableSchemaProvider schemaProvider =
+        new CopyFileHistoryTableSchemaProvider(schemaVersion);
+    this.schema = schemaProvider.getSchema();
+    this.partitionSpec = schemaProvider.getPartitionSpec();
   }
 }

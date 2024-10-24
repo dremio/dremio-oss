@@ -1,0 +1,22 @@
+<svg id="job-state/error-solid" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="Icon/Error-Solid" sketch:type="MSArtboardGroup">
+            <g sketch:type="MSLayerGroup">
+                <g id="icon-box-24-copy-10" sketch:type="MSShapeGroup">
+                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                </g>
+                <g id="Stroke-3564-+-Stroke-3565-Copy" transform="translate(11.000000, 8.000000)"></g>
+                <g id="Polygon-1-+-i" transform="translate(5.000000, 4.000000)" sketch:type="MSShapeGroup">
+                    <polygon id="Polygon-1" fill="#DA3030" points="7.00496101 0.0353260413 13.7999611 3.95842116 13.7999611 11.8046114 7.00496101 15.7277065 0.209960938 11.8046114 0.209960938 3.95842116 "></polygon>
+                    <g id="i" transform="translate(7.000000, 8.500000) rotate(-180.000000) translate(-7.000000, -8.500000) translate(6.000000, 4.000000)" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1,8.5 L1,3.5" id="Line"></path>
+                        <path d="M1,1.5 L1,1.5" id="Line-Copy"></path>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

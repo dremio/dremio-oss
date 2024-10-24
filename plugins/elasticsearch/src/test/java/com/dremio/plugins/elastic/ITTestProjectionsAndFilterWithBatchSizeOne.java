@@ -30,8 +30,8 @@ public class ITTestProjectionsAndFilterWithBatchSizeOne extends ITTestProjection
   @Before
   public void loadTable() throws Exception {
     super.loadTable();
-    setSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MIN, "1");
-    setSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, "1");
+    setSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MIN, 1);
+    setSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, 1);
   }
 
   @After

@@ -21,6 +21,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.io.DefaultTemporaryFolderManager;
 import com.dremio.common.io.ExecutorId;
 import com.dremio.common.io.TemporaryFolderManager;
+import com.dremio.common.util.FormattingUtils;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.service.scheduler.Cancellable;
@@ -80,7 +81,7 @@ public class SpillServiceImpl implements SpillService {
   private long spillSweepInterval;
   private long spillSweepThreshold;
 
-  // NB: healthySpillDirs set by a background task, and used by users fo SpillServiceImpl
+  // This is set by a background task, and used by users of SpillServiceImpl
   private volatile ArrayList<String> healthySpillDirs;
   private Cancellable healthCheckTask;
 
@@ -216,32 +217,32 @@ public class SpillServiceImpl implements SpillService {
 
   @Override
   public void makeSpillSubdirs(String id) throws UserException {
-    // TODO: use only the healthy spill directories, once health checks implemented (shortly!).
-    // Reviewer: if you see this code, ask Vanco to fix it!
-    ArrayList<String> healthySpillDirs = this.healthySpillDirs;
-
-    // Create spill directories for each disk.
-    for (String directory : healthySpillDirs) {
+    for (String directory : this.healthySpillDirs) {
       try {
-        // this will not be null
-        final Path tmpPath = monitoredSpillDirectoryMap.get(directory);
+        final Path tmpPath = this.monitoredSpillDirectoryMap.get(directory);
         final Path spillDirPath = new Path(tmpPath, id);
         FileSystem fileSystem = spillDirPath.getFileSystem(getSpillingConfig());
+
         if (!fileSystem.mkdirs(spillDirPath, PERMISSIONS)) {
-          // TODO: withContextParameters()
           throw UserException.dataWriteError()
               .message(
                   "Failed to create directory for spilling. Please check that the spill location is accessible and confirm read, write & execute permissions. "
                       + "If the query was ran on a reflection please ensure that arrow caching on the reflection is disabled when iceberg and unlimited splits are enabled.")
-              .addContext("Spill directory path", directory)
-              .build(logger);
+              .addContext("File system", fileSystem.getScheme())
+              .addContext("Spill subdirectory path", spillDirPath.toString())
+              .addContext(
+                  "Spill subdirectory path exists", String.valueOf(fileSystem.exists(spillDirPath)))
+              .addContext(
+                  "Tmp path space consumed",
+                  FormattingUtils.formatBytes(
+                      fileSystem.getContentSummary(tmpPath).getSpaceConsumed()))
+              .buildSilently();
         }
       } catch (Exception e) {
-        // TODO: withContextParameters()
         throw UserException.dataWriteError(e)
             .message("Failed to create spill directory for id " + id)
             .addContext("Spill directory path", directory)
-            .build(logger);
+            .buildSilently();
       }
     }
   }

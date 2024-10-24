@@ -38,7 +38,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.system.SystemIcebergTableManager;
 import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadata;
-import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
 import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.options.OptionManager;
@@ -87,20 +87,24 @@ public class TestCopyIntoHistoryEventHandler {
     when(catalogService.getCatalog(any())).thenReturn(catalog);
     SystemIcebergTableMetadata jobHistoryMetadata = mock(SystemIcebergTableMetadata.class);
     long schemaVersion = 2L;
+    CopyJobHistoryTableSchemaProvider copyJobHistoryTableSchemaProvider =
+        new CopyJobHistoryTableSchemaProvider(schemaVersion);
+    CopyFileHistoryTableSchemaProvider copyFileHistoryTableSchemaProvider =
+        new CopyFileHistoryTableSchemaProvider(schemaVersion);
     when(jobHistoryMetadata.getIcebergSchema())
-        .thenReturn(CopyJobHistoryTableSchemaProvider.getSchema(schemaVersion));
+        .thenReturn(copyJobHistoryTableSchemaProvider.getSchema());
     when(jobHistoryMetadata.getPartitionSpec())
-        .thenReturn(CopyJobHistoryTableSchemaProvider.getPartitionSpec(schemaVersion));
+        .thenReturn(copyJobHistoryTableSchemaProvider.getPartitionSpec());
     SystemIcebergTableMetadata fileHistoryMetadata = mock(SystemIcebergTableMetadata.class);
     when(fileHistoryMetadata.getIcebergSchema())
-        .thenReturn(CopyFileHistoryTableSchemaProvider.getSchema(schemaVersion));
+        .thenReturn(copyFileHistoryTableSchemaProvider.getSchema());
     when(fileHistoryMetadata.getPartitionSpec())
-        .thenReturn(CopyFileHistoryTableSchemaProvider.getPartitionSpec(schemaVersion));
+        .thenReturn(copyFileHistoryTableSchemaProvider.getPartitionSpec());
     when(plugin.getTableMetadata(
-            ImmutableList.of(SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME)))
+            ImmutableList.of(SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName())))
         .thenReturn(jobHistoryMetadata);
     when(plugin.getTableMetadata(
-            ImmutableList.of(SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME)))
+            ImmutableList.of(SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName())))
         .thenReturn(fileHistoryMetadata);
     when(plugin.getTable((String) null)).thenReturn(mock(Table.class));
     when(context.getOptions()).thenReturn(optionManager);

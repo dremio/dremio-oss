@@ -19,10 +19,10 @@ import { useSelector } from "react-redux";
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import { useCanSearchRolesAndUsers } from "../../privileges-page-utils";
 import { useResourceSnapshot } from "smart-resource/react";
-import { RolesResource } from "@app/exports/resources/RolesResource";
-import { UsersResource } from "@app/exports/resources/UsersResource";
+import { RolesResource } from "#oss/exports/resources/RolesResource";
+import { UsersResource } from "#oss/exports/resources/UsersResource";
 import { Avatar } from "dremio-ui-lib/components";
-import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+import { nameToInitials } from "#oss/exports/utilities/nameToInitials";
 
 import * as classes from "./SelectOwnership.module.less";
 

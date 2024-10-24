@@ -33,29 +33,29 @@ import socket, {
   WS_MESSAGE_JOB_RECORDS,
   WS_CONNECTION_OPEN,
 } from "@inject/utils/socket";
-import { getExplorePageLocationChangePredicate } from "@app/sagas/utils";
+import { getExplorePageLocationChangePredicate } from "#oss/sagas/utils";
 import {
   getTableDataRaw,
   getCurrentRouteParams,
   getExploreState,
-} from "@app/selectors/explore";
+} from "#oss/selectors/explore";
 import { getLocation } from "selectors/routing";
-import { log } from "@app/utils/logger";
-import { LOGOUT_USER_SUCCESS } from "@app/actions/account";
+import { log } from "#oss/utils/logger";
+import { LOGOUT_USER_SUCCESS } from "#oss/actions/account";
 import {
   resetQueryState,
   setQueryContext,
   setQueryStatuses,
-} from "@app/actions/explore/view";
+} from "#oss/actions/explore/view";
 import {
   fetchJobDetails,
   fetchJobSummary,
-} from "@app/actions/explore/exploreJobs";
+} from "#oss/actions/explore/exploreJobs";
 import { replaceScript } from "dremio-ui-common/sonar/scripts/endpoints/replaceScript.js";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
-import { selectActiveScript } from "@app/components/SQLScripts/sqlScriptsUtils";
-import { extractSelections } from "@app/utils/statements/statementParser";
-import { setQuerySelectionsInStorage } from "@app/sagas/utils/querySelections";
+import { selectActiveScript } from "#oss/components/SQLScripts/sqlScriptsUtils";
+import { extractSelections } from "#oss/utils/statements/statementParser";
+import { setQuerySelectionsInStorage } from "#oss/sagas/utils/querySelections";
 
 const getJobDoneActionFilter = (jobId) => (action) =>
   (action.type === WS_MESSAGE_JOB_PROGRESS ||

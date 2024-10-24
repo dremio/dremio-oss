@@ -44,6 +44,8 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,7 +56,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import net.minidev.json.JSONObject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -225,7 +226,10 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
           if (connectionConf.projectId != null) {
             connectionCreds.put("project_id", connectionConf.projectId);
           }
-          JSONObject connectionCredsJson = new JSONObject(connectionCreds.build());
+          JsonObject connectionCredsJson = new JsonObject();
+          for (Map.Entry<String, String> entry : connectionCreds.build().entrySet()) {
+            connectionCredsJson.add(entry.getKey(), new JsonPrimitive(entry.getValue()));
+          }
           InputStream is = new ByteArrayInputStream(connectionCredsJson.toString().getBytes());
           return GoogleCredentials.fromStream(is);
 

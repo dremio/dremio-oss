@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { useRef, useState, useEffect } from "react";
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import LinkWithRef from "#oss/components/LinkWithRef/LinkWithRef";
 //@ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 import * as classes from "./BreadcrumbLink.module.less";

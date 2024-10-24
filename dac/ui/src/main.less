@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/mixins.less";
-@import "~@app/uiTheme/less/reset.less";
-@import "~@app/uiTheme/less/fields.less";
+@import "~#oss/uiTheme/less/mixins.less";
+@import "~#oss/uiTheme/less/reset.less";
+@import "~#oss/uiTheme/less/fields.less";
 
 @body-bg: var(--fill--primary);
 @font-size-base: 14px;
@@ -337,12 +337,15 @@
     color: var(--text--disabled) !important;
     opacity: 0.7;
     cursor: not-allowed;
+    dremio-icon {
+      color: var(--icon--disabled) !important;
+    }
   }
   .no--pointer--events {
     pointer-events: none;
   }
   .message-content a {
-    color: #333;
+    color: var(--text--primary);
     text-decoration: underline;
   }
   button:not([disabled]) {

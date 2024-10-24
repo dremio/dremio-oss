@@ -61,13 +61,13 @@ export function wrapUnsavedChangesWithWrappedForm(WrappedFormController) {
       const { route, routes, router } = this.props;
       router.setRouteLeaveHook(
         route || this.getLastRoute(routes),
-        this.routeWillLeave
+        this.routeWillLeave,
       );
     }
 
     leaveConfirmed(nextLocation) {
       this.setState({ ignoreUnsavedChanges: true }, () =>
-        this.props.router.push(nextLocation)
+        this.props.router.push(nextLocation),
       );
     }
 
@@ -147,6 +147,6 @@ export function wrapUnsavedChangesWithForm(FormController) {
 
 export default function FormUnsavedRouteLeave(FormController) {
   return connect(null, { showUnsavedChangesConfirmDialog })(
-    wrapUnsavedChangesWithForm(FormController)
+    wrapUnsavedChangesWithForm(FormController),
   );
 }

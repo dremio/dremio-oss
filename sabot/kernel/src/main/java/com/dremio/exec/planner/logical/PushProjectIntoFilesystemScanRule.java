@@ -34,13 +34,17 @@ import org.apache.calcite.tools.RelBuilder;
 /** This Rule Pushes a project past filesystem scan while maintaining partition column info */
 public class PushProjectIntoFilesystemScanRule extends RelOptRule {
 
-  public static final RelOptRule INSTANCE = new PushProjectIntoFilesystemScanRule();
+  public static final RelOptRule INSTANCE = new PushProjectIntoFilesystemScanRule(true);
+  public static final RelOptRule PUSH_ONLY_FIELD_ACCESS_INSTANCE =
+      new PushProjectIntoFilesystemScanRule(false);
+  private final boolean pushItemOperator;
 
-  private PushProjectIntoFilesystemScanRule() {
+  private PushProjectIntoFilesystemScanRule(boolean pushItemOperator) {
     super(
         RelOptHelper.some(ProjectRel.class, RelOptHelper.any(FilesystemScanDrel.class)),
         DremioRelFactories.LOGICAL_BUILDER,
         "PushProjectIntoFilesystemScanRule");
+    this.pushItemOperator = pushItemOperator;
   }
 
   @Override
@@ -55,7 +59,7 @@ public class PushProjectIntoFilesystemScanRule extends RelOptRule {
                     .stream())
             .collect(ImmutableList.toImmutableList());
 
-    ProjectPushInfo columnInfo = PrelUtil.getColumns(scan.getRowType(), projects);
+    ProjectPushInfo columnInfo = PrelUtil.getColumns(scan.getRowType(), projects, pushItemOperator);
 
     // get TableBase, either wrapped in RelOptTable, or TranslatableTable. TableBase table =
     // scan.getTable().unwrap(TableBase.class);

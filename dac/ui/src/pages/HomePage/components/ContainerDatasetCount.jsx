@@ -17,7 +17,7 @@ import { Component } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import { Tooltip } from "dremio-ui-lib";
-import { getDatasetCountStats } from "@app/selectors/home";
+import { getDatasetCountStats } from "#oss/selectors/home";
 
 const mapStateToProps = (state, { entityId }) => ({
   ...getDatasetCountStats(state, entityId),

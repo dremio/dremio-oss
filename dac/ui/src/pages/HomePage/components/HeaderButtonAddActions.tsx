@@ -20,7 +20,7 @@ import config from "dyn-load/utils/config";
 import { SHOW_ADD_FOLDER } from "@inject/pages/HomePage/components/HeaderButtonConstants";
 import { SHOW_ADD_FILE } from "@inject/pages/HomePage/components/HeaderButtonConstants";
 import { HANDLE_THROUGH_API } from "@inject/pages/HomePage/components/HeaderButtonConstants";
-import MenuItem from "@app/components/Menus/MenuItem";
+import MenuItem from "#oss/components/Menus/MenuItem";
 
 import * as classes from "./HeaderButtonAddActions.module.less";
 

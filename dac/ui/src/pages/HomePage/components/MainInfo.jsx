@@ -23,43 +23,47 @@ import { injectIntl } from "react-intl";
 import urlParse from "url-parse";
 
 import MainInfoMixin from "@inject/pages/HomePage/components/MainInfoMixin";
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
-import { loadWiki } from "@app/actions/home";
+import LinkWithRef from "#oss/components/LinkWithRef/LinkWithRef";
+import { loadWiki } from "#oss/actions/home";
 import DatasetMenu from "components/Menus/HomePage/DatasetMenu";
 import FolderMenu from "components/Menus/HomePage/FolderMenu";
 
 import BreadCrumbs, { formatFullPath } from "components/BreadCrumbs";
 import { getRootEntityType } from "utils/pathUtils";
-import SettingsBtn from "components/Buttons/SettingsBtn";
-import { ENTITY_TYPES } from "@app/constants/Constants";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 import { IconButton } from "dremio-ui-lib/components";
 
-import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
-import { NEW_DATASET_NAVIGATION } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import {
+  ARCTIC,
+  isVersionedSoftwareSource,
+} from "@inject/constants/sourceTypes";
+import { NEW_DATASET_NAVIGATION } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 import { HeaderButtons } from "@inject/pages/HomePage/components/HeaderButtons";
 import MainInfoItemNameAndTag from "./MainInfoItemNameAndTag";
 import SourceBranchPicker from "./SourceBranchPicker/SourceBranchPicker";
-import { getSortedSources } from "@app/selectors/home";
-import { getSourceByName } from "@app/utils/nessieUtils";
-import ProjectHistoryButton from "@app/exports/pages/VersionedHomePage/components/ProjectHistoryButton/ProjectHistoryButton";
-import { selectState } from "@app/selectors/nessie/nessie";
-import { constructVersionedEntityUrl } from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
-import { isVersionedSource as checkIsVersionedSource } from "@app/utils/sourceUtils";
+import { getSortedSources } from "#oss/selectors/home";
+import { getSourceByName } from "#oss/utils/nessieUtils";
+import ProjectHistoryButton from "#oss/exports/pages/VersionedHomePage/components/ProjectHistoryButton/ProjectHistoryButton";
+import { selectState } from "#oss/selectors/nessie/nessie";
+import { constructVersionedEntityUrl } from "#oss/exports/pages/VersionedHomePage/versioned-page-utils";
+import { isVersionedSource as checkIsVersionedSource } from "@inject/utils/sourceUtils";
 import { fetchSupportFlagsDispatch } from "@inject/actions/supportFlags";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { compose } from "redux";
 import { withCatalogARSFlag } from "@inject/utils/arsUtils";
 import CatalogListingView from "./CatalogListingView/CatalogListingView";
-import EllipsedText from "@app/components/EllipsedText";
+import EllipsedText from "#oss/components/EllipsedText";
 import {
   catalogListingColumns,
   CATALOG_LISTING_COLUMNS,
 } from "dremio-ui-common/sonar/components/CatalogListingTable/catalogListingColumns.js";
-import { getCatalogData } from "@app/utils/catalog-listing-utils";
-import { intl } from "@app/utils/intl";
+import { getCatalogData } from "#oss/utils/catalog-listing-utils";
+import { intl } from "#oss/utils/intl";
 import CatalogDetailsPanel from "./CatalogDetailsPanel/CatalogDetailsPanel";
-import Message from "@app/components/Message";
+import Message from "#oss/components/Message";
+import SettingsPopover from "#oss/components/Buttons/SettingsPopover";
+import { withEntityProps } from "dyn-load/utils/entity-utils";
 
 import { panelIcon } from "./BrowseTable.less";
 
@@ -299,13 +303,15 @@ export class MainInfoView extends Component {
           </IconButton>
         )),
       this.getSettingsBtnByType(
-        <DatasetMenu
-          entity={item}
-          entityType={entityType}
-          openWikiDrawer={(dataset) => this.openDetailsPanel(dataset, true)}
-        />,
+        (closeMenu) => (
+          <DatasetMenu
+            entity={item}
+            entityType={entityType}
+            openWikiDrawer={(dataset) => this.openDetailsPanel(dataset, true)}
+            closeMenu={() => closeMenu.close()}
+          />
+        ),
         item,
-        idx,
       ),
     ];
   }
@@ -341,15 +347,14 @@ export class MainInfoView extends Component {
 
   getSettingsBtnByType(menu, item, idx) {
     return (
-      <SettingsBtn
+      <SettingsPopover
         dataQa={item.get("name")}
-        menu={menu}
-        classStr="main-settings-btn min-btn catalog-btn"
+        content={menu}
         key={`${item.get("name")}-${item.get("id")}`}
         hideArrowIcon
       >
         {this.getInlineIcon("interface/more")}
-      </SettingsBtn>
+      </SettingsPopover>
     );
   }
 
@@ -434,18 +439,18 @@ export class MainInfoView extends Component {
     this.props.updateRightTreeVisibility(!this.props.rightTreeVisible);
   };
 
-  isNessie = () => {
-    const { source, entity } = this.props;
-    return entity && source && source.get("type") === NESSIE;
-  };
-
   isArctic = () => {
     const { source, entity } = this.props;
     return entity && source && source.get("type") === ARCTIC;
   };
 
+  isSoftwareSourceVersioned = () => {
+    const { source, entity } = this.props;
+    return entity && source && isVersionedSoftwareSource(source.get("type"));
+  };
+
   isNeitherNessieOrArctic = () => {
-    return !this.isNessie() && !this.isArctic();
+    return !this.isSoftwareSourceVersioned() && !this.isArctic();
   };
 
   constructVersionSourceLink = () => {
@@ -550,6 +555,7 @@ export class MainInfoView extends Component {
       entity,
       viewState,
       isVersionedSource,
+      sourceType,
       rootEntityType,
     } = this.props;
     const { datasetDetails, isDetailsPanelShown } = this.state;
@@ -583,6 +589,7 @@ export class MainInfoView extends Component {
           rightTreeVisible={this.props.rightTreeVisible}
           toggleVisibility={this.toggleRightTree}
           canUploadFile={canUploadFile}
+          sourceType={sourceType}
           isVersionedSource={isVersionedSource}
         />
         {this.renderDatasetDetailsIcon()}
@@ -610,24 +617,27 @@ export class MainInfoView extends Component {
             rowCount={sortedData.size}
             onColumnsSorted={this.onColumnsSorted}
             title={
-              <h3
-                style={{
-                  minWidth: !this.renderTitleExtraContent() ? 80 : 150,
-                  height: 32,
-                }}
-              >
-                <EllipsedText>
-                  {entity && (
-                    <BreadCrumbs
-                      fullPath={entity.get("fullPathList")}
-                      pathname={pathname}
-                      showCopyButton
-                      includeQuotes
-                      extraContent={this.renderTitleExtraContent()}
-                    />
-                  )}
-                </EllipsedText>
-              </h3>
+              <>
+                {this.renderEntityIcon()}
+                <h3
+                  style={{
+                    minWidth: !this.renderTitleExtraContent() ? 80 : 150,
+                    height: 32,
+                  }}
+                >
+                  <EllipsedText>
+                    {entity && (
+                      <BreadCrumbs
+                        fullPath={entity.get("fullPathList")}
+                        pathname={pathname}
+                        showCopyButton
+                        includeQuotes
+                        extraContent={this.renderTitleExtraContent()}
+                      />
+                    )}
+                  </EllipsedText>
+                </h3>
+              </>
             }
             rightHeaderButtons={buttons}
             leftHeaderButtons={this.renderExternalLink()}
@@ -698,6 +708,7 @@ function mapStateToProps(state, props) {
 }
 
 export default compose(
+  withEntityProps,
   withCatalogARSFlag,
   connect(mapStateToProps, (dispatch) => ({
     fetchWiki: loadWiki(dispatch),

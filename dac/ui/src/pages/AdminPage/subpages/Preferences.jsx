@@ -18,13 +18,13 @@ import { useState, useEffect } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import SettingHeader from "@app/components/SettingHeader";
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
-import Toggle from "@app/components/Fields/Toggle";
-import { fetchSupportFlags, saveSupportFlag } from "@app/actions/supportFlags";
+import SettingHeader from "#oss/components/SettingHeader";
+import ViewStateWrapper from "#oss/components/ViewStateWrapper";
+import Toggle from "#oss/components/Fields/Toggle";
+import { fetchSupportFlags, saveSupportFlag } from "#oss/actions/supportFlags";
 import { FormattedMessage } from "react-intl";
 import { getViewState } from "selectors/resources";
-import { getSupportFlags } from "@app/selectors/supportFlags";
+import { getSupportFlags } from "#oss/selectors/supportFlags";
 import authorize from "@inject/containers/authorize";
 import config from "@inject/utils/config";
 import { isEnterprise, isCommunity } from "dyn-load/utils/versionUtils";
@@ -32,8 +32,8 @@ import { compose } from "redux";
 import {
   ALLOW_DOWNLOAD,
   NEW_DATASET_NAVIGATION,
-} from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+} from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
 
 import "./Preferences.less";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
@@ -52,15 +52,15 @@ const Preferences = (props) => {
   const viewStateWithoutError = viewState.set("isFailed", false);
 
   const [isAutocompleteEnabled, setAutocompleteIsEnabled] = useState(
-    supportFlags?.["ui.autocomplete.allow"] || config.autoComplete
+    supportFlags?.["ui.autocomplete.allow"] || config.autoComplete,
   );
 
   const [isDownloadEnabled, setDownloadIsEnabled] = useState(
-    supportFlags?.[ALLOW_DOWNLOAD] || config.allowDownload
+    supportFlags?.[ALLOW_DOWNLOAD] || config.allowDownload,
   );
 
   const [isQueryDatasetEnabled, setIsQueryDatasetEnabled] = useState(
-    supportFlags?.[NEW_DATASET_NAVIGATION] || config.useNewDatasetNavigation
+    supportFlags?.[NEW_DATASET_NAVIGATION] || config.useNewDatasetNavigation,
   );
 
   useEffect(() => {
@@ -235,5 +235,5 @@ Preferences.propTypes = {
 
 export default compose(
   authorize("Preferences"),
-  connect(mapStateToProps, mapDispatchToProps)
+  connect(mapStateToProps, mapDispatchToProps),
 )(Preferences);

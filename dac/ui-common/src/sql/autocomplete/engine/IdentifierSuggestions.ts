@@ -197,11 +197,10 @@ export class IdentifierSuggestions {
         );
     columns = possibleTables
       .map((table: Table): [Column[], Table] => [
-        table.columns.filter(
-          (column) =>
-            getColumnName(column, table)
-              ?.toLocaleLowerCase()
-              .startsWith(this.identifierInfo.prefix.toLocaleLowerCase()),
+        table.columns.filter((column) =>
+          getColumnName(column, table)
+            ?.toLocaleLowerCase()
+            .startsWith(this.identifierInfo.prefix.toLocaleLowerCase()),
         ),
         table,
       ])
@@ -209,11 +208,10 @@ export class IdentifierSuggestions {
     if (compoundAllowed && !relationName) {
       // Since we're not already qualified with a table name, we should suggest table names/aliases if possible here
       // compoundAllowed == false in some cases e.g. SET MASKING POLICY funcName (^) <-- non-qualified column names only
-      tables = queryPlan.tables.filter(
-        (table: Table) =>
-          getTableName(table)
-            ?.toLocaleLowerCase()
-            .startsWith(this.identifierInfo.prefix.toLocaleLowerCase()),
+      tables = queryPlan.tables.filter((table: Table) =>
+        getTableName(table)
+          ?.toLocaleLowerCase()
+          .startsWith(this.identifierInfo.prefix.toLocaleLowerCase()),
       );
     }
     return { columns, tables };

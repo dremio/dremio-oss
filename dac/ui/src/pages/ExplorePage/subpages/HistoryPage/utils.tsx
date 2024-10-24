@@ -19,7 +19,7 @@ import { PageTypes } from "../../pageTypes";
 // Returns ["sourceName", "dot.separated.namespace"]
 export function getTableAndNamespace(
   pathname: string,
-  pageType = PageTypes.history
+  pageType = PageTypes.history,
 ) {
   return pathname
     .replace("/source/", "")

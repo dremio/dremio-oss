@@ -14,3 +14,62 @@
   animation-duration: 500ms;
   animation-iteration-count: infinite;
 }
+
+@keyframes opacity-full {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-fade-in {
+  animation-name: opacity-full;
+  animation-duration: 60ms;
+  animation-fill-mode: both;
+  animation-timing-function: ease-in;
+}
+
+.transition-fade-in-out-delayed {
+  opacity: 0;
+  transition-timing-function: ease;
+  transition-property: opacity;
+
+  &-enter-active,
+  &-appear-active {
+    transition-delay: 120ms;
+    transition-timing-function: cubic-bezier(0.64, 0, 0.78, 0);
+  }
+
+  &-exit-active {
+    transition-duration: 60ms;
+  }
+
+  &-enter-active {
+    transition-duration: 240ms;
+  }
+
+  &-enter,
+  &-appear {
+    opacity: 0;
+  }
+
+  &-enter-active,
+  &-appear-active,
+  &-appear-done,
+  &-enter-done {
+    opacity: 1;
+  }
+
+  &-exit {
+    opacity: 1;
+  }
+
+  &-exit-active {
+    opacity: 0;
+  }
+}
+
+.animate-icon-rotate {
+  transition: transform 50ms;
+}

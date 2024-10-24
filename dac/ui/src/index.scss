@@ -29,10 +29,6 @@
     @include variables.dark;
     color-scheme: dark;
   }
-  @media (prefers-contrast: more) {
-    @include variables.high_contrast_light;
-    color-scheme: light;
-  }
 }
 
 .dremio-light {
@@ -45,15 +41,58 @@
   color-scheme: dark;
 }
 
-.dremio-high-contrast-light {
-  @include variables.high_contrast_light;
-  color-scheme: light;
+// Don't display the #page-top div if no children are rendered
+#page-top:empty {
+  display: none;
 }
 
 .treeNode {
   @for $i from 0 through 10 {
     &[aria-level="#{$i}"] {
       padding-left: #{$i * 12}px;
+    }
+  }
+}
+
+.tree {
+  display: flex;
+  flex-direction: column;
+
+  &__children {
+    margin-inline-start: 0.5em;
+  }
+
+  [role="treeitem"] {
+    content-visibility: auto;
+
+    contain-intrinsic-size: auto 2.285em;
+    min-height: 2.285em;
+
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    flex-direction: row;
+    user-select: none;
+
+    transition: background 100ms;
+
+    .catalog-treeitem__actions {
+      display: none;
+    }
+
+    &:hover {
+      background: var(--bg--hovered, inherit);
+      color: var(--text--hovered, inherit);
+
+      .catalog-treeitem__actions {
+        display: flex;
+      }
+    }
+  }
+
+  @for $i from 0 through 10 {
+    [aria-level="#{$i}"] {
+      margin-inline-start: #{$i * 12}px;
     }
   }
 }

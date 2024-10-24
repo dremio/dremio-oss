@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { intl } from "@app/utils/intl";
-import LoadingBar from "@app/components/LoadingBar/LoadingBar";
-import ColumnMenuItem from "@app/components/DragComponents/ColumnMenuItem";
+import { intl } from "#oss/utils/intl";
+import { Skeleton } from "dremio-ui-lib/components";
+import ColumnMenuItem from "#oss/components/DragComponents/ColumnMenuItem";
 import * as classes from "./SummaryColumns.module.less";
 
 type SummaryColumnsProps = {
@@ -59,11 +59,7 @@ const SummaryColumns = ({
                 );
               })
             ) : (
-              <LoadingBar
-                width={144}
-                height={12}
-                className={classes["summary-column-loader"]}
-              />
+              <Skeleton width="20ch" className="ml-2" />
             )}
           </div>
         </div>

@@ -18,16 +18,16 @@ import { connect } from "react-redux";
 import {
   fetchDefaultReferenceIfNeeded as fetchDefaultReferenceAction,
   fetchBranchReference,
-} from "@app/actions/nessie/nessie";
+} from "#oss/actions/nessie/nessie";
 // @ts-ignore
 import { fetchFeatureFlag } from "@inject/actions/featureFlag";
-import { NessieRootState } from "@app/types/nessie";
-import { ViewStateWrapper } from "@app/components/ViewStateWrapper";
+import { NessieRootState } from "#oss/types/nessie";
+import { ViewStateWrapper } from "#oss/components/ViewStateWrapper";
 import {
   createNessieContext,
   NessieContext as NessieContext,
 } from "./utils/context";
-import { Branch } from "@app/services/nessie/client";
+import { Branch } from "#oss/services/nessie/client";
 
 type NessieHomePageProps = {
   children: any;

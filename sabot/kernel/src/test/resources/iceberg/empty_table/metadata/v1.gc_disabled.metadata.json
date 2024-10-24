@@ -25,7 +25,7 @@
     "fields" : [ ]
   } ],
   "properties" : {
-    "gc.enabled" : "false"
+    "nessie.gc.enabled" : "false"
   },
   "current-snapshot-id" : -1,
   "snapshots" : [ ],

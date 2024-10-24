@@ -15,8 +15,8 @@
  */
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
-import DurationBreakdown from "@app/pages/JobPageNew/components/DurationBreakdown";
-import jobsUtils from "@app/utils/jobsUtils";
+import DurationBreakdown from "#oss/pages/JobPageNew/components/DurationBreakdown";
+import jobsUtils from "#oss/utils/jobsUtils";
 import "./TotalExecutionTime.less";
 
 const TotalExecutionTime = ({

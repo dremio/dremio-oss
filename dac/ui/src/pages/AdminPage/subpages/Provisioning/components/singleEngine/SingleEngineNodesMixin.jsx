@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 import Immutable from "immutable";
-import { NODE_COLUMNS_CONFIG } from "@app/constants/provisioningPage/provisioningConstants";
-import { makeContainerPropertyRow } from "@app/pages/AdminPage/subpages/Provisioning/provisioningUtils";
-import { EngineStatusBar } from "@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/EngineStatusBar";
+import { NODE_COLUMNS_CONFIG } from "#oss/constants/provisioningPage/provisioningConstants";
+import { makeContainerPropertyRow } from "#oss/pages/AdminPage/subpages/Provisioning/provisioningUtils";
+import { EngineStatusBar } from "#oss/pages/AdminPage/subpages/Provisioning/components/singleEngine/EngineStatusBar";
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     getColumns() {
       return NODE_COLUMNS_CONFIG;
     },
@@ -41,7 +40,7 @@ export default function (input) {
       const runningRows = getRows("runningList", "Running");
       const disconnectedRows = getRows(
         "disconnectedList",
-        "Provisioning or Disconnected"
+        "Provisioning or Disconnected",
       );
       return disconnectedRows.concat(runningRows);
     },

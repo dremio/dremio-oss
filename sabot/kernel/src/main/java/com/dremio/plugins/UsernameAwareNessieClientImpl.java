@@ -40,6 +40,10 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.model.MergeResponse;
+import org.projectnessie.model.RepositoryConfig;
+import org.projectnessie.model.RepositoryConfig.Type;
+import org.projectnessie.model.RepositoryConfigResponse;
+import org.projectnessie.model.UpdateRepositoryConfigResponse;
 
 /**
  * This class acts as a decorator and resolves the uuid to the corresponding username string. The
@@ -338,6 +342,16 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
   @Override
   public NessieApiV2 getNessieApi() {
     return nessieClient.getNessieApi();
+  }
+
+  @Override
+  public RepositoryConfigResponse getRepositoryConfig(Type type) {
+    return callWithUsernameContext(() -> nessieClient.getRepositoryConfig(type));
+  }
+
+  @Override
+  public UpdateRepositoryConfigResponse updateRepositoryConfig(RepositoryConfig update) {
+    return callWithUsernameContext(() -> nessieClient.updateRepositoryConfig(update));
   }
 
   @Override

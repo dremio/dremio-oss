@@ -53,7 +53,7 @@ describe("jobsUtils", () => {
   describe("getReflectionsByRelationship", () => {
     it("no relationships recorded (failed planning, pre-1.3, etc)", () => {
       expect(
-        jobsUtils.getReflectionsByRelationship(new Immutable.Map())
+        jobsUtils.getReflectionsByRelationship(new Immutable.Map()),
       ).to.be.eql({});
     });
     it("", () => {
@@ -153,14 +153,14 @@ describe("jobsUtils", () => {
     it("should return ~ number with unit P if if bigger 1000 000 000 000 000", () => {
       expect(jobsUtils.getFormattedNumber(1000000000000000)).to.be.eql("1P");
       expect(jobsUtils.getFormattedNumber(672191587726634123)).to.be.eql(
-        "672.2P"
+        "672.2P",
       );
     });
 
     it("should return ~ number with unit E if if bigger 1000 000 000 000 000 000", () => {
       expect(jobsUtils.getFormattedNumber(1000000000000000000)).to.be.eql("1E");
       expect(jobsUtils.getFormattedNumber(772191587726634123000)).to.be.eql(
-        "772.2E"
+        "772.2E",
       );
     });
   });

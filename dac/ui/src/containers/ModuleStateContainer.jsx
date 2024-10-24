@@ -16,8 +16,8 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import { isModuleInitialized } from "@app/reducers";
-import { initModuleState, resetModuleState } from "@app/actions/modulesState";
+import { isModuleInitialized } from "#oss/reducers";
+import { initModuleState, resetModuleState } from "#oss/actions/modulesState";
 
 const mapStateToProps = (state, /* ownProps */ { moduleKey }) => ({
   isStateInitialized: isModuleInitialized(state, moduleKey),
@@ -84,7 +84,7 @@ export class ModuleStateView extends Component {
 
 const ModuleStateContainer = connect(
   mapStateToProps,
-  mapDispatchToProps
+  mapDispatchToProps,
 )(ModuleStateView);
 export const moduleStateHOC = (moduleKey, reducer) => (ComponentToWrap) => {
   return class ModuleStateHOC extends Component {

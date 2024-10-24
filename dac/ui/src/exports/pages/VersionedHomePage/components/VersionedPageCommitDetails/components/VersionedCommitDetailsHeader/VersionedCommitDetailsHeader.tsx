@@ -16,12 +16,12 @@
 
 import { useState } from "react";
 import { useIntl, FormattedMessage } from "react-intl";
-import NewBranchDialog from "@app/pages/NessieHomePage/components/NewBranchDialog/NewBranchDialog";
+import NewBranchDialog from "#oss/pages/NessieHomePage/components/NewBranchDialog/NewBranchDialog";
 import { Button, IconButton } from "dremio-ui-lib/components";
-import { VersionedPageTabsType } from "@app/exports/pages/VersionedHomePage/VersionedHomePage";
-import { Reference } from "@app/types/nessie";
-import CopyButton from "@app/components/Buttons/CopyButton";
-import { CatalogPrivilegeSwitch } from "@app/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
+import { VersionedPageTabsType } from "#oss/exports/pages/VersionedHomePage/VersionedHomePage";
+import { Reference } from "#oss/types/nessie";
+import CopyButton from "#oss/components/Buttons/CopyButton";
+import { CatalogPrivilegeSwitch } from "#oss/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
 
 import * as classes from "./VersionedCommitDetailsHeader.module.less";
 

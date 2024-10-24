@@ -32,7 +32,6 @@ import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
 import com.dremio.datastore.KVAdmin;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.Document;
-import com.dremio.datastore.api.IndexedStore;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyIndexedStore;
@@ -46,11 +45,14 @@ import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.jobs.JobsStoreCreator;
 import com.dremio.service.jobs.cleanup.ExternalCleaner;
 import com.dremio.service.jobs.cleanup.JobsAndDependenciesCleanerImpl;
+import com.dremio.service.jobtelemetry.server.store.LocalProfileKVStoreCreator;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
-import com.dremio.service.jobtelemetry.server.store.LocalProfileStore.KVProfileStoreCreator;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.NamespaceStore;
+import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.PartitionChunkId;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
@@ -250,7 +252,7 @@ public class Clean {
       }
 
       if (options.maxJobDays < Integer.MAX_VALUE) {
-        deleteOldJobsAndProfiles(provider.asLegacy(), options.maxJobDays);
+        deleteOldJobsAndProfiles(provider, options.maxJobDays);
       }
 
       if (options.deleteOrphanProfiles) {
@@ -293,9 +295,9 @@ public class Clean {
 
   /** Offline profile deletion using LocalProfileStore. */
   static class OfflineProfileCleaner extends ExternalCleaner {
-    private final LegacyKVStoreProvider provider;
+    private final KVStoreProvider provider;
 
-    public OfflineProfileCleaner(LegacyKVStoreProvider provider) {
+    public OfflineProfileCleaner(KVStoreProvider provider) {
       this.provider = provider;
     }
 
@@ -346,20 +348,24 @@ public class Clean {
   /**
    * Method to delete jobs and their corresponding profiles older than provided number of maxDays.
    */
-  private static void deleteOldJobsAndProfiles(LegacyKVStoreProvider provider, int maxDays) {
+  private static void deleteOldJobsAndProfiles(LocalKVStoreProvider provider, int maxDays) {
     AdminLogger.log(
         "Deleting jobs details, profiles & dataset versions older {} days... ", maxDays);
     AdminLogger.log(deleteOldJobsAndProfiles(provider, maxDays, TimeUnit.DAYS));
+
+    AdminLogger.log("Deleting all intermediate profiles");
+    AdminLogger.log(LocalProfileStore.deleteAllIntermediateProfiles(provider));
   }
 
   @VisibleForTesting
   protected static String deleteOldJobsAndProfiles(
-      LegacyKVStoreProvider provider, long time, TimeUnit timeUnit) {
+      LocalKVStoreProvider provider, long time, TimeUnit timeUnit) {
     final List<ExternalCleaner> externalCleaners =
         Arrays.asList(
-            new OfflineProfileCleaner(provider), new OfflineTmpDatasetVersionsCleaner(provider));
+            new OfflineProfileCleaner(provider),
+            new OfflineTmpDatasetVersionsCleaner(provider.asLegacy()));
     return JobsAndDependenciesCleanerImpl.deleteOldJobsAndDependencies(
-        externalCleaners, provider, timeUnit.toMillis(time));
+        externalCleaners, provider.asLegacy(), timeUnit.toMillis(time));
   }
 
   /**
@@ -370,7 +376,7 @@ public class Clean {
     AdminLogger.log("Deleting orphan profiles... ");
     long profilesDeleted = 0;
     final LegacyKVStore<AttemptId, QueryProfile> legacyProfileStore =
-        provider.getStore(KVProfileStoreCreator.class);
+        provider.getStore(LocalProfileKVStoreCreator.KVProfileStoreCreator.class);
     final LegacyIndexedStore<JobId, JobResult> legacyJobStore =
         provider.getStore(JobsStoreCreator.class);
 
@@ -392,7 +398,10 @@ public class Clean {
       LegacyKVStoreProvider legacyKVStoreProvider, KVStoreProvider kvStoreProvider) {
     AdminLogger.log("Deleting split orphans... ");
     NamespaceServiceImpl service =
-        new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
+        new NamespaceServiceImpl(
+            kvStoreProvider,
+            new CatalogStatusEventsImpl(),
+            getCatalogEventMessagePublisherProvider());
     AdminLogger.log(
         "Completed. Deleted {} orphans.",
         service.deleteSplitOrphans(
@@ -415,7 +424,10 @@ public class Clean {
 
     int deleted = 0;
     NamespaceServiceImpl service =
-        new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
+        new NamespaceServiceImpl(
+            kvStoreProvider,
+            new CatalogStatusEventsImpl(),
+            getCatalogEventMessagePublisherProvider());
     Set<String> rootPaths = new HashSet<>();
     List<SourceConfig> sourceConfigs = service.getSources();
     for (SourceConfig s : sourceConfigs) {
@@ -430,8 +442,7 @@ public class Clean {
       rootPaths.add(HomeName.getUserHomePath(h.getOwner()).getName());
     }
 
-    IndexedStore<String, NameSpaceContainer> namespace =
-        kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+    NamespaceStore namespace = new NamespaceStore(() -> kvStoreProvider);
 
     for (Document<String, NameSpaceContainer> entry : namespace.find()) {
       NameSpaceContainer container = entry.getValue();
@@ -439,7 +450,7 @@ public class Clean {
         DatasetConfig dataset = container.getDataset();
         List<String> fullPath = dataset.getFullPathList();
         if (fullPath.size() > 1 && !rootPaths.contains(fullPath.get(0))) {
-          namespace.delete(entry.getKey());
+          namespace.delete(NamespaceUtils.getKey(entry.getValue()));
           deleted++;
         }
       }
@@ -473,5 +484,11 @@ public class Clean {
     long deleted =
         DatasetVersionMutator.deleteOrphans(optionManagerProvider, datasetStore, daysThreshold);
     AdminLogger.log("Completed. Deleted {} orphan dataset versions.", deleted);
+  }
+
+  private static CatalogEventMessagePublisherProvider getCatalogEventMessagePublisherProvider() {
+    // No-op implementation as no catalog event messages should be published for offline clean
+    // operations
+    return CatalogEventMessagePublisherProvider.NO_OP;
   }
 }

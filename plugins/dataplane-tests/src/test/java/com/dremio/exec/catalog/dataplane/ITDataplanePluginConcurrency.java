@@ -18,17 +18,22 @@ package com.dremio.exec.catalog.dataplane;
 import static com.dremio.exec.catalog.dataplane.ITDataplanePluginConcurrency.Operation.ALTER_TABLE_COLUMN;
 import static com.dremio.exec.catalog.dataplane.ITDataplanePluginConcurrency.Operation.CREATE_EMPTY_TABLE;
 import static com.dremio.exec.catalog.dataplane.ITDataplanePluginConcurrency.Operation.CREATE_FOLDER;
+import static com.dremio.exec.catalog.dataplane.ITDataplanePluginConcurrency.Operation.CREATE_FUNCTION;
 import static com.dremio.exec.catalog.dataplane.ITDataplanePluginConcurrency.Operation.CREATE_VIEW;
 import static com.dremio.exec.catalog.dataplane.ITDataplanePluginConcurrency.Operation.INSERT;
 import static com.dremio.exec.catalog.dataplane.ITDataplanePluginConcurrency.Operation.REPLACE_VIEW;
+import static com.dremio.exec.catalog.dataplane.ITDataplanePluginConcurrency.Operation.UPDATE_FUNCTION;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_BRANCH_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.alterTableChangeColumnQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createEmptyTableQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createFolderQuery;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createOrReplaceUdfQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createReplaceViewQuery;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createUdfQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createViewQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.dropTableQuery;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueFunctionName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTableName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueViewName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.insertTableQuery;
@@ -36,10 +41,13 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tableP
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tablePathWithFolders;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertIcebergTableExistsAtSubPath;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasCommitForTable;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasFunction;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasTable;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasView;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.getSubPathFromNessieTableContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,12 +69,12 @@ public class ITDataplanePluginConcurrency extends ITDataplanePluginTestSetup {
     CREATE_VIEW,
     CREATE_FOLDER,
     ALTER_TABLE_COLUMN,
-    REPLACE_VIEW
+    REPLACE_VIEW,
+    CREATE_FUNCTION,
+    UPDATE_FUNCTION
   }
 
   static class QueryOperationThread extends Thread {
-    private final String threadName;
-
     private final List<List<String>> tablePaths;
     private final List<List<String>> viewPaths;
     private final CountDownLatch latch;
@@ -84,7 +92,6 @@ public class ITDataplanePluginConcurrency extends ITDataplanePluginTestSetup {
         int totalRows,
         AtomicBoolean isExceptionFound,
         Set<Operation> operations) {
-      this.threadName = threadName;
       this.tablePaths = tablePaths;
       this.viewPaths = viewPaths;
       this.latch = latch;
@@ -141,6 +148,12 @@ public class ITDataplanePluginConcurrency extends ITDataplanePluginTestSetup {
           }
           if (operations.contains(CREATE_FOLDER)) {
             runSQL(createFolderQuery(DATAPLANE_PLUGIN_NAME, tablePaths.get(index).subList(0, 2)));
+          }
+          if (operations.contains(CREATE_FUNCTION)) {
+            runSQL(createUdfQuery(tablePaths.get(index)));
+          }
+          if (operations.contains(UPDATE_FUNCTION)) {
+            runSQL(createOrReplaceUdfQuery(tablePaths.get(index)));
           }
         }
       } catch (Exception e) {
@@ -391,6 +404,50 @@ public class ITDataplanePluginConcurrency extends ITDataplanePluginTestSetup {
     assertNessieHasCommitForTable(
         tablePath, org.projectnessie.model.Operation.Put.class, DEFAULT_BRANCH_NAME, this);
     assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), this);
+  }
+
+  @Test
+  public void createUdfsWithSameKeyConcurrently() throws Exception {
+    withSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED, true);
+    // Arrange
+    final String functionName = generateUniqueFunctionName();
+    List<String> functionKey = tablePathWithFolders(functionName);
+    // Act
+    int numberOfThreads = 3;
+    ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads);
+    CountDownLatch latch = new CountDownLatch(numberOfThreads);
+    final AtomicBoolean isException = new AtomicBoolean(false);
+    final Set<Operation> firstOp = new HashSet<>();
+    firstOp.add(CREATE_FUNCTION);
+
+    for (int i = 0; i < numberOfThreads; i++) {
+      final int index = i;
+      executor.execute(
+          () -> {
+            String threadName =
+                String.format(
+                    "operation: " + ((Operation) firstOp.toArray()[0]).name() + "-nessie-thread-%d",
+                    index);
+            new QueryOperationThread(
+                    threadName,
+                    Collections.singletonList(functionKey),
+                    0,
+                    latch,
+                    1,
+                    isException,
+                    firstOp)
+                .start();
+          });
+    }
+    executor.shutdown();
+
+    // wait for the latch to be decremented to 0 by the 3 threads
+    latch.await();
+
+    // Assert
+    assertNessieHasFunction(functionKey, DEFAULT_BRANCH_NAME, this);
+    assertThat(isException.get()).isTrue();
   }
 }

@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 
-import { MAP } from "@app/constants/DataTypes";
+import { MAP } from "#oss/constants/DataTypes";
 import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
 import SqlGroup from "./SqlGroup";
 
@@ -46,8 +46,8 @@ describe("SqlGroup", () => {
     const wrapper = shallow(<SqlGroup {...commonProps} columnType={MAP} />);
     expect(
       wrapper.containsMatchingElement(
-        <ColumnMenuItem title="Calculated Field…" />
-      )
+        <ColumnMenuItem title="Calculated Field…" />,
+      ),
     ).to.be.true;
   });
 });

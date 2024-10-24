@@ -20,7 +20,6 @@ import static com.dremio.plugins.elastic.ElasticsearchType.FLOAT;
 import static com.dremio.plugins.elastic.ElasticsearchType.INTEGER;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
-import com.dremio.exec.proto.UserBitShared;
 import org.junit.Test;
 
 public class ITTestPhysicalPlan extends ElasticBaseTestQuery {
@@ -68,22 +67,22 @@ public class ITTestPhysicalPlan extends ElasticBaseTestQuery {
             + schema
             + "."
             + table;
-    testRunAndPrint(UserBitShared.QueryType.SQL, sqlQuery);
+    testSql(sqlQuery);
     sqlQuery = "select state, city, review_count from elasticsearch." + schema + "." + table + "";
-    testRunAndPrint(UserBitShared.QueryType.SQL, sqlQuery);
+    testSql(sqlQuery);
 
     // sqlQuery = "select sum(distinct(review_count)) from elasticsearch." + schema + "." + table +
     // " group by full_address";
-    // testRunAndPrint(UserBitShared.QueryType.SQL, sqlQuery);
+    // testSql(sqlQuery);
     /*
         String sqlQuery = "select sum(review_count) from elasticsearch." + schema + "." + table + " where stars >= 4 or review_count < 100";
-        testRunAndPrint(UserBitShared.QueryType.SQL, sqlQuery);
+        testSql(sqlQuery);
         sqlQuery = "select sum(review_count) from elasticsearch." + schema + "." + table + " where stars >= 4 and review_count < 100";
-        testRunAndPrint(UserBitShared.QueryType.SQL, sqlQuery);
+        testSql(sqlQuery);
         sqlQuery = "select sum(review_count) from elasticsearch." + schema + "." + table + " where (stars >= 4 and review_count < 100) or review_count >= 100";
-        testRunAndPrint(UserBitShared.QueryType.SQL, sqlQuery);
+        testSql(sqlQuery);
         sqlQuery = "select sum(review_count) from elasticsearch." + schema + "." + table + " where (stars >= 4 and review_count < 100) or business_id = '12345'";
-        testRunAndPrint(UserBitShared.QueryType.SQL, sqlQuery);
+        testSql(sqlQuery);
     */
   }
 }

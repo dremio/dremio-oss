@@ -142,7 +142,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
 
     Reflection response =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH))
+            getBuilder(getHttpClient().getAPIv3().path(REFLECTIONS_PATH))
                 .buildPost(Entity.entity(newReflection, JSON)),
             Reflection.class);
 
@@ -173,13 +173,14 @@ public class TestReflectionResource extends AccelerationTestUtil {
     Reflection newReflection = createReflection();
     Reflection response =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH))
+            getBuilder(getHttpClient().getAPIv3().path(REFLECTIONS_PATH))
                 .buildPost(Entity.entity(newReflection, JSON)),
             Reflection.class);
 
     Reflection response2 =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(response.getId())).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(REFLECTIONS_PATH).path(response.getId()))
+                .buildGet(),
             Reflection.class);
 
     assertEquals(response2.getId(), response.getId());
@@ -203,7 +204,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
     Reflection newReflection = createReflection();
     Reflection response =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH))
+            getBuilder(getHttpClient().getAPIv3().path(REFLECTIONS_PATH))
                 .buildPost(Entity.entity(newReflection, JSON)),
             Reflection.class);
 
@@ -212,7 +213,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
     request.setName(betterName);
     Reflection response2 =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(request.getId()))
+            getBuilder(getHttpClient().getAPIv3().path(REFLECTIONS_PATH).path(request.getId()))
                 .buildPut(Entity.entity(request, JSON)),
             Reflection.class);
 
@@ -240,7 +241,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
 
     Reflection response =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH))
+            getBuilder(getHttpClient().getAPIv3().path(REFLECTIONS_PATH))
                 .buildPost(Entity.entity(newReflection, JSON)),
             Reflection.class);
     assertFalse(response.isArrowCachingEnabled());
@@ -249,7 +250,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
 
     response =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(request.getId()))
+            getBuilder(getHttpClient().getAPIv3().path(REFLECTIONS_PATH).path(request.getId()))
                 .buildPut(Entity.entity(request, JSON)),
             Reflection.class);
     assertTrue(response.isArrowCachingEnabled());
@@ -261,7 +262,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
 
     Reflection response =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH))
+            getBuilder(getHttpClient().getAPIv3().path(REFLECTIONS_PATH))
                 .buildPost(Entity.entity(newReflection, JSON)),
             Reflection.class);
     assertFalse(response.isArrowCachingEnabled());
@@ -270,7 +271,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
 
     response =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(request.getId()))
+            getBuilder(getHttpClient().getAPIv3().path(REFLECTIONS_PATH).path(request.getId()))
                 .buildPut(Entity.entity(request, JSON)),
             Reflection.class);
     assertTrue(response.isArrowCachingEnabled());
@@ -281,20 +282,20 @@ public class TestReflectionResource extends AccelerationTestUtil {
     Reflection newReflection = createReflection();
     Reflection response =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH))
+            getBuilder(getHttpClient().getAPIv3().path(REFLECTIONS_PATH))
                 .buildPost(Entity.entity(newReflection, JSON)),
             Reflection.class);
 
     expectSuccess(
-        getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(response.getId())).buildDelete());
+        getBuilder(getHttpClient().getAPIv3().path(REFLECTIONS_PATH).path(response.getId()))
+            .buildDelete());
 
     assertFalse(getReflectionServiceHelper().getReflectionById(response.getId()).isPresent());
   }
 
   @Test
   public void testRetryUnavailableManual() throws Exception {
-    try (AutoCloseable option =
-        withSystemOption(PARQUET_MAXIMUM_PARTITIONS_VALIDATOR.getOptionName(), "2")) {
+    try (AutoCloseable ignored = withSystemOption(PARQUET_MAXIMUM_PARTITIONS_VALIDATOR, 2)) {
       // Create reflection on table that has never refresh policy
       Reflection newReflection = createReflection();
       ReflectionPartitionField partitionField = new ReflectionPartitionField();
@@ -302,7 +303,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
       newReflection.setPartitionFields(ImmutableList.of(partitionField));
       Reflection createResponse =
           expectSuccess(
-              getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH))
+              getBuilder(getHttpClient().getAPIv3().path(REFLECTIONS_PATH))
                   .buildPost(Entity.entity(newReflection, JSON)),
               Reflection.class);
       assertNotNull(createResponse.getPartitionFields());
@@ -320,7 +321,10 @@ public class TestReflectionResource extends AccelerationTestUtil {
       assertEquals(MANUAL, status.getRefresh());
 
       // Retry the reflection
-      Response retryResponse = getBuilder(DEV_OPTIONS_PATH + "retryunavailable").post(null);
+      Response retryResponse =
+          getHttpClient()
+              .request(c -> c.getAPIv2().path(DEV_OPTIONS_PATH + "retryunavailable"))
+              .post(null);
       assertEquals(Response.Status.NO_CONTENT.getStatusCode(), retryResponse.getStatus());
 
       // Verify a new materialization is generated and it fails as well
@@ -341,10 +345,8 @@ public class TestReflectionResource extends AccelerationTestUtil {
 
   @Test
   public void testRetryUnavailableScheduled() throws Exception {
-    try (AutoCloseable option =
-            withSystemOption(PARQUET_MAXIMUM_PARTITIONS_VALIDATOR.getOptionName(), "2");
-        AutoCloseable option2 =
-            withSystemOption(LAYOUT_REFRESH_MAX_ATTEMPTS.getOptionName(), "1")) {
+    try (AutoCloseable ignored1 = withSystemOption(PARQUET_MAXIMUM_PARTITIONS_VALIDATOR, 2);
+        AutoCloseable ignored2 = withSystemOption(LAYOUT_REFRESH_MAX_ATTEMPTS, 1)) {
 
       // skip retry backoff and retry immediately for this test because
       // it will take too long to get a GIVEN_UP status to proceed to the next step
@@ -387,7 +389,10 @@ public class TestReflectionResource extends AccelerationTestUtil {
       assertEquals(GIVEN_UP, status.getRefresh());
 
       // Retry the reflection
-      Response retryResponse = getBuilder(DEV_OPTIONS_PATH + "retryunavailable").post(null);
+      Response retryResponse =
+          getHttpClient()
+              .request(c -> c.getAPIv2().path(DEV_OPTIONS_PATH + "retryunavailable"))
+              .post(null);
       assertEquals(Response.Status.NO_CONTENT.getStatusCode(), retryResponse.getStatus());
 
       // Verify a new materialization is generated and it fails as well
@@ -501,7 +506,8 @@ public class TestReflectionResource extends AccelerationTestUtil {
 
   private Dataset createDataset() {
     return expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(homeFileId)).buildGet(), Dataset.class);
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(homeFileId)).buildGet(),
+        Dataset.class);
   }
 
   private void uploadHomeFile() throws Exception {
@@ -517,14 +523,15 @@ public class TestReflectionResource extends AccelerationTestUtil {
     com.dremio.file.File file1 =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("home/" + HOME_NAME + "/upload_start/")
                         .queryParam("extension", "json"))
                 .buildPost(Entity.entity(form, form.getMediaType())),
             com.dremio.file.File.class);
     file1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/biz"))
+            getBuilder(getHttpClient().getAPIv2().path("home/" + HOME_NAME + "/upload_finish/biz"))
                 .buildPost(Entity.json(file1.getFileFormat().getFileFormat())),
             com.dremio.file.File.class);
     homeFileId = file1.getId();

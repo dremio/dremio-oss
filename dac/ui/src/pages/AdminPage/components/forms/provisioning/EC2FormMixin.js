@@ -17,8 +17,8 @@ import { cloneDeep } from "lodash/lang";
 import {
   EC2_FORM_TAB_VLH,
   EC2_FIELDS_MAP,
-} from "@app/constants/provisioningPage/provisioningConstants";
-import FormUtils from "@app/utils/FormUtils/FormUtils";
+} from "#oss/constants/provisioningPage/provisioningConstants";
+import FormUtils from "#oss/utils/FormUtils/FormUtils";
 
 export const getInitValuesFromVlh = () => {
   const initValues = {};
@@ -26,19 +26,18 @@ export const getInitValuesFromVlh = () => {
   FormUtils.addInitValue(
     initValues,
     EC2_FIELDS_MAP.useClusterPlacementGroup,
-    true
+    true,
   );
   FormUtils.addInitValue(
     initValues,
     EC2_FIELDS_MAP.instanceType,
-    "m5d.8xlarge"
+    "m5d.8xlarge",
   );
   return initValues;
 };
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     getVlh() {
       return cloneDeep(EC2_FORM_TAB_VLH);
     },

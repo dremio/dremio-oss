@@ -28,8 +28,8 @@ import com.google.common.base.Stopwatch;
  * complex, then processes them using respective coercion readers
  */
 public class CompositeReader implements AutoCloseable {
-  private final ComplexTypeReader complexTypeReader;
-  private final PrimitiveTypeReader primitiveTypeReader;
+  protected ComplexTypeReader complexTypeReader;
+  protected PrimitiveTypeReader primitiveTypeReader;
 
   public CompositeReader(
       SampleMutator mutator,
@@ -37,13 +37,20 @@ public class CompositeReader implements AutoCloseable {
       TypeCoercion typeCoercion,
       Stopwatch javaCodeGenWatch,
       Stopwatch gandivaCodeGenWatch,
-      BatchSchema originalSchema) {
+      BatchSchema originalSchema,
+      int depth) {
     this.primitiveTypeReader =
         new PrimitiveTypeReader(
-            mutator, context, typeCoercion, javaCodeGenWatch, gandivaCodeGenWatch, originalSchema);
+            mutator,
+            context,
+            typeCoercion,
+            javaCodeGenWatch,
+            gandivaCodeGenWatch,
+            originalSchema,
+            depth);
     this.complexTypeReader =
         new ComplexTypeReader(
-            context, mutator, typeCoercion, javaCodeGenWatch, gandivaCodeGenWatch);
+            context, mutator, typeCoercion, javaCodeGenWatch, gandivaCodeGenWatch, depth);
   }
 
   @Override

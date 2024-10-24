@@ -64,12 +64,12 @@ describe("getSortValue", () => {
   });
   it("should return value if provided", () => {
     expect(getSortValue({ data: { a: { value: "abc" } } }, "a")).to.equal(
-      "abc"
+      "abc",
     );
   });
   it("should return function result", () => {
     expect(
-      getSortValue({ data: { a: { node: () => "result" } } }, "a")
+      getSortValue({ data: { a: { node: () => "result" } } }, "a"),
     ).to.equal("result");
   });
   it("should return value is both value and node function are provided", () => {
@@ -83,8 +83,8 @@ describe("getSortValue", () => {
             },
           },
         },
-        "a"
-      )
+        "a",
+      ),
     ).to.equal("abc");
   });
   it("should return value function result", () => {
@@ -98,8 +98,8 @@ describe("getSortValue", () => {
           },
         },
         "a",
-        "DESC"
-      )
+        "DESC",
+      ),
     ).to.equal("abc");
   });
 });

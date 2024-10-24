@@ -26,6 +26,8 @@ public interface UserDefinedFunctionService extends Service {
 
   Iterable<FunctionInfo> functionInfos();
 
+  Iterable<FunctionInfo> getFunctions();
+
   class FunctionInfo {
     public final String argList;
     public final String name;

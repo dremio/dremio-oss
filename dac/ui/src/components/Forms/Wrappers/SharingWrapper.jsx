@@ -15,6 +15,7 @@
  */
 import { Component } from "react";
 import AccessControlListSection from "dyn-load/components/Forms/AccessControlListSection";
+import additionalSharingWrapperControls from "@inject/shared/AdditionalSharingWrapperControls";
 import { connect } from "react-redux";
 
 import PropTypes from "prop-types";
@@ -25,8 +26,8 @@ class SharingWrapper extends Component {
     fields: PropTypes.object,
     isFileSystemSource: PropTypes.bool,
     isExternalQueryAllowed: PropTypes.bool,
-    isHive: PropTypes.bool,
-    isGlue: PropTypes.bool,
+    isMetaStore: PropTypes.bool,
+    sourceType: PropTypes.string,
   };
 
   render() {
@@ -34,17 +35,24 @@ class SharingWrapper extends Component {
       elementConfig,
       fields,
       isFileSystemSource,
-      isHive,
-      isGlue,
+      isMetaStore,
       isExternalQueryAllowed,
+      sourceType,
     } = this.props;
     let source;
-    if (isFileSystemSource || isHive || isGlue) {
-      source = "MUTABLE_SOURCE";
-    } else if (isExternalQueryAllowed === true) {
-      source = "ARP_SOURCE";
-    } else {
-      source = "source";
+    if (additionalSharingWrapperControls?.()?.checkSourceType) {
+      source = additionalSharingWrapperControls().checkSourceType({
+        sourceType,
+      });
+    }
+    if (!source) {
+      if (isFileSystemSource || isMetaStore) {
+        source = "MUTABLE_SOURCE";
+      } else if (isExternalQueryAllowed) {
+        source = "ARP_SOURCE";
+      } else {
+        source = "source";
+      }
     }
 
     return (
@@ -52,6 +60,7 @@ class SharingWrapper extends Component {
         <AccessControlListSection
           fields={fields}
           EntityType={source}
+          sourceType={sourceType}
           isTopLevelEntity
           elementConfig={elementConfig.getConfig()}
         />
@@ -65,8 +74,8 @@ const mapStateToProps = (state) => {
     isFileSystemSource: state.passDataBetweenModalTabs.isFileSystemSource,
     isExternalQueryAllowed:
       state.passDataBetweenModalTabs.isExternalQueryAllowed,
-    isHive: state.passDataBetweenModalTabs.isHive,
-    isGlue: state.passDataBetweenModalTabs.isGlue,
+    isMetaStore: state.passDataBetweenModalTabs.isMetaStore,
+    sourceType: state.passDataBetweenModalTabs.sourceType,
   };
 };
 

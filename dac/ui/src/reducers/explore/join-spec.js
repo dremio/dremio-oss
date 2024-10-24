@@ -15,7 +15,7 @@
  */
 import Immutable from "immutable";
 
-import { CUSTOM_JOIN } from "@app/constants/explorePage/joinTabs";
+import { CUSTOM_JOIN } from "#oss/constants/explorePage/joinTabs";
 import * as Actions from "actions/explore/join";
 import reducer from "./join";
 
@@ -28,13 +28,13 @@ describe("explore/join reducer", () => {
           joinDatasetPathList: null,
           joinVersion: null,
           recommendation: null,
-        })
+        }),
       );
       expect(result.getIn(["recommended"])).to.eql(
         Immutable.Map({
           recommendedJoins: Immutable.List(),
           activeRecommendedJoin: Immutable.Map(),
-        })
+        }),
       );
     });
   });
@@ -194,7 +194,7 @@ describe("explore/join reducer", () => {
 
       expect(result.getIn(["recommended", "recommendedJoins"]).size).to.eql(0);
       expect(
-        result.getIn(["recommended", "activeRecommendedJoin"]).size
+        result.getIn(["recommended", "activeRecommendedJoin"]).size,
       ).to.eql(0);
     });
   });
@@ -232,7 +232,7 @@ describe("explore/join reducer", () => {
       });
 
       expect(result.getIn(["recommended", "activeRecommendedJoin"])).to.eql(
-        Immutable.Map()
+        Immutable.Map(),
       );
     });
   });

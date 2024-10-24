@@ -41,6 +41,7 @@ import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SystemSchemas;
+import com.dremio.exec.store.iceberg.IcebergTestTables.Table;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.io.file.FileSystem;
@@ -51,17 +52,6 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.dremio.service.catalog.DatasetCatalogServiceGrpc;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Resources;
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.FileSystems;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.Collections;
-import java.util.stream.Stream;
-import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.io.FileIO;
 import org.junit.Before;
@@ -99,13 +89,14 @@ public class TestPartitionStatsTableFunction extends BaseTestTableFunction {
     IcebergModel model =
         IcebergModelCreator.createIcebergModel(
             CONF, context, fileIO, mock(OperatorContext.class), plugin);
-    when(plugin.getIcebergModel(any(), any(), any(), any())).thenReturn(model);
+    when(plugin.getIcebergModel(any(), any(), any(), any(), any())).thenReturn(model);
     when(fec.getStoragePlugin(eq(pluginId))).thenReturn(plugin);
   }
 
   @Test
   public void testPartitionStatsFromDifferentMetadata() throws Exception {
-    copy("iceberg/partitionednation", Paths.get("/tmp/iceberg"));
+    Table testTable = IcebergTestTables.PARTITIONED_NATION.get();
+
     Fixtures.Table input =
         t(
             th(
@@ -170,11 +161,13 @@ public class TestPartitionStatsTableFunction extends BaseTestTableFunction {
                 NULL_VARCHAR));
 
     validateSingle(getPop(false), TableFunctionOperator.class, input, output, 6);
+
+    testTable.close();
   }
 
   @Test
   public void testExceedBatchSizeWithCarryForward() throws Exception {
-    copy("iceberg/partitionednation", Paths.get("/tmp/iceberg"));
+    Table testTable = IcebergTestTables.PARTITIONED_NATION.get();
     Fixtures.Table input =
         t(
             th(
@@ -283,40 +276,8 @@ public class TestPartitionStatsTableFunction extends BaseTestTableFunction {
                 NULL_VARCHAR));
 
     validateSingle(getPop(true), TableFunctionOperator.class, input, output, 3);
-  }
 
-  protected static void copy(String sourceElement, final java.nio.file.Path target)
-      throws URISyntaxException, IOException {
-    URI resource = Resources.getResource(sourceElement).toURI();
-    FileUtils.deleteQuietly(new File(target.toUri()));
-    if (resource.getScheme().equals("jar")) {
-      try (java.nio.file.FileSystem fileSystem =
-          FileSystems.newFileSystem(resource, Collections.emptyMap())) {
-        sourceElement = !sourceElement.startsWith("/") ? "/" + sourceElement : sourceElement;
-        java.nio.file.Path srcDir = fileSystem.getPath(sourceElement);
-        try (Stream<java.nio.file.Path> stream = java.nio.file.Files.walk(srcDir)) {
-          stream.forEach(
-              source -> {
-                java.nio.file.Path dest =
-                    target.resolve(Paths.get(srcDir.relativize(source).toString()));
-                copy(source, dest);
-              });
-        }
-      }
-    } else {
-      java.nio.file.Path srcDir = java.nio.file.Paths.get(resource);
-      try (Stream<java.nio.file.Path> stream = java.nio.file.Files.walk(srcDir)) {
-        stream.forEach(source -> copy(source, target.resolve(srcDir.relativize(source))));
-      }
-    }
-  }
-
-  private static void copy(java.nio.file.Path source, java.nio.file.Path dest) {
-    try {
-      java.nio.file.Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    testTable.close();
   }
 
   private String p(String ver) throws Exception {
@@ -342,6 +303,6 @@ public class TestPartitionStatsTableFunction extends BaseTestTableFunction {
                     SchemaPath.getSimplePath(FILE_PATH)),
                 FILE_TYPE,
                 METADATA_JSON.name(),
-                IcebergUtils.getDefaultPathScheme(fs.getScheme()))));
+                IcebergUtils.getDefaultPathScheme(fs.getScheme(), CONF))));
   }
 }

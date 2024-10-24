@@ -15,6 +15,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { DateRange, DateRangeProps, Range } from "react-date-range";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 
@@ -58,6 +59,8 @@ function DateRangePicker({
   }, [ranges, endDate]);
 
   const currentYear = new Date().getFullYear();
+  const lastWeek = new Date();
+  lastWeek.setDate(lastWeek.getDate() - 7);
 
   return (
     <div className={classes["dremio-daterangepicker"]}>
@@ -69,8 +72,8 @@ function DateRangePicker({
         shownDate={endDate}
         scroll={{ enabled: true }}
         preventSnapRefocus
-        minDate={new Date(2015, 0)} // start from 2015
-        maxDate={new Date(currentYear + 1, 11)} // till next year
+        minDate={isNotSoftware() ? lastWeek : new Date(2015, 0)} // start from 2015
+        maxDate={isNotSoftware() ? new Date() : new Date(currentYear + 1, 11)} // till next year
       />
     </div>
   );

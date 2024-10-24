@@ -1,0 +1,9 @@
+<svg id="interface/physical-dataset-gray" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
+  <g id="Icon-PhysicalDataset" serif:id="Icon/PhysicalDataset">
+    <rect id="icon-box-24" x="0" y="0" width="24" height="24" style="fill:none;"/>
+    <g id="Group-2">
+      <rect id="Rectangle" x="4" y="4" width="17" height="17" style="fill:#77818f;"/>
+      <path id="Rectangle-125" d="M7,13l3,0l0,2l-3,0l0,-2Zm4,0l3,0l0,2l-3,0l0,-2Zm4,0l3,0l0,2l-3,0l0,-2Zm-8,-3l3,0l0,2l-3,0l0,-2Zm4,0l3,0l0,2l-3,0l0,-2Zm-4,-3l3,0l0,2l-3,0l0,-2Zm4,0l3,0l0,2l-3,0l0,-2Zm4,0l3,0l0,2l-3,0l0,-2Zm0,3l3,0l0,2l-3,0l0,-2Zm-8,6l3,0l0,2l-3,0l0,-2Zm4,0l3,0l0,2l-3,0l0,-2Zm4,0l3,0l0,2l-3,0l0,-2Z" style="fill:#fff;"/>
+    </g>
+  </g>
+</svg>

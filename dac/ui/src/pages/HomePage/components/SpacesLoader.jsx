@@ -19,9 +19,9 @@ import { connect } from "react-redux";
 import {
   loadSpaceListData,
   ALL_SPACES_VIEW_ID,
-} from "@app/actions/resources/spaces";
-import { getViewState } from "@app/selectors/resources";
-import { KeyChangeTrigger } from "@app/components/KeyChangeTrigger";
+} from "#oss/actions/resources/spaces";
+import { getViewState } from "#oss/selectors/resources";
+import { KeyChangeTrigger } from "#oss/components/KeyChangeTrigger";
 
 const mapStateToProps = (state) => ({
   isDataInvalidated:

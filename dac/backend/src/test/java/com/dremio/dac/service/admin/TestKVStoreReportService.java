@@ -141,7 +141,8 @@ public class TestKVStoreReportService extends BaseTestServer {
     // create the source
     source =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(source)),
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH))
+                .buildPost(Entity.json(source)),
             new GenericType<Source>() {});
 
     assertFalse(
@@ -154,7 +155,11 @@ public class TestKVStoreReportService extends BaseTestServer {
     doc("load the json dir");
     Folder folder =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(id)))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 19);
@@ -177,7 +182,10 @@ public class TestKVStoreReportService extends BaseTestServer {
     final com.dremio.dac.api.File file =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(fileId)))
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(fileId)))
                 .buildGet(),
             new GenericType<com.dremio.dac.api.File>() {});
 
@@ -191,14 +199,18 @@ public class TestKVStoreReportService extends BaseTestServer {
     createDataset =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(fileId)))
+                    getHttpClient()
+                        .getAPIv3()
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(fileId)))
                 .buildPost(Entity.json(createDataset)),
             new GenericType<Dataset>() {});
 
     doc("load the dataset");
     createDataset =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(createDataset.getId())).buildGet(),
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(createDataset.getId()))
+                .buildGet(),
             new GenericType<Dataset>() {});
 
     KVStore<PartitionChunkId, MultiSplit> multiSplitsStore =

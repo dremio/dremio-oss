@@ -21,42 +21,47 @@ import { generateIconManifest } from "./generateIconManifest";
 
 const OUTPUT_PATH = "dist-icons";
 
-const icons = generateIconManifest().filter((icon) => icon.theme === "dremio");
+const buildTheme = (theme: string) => {
+  const icons = generateIconManifest().filter((icon) => icon.theme === theme);
 
-const spriter = new SVGSpriter({
-  transform: false,
-  shape: {
-    id: {
-      generator: (_name, file) => {
-        return icons.find((icon) => icon.path === file.path).name;
+  const spriter = new SVGSpriter({
+    transform: false,
+    shape: {
+      id: {
+        generator: (_name, file) => {
+          return icons.find((icon) => icon.path === file.path).name;
+        },
       },
     },
-  },
-  mode: {
-    symbol: {
-      inline: true,
+    mode: {
+      symbol: {
+        inline: true,
+      },
     },
-  },
-});
+  });
 
-icons.forEach((icon) => {
-  spriter.add(
-    icon.path,
-    icon.name + ".svg",
-    fs.readFileSync(icon.path, "utf-8"),
-  );
-});
+  icons.forEach((icon) => {
+    spriter.add(
+      icon.path,
+      icon.name + ".svg",
+      fs.readFileSync(icon.path, "utf-8"),
+    );
+  });
 
-spriter.compile((_error, result) => {
-  for (const mode in result) {
-    for (const resource in result[mode]) {
-      fs.mkdirSync(OUTPUT_PATH, {
-        recursive: true,
-      });
-      fs.writeFileSync(
-        path.join(OUTPUT_PATH, "dremio.svg"),
-        result[mode][resource].contents,
-      );
+  spriter.compile((_error, result) => {
+    for (const mode in result) {
+      for (const resource in result[mode]) {
+        fs.mkdirSync(OUTPUT_PATH, {
+          recursive: true,
+        });
+        fs.writeFileSync(
+          path.join(OUTPUT_PATH, `${theme}.svg`),
+          result[mode][resource].contents,
+        );
+      }
     }
-  }
-});
+  });
+};
+
+buildTheme("dremio");
+buildTheme("dremio-dark");

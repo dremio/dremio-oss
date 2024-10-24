@@ -138,6 +138,9 @@ public interface IcebergCommand {
   List<SnapshotEntry> expireSnapshots(
       long olderThanInMillis, int retainLast, boolean throwIcebergException);
 
+  List<SnapshotEntry> expireSnapshotsForVersionedTable(
+      long olderThanInMillis, int retainLast, boolean throwIcebergException);
+
   /**
    * Roll a table's data back to a specific snapshot identified either by id or before a given
    * timestamp.

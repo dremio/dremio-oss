@@ -30,12 +30,12 @@ public class ITDeleteMorOnHive extends DmlQueryOnHiveTestBase {
 
   @BeforeClass
   public static void setUp() throws Exception {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER, true);
   }
 
   @AfterClass
   public static void close() throws Exception {
-    resetSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER.getOptionName());
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER);
   }
 
   private static final String SOURCE = HIVE_TEST_PLUGIN_NAME;
@@ -44,7 +44,7 @@ public class ITDeleteMorOnHive extends DmlQueryOnHiveTestBase {
 
   @Test
   public void testDeleteAllFail() throws Exception {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER, "false");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER, false);
     Assertions.assertThatThrownBy(() ->
             DeleteTests.testDeleteAll(allocator, SOURCE, dmlWriteMode)
         )
@@ -53,6 +53,6 @@ public class ITDeleteMorOnHive extends DmlQueryOnHiveTestBase {
             + "set to 'merge-on-read', but dremio does not support this "
             + "write property at this time. Please alter your write.delete.mode table property "
             + "to 'copy-on-write' to proceed.");
-    resetSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER.getOptionName());
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER);
   }
 }

@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { SonarProject404 } from "@app/exports/components/ErrorViews/SonarProject404";
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
+import { SonarProject404 } from "#oss/exports/components/ErrorViews/SonarProject404";
+import { SonarSideNav } from "#oss/exports/components/SideNav/SonarSideNav";
 
 export const NotFoundProject = () => {
   return (

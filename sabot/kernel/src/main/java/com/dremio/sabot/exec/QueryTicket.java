@@ -17,10 +17,12 @@ package com.dremio.sabot.exec;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryId;
+import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.SchedulingGroup;
 import com.google.common.base.Preconditions;
@@ -59,6 +61,8 @@ public class QueryTicket extends TicketWithChildren {
   private final Collection<NodePhaseStatus> completed = new ConcurrentLinkedQueue<>();
   private final long enqueuedTime;
   private final SchedulingGroup<AsyncTaskWrapper> queryGroup;
+  private TunnelProvider tunnelProvider;
+  private EndpointsIndex endpointsIndex;
   private volatile NodeQueryStatus finalQueryStatus;
   private static int NUMBER_OF_CORES = VM.availableProcessors();
 
@@ -82,6 +86,8 @@ public class QueryTicket extends TicketWithChildren {
         this.workloadTicket
             .getSchedulingGroup()
             .addGroup((queryWeight <= 0) ? 1 : queryWeight, useWeightBasedScheduling);
+    this.tunnelProvider = null;
+    this.endpointsIndex = null;
   }
 
   public QueryId getQueryId() {
@@ -198,5 +204,19 @@ public class QueryTicket extends TicketWithChildren {
 
   public SchedulingGroup<AsyncTaskWrapper> getSchedulingGroup() {
     return this.queryGroup;
+  }
+
+  public void setEndpointsAndTunnelProvider(
+      EndpointsIndex endpointsIndex, TunnelProvider tunnelProvider) {
+    this.tunnelProvider = tunnelProvider;
+    this.endpointsIndex = endpointsIndex;
+  }
+
+  public TunnelProvider getTunnelProvider() {
+    return this.tunnelProvider;
+  }
+
+  public EndpointsIndex getEndpointsIndex() {
+    return this.endpointsIndex;
   }
 }

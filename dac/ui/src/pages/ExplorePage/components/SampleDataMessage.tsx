@@ -19,7 +19,7 @@ const SampleDataMessage = () => (
   <span className="flex items-center gap-05">
     <dremio-icon
       name="interface/warning"
-      style={{ color: "var(--color--warning--200)" }}
+      style={{ color: "var(--fill--warning--solid)" }}
     />
     <FormattedMessage id="Dataset.SampleDatasetWarn" />
   </span>

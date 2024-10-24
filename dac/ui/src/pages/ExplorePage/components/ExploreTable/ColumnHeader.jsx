@@ -15,17 +15,17 @@
  */
 import { PureComponent } from "react";
 import { Cell } from "fixed-data-table-2";
-import { SelectView } from "@app/components/Fields/SelectView";
+import { SelectView } from "#oss/components/Fields/SelectView";
 
 import PropTypes from "prop-types";
 
 import DragSource from "components/DragComponents/DragSource";
 import ColumnActionMenu from "components/Menus/ExplorePage/ColumnActionMenu";
 import ColumnTypeMenu from "components/Menus/ExplorePage/ColumnTypeMenu";
-import { overlay } from "@app/uiTheme/radium/overlay";
+import { overlay } from "#oss/uiTheme/radium/overlay";
 
-import { typeToIconType, BINARY, MIXED } from "@app/constants/DataTypes";
-import Keys from "@app/constants/Keys.json";
+import { typeToIconType, BINARY, MIXED } from "#oss/constants/DataTypes";
+import Keys from "#oss/constants/Keys.json";
 import { IconButton } from "dremio-ui-lib/components";
 
 const MAX_COLUMN_NAME_LENTH = 62;
@@ -58,7 +58,7 @@ export class ColumnHeader extends PureComponent {
     anchorElType: null,
   };
 
-  forceFocus = false; // eslint-disable-line react/sort-comp
+  forceFocus = false;
 
   static emulateAutoPosition(
     anchor,
@@ -202,7 +202,7 @@ export class ColumnHeader extends PureComponent {
 
     const dremioIconProps = {
       id: `${label} + type`,
-      class: "type",
+      class: "type icon-primary",
       style: {
         inlineSize: 16,
         blockSize: 16,

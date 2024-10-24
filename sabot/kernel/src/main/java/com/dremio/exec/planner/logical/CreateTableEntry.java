@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.io.IOException;
+import javax.annotation.Nullable;
 
 /**
  * Interface that provides the info needed to create a new table. A storage engine which supports
@@ -71,6 +72,9 @@ public interface CreateTableEntry {
    * @return The username
    */
   String getUserName();
+
+  @Nullable
+  String getUserId();
 
   /**
    * @return The plugin

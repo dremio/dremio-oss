@@ -88,45 +88,9 @@ public class UserDefinedFunctionServiceImpl implements UserDefinedFunctionServic
   @Override
   public Iterable<FunctionInfo> functionInfos() {
     if (isMaster || (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
-      // Handle VersionedPlugin
-      List<Iterator<FunctionInfo>> allIterators = new ArrayList<>();
-      if (optionManagerProvider.get().getOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED)) {
-        Stream<VersionedPlugin> versionedPlugins =
-            catalogServiceProvider.get().getAllVersionedPlugins();
-        versionedPlugins.forEach(
-            versionedPlugin -> {
-              Iterator<FunctionInfo> versionedFunctionInfoIterator =
-                  versionedPlugin
-                      .getFunctions(VersionContext.ofBranch(versionedPlugin.getDefaultBranch()))
-                      .stream()
-                      .map(
-                          functionConfig -> {
-                            FunctionInfo functionInfo =
-                                UserDefinedFunctionService.getFunctionInfoFromConfig(
-                                    functionConfig);
-                            functionInfo.setOwner(getVersionedUdfOwnerName(functionConfig));
-                            return functionInfo;
-                          })
-                      .iterator();
-              allIterators.add(versionedFunctionInfoIterator);
-            });
-      }
-      Iterator<FunctionInfo> namespaceFunctionIterator =
-          namespaceServiceProvider.get().getFunctions().stream()
-              .map(
-                  functionConfig -> {
-                    FunctionInfo functionInfo =
-                        UserDefinedFunctionService.getFunctionInfoFromConfig(functionConfig);
-                    functionInfo.setOwner(getOwnerNameFromFunctionConfig(functionConfig));
-                    return functionInfo;
-                  })
-              .collect(Collectors.toList())
-              .iterator();
-      allIterators.add(namespaceFunctionIterator);
-      Iterator<FunctionInfo> res = Iterators.concat(allIterators.iterator());
-
-      return () -> res;
+      return getFunctions();
     }
+
     Optional<CoordinationProtos.NodeEndpoint> master = serviceLeaderProvider.get();
     if (!master.isPresent()) {
       throw UserException.connectionError()
@@ -148,15 +112,57 @@ public class UserDefinedFunctionServiceImpl implements UserDefinedFunctionServic
   }
 
   @Override
+  public Iterable<FunctionInfo> getFunctions() {
+    // Handle VersionedPlugin
+    List<Iterator<FunctionInfo>> allIterators = new ArrayList<>();
+    if (optionManagerProvider.get().getOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED)) {
+      Stream<VersionedPlugin> versionedPlugins =
+          catalogServiceProvider.get().getAllVersionedPlugins();
+      versionedPlugins.forEach(
+          versionedPlugin -> {
+            try {
+              Iterator<FunctionInfo> versionedFunctionInfoIterator =
+                  versionedPlugin.getFunctions(VersionContext.NOT_SPECIFIED).stream()
+                      .map(
+                          functionConfig -> {
+                            FunctionInfo functionInfo =
+                                UserDefinedFunctionService.getFunctionInfoFromConfig(
+                                    functionConfig);
+                            functionInfo.setOwner(getVersionedUdfOwnerName(functionConfig));
+                            return functionInfo;
+                          })
+                      .iterator();
+              allIterators.add(versionedFunctionInfoIterator);
+            } catch (UnsupportedOperationException ex) {
+              // ignore
+            }
+          });
+    }
+    Iterator<FunctionInfo> namespaceFunctionIterator =
+        namespaceServiceProvider.get().getFunctions().stream()
+            .map(
+                functionConfig -> {
+                  FunctionInfo functionInfo =
+                      UserDefinedFunctionService.getFunctionInfoFromConfig(functionConfig);
+                  functionInfo.setOwner(getOwnerNameFromFunctionConfig(functionConfig));
+                  return functionInfo;
+                })
+            .collect(Collectors.toList())
+            .iterator();
+    allIterators.add(namespaceFunctionIterator);
+    Iterator<FunctionInfo> res = Iterators.concat(allIterators.iterator());
+
+    return () -> res;
+  }
+
+  @Override
   public void start() throws Exception {
     final FabricRunnerFactory udfTunnelFactory =
         fabric
             .get()
             .registerProtocol(
                 new FunctionProtocol(
-                    allocatorProvider.get(),
-                    dremioConfigProvider.get().getSabotConfig(),
-                    namespaceServiceProvider));
+                    allocatorProvider.get(), dremioConfigProvider.get().getSabotConfig(), this));
     functionTunnelCreator = new FunctionTunnelCreator(udfTunnelFactory);
   }
 

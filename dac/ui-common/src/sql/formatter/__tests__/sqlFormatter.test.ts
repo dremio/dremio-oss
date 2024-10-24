@@ -73,6 +73,10 @@ DESCRIBE abc123.def456 tbl`,
         `
 USE abc123.def456`,
       ],
+      [
+        `
+USE`,
+      ],
     ],
     sqlCreateOrReplace: [
       [
@@ -104,13 +108,13 @@ AS                (SELECT "abc",
     sqlDropFunction: [
       [
         `
-DROP FUNCTION IF EXISTS abc123.def456`,
+DROP FUNCTION IF EXISTS abc123.def456 AT BRANCH main`,
       ],
     ],
     sqlDescribeFunction: [
       [
         `
-DESC FUNCTION abc123.def456`,
+DESC FUNCTION abc123.def456 AT TAG youareit`,
       ],
     ],
     sqlShowFunctions: [
@@ -243,6 +247,12 @@ REFRESH DATASET space1.vds1
 FOR FILES       ('file1')
 FORCE UPDATE   `,
       ],
+      [
+        `
+REFRESH DATASET                                 space1.vds1
+FOR REGEX                                       'abc\\d+'
+DELETE WHEN MISSING ERROR ON CONCURRENT REFRESH`,
+      ],
     ],
     sqlAccel: [
       [
@@ -259,6 +269,12 @@ ROUTE REFLECTIONS TO QUEUE runner1`,
         `
 ALTER TABLE     granite AT BRANCH branch1
 ADD PRIMARY KEY (llave)`,
+      ],
+      [
+        `
+ALTER TABLE marble
+CLUSTER BY  (llave1,
+             clave1)`,
       ],
       [
         `
@@ -343,6 +359,12 @@ GRANT     CREATE VIEW,
 ON FOLDER folder1 AT BRANCH dev
 TO USER   user1`,
       ],
+      [
+        `
+GRANT       ALL
+ON FUNCTION function1 AT BRANCH dev
+TO USER     user1`,
+      ],
     ],
     sqlGrantPrivilege: null, // covered by other cases
     parseGranteeType: null, // covered by other cases
@@ -358,6 +380,12 @@ FROM USER hacker`,
 REVOKE    WRITE
 ON TABLE  tbl AT BRANCH branch1
 FROM USER hacker`,
+      ],
+      [
+        `
+REVOKE                    ALTER
+ON ALL FOLDERS IN CATALOG nessie1
+FROM ROLE                 rolex`,
       ],
     ],
     sqlGrantOwnership: null, // covered by other cases
@@ -739,6 +767,21 @@ FILES     ('file1',
               'abc',
               'abc'))`,
       ],
+      [
+        `
+COPY INTO   tbl1 (
+              col1,
+              col2)
+FROM        (SELECT col3,
+                    col4
+             FROM   'def')
+REGEX       'file-.+'
+FILE_FORMAT 'parquet' (
+              DATE_FORMAT 'mmddyyyy',
+              NULL_IF (
+                'abc',
+                'abc'))`,
+      ],
     ],
     dremioWhenMatchedClause: null, // covered by other cases
     dremioWhenNotMatchedClause: null, // covered by other cases
@@ -762,7 +805,7 @@ FILES     ('file1',
       [
         `
 SELECT *
-FROM   table (specific func(arg0, arg1))`,
+FROM   table (specific func(arg0, arg1)) AT BRANCH b1`,
       ],
     ],
     builtinFunctionCall: [
@@ -784,7 +827,7 @@ SELECT timestampdiff(month, '2009-05-18', '2009-07-29');`,
       ],
     ],
     matchRecognizeFunctionCall: null, // covered by other cases
-    namedFunctionCall: [[`SELECT func(arg0, arg1)`]],
+    namedFunctionCall: [[`SELECT func(arg0, arg1) AT TAG t1`]],
     jdbcFunctionCall: [[`SELECT { fn funcy(*) }`]],
 
     // Other
@@ -855,6 +898,8 @@ WHERE  contains((location: San\ Francisco AND NOT age: (>=10 AND <20) OR age:>99
     privilegeCommaList: null, // covered by other cases
     privilege: null, // covered by other cases
     tableWithVersionContext: null, // covered by other cases
+    functionWithVersionContext: null, // covered by other cases
+    tableFunctionWithVersionContext: null, // covered by other cases
     namedRoutineCall: null, // covered by other cases
     whenMatchedClause: null, // covered by other cases
     whenNotMatchedClause: null, // covered by other cases
@@ -1093,12 +1138,6 @@ DESCRIBE PIPE pipe1`,
 DROP PIPE pipe1`,
       ],
     ],
-    sqlShowPipes: [
-      [
-        `
-SHOW PIPES`,
-      ],
-    ],
     sqlTriggerPipe: [
       [
         `
@@ -1106,9 +1145,18 @@ TRIGGER PIPE pipe1
 FOR BATCH    batch1`,
       ],
     ],
+    sqlAlterEngine: [
+      [
+        `
+ALTER ENGINE engine1
+SET          (MIN_REPLICAS = 1,
+              MAX_REPLICAS = 2)`,
+      ],
+    ],
     parseReferenceType: null, // covered by other cases
     aTVersionSpec: null, // covered by other cases
     writeableAtVersionSpec: null, // covered by other cases
+    aTVersionSpecWithoutTimeTravel: null, // covered by other cases
     getMergeBehavior: null, // covered by other cases
     getTableKeys: null, // covered by other cases
     tableKey: null, // covered by other cases

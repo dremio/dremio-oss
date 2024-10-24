@@ -496,7 +496,7 @@ public interface ExecConstants {
       new EnumValidator<>(FRAGMENT_CODEC_KEY, FragmentCodec.class, FragmentCodec.SNAPPY);
 
   String ENABLE_VERBOSE_ERRORS_KEY = "exec.errors.verbose";
-  OptionValidator ENABLE_VERBOSE_ERRORS = new BooleanValidator(ENABLE_VERBOSE_ERRORS_KEY, false);
+  BooleanValidator ENABLE_VERBOSE_ERRORS = new BooleanValidator(ENABLE_VERBOSE_ERRORS_KEY, false);
 
   String ENABLE_NEW_TEXT_READER_KEY = "exec.storage.enable_new_text_reader";
   OptionValidator ENABLE_NEW_TEXT_READER = new BooleanValidator(ENABLE_NEW_TEXT_READER_KEY, true);
@@ -560,6 +560,9 @@ public interface ExecConstants {
 
   BooleanValidator ENABLE_SPILLABLE_OPERATORS_STATIC_MEMLIMIT =
       new BooleanValidator("exec.spillable.operators.static_memory_limit.enabled", true);
+
+  BooleanValidator ENABLE_DYNAMIC_LOAD_ROUTING =
+      new BooleanValidator("exec.dynamic.load.routing.enabled", false);
 
   /**
    * This factor determines how much larger the load for a given slice can be than the expected size
@@ -792,6 +795,9 @@ public interface ExecConstants {
   BooleanValidator ENABLE_ICEBERG_VACUUM_CATALOG =
       new BooleanValidator("dremio.iceberg.vacuum.catalog.enabled", true);
 
+  BooleanValidator ENABLE_ICEBERG_AUTO_CLUSTERING =
+      new BooleanValidator("dremio.iceberg.auto.clustering.enabled", false);
+
   BooleanValidator ENABLE_ICEBERG_SINGLE_MANIFEST_WRITER =
       new BooleanValidator("dremio.iceberg.single_manifest_writer.enabled", true);
   BooleanValidator ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES =
@@ -804,6 +810,8 @@ public interface ExecConstants {
           0,
           Long.MAX_VALUE,
           TimeUnit.DAYS.toMinutes(5));
+  BooleanValidator ENABLE_VACUUM_CATALOG_BRIDGE_OPERATOR =
+      new BooleanValidator("dremio.iceberg.vacuum.catalog.bridge.operator.enabled", true);
   BooleanValidator ENABLE_UNLIMITED_SPLITS_METADATA_CLEAN =
       new BooleanValidator("dremio.unlimited_splits.metadata.clean.enabled", true);
   BooleanValidator ENABLE_ICEBERG_CONCURRENCY =
@@ -966,9 +974,6 @@ public interface ExecConstants {
   String ICEBERG_NAMESPACE_KEY = "iceberg.namespace";
   BooleanValidator HADOOP_BLOCK_CACHE_ENABLED =
       new BooleanValidator("hadoop_block_affinity_cache.enabled", true);
-
-  BooleanValidator ENABLE_DELTALAKE_COLUMN_MAPPING =
-      new BooleanValidator("store.deltalake.column_mapping.enabled", true);
 
   /** Controls the 'compression' factor for the TDigest algorithm. */
   LongValidator TDIGEST_COMPRESSION =
@@ -1142,7 +1147,7 @@ public interface ExecConstants {
       new BooleanValidator("dremio.copy.into.errors_first_error_of_record_only", true);
 
   PositiveLongValidator SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION =
-      new PositiveLongValidator("dremio.system_iceberg_tables.schema.version", Long.MAX_VALUE, 2);
+      new PositiveLongValidator("dremio.system_iceberg_tables.schema.version", Long.MAX_VALUE, 3);
 
   PositiveLongValidator SYSTEM_ICEBERG_TABLES_COMMIT_NUM_RETRIES =
       new PositiveLongValidator(
@@ -1258,6 +1263,15 @@ public interface ExecConstants {
   BooleanValidator GANDIVA_THREAD_NAME_ENABLED =
       new BooleanValidator("exec.operator.gandiva_thread_name.enable", true);
 
-  BooleanValidator SOURCE_CREATION_ASYNC_ENABLED =
-      new BooleanValidator("source.creation.async.enable", false);
+  BooleanValidator SOURCE_ASYNC_MODIFICATION_ENABLED =
+      new BooleanValidator("source.async.modification.enable", false);
+
+  PositiveLongValidator WARN_MAX_BATCH_SIZE_THRESHOLD =
+      new PositiveLongValidator(
+          "max.batch_size.warn.threshold", Integer.MAX_VALUE, 10 * 1024 * 1024);
+
+  BooleanValidator ENABLE_ROW_SIZE_LIMIT_ENFORCEMENT =
+      new BooleanValidator("exec.operator.row_size_limit_enforcement.enable", false);
+  PositiveLongValidator LIMIT_ROW_SIZE_BYTES =
+      new PositiveLongValidator("limits.row_size_bytes", Integer.MAX_VALUE, 16 * 1024 * 1024);
 }

@@ -17,7 +17,7 @@ import { RSAA } from "redux-api-middleware";
 
 import sourceSchema from "dyn-load/schemas/source";
 import schemaUtils from "utils/apiUtils/schemaUtils";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const LOAD_SOURCE_STARTED = "LOAD_SOURCE_STARTED";
 export const LOAD_SOURCE_SUCCESS = "LOAD_SOURCE_SUCCESS";

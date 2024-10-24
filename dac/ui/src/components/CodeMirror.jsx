@@ -68,7 +68,7 @@ const CM_EVENT_PROP_TYPES = Object.keys(PROP_NAME_TO_CM_EVENT).reduce(
     prev[propName] = PropTypes.func;
     return prev;
   },
-  {}
+  {},
 );
 
 const DEFAULT_OPTIONS = {
@@ -131,7 +131,7 @@ export default class CodeMirror extends PureComponent {
     }
     invariant(
       this.props.options === prevProps.options,
-      "changing options is not implemented"
+      "changing options is not implemented",
     );
   }
 

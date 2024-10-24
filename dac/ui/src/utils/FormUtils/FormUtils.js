@@ -24,7 +24,7 @@ import {
 } from "utils/validation";
 import { getCreatedSource } from "selectors/resources";
 import { MEMORY_UNITS } from "utils/numberFormatUtils";
-import { ENTITY_TYPES } from "@app/constants/Constants";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
 
 const CONFIG_PROP_NAME = "config";
 const DISABLE_COMMA_FIELDS = ["config.port"];
@@ -157,7 +157,7 @@ export default class FormUtils {
     if (
       this.tabFieldsIncludeErrorFields(
         selectedTabConfig.getFields(),
-        fieldsWithError
+        fieldsWithError,
       )
     ) {
       return selectedTabConfig;
@@ -290,7 +290,7 @@ export default class FormUtils {
       }, {});
       const appliedValidatorsResult = applyValidators(
         values,
-        accumulator.validators
+        accumulator.validators,
       );
       return merge(combinedValidateResult, appliedValidatorsResult);
     };
@@ -301,17 +301,17 @@ export default class FormUtils {
 
     if (elementConfigJson.validate.isRequired) {
       accumulator.validators.push(
-        isRequired(elementConfigJson.propName, elementConfigJson.label)
+        isRequired(elementConfigJson.propName, elementConfigJson.label),
       );
     }
     if (elementConfigJson.validate.isNumber) {
       accumulator.validators.push(
-        isNumber(elementConfigJson.propName, elementConfigJson.label)
+        isNumber(elementConfigJson.propName, elementConfigJson.label),
       );
     }
     if (elementConfigJson.validate.isWholeNumber) {
       accumulator.validators.push(
-        isWholeNumber(elementConfigJson.propName, elementConfigJson.label)
+        isWholeNumber(elementConfigJson.propName, elementConfigJson.label),
       );
     }
     if (elementConfigJson.validate.isRequiredIf) {
@@ -320,8 +320,8 @@ export default class FormUtils {
           elementConfigJson.propName,
           elementConfigJson.validate.isRequiredIf.otherPropName,
           elementConfigJson.validate.isRequiredIf.otherPropValue,
-          elementConfigJson.validate.label
-        )
+          elementConfigJson.validate.label,
+        ),
       );
     }
 
@@ -336,10 +336,10 @@ export default class FormUtils {
               elementConfigJson.propName,
               otherPropName,
               otherPropValue,
-              elementConfigJson.validate.label
-            )
+              elementConfigJson.validate.label,
+            ),
           )
-          .otherwise(() => {})
+          .otherwise(() => {}),
       );
     }
 

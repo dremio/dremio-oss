@@ -30,6 +30,7 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.planner.sql.handlers.direct.DirectHandlerValidator;
 import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
@@ -45,7 +46,7 @@ import org.apache.calcite.sql.SqlOperator;
  * Abstraction of the plan building components, within table modification operations, such as DML
  * and OPTIMIZE.
  */
-public abstract class TableManagementHandler implements SqlToPlanHandler {
+public abstract class TableManagementHandler implements SqlToPlanHandler, DirectHandlerValidator {
 
   @VisibleForTesting
   public abstract NamespaceKey getTargetTablePath(SqlNode sqlNode) throws Exception;

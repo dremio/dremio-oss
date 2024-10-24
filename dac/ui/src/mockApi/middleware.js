@@ -58,7 +58,7 @@ function validateMockRSAA(action) {
   const callAPI = action[CALL_MOCK_API];
   if (!isPlainObject(callAPI)) {
     validationErrors.push(
-      "[CALL_MOCK_API] property must be a plain JavaScript object"
+      "[CALL_MOCK_API] property must be a plain JavaScript object",
     );
   }
 
@@ -71,12 +71,12 @@ function validateMockRSAA(action) {
       typeof mockResponse.responseJSON === "undefined"
     ) {
       validationErrors.push(
-        "[CALL_MOCK_API] must have a mockResponse.responseJSON if mockResponse.ok is true or undefined"
+        "[CALL_MOCK_API] must have a mockResponse.responseJSON if mockResponse.ok is true or undefined",
       );
     }
   } else if (typeof mockResponse !== "function") {
     validationErrors.push(
-      "mockResponse must be a plain js object or a function that resolves to one"
+      "mockResponse must be a plain js object or a function that resolves to one",
     );
   }
 
@@ -169,8 +169,8 @@ export default function mockApiMiddleware({ dispatch, getState }) {
           ...failureType,
           error: true,
         },
-        [action, getState(), res]
-      )
+        [action, getState(), res],
+      ),
     );
   };
 }

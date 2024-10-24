@@ -131,7 +131,6 @@ public class TestParquetPhysicalPlan extends ExecTest {
           String.format(
               "Got %d total records in %d seconds",
               listener.await(), watch.elapsed(TimeUnit.SECONDS)));
-      client.close();
     }
   }
 }

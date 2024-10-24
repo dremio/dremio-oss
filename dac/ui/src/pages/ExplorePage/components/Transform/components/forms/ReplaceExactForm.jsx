@@ -18,13 +18,13 @@ import PropTypes from "prop-types";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
 import Immutable from "immutable";
 
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 import NewFieldSection from "components/Forms/NewFieldSection";
 import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
 import filterMappers from "utils/mappers/ExplorePage/Transform/filterMappers";
 
 import Tabs from "components/Tabs";
-import { getDefaultValue, parseTextToDataType } from "@app/constants/DataTypes";
+import { getDefaultValue, parseTextToDataType } from "#oss/constants/DataTypes";
 import TransformForm, { formWrapperProps } from "../../../forms/TransformForm";
 import ReplaceFooter from "./../ReplaceFooter";
 import Exact from "./../ContentWithoutCards/Exact";
@@ -90,11 +90,11 @@ export class ReplaceExactForm extends Component {
         : {
             ...filterMappers.getCommonFilterValues(
               values,
-              this.props.transform
+              this.props.transform,
             ),
             filter: filterMappers.mapFilterExcludeValues(
               submitValues,
-              columnType
+              columnType,
             ),
           };
 
@@ -166,7 +166,7 @@ function mapStateToProps(state, props) {
       replaceValues: [
         getDefaultValue(
           columnType,
-          getInitialReplaceValue(cellText, columnType, firstCardValue)
+          getInitialReplaceValue(cellText, columnType, firstCardValue),
         ),
       ],
       replacementValue: getDefaultValue(columnType),
@@ -182,5 +182,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(ReplaceExactForm);

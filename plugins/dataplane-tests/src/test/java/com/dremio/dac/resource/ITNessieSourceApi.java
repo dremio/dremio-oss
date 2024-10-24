@@ -166,7 +166,10 @@ public class ITNessieSourceApi extends BaseTestServerJunit5 {
   public void testWrongAPI() {
     expectStatus(
         NOT_FOUND,
-        getBuilder(getNessieProxy().path(String.format("/source/%s/treez", DATAPLANE_PLUGIN_NAME)))
+        getBuilder(
+                getHttpClient()
+                    .getNessieProxy()
+                    .path(String.format("/source/%s/treez", DATAPLANE_PLUGIN_NAME)))
             .buildGet());
   }
 
@@ -174,7 +177,10 @@ public class ITNessieSourceApi extends BaseTestServerJunit5 {
   public void testInvalidSource() {
     expectStatus(
         NOT_FOUND,
-        getBuilder(getNessieProxy().path(String.format("/v2/source/%s/trees", "invalidSource")))
+        getBuilder(
+                getHttpClient()
+                    .getNessieProxy()
+                    .path(String.format("/v2/source/%s/trees", "invalidSource")))
             .buildGet());
   }
 
@@ -243,7 +249,7 @@ public class ITNessieSourceApi extends BaseTestServerJunit5 {
     }
 
     private URI getNessieSourceUri() {
-      return getNessieProxy().getUriBuilder().path(nessieSourcePath).build();
+      return getHttpClient().getNessieProxy().getUriBuilder().path(nessieSourcePath).build();
     }
 
     @Override

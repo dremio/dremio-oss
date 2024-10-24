@@ -15,7 +15,7 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import EllipsedText from "@app/components/EllipsedText";
+import EllipsedText from "#oss/components/EllipsedText";
 export const NodeTableCellColors = {
   GREEN: "green",
   GREY: "grey",

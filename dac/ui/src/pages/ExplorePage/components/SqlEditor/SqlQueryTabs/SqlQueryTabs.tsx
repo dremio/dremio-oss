@@ -75,7 +75,7 @@ function SqlQueryTabs({
             location,
             router,
             statusesArray,
-            isMultiQueryRunning
+            isMultiQueryRunning,
           )}
         </Tabs>
       )}

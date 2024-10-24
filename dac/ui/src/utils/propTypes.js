@@ -19,7 +19,7 @@ export function checkImmutableSchema(schema) {
     if (!item.toJS) {
       return new Error(
         `Invalid prop ${propName} supplied to
-        ${componentName}, not immutable`
+        ${componentName}, not immutable`,
       );
     }
 
@@ -27,7 +27,7 @@ export function checkImmutableSchema(schema) {
       if (!item[val]) {
         return new Error(
           `Invalid prop ${propName} supplied to
-          ${componentName}. Missed - ${val} key`
+          ${componentName}. Missed - ${val} key`,
         );
       }
     }

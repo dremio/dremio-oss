@@ -93,5 +93,5 @@ export default connectComplexForm(
   },
   [],
   null,
-  null
+  null,
 )(SortMultiplyContent);

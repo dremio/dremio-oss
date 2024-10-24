@@ -190,7 +190,7 @@ public final class DremioRelDecorrelator extends CalciteRelDecorrelator {
       return null;
     }
 
-    Sets.SetView<CalciteRelDecorrelator.CorDef> intersection =
+    Sets.SetView<CorDef> intersection =
         Sets.intersection(leftFrame.corDefOutputs.keySet(), rightFrame.corDefOutputs.keySet());
 
     RexNode condition = decorrelateExpr(currentRel, map, cm, rel.getCondition());

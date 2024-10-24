@@ -20,18 +20,18 @@ import { connect } from "react-redux";
 import authorize from "@inject/containers/authorize";
 import { getViewState } from "selectors/resources";
 import Immutable from "immutable";
-import SettingHeader from "@app/components/SettingHeader";
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
+import SettingHeader from "#oss/components/SettingHeader";
+import ViewStateWrapper from "#oss/components/ViewStateWrapper";
 import { RESERVED as SUPPORT_ACCESS_RESERVED } from "@inject/pages/AdminPage/subpages/SupportAccess";
-import FormUnsavedRouteLeave from "@app/components/Forms/FormUnsavedRouteLeave";
+import FormUnsavedRouteLeave from "#oss/components/Forms/FormUnsavedRouteLeave";
 import BiApplicationTools, {
   RESERVED as BIAPPLICATION_TOOLS_RESERVED,
-} from "@app/pages/AdminPage/subpages/BiApplicationTools";
+} from "#oss/pages/AdminPage/subpages/BiApplicationTools";
 
 import SettingsMicroForm from "./SettingsMicroForm";
 import { RESERVED as INTERNAL_SUPPORT_RESERVED } from "./InternalSupportEmail";
-import { CLIENT_TOOLS_POWERBI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { withBIApps } from "@app/pages/AdminPage/useBIApps";
+import { CLIENT_TOOLS_POWERBI } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import { withBIApps } from "#oss/pages/AdminPage/useBIApps";
 
 import "./BiApplications.less";
 
@@ -113,5 +113,5 @@ export default compose(
   authorize("Support"),
   connect(mapStateToProps),
   FormUnsavedRouteLeave,
-  withBIApps
+  withBIApps,
 )(BiApplications);

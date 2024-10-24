@@ -59,7 +59,7 @@ class TabControl extends PureComponent {
             {
               [classes["tabSelected"]]: selected,
               [classes["tabSelectedStyle"]]: selected,
-            }
+            },
           )}
         >
           {tab}

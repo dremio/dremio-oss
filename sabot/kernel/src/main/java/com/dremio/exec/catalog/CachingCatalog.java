@@ -213,7 +213,7 @@ public class CachingCatalog extends DelegatingCatalog {
   @Override
   public Collection<Function> getFunctions(CatalogEntityKey path, FunctionType functionType) {
     final FunctionCacheKey cacheKey =
-        FunctionCacheKey.toNormalizedKey(getCatalogIdentity(), path, functionType);
+        FunctionCacheKey.toCacheKey(getCatalogIdentity(), path, functionType);
     return functionsCache.computeIfAbsent(
         cacheKey, ignored -> getAndMapFunctions(path, functionType));
   }
@@ -492,27 +492,24 @@ public class CachingCatalog extends DelegatingCatalog {
   }
 
   /**
-   * FunctionCacheKey is a combination of user/normalized namespace key/function type used for
-   * functions cache
+   * FunctionCacheKey is a combination of user/catalog entity key/function type used for functions
+   * cache
    */
   private static final class FunctionCacheKey {
     private final CatalogIdentity subject;
-    private final String namespaceKey;
+    private final CatalogEntityKey entityKey;
     private final FunctionType functionType;
 
     private FunctionCacheKey(
-        CatalogIdentity subject, String namespaceKey, FunctionType functionType) {
+        CatalogIdentity subject, CatalogEntityKey entityKey, FunctionType functionType) {
       this.subject = subject;
-      this.namespaceKey = namespaceKey;
+      this.entityKey = entityKey;
       this.functionType = functionType;
     }
 
-    // TODO(DX-92355) : Rework normalize key for functions to be case sensitive for versioned UDFs
-    // and to include TableVersionContext
-    public static FunctionCacheKey toNormalizedKey(
-        CatalogIdentity subject, CatalogEntityKey catalogEntityKey, FunctionType functionType) {
-      return new FunctionCacheKey(
-          subject, catalogEntityKey.toNamespaceKey().getSchemaPath().toLowerCase(), functionType);
+    public static FunctionCacheKey toCacheKey(
+        CatalogIdentity subject, CatalogEntityKey entityKey, FunctionType functionType) {
+      return new FunctionCacheKey(subject, entityKey, functionType);
     }
 
     @Override
@@ -526,16 +523,16 @@ public class CachingCatalog extends DelegatingCatalog {
       FunctionCacheKey key = (FunctionCacheKey) o;
       return functionType == key.functionType
           && Objects.equals(subject, key.subject)
-          && Objects.equals(namespaceKey, key.namespaceKey);
+          && Objects.equals(entityKey, key.entityKey);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(subject, namespaceKey, functionType);
+      return Objects.hash(subject, entityKey, functionType);
     }
   }
 
-  /** TableCacheKey is a pair of user/CatalogEntityKey. */
+  /** TableCacheKey is a pair of CatalogIdentity/CatalogEntityKey. */
   protected static final class TableCacheKey extends Pair<CatalogIdentity, CatalogEntityKey> {
     private TableCacheKey(CatalogIdentity subject, CatalogEntityKey entityKey) {
       super(subject, entityKey);

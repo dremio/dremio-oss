@@ -38,7 +38,7 @@ describe("BreadCrumbs", () => {
       const wrapper = shallow(<BreadCrumbs {...commonProps} />);
       console.log("wrapper: ", wrapper);
       expect(wrapper.children().first().children().first().text()).to.eql(
-        "<BreadCrumbItem />"
+        "<BreadCrumbItem />",
       );
 
       expect(wrapper.children().first().children().at(1).text()).to.eql(".");
@@ -52,7 +52,7 @@ describe("BreadCrumbs", () => {
       });
       expect(wrapper.children().first().children()).to.have.length(4);
       expect(wrapper.children().first().children().first().text()).to.eql(
-        "<BreadCrumbItem />"
+        "<BreadCrumbItem />",
       );
       expect(wrapper.children().first().children().at(1).text()).to.eql(".");
     });
@@ -73,14 +73,14 @@ describe("BreadCrumbs", () => {
   describe("getPartialPath", () => {
     it("should return no action for first item", () => {
       expect(getPartialPath(0, Immutable.List(["foo"]), "/space/foo")).to.eql(
-        "/space/foo"
+        "/space/foo",
       );
       expect(
         getPartialPath(
           0,
           Immutable.List(["foo", "bar"]),
-          "/space/foo/folder/bar"
-        )
+          "/space/foo/folder/bar",
+        ),
       ).to.eql("/space/foo");
     });
 
@@ -89,15 +89,15 @@ describe("BreadCrumbs", () => {
         getPartialPath(
           1,
           Immutable.List(["foo", "bar", "baz"]),
-          "/space/foo/query/bar/baz"
-        )
+          "/space/foo/query/bar/baz",
+        ),
       ).to.eql("/space/foo/folder/bar");
       expect(
         getPartialPath(
           2,
           Immutable.List(["foo", "bar", "baz"]),
-          "/space/foo/query/bar/baz"
-        )
+          "/space/foo/query/bar/baz",
+        ),
       ).to.eql("/space/foo/folder/bar/baz");
     });
 
@@ -106,11 +106,11 @@ describe("BreadCrumbs", () => {
         getPartialPath(
           1,
           Immutable.List(["foo bar", "baz"]),
-          "/space/foo%20bar/folder/baz"
-        )
+          "/space/foo%20bar/folder/baz",
+        ),
       ).to.eql("/space/foo%20bar/folder/baz");
       expect(
-        getPartialPath(0, Immutable.List(["foo bar"]), "/space/foo%20bar")
+        getPartialPath(0, Immutable.List(["foo bar"]), "/space/foo%20bar"),
       ).to.eql("/space/foo%20bar");
     });
 
@@ -119,15 +119,15 @@ describe("BreadCrumbs", () => {
         getPartialPath(
           0,
           Immutable.List(["@test_user", "bar"]),
-          "/home/@test_user/folder/bar"
-        )
+          "/home/@test_user/folder/bar",
+        ),
       ).to.eql("/");
       expect(
         getPartialPath(
           1,
           Immutable.List(["@test_user", "bar"]),
-          "/home/@test_user/folder/bar"
-        )
+          "/home/@test_user/folder/bar",
+        ),
       ).to.eql("/home/%40test_user/folder/bar");
     });
 
@@ -139,11 +139,11 @@ describe("BreadCrumbs", () => {
       ]);
       const pathname = "/space/space%2Bname/folder/folder%2Fname/folder%402";
       expect(getPartialPath(0, fullPath, pathname)).to.eql(
-        "/space/space%2Bname"
+        "/space/space%2Bname",
       );
 
       expect(getPartialPath(1, fullPath, pathname)).to.eql(
-        "/space/space%2Bname/folder/folder%2Fname"
+        "/space/space%2Bname/folder/folder%2Fname",
       );
     });
   });
@@ -154,8 +154,8 @@ describe("BreadCrumbs", () => {
         getPathElements(
           Immutable.List(["foo", "bar"]),
           "/space/foo/folder/bar",
-          {}
-        )
+          {},
+        ),
       ).to.eql([
         <Link key={"foo0"} to="/space/foo" style={{}}>
           foo
@@ -170,13 +170,13 @@ describe("BreadCrumbs", () => {
   describe("formatFullPath", () => {
     it('should wrap item with "" if it contains a dot', () => {
       expect(formatFullPath(Immutable.List(["foo.bar", "baz"]))).to.eql(
-        Immutable.List(['"foo.bar"', "baz"])
+        Immutable.List(['"foo.bar"', "baz"]),
       );
     });
 
     it('should not wrap item with "" if it contains a dot but only has one item in path', () => {
       expect(formatFullPath(Immutable.List(["foo.bar"]))).to.eql(
-        Immutable.List(["foo.bar"])
+        Immutable.List(["foo.bar"]),
       );
     });
   });

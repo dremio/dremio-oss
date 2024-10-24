@@ -15,14 +15,14 @@
  */
 import * as classes from "./SummaryStats.module.less";
 import Immutable from "immutable";
-import LinkWithHref from "@app/components/LinkWithRef/LinkWithRef";
+import LinkWithHref from "#oss/components/LinkWithRef/LinkWithRef";
 import { useDispatch } from "react-redux";
 //@ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 //@ts-ignore
 import { formatDateTimestampShortNoTZ } from "dremio-ui-common/utilities/formatDate.js";
-import { fetchStatusOfAnalyzeTools } from "@app/utils/analyzeToolsUtils";
-import { getIconPath } from "@app/utils/getIconPath";
+import { fetchStatusOfAnalyzeTools } from "#oss/utils/analyzeToolsUtils";
+import { getIconPath } from "#oss/utils/getIconPath";
 import { openTableau, openPowerBI } from "actions/explore/download";
 import RenderStat from "./RenderStat";
 import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";

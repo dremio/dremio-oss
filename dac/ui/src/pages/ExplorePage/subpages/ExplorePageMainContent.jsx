@@ -17,7 +17,7 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 
-import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
+import { PageTypes, pageTypesProp } from "#oss/pages/ExplorePage/pageTypes";
 
 import { connect } from "react-redux";
 import TopSplitterContent from "../components/TopSplitterContent";
@@ -77,5 +77,5 @@ class ExplorePageMainContent extends PureComponent {
 }
 
 export default connect(null, null, null, { forwardRef: true })(
-  ExplorePageMainContent
+  ExplorePageMainContent,
 );

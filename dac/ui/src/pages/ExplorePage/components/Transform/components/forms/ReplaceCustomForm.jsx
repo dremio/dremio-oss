@@ -61,11 +61,11 @@ export class ReplaceCustomForm extends Component {
         : {
             ...filterMappers.getCommonFilterValues(
               values,
-              this.props.transform
+              this.props.transform,
             ),
             filter: filterMappers.mapFilterExcludeCustom(
               values,
-              this.props.transform
+              this.props.transform,
             ),
           };
 
@@ -121,7 +121,7 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(ReplaceCustomForm);
 
 const styles = {

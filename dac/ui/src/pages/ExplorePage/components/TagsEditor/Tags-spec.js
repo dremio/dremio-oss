@@ -15,7 +15,7 @@
  */
 import { shallow, mount } from "enzyme";
 import { List } from "immutable";
-import keyCodes from "@app/constants/Keys.json";
+import keyCodes from "#oss/constants/Keys.json";
 import { TagsView } from "./Tags";
 import { deleteButton } from "./Tag.less";
 
@@ -24,7 +24,7 @@ const generateTags = (numberOfTags) =>
   List(
     Array(numberOfTags)
       .fill()
-      .map((e, index) => getTagName(index))
+      .map((e, index) => getTagName(index)),
   );
 const simulateKeyDown = (wrapper, keyCode) =>
   wrapper.simulate("keydown", {
@@ -99,7 +99,7 @@ describe("Tags", () => {
   it("Tab does not adds a tag if input is empty", () => {
     const addHandler = sinon.spy();
     const wrapper = shallow(
-      <TagsView {...commonProps} onAddTag={addHandler} />
+      <TagsView {...commonProps} onAddTag={addHandler} />,
     );
 
     setValueToInput(wrapper, ""); // nothin is entered
@@ -114,7 +114,7 @@ describe("Tags", () => {
   it("onTagClick is called on tag click", () => {
     const clickHandler = sinon.spy();
     const wrapper = mount(
-      <TagsView {...commonProps} onTagClick={clickHandler} />
+      <TagsView {...commonProps} onTagClick={clickHandler} />,
     );
     const index = 2;
     clickTag(wrapper, index);
@@ -200,7 +200,7 @@ describe("Tags", () => {
     beforeEach(() => {
       removeHandler = sinon.spy();
       wrapper = mount(
-        <TagsView {...commonProps} onRemoveTag={removeHandler} />
+        <TagsView {...commonProps} onRemoveTag={removeHandler} />,
       );
     });
 
@@ -214,7 +214,7 @@ describe("Tags", () => {
 
         simulateKeyDown(wrapper, keyCode);
         expect(removeHandler).have.been.calledWith(
-          commonProps.tags.get(position)
+          commonProps.tags.get(position),
         ); // DELETE handler called for a next to the cursor tag
       });
 

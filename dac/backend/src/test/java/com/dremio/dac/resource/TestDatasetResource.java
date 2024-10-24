@@ -92,7 +92,7 @@ public class TestDatasetResource extends BaseTestServer {
     getSourceService().registerSourceWithRuntime(source);
 
     createNewFile(DATASET_NAME);
-    getPreview(DATASET_PATH);
+    getHttpClient().getDatasetApi().getPreview(DATASET_PATH);
 
     final DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setName(DATASET_PATH_2.getLeaf().getName());
@@ -102,7 +102,7 @@ public class TestDatasetResource extends BaseTestServer {
     getNamespaceService().addOrUpdateDataset(DATASET_PATH_2.toNamespaceKey(), datasetConfig);
 
     createNewFile(DATASET_NAME_2);
-    getPreview(DATASET_PATH_2);
+    getHttpClient().getDatasetApi().getPreview(DATASET_PATH_2);
   }
 
   @After
@@ -117,7 +117,7 @@ public class TestDatasetResource extends BaseTestServer {
     {
       final AccelerationSettingsDescriptor descriptor =
           expectSuccess(
-              getBuilder(getAPIv2().path(endpoint)).buildGet(),
+              getBuilder(getHttpClient().getAPIv2().path(endpoint)).buildGet(),
               AccelerationSettingsDescriptor.class);
 
       assertEquals((Long) DEFAULT_REFRESH_PERIOD, descriptor.getAccelerationRefreshPeriod());
@@ -132,7 +132,7 @@ public class TestDatasetResource extends BaseTestServer {
     {
       final AccelerationSettingsDescriptor descriptor =
           expectSuccess(
-              getBuilder(getAPIv2().path(endpoint)).buildGet(),
+              getBuilder(getHttpClient().getAPIv2().path(endpoint)).buildGet(),
               AccelerationSettingsDescriptor.class);
 
       assertEquals((Long) DEFAULT_REFRESH_PERIOD, descriptor.getAccelerationRefreshPeriod());
@@ -143,7 +143,8 @@ public class TestDatasetResource extends BaseTestServer {
 
       expectSuccess(
           getBuilder(
-                  getAPIv2()
+                  getHttpClient()
+                      .getAPIv2()
                       .path(
                           String.format(
                               "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
@@ -151,7 +152,7 @@ public class TestDatasetResource extends BaseTestServer {
 
       final AccelerationSettingsDescriptor middleDescriptor =
           expectSuccess(
-              getBuilder(getAPIv2().path(endpoint)).buildGet(),
+              getBuilder(getHttpClient().getAPIv2().path(endpoint)).buildGet(),
               AccelerationSettingsDescriptor.class);
 
       assertTrue(middleDescriptor.getAccelerationNeverExpire());
@@ -162,7 +163,8 @@ public class TestDatasetResource extends BaseTestServer {
 
       expectSuccess(
           getBuilder(
-                  getAPIv2()
+                  getHttpClient()
+                      .getAPIv2()
                       .path(
                           String.format(
                               "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
@@ -170,7 +172,7 @@ public class TestDatasetResource extends BaseTestServer {
 
       final AccelerationSettingsDescriptor descriptorMod =
           expectSuccess(
-              getBuilder(getAPIv2().path(endpoint)).buildGet(),
+              getBuilder(getHttpClient().getAPIv2().path(endpoint)).buildGet(),
               AccelerationSettingsDescriptor.class);
 
       assertFalse(descriptorMod.getAccelerationNeverExpire());
@@ -185,7 +187,8 @@ public class TestDatasetResource extends BaseTestServer {
 
     final AccelerationSettingsDescriptor goodDescriptor =
         expectSuccess(
-            getBuilder(getAPIv2().path(endpoint)).buildGet(), AccelerationSettingsDescriptor.class);
+            getBuilder(getHttpClient().getAPIv2().path(endpoint)).buildGet(),
+            AccelerationSettingsDescriptor.class);
 
     goodDescriptor.setAccelerationRefreshPeriod(1L);
     goodDescriptor.setAccelerationGracePeriod(2L);
@@ -194,7 +197,8 @@ public class TestDatasetResource extends BaseTestServer {
 
     expectSuccess(
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path(
                         String.format(
                             "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
@@ -208,7 +212,8 @@ public class TestDatasetResource extends BaseTestServer {
 
     expectSuccess(
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path(
                         String.format(
                             "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
@@ -216,7 +221,8 @@ public class TestDatasetResource extends BaseTestServer {
 
     final AccelerationSettingsDescriptor badDescriptor =
         expectSuccess(
-            getBuilder(getAPIv2().path(endpoint)).buildGet(), AccelerationSettingsDescriptor.class);
+            getBuilder(getHttpClient().getAPIv2().path(endpoint)).buildGet(),
+            AccelerationSettingsDescriptor.class);
 
     badDescriptor.setAccelerationRefreshPeriod(2L); // this is > than expiration
     badDescriptor.setAccelerationGracePeriod(1L);
@@ -226,7 +232,8 @@ public class TestDatasetResource extends BaseTestServer {
     expectError(
         FamilyExpectation.CLIENT_ERROR,
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path(
                         String.format(
                             "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
@@ -245,7 +252,8 @@ public class TestDatasetResource extends BaseTestServer {
 
       expectSuccess(
           getBuilder(
-                  getAPIv2()
+                  getHttpClient()
+                      .getAPIv2()
                       .path(
                           String.format(
                               "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
@@ -254,7 +262,8 @@ public class TestDatasetResource extends BaseTestServer {
       final AccelerationSettingsDescriptor newDescriptor =
           expectSuccess(
               getBuilder(
-                      getAPIv2()
+                      getHttpClient()
+                          .getAPIv2()
                           .path(
                               String.format(
                                   "/dataset/%s/acceleration/settings",
@@ -284,7 +293,8 @@ public class TestDatasetResource extends BaseTestServer {
 
       expectSuccess(
           getBuilder(
-                  getAPIv2()
+                  getHttpClient()
+                      .getAPIv2()
                       .path(
                           String.format(
                               "/dataset/%s/acceleration/settings", DATASET_PATH_2.toPathString())))
@@ -293,7 +303,8 @@ public class TestDatasetResource extends BaseTestServer {
       final AccelerationSettingsDescriptor newDescriptor =
           expectSuccess(
               getBuilder(
-                      getAPIv2()
+                      getHttpClient()
+                          .getAPIv2()
                           .path(
                               String.format(
                                   "/dataset/%s/acceleration/settings",
@@ -323,7 +334,8 @@ public class TestDatasetResource extends BaseTestServer {
       expectStatus(
           Response.Status.BAD_REQUEST,
           getBuilder(
-                  getAPIv2()
+                  getHttpClient()
+                      .getAPIv2()
                       .path(
                           String.format(
                               "/dataset/%s/acceleration/settings", DATASET_PATH_2.toPathString())))
@@ -341,7 +353,8 @@ public class TestDatasetResource extends BaseTestServer {
       expectStatus(
           Response.Status.BAD_REQUEST,
           getBuilder(
-                  getAPIv2()
+                  getHttpClient()
+                      .getAPIv2()
                       .path(
                           String.format(
                               "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
@@ -359,7 +372,8 @@ public class TestDatasetResource extends BaseTestServer {
       expectStatus(
           Response.Status.BAD_REQUEST,
           getBuilder(
-                  getAPIv2()
+                  getHttpClient()
+                      .getAPIv2()
                       .path(
                           String.format(
                               "/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
@@ -370,7 +384,8 @@ public class TestDatasetResource extends BaseTestServer {
       expectStatus(
           Response.Status.BAD_REQUEST,
           getBuilder(
-                  getAPIv2()
+                  getHttpClient()
+                      .getAPIv2()
                       .path(
                           String.format(
                               "/dataset/%s/moveTo/%s",
@@ -382,7 +397,8 @@ public class TestDatasetResource extends BaseTestServer {
       expectStatus(
           Response.Status.BAD_REQUEST,
           getBuilder(
-                  getAPIv2()
+                  getHttpClient()
+                      .getAPIv2()
                       .path(String.format("/dataset/%s/rename/", DATASET_PATH.toPathString()))
                       .queryParam("renameTo", DATASET_PATH_2.getLeaf().toString()))
               .build("POST"));
@@ -396,7 +412,8 @@ public class TestDatasetResource extends BaseTestServer {
     expectStatus(
         Response.Status.BAD_REQUEST,
         getBuilder(
-                getAPIv3()
+                getHttpClient()
+                    .getAPIv3()
                     .path(
                         String.format(
                             "/dataset/%s/reflection/recommendation/%s", uuid, "invalidType")))
@@ -410,7 +427,8 @@ public class TestDatasetResource extends BaseTestServer {
     ResponseList responseRecommendedReflections =
         expectSuccess(
             getBuilder(
-                    getAPIv3()
+                    getHttpClient()
+                        .getAPIv3()
                         .path(
                             String.format(
                                 "/dataset/%s/reflection/recommendation/%s",
@@ -436,7 +454,8 @@ public class TestDatasetResource extends BaseTestServer {
     ResponseList responseRecommendedReflectionsLowercase =
         expectSuccess(
             getBuilder(
-                    getAPIv3()
+                    getHttpClient()
+                        .getAPIv3()
                         .path(
                             String.format("/dataset/%s/reflection/recommendation/%s", uuid, "agg")))
                 .buildPost(null),
@@ -464,7 +483,8 @@ public class TestDatasetResource extends BaseTestServer {
     ResponseList responseRecommendedReflections =
         expectSuccess(
             getBuilder(
-                    getAPIv3()
+                    getHttpClient()
+                        .getAPIv3()
                         .path(
                             String.format(
                                 "/dataset/%s/reflection/recommendation/%s",

@@ -66,6 +66,7 @@ public class ReflectionManagerFactory {
   private final DependenciesStore dependenciesStore;
   private final BufferAllocator allocator;
   private final Supplier<DescriptorCache> descriptorCache;
+  private final WakeUpCallback wakeUpCacheRefresherCallback;
 
   ReflectionManagerFactory(ReflectionManagerFactory that) {
     this.sabotContext = that.sabotContext;
@@ -86,6 +87,7 @@ public class ReflectionManagerFactory {
     this.dependenciesStore = that.dependenciesStore;
     this.allocator = that.allocator;
     this.descriptorCache = that.descriptorCache;
+    this.wakeUpCacheRefresherCallback = that.wakeUpCacheRefresherCallback;
   }
 
   ReflectionManagerFactory(
@@ -106,7 +108,8 @@ public class ReflectionManagerFactory {
       RefreshRequestsStore requestsStore,
       DependenciesStore dependenciesStore,
       BufferAllocator allocator,
-      Supplier<DescriptorCache> descriptorCache) {
+      Supplier<DescriptorCache> descriptorCache,
+      WakeUpCallback wakeUpCacheRefresherCallback) {
     this.sabotContext = sabotContext;
     this.storeProvider = storeProvider;
     this.jobsService = jobsService;
@@ -125,6 +128,7 @@ public class ReflectionManagerFactory {
     this.dependenciesStore = dependenciesStore;
     this.allocator = allocator;
     this.descriptorCache = descriptorCache;
+    this.wakeUpCacheRefresherCallback = wakeUpCacheRefresherCallback;
   }
 
   ReflectionSettings newReflectionSettings() {
@@ -163,10 +167,15 @@ public class ReflectionManagerFactory {
         allocator,
         ReflectionGoalChecker.Instance,
         new RefreshStartHandler(
-            catalogService.get(), jobsService.get(), materializationStore, wakeUpCallback),
+            catalogService.get(),
+            jobsService.get(),
+            materializationStore,
+            wakeUpCallback,
+            getOptionManager()),
         new DependencyResolutionContextFactory(
             reflectionSettings, requestsStore, getOptionManager()),
-        datasetEventHub);
+        datasetEventHub,
+        wakeUpCacheRefresherCallback);
   }
 
   ReflectionManagerWakeupHandler newWakeupHandler(

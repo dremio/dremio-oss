@@ -16,7 +16,7 @@
 import { combineReducers } from "redux";
 
 import jobs from "./jobs";
-import { SET_TAB_VIEW } from "@app/actions/resources/scripts";
+import { SET_TAB_VIEW } from "#oss/actions/resources/scripts";
 import { tabJobsReducer } from "./tabJobsReducer";
 import { cloneDeep } from "lodash";
 

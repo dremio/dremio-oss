@@ -15,11 +15,11 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 import { FormattedMessage } from "react-intl";
 import classNames from "clsx";
 
-import { dateTypeToFormat } from "@app/constants/DataTypes";
+import { dateTypeToFormat } from "#oss/constants/DataTypes";
 
 import * as classes from "./TimePicker.module.less";
 
@@ -39,7 +39,7 @@ export default class TimePicker extends Component {
 
     this.state = {
       value: moment(props.value, dateTypeToFormat[props.columnType]).format(
-        TIME_FORMAT
+        TIME_FORMAT,
       ),
     };
   }
@@ -48,7 +48,7 @@ export default class TimePicker extends Component {
     this.setState({
       value: moment(
         nextProps.value,
-        dateTypeToFormat[nextProps.columnType]
+        dateTypeToFormat[nextProps.columnType],
       ).format(TIME_FORMAT),
     });
   }

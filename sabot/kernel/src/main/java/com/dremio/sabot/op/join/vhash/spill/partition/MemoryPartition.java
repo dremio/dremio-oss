@@ -406,7 +406,7 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
 
       @Override
       public long getProbeListTimeNanos() {
-        return probe == null ? 0 : probe.getProbeListTime() - table.getProbeFindTime(ns);
+        return probe == null ? 0 : probe.getProbeListTime();
       }
 
       @Override

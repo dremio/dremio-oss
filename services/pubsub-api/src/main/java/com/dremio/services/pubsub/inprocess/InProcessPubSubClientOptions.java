@@ -21,7 +21,7 @@ import com.dremio.options.TypeValidators;
 /** Options for {@link InProcessPubSubClient}. */
 @Options
 public final class InProcessPubSubClientOptions {
-  /** Parallelism of the executor, must be 2 or greater. */
+  /** Parallelism of the executor, must be 2 or greater. One thread is used for queue processing. */
   public static final TypeValidators.LongValidator PARALLELISM =
       new TypeValidators.LongValidator("dremio.pubsub.inprocess.parallelism", 2);
 

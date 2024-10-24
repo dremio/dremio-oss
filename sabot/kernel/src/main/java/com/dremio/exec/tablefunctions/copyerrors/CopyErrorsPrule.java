@@ -34,10 +34,15 @@ import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.store.dfs.copyinto.CopyFileHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
-import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadata;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
+import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin;
+import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
 import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
 import com.dremio.exec.util.VectorUtil;
+import com.dremio.service.users.SystemUser;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.calcite.plan.RelOptRule;
@@ -54,10 +59,6 @@ import org.slf4j.LoggerFactory;
 public final class CopyErrorsPrule extends RelOptRule {
 
   private static final Logger LOG = LoggerFactory.getLogger(CopyErrorsPrule.class);
-  private static final String COPY_JOB_HISTORY_TABLE_NAME =
-      String.format("sys.%s", SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME);
-  private static final String COPY_FILE_HISTORY_TABLE_NAME =
-      String.format("sys.%s", SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME);
   private static final String COPY_ERRORS_PLAN_QUERY_LABEL = "COPY";
   private static final String COPY_ERRORS_PLAN_QUERY_TYPE = "COPY_ERRORS_PLAN";
 
@@ -89,6 +90,7 @@ public final class CopyErrorsPrule extends RelOptRule {
             .getSession()
             .getOptions()
             .getOption(ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION);
+
     long maxInputFiles =
         context
             .getSession()
@@ -103,6 +105,18 @@ public final class CopyErrorsPrule extends RelOptRule {
     String user = copyErrorContext.getResolvedTargetTable().getTable().getDataset().getUser();
 
     SimpleJobRunner jobRunner = context.getJobsRunner().get();
+    CopyJobHistoryTableSchemaProvider copyJobHistoryTableSchemaProvider =
+        new CopyJobHistoryTableSchemaProvider(schemaVersion);
+    CopyFileHistoryTableSchemaProvider copyFileHistoryTableSchemaProvider =
+        new CopyFileHistoryTableSchemaProvider(schemaVersion);
+
+    SystemIcebergTablesStoragePlugin plugin =
+        context
+            .getCatalogService()
+            .getSource(SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
+    SystemIcebergTableMetadata jobHistoryMetadata =
+        plugin.getTableMetadata(
+            ImmutableList.of(SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName()));
 
     // 1. if not given, find out last COPY INTO jobId for specified table
     if (jobId == null) {
@@ -110,22 +124,24 @@ public final class CopyErrorsPrule extends RelOptRule {
       jobIdQuery
           .append("SELECT")
           .append(" \"")
-          .append(CopyJobHistoryTableSchemaProvider.getJobIdColName())
+          .append(copyJobHistoryTableSchemaProvider.getJobIdColName())
           .append("\"")
           .append(" FROM ")
-          .append(COPY_JOB_HISTORY_TABLE_NAME)
+          .append(jobHistoryMetadata.getNamespaceKey().getRoot())
+          .append(".")
+          .append(jobHistoryMetadata.getTableName())
           .append(" WHERE \"")
-          .append(CopyJobHistoryTableSchemaProvider.getTableNameColName())
+          .append(copyJobHistoryTableSchemaProvider.getTableNameColName())
           .append("\" = '")
           .append(resolvedTargetTableName)
           .append("'")
           .append(" AND \"")
-          .append(CopyJobHistoryTableSchemaProvider.getUserNameColName())
+          .append(copyJobHistoryTableSchemaProvider.getUserNameColName())
           .append("\" = '")
           .append(user)
           .append("'")
           .append(" ORDER BY \"")
-          .append(CopyJobHistoryTableSchemaProvider.getExecutedAtColName())
+          .append(copyJobHistoryTableSchemaProvider.getExecutedAtColName())
           .append("\" DESC LIMIT 1");
 
       List<RecordBatchHolder> jobIdEntry = null;
@@ -133,7 +149,7 @@ public final class CopyErrorsPrule extends RelOptRule {
         jobIdEntry =
             jobRunner.runQueryAsJobForResults(
                 jobIdQuery.toString(),
-                user,
+                SystemUser.SYSTEM_USERNAME,
                 COPY_ERRORS_PLAN_QUERY_TYPE,
                 COPY_ERRORS_PLAN_QUERY_LABEL,
                 0,
@@ -148,7 +164,7 @@ public final class CopyErrorsPrule extends RelOptRule {
                 ((VarCharVector)
                         VectorUtil.getVectorFromSchemaPath(
                             recordBatchData.getVectorAccessible(),
-                            CopyJobHistoryTableSchemaProvider.getJobIdColName()))
+                            copyJobHistoryTableSchemaProvider.getJobIdColName()))
                     .get(0));
       } catch (Exception e) {
         if (COPY_INTO_JOB_NOT_FOUND_EXCEPTION.equals(e)) {
@@ -167,73 +183,85 @@ public final class CopyErrorsPrule extends RelOptRule {
 
     // 2. retrieve aggregated error information in order to prepare executing the original COPY INTO
     // command in validation mode
+
+    SystemIcebergTableMetadata fileHistoryMetadata =
+        plugin.getTableMetadata(
+            ImmutableList.of(SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName()));
+
     StringBuilder joinQuery = new StringBuilder();
     joinQuery
         .append("SELECT")
         .append(" jh.\"")
-        .append(CopyJobHistoryTableSchemaProvider.getJobIdColName())
+        .append(copyJobHistoryTableSchemaProvider.getJobIdColName())
         .append("\",")
         .append(" jh.\"")
-        .append(CopyJobHistoryTableSchemaProvider.getStorageLocationColName())
+        .append(copyJobHistoryTableSchemaProvider.getStorageLocationColName())
         .append("\",")
         .append(" jh.\"")
-        .append(CopyJobHistoryTableSchemaProvider.getFileFormatColName())
+        .append(copyJobHistoryTableSchemaProvider.getFileFormatColName())
         .append("\",")
         .append(" jh.\"")
-        .append(CopyJobHistoryTableSchemaProvider.getCopyOptionsColName())
+        .append(copyJobHistoryTableSchemaProvider.getCopyOptionsColName())
+        .append("\",")
+        .append(" jh.\"")
+        .append(copyJobHistoryTableSchemaProvider.getTransformationProperties())
         .append("\",")
         .append(" gfh.\"file_paths\"")
         .append(" FROM ")
-        .append(COPY_JOB_HISTORY_TABLE_NAME)
+        .append(jobHistoryMetadata.getNamespaceKey().getRoot())
+        .append(".")
+        .append(jobHistoryMetadata.getTableName())
         .append(" AS jh")
         .append(" INNER JOIN (SELECT")
         .append(" lfp.\"")
-        .append(CopyFileHistoryTableSchemaProvider.getJobIdColName())
+        .append(copyFileHistoryTableSchemaProvider.getJobIdColName())
         .append("\",")
         .append(" LISTAGG(lfp.\"")
-        .append(CopyFileHistoryTableSchemaProvider.getFilePathColName())
+        .append(copyFileHistoryTableSchemaProvider.getFilePathColName())
         .append("\", ',') AS \"file_paths\"")
         .append(" FROM (SELECT")
         .append(" fh.\"")
-        .append(CopyFileHistoryTableSchemaProvider.getJobIdColName())
+        .append(copyFileHistoryTableSchemaProvider.getJobIdColName())
         .append("\",")
         .append(" fh.\"")
-        .append(CopyFileHistoryTableSchemaProvider.getFilePathColName())
+        .append(copyFileHistoryTableSchemaProvider.getFilePathColName())
         .append("\"")
         .append(" FROM ")
-        .append(COPY_FILE_HISTORY_TABLE_NAME)
+        .append(fileHistoryMetadata.getNamespaceKey().getRoot())
+        .append(".")
+        .append(fileHistoryMetadata.getTableName())
         .append(" AS fh")
         .append(" WHERE fh.\"")
-        .append(CopyFileHistoryTableSchemaProvider.getJobIdColName())
+        .append(copyFileHistoryTableSchemaProvider.getJobIdColName())
         .append("\" = '")
         .append(jobId)
         .append("'")
         .append(" AND (fh.\"")
-        .append(CopyFileHistoryTableSchemaProvider.getFileStateColName())
+        .append(copyFileHistoryTableSchemaProvider.getFileStateColName())
         .append("\" = '")
         .append(CopyIntoFileLoadInfo.CopyIntoFileState.SKIPPED)
         .append("'")
         .append(" OR fh.\"")
-        .append(CopyFileHistoryTableSchemaProvider.getFileStateColName())
+        .append(copyFileHistoryTableSchemaProvider.getFileStateColName())
         .append("\" = '")
         .append(CopyIntoFileLoadInfo.CopyIntoFileState.PARTIALLY_LOADED)
         .append("')")
         .append(" ORDER BY fh.\"")
-        .append(CopyFileHistoryTableSchemaProvider.getFilePathColName())
+        .append(copyFileHistoryTableSchemaProvider.getFilePathColName())
         .append("\" ASC")
         .append(" LIMIT ")
         .append(maxInputFiles)
         .append(") AS lfp")
         .append(" GROUP BY lfp.\"")
-        .append(CopyFileHistoryTableSchemaProvider.getJobIdColName())
+        .append(copyFileHistoryTableSchemaProvider.getJobIdColName())
         .append("\") AS gfh")
         .append(" ON jh.\"")
-        .append(CopyJobHistoryTableSchemaProvider.getJobIdColName())
+        .append(copyJobHistoryTableSchemaProvider.getJobIdColName())
         .append("\" = gfh.\"")
-        .append(CopyFileHistoryTableSchemaProvider.getJobIdColName())
+        .append(copyFileHistoryTableSchemaProvider.getJobIdColName())
         .append("\"")
         .append(" WHERE jh.\"")
-        .append(CopyJobHistoryTableSchemaProvider.getUserNameColName())
+        .append(copyJobHistoryTableSchemaProvider.getUserNameColName())
         .append("\" = '")
         .append(user)
         .append("'");
@@ -246,7 +274,7 @@ public final class CopyErrorsPrule extends RelOptRule {
       copyErrorEntry =
           jobRunner.runQueryAsJobForResults(
               joinQuery.toString(),
-              user,
+              SystemUser.SYSTEM_USERNAME,
               COPY_ERRORS_PLAN_QUERY_TYPE,
               COPY_ERRORS_PLAN_QUERY_LABEL,
               0,

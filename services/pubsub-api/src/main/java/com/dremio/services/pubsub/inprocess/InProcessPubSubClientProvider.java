@@ -18,7 +18,6 @@ package com.dremio.services.pubsub.inprocess;
 import com.dremio.options.OptionManager;
 import com.dremio.services.pubsub.PubSubClient;
 import io.opentelemetry.api.OpenTelemetry;
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
@@ -26,16 +25,16 @@ import javax.inject.Singleton;
 @Singleton
 public class InProcessPubSubClientProvider {
   private final Provider<OptionManager> optionManagerProvider;
-  private final OpenTelemetry openTelemetry;
-  @Nullable private final Provider<InProcessPubSubEventListener> eventListenerProvider;
+  private final Provider<OpenTelemetry> openTelemetry;
+  private final Provider<InProcessPubSubEventListener> eventListenerProvider;
 
   private InProcessPubSubClient pubSubClient;
 
   @Inject
   public InProcessPubSubClientProvider(
       Provider<OptionManager> optionManagerProvider,
-      OpenTelemetry openTelemetry,
-      @Nullable Provider<InProcessPubSubEventListener> eventListenerProvider) {
+      Provider<OpenTelemetry> openTelemetry,
+      Provider<InProcessPubSubEventListener> eventListenerProvider) {
     this.optionManagerProvider = optionManagerProvider;
     this.openTelemetry = openTelemetry;
     this.eventListenerProvider = eventListenerProvider;
@@ -45,9 +44,7 @@ public class InProcessPubSubClientProvider {
     if (pubSubClient == null) {
       pubSubClient =
           new InProcessPubSubClient(
-              optionManagerProvider.get(),
-              openTelemetry,
-              eventListenerProvider != null ? eventListenerProvider.get() : null);
+              optionManagerProvider.get(), openTelemetry.get(), eventListenerProvider.get());
     }
     return pubSubClient;
   }

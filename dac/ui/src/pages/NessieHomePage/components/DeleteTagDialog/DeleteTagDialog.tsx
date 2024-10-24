@@ -21,15 +21,15 @@ import {
   ModalContainer,
   DialogContent,
 } from "dremio-ui-lib/components";
-import { Reference } from "@app/types/nessie";
+import { Reference } from "#oss/types/nessie";
 import { useNessieContext } from "../../utils/context";
 import { addNotification } from "actions/notification";
-import { setReference } from "@app/actions/nessie/nessie";
-import { ReferenceType } from "@app/services/nessie/client/index";
+import { setReference } from "#oss/actions/nessie/nessie";
+import { ReferenceType } from "#oss/services/nessie/client/index";
 import {
   constructVersionedEntityUrl,
   useVersionedPageContext,
-} from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
+} from "#oss/exports/pages/VersionedHomePage/versioned-page-utils";
 import * as classes from "./DeleteTagDialog.module.less";
 
 type DeleteTagDialogProps = {

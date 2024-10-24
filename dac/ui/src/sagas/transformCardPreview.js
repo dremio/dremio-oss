@@ -40,7 +40,7 @@ export function* handleTransformCardPreview({ meta }) {
     success: take(getRequestPredicate(TRANSFORM_CARD_PREVIEW_SUCCESS, meta)),
     failure: take(getRequestPredicate(TRANSFORM_CARD_PREVIEW_FAILURE, meta)),
     anotherRequest: take(
-      getRequestPredicate(TRANSFORM_CARD_PREVIEW_START, meta)
+      getRequestPredicate(TRANSFORM_CARD_PREVIEW_START, meta),
     ),
     reset: take(RESET_RECOMMENDED_TRANSFORMS),
   });

@@ -115,7 +115,8 @@ public interface DataplaneStorage extends ExtensionContext.Store.CloseableResour
   Stream<String> listObjectNames(
       BucketSelection bucketSelection, String filterPath, Predicate<String> objectNameFilter);
 
-  NessiePluginConfig preparePluginConfig(BucketSelection bucketSelection, String nessieEndpoint);
+  NessiePluginConfig prepareNessiePluginConfig(
+      BucketSelection bucketSelection, String nessieEndpoint);
 
   FileIO getFileIO();
 

@@ -22,12 +22,12 @@ import { injectIntl, FormattedMessage } from "react-intl";
 import { browserHistory } from "react-router";
 import { createSelector } from "reselect";
 
-import SettingHeader from "@app/components/SettingHeader";
+import SettingHeader from "#oss/components/SettingHeader";
 
 import StatefulTableViewer from "components/StatefulTableViewer";
 
 import { pageContent, page } from "uiTheme/radium/general";
-import { DeleteButton } from "@app/components/tableRowButtons/DeleteButton";
+import { DeleteButton } from "#oss/components/tableRowButtons/DeleteButton";
 import { IconButton, Button } from "dremio-ui-lib/components";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import * as adminPaths from "dremio-ui-common/paths/admin.js";
@@ -193,6 +193,7 @@ class UsersView extends PureComponent {
                   right: "var(--dremio--spacing--05)",
                   top: "3px",
                 }}
+                class="icon-primary"
               ></dremio-icon>
               <input
                 type="text"

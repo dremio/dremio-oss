@@ -18,9 +18,9 @@ import ReactFlow, { isNode } from "react-flow-renderer";
 import dagre from "dagre";
 import { injectIntl } from "react-intl";
 import { Tooltip } from "dremio-ui-lib";
-import { getIconPath } from "@app/utils/getIconPath";
+import { getIconPath } from "#oss/utils/getIconPath";
 import PropTypes from "prop-types";
-import TextWithHelp from "@app/components/TextWithHelp";
+import TextWithHelp from "#oss/components/TextWithHelp";
 import {
   getColorCode,
   initialElements,
@@ -37,7 +37,7 @@ const onLayout = (
   nodesWithParent,
   nodeColorFlags,
   duplicateNodes,
-  algebricNodes
+  algebricNodes,
 ) => {
   dagreGraph.setGraph({ rankdir: direction });
   nodeElements.forEach((node) => {
@@ -156,7 +156,7 @@ const DatasetGraph = ({
   const algebricMatchData = algebricMatch.toJS().reduce((obj, item) => {
     obj[item.datasetID]
       ? obj[item.datasetID].reflectionsDefinedList.push(
-          ...item.reflectionsDefinedList
+          ...item.reflectionsDefinedList,
         )
       : (obj[item.datasetID] = { ...item });
     return obj;
@@ -168,7 +168,7 @@ const DatasetGraph = ({
         id: item.datasetID,
         dataSet: item,
       };
-    }
+    },
   );
 
   // leaf nodes with parent id will get added in nodesWithParent
@@ -207,7 +207,7 @@ const DatasetGraph = ({
       item.dataSet.reflectionsDefinedList.length > 0
     ) {
       const reflectionData = getSortedReflectionsData(
-        item.dataSet.reflectionsDefinedList
+        item.dataSet.reflectionsDefinedList,
       );
       reflectionData.map((data) => {
         nodesWithParent[data.reflectionID] = true;
@@ -281,7 +281,7 @@ const DatasetGraph = ({
       nodesWithParent,
       nodeColorFlags,
       duplicateNodes,
-      algebricNodes
+      algebricNodes,
     );
     setNodeElements(layoutElements);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

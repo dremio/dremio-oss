@@ -31,9 +31,9 @@ export const restoreMockData = () => {
 
 export const listResourceTreeHandler = rest.get(
   decodeURIComponent(
-    getResourceTreeUrl().replace(`//${window.location.host}`, "")
+    getResourceTreeUrl().replace(`//${window.location.host}`, ""),
   ),
   (req, res, ctx) => {
     return res(ctx.delay(200), ctx.json(mockData));
-  }
+  },
 );

@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import CommitBrowser from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/CommitBrowser";
+import CommitBrowser from "#oss/pages/HomePage/components/BranchPicker/components/CommitBrowser/CommitBrowser";
 import {
   LogEntryV2 as LogEntry,
   LogResponseV2 as LogResponse,
-} from "@app/services/nessie/client";
+} from "#oss/services/nessie/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNessieContext } from "../../../../utils/context";
 import CommitDetails from "../../../CommitDetails/CommitDetails";

@@ -22,4 +22,6 @@ import com.dremio.options.TypeValidators;
 public class SearchOptions {
   public static final TypeValidators.BooleanValidator SEARCH_V2 =
       new TypeValidators.BooleanValidator("dremio.search.v2.enabled", false);
+  public static final TypeValidators.StringValidator SEARCH_DATASOURCE_ID =
+      new TypeValidators.StringValidator("services.search.datasource.id", "search-documents");
 }

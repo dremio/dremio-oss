@@ -26,17 +26,16 @@ import { useSqlErrorDecorations } from "dremio-ui-common/sonar/components/Monaco
 import { completionProvider } from "dremio-ui-common/sonar/components/Monaco/components/SqlEditor/plugins/completionProvider.js";
 import { formattingProvider } from "dremio-ui-common/sonar/components/Monaco/components/SqlEditor/plugins/formattingProvider.js";
 import { type SQLError } from "dremio-ui-common/sql/errorDetection/types/SQLError.js";
-import { addNotification } from "@app/actions/notification";
-import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
+import { addNotification } from "#oss/actions/notification";
+import { MSG_CLEAR_DELAY_SEC } from "#oss/constants/Constants";
 import {
   SqlEditor,
   type SqlEditorRef,
-} from "@app/exports/components/MonacoWrappers/SqlEditor";
-import { useSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { LIVE_SYNTAX_ERROR_DETECTION } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { store } from "@app/store/store";
-import { intl } from "@app/utils/intl";
-import { SQL_DARK_THEME, SQL_LIGHT_THEME } from "@app/utils/sql-editor";
+} from "#oss/exports/components/MonacoWrappers/SqlEditor";
+import { useSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { LIVE_SYNTAX_ERROR_DETECTION } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import { store } from "#oss/store/store";
+import { intl } from "#oss/utils/intl";
 import { getExtraKeyboardShortcuts } from "@inject/utils/sql-editor-extra";
 import { useSqlFunctions } from "./hooks/useSqlFunctions";
 import { getKeyboardShortcuts } from "./utils/keyboardShortcuts";
@@ -51,7 +50,6 @@ type SqlEditorContainerProps = Omit<HTMLProps<HTMLDivElement>, "onChange"> &
     onChange: (val: string) => unknown;
     queryContext: Immutable.List<string>;
     serverSqlErrors: SQLError[];
-    theme: typeof SQL_LIGHT_THEME | typeof SQL_DARK_THEME;
     keyboardShortcutProps: {
       toggleExtraSQLPanel?: () => Record<string, any> | null;
     };

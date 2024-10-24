@@ -19,10 +19,10 @@ import {
   getDatasetVersionFromLocation,
   getExploreState,
   getFullDataset,
-} from "@app/selectors/explore";
-import { getLocation } from "@app/selectors/routing";
-import { ExploreJobsState } from "@app/reducers/explore/exploreJobs";
-import { JobSummary } from "@app/exports/types/JobSummary.type";
+} from "#oss/selectors/explore";
+import { getLocation } from "#oss/selectors/routing";
+import { ExploreJobsState } from "#oss/reducers/explore/exploreJobs";
+import { JobSummary } from "#oss/exports/types/JobSummary.type";
 
 const getAllJobSummaries = (state: Record<string, any>) =>
   getExploreState(state)?.exploreJobs.jobSummaries || {};

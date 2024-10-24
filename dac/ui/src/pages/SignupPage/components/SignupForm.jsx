@@ -32,7 +32,7 @@ import localStorageUtils from "utils/storageUtils/localStorageUtils";
 import UserForm from "components/Forms/UserForm";
 
 import SignupTitle from "./SignupTitle";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 export const SIGNUP_FORM_VIEW_ID = "SIGNUP_FORM_VIEW_ID";
 

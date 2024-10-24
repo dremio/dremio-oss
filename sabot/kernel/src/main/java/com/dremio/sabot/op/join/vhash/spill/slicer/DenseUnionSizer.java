@@ -60,6 +60,18 @@ public class DenseUnionSizer implements Sizer {
     }
   }
 
+  @Override
+  public int getDataLengthFromIndex(int startIndex, int numberOfEntries) {
+    int totalDataLength = 0;
+    int endIndex = startIndex + numberOfEntries;
+    for (; startIndex < endIndex; startIndex++) {
+      final int vectorTypeId = incoming.getTypeId(startIndex);
+      final Sizer childVectorSizer = Sizer.get(incoming.getVectorByType((byte) vectorTypeId));
+      totalDataLength += childVectorSizer.getDataLengthFromIndex(incoming.getOffset(startIndex), 1);
+    }
+    return totalDataLength;
+  }
+
   /**
    * Computes purely data size excludes size required for offsets/validity buffers
    *

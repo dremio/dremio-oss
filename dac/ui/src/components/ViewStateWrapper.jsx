@@ -22,7 +22,7 @@ import classNames from "clsx";
 import PropTypes from "prop-types";
 import ImmutablePropTypes from "react-immutable-proptypes";
 
-import LoadingOverlay from "@app/components/LoadingOverlay";
+import LoadingOverlay from "#oss/components/LoadingOverlay";
 import Message from "components/Message";
 import { dismissViewStateError } from "actions/resources";
 
@@ -148,7 +148,7 @@ export class ViewStateWrapper extends Component {
           dataQa={dataQa}
           spinnerStyle={spinnerStyle}
           showSpinner={Boolean(
-            this.state.shouldWeSeeSpinner || hideChildrenWhenInProgress
+            this.state.shouldWeSeeSpinner || hideChildrenWhenInProgress,
           )}
         />
       );
@@ -218,8 +218,8 @@ export const mergeViewStates = (...viewStates) => {
         result[fieldName] = findFirstTruthyValue(fieldName, ...viewStates);
         return result;
       },
-      {}
-    )
+      {},
+    ),
   );
 };
 

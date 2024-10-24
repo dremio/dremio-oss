@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.handlers.query;
 
 import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
@@ -42,7 +43,8 @@ public class DeleteHandler extends DmlHandler {
   }
 
   @Override
-  protected void validatePrivileges(Catalog catalog, CatalogEntityKey key, SqlNode sqlNode) {
+  protected void validatePrivileges(
+      Catalog catalog, CatalogEntityKey key, SqlNode sqlNode, VersionContext versionContext) {
     NamespaceKey path = key.toNamespaceKey();
     catalog.validatePrivilege(path, Privilege.DELETE);
     catalog.validatePrivilege(path, Privilege.SELECT);

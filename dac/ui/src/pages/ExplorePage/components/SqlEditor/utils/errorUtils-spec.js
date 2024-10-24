@@ -61,11 +61,11 @@ describe("errorUtils", () => {
 
     it("should return original range if response doesn't have error details", () => {
       expect(
-        extractSqlErrorFromResponse(undefined, globalQueryRange).range
+        extractSqlErrorFromResponse(undefined, globalQueryRange).range,
       ).to.deep.equal(globalQueryRange);
       expect(
         extractSqlErrorFromResponse(responseWithNoDetails, globalQueryRange)
-          .range
+          .range,
       ).to.deep.equal(globalQueryRange);
     });
 
@@ -82,12 +82,12 @@ describe("errorUtils", () => {
               ],
             },
           },
-          globalQueryRange
-        ).range
+          globalQueryRange,
+        ).range,
       ).to.deep.equal(globalQueryRange);
       expect(
         extractSqlErrorFromResponse(responseWithNoDetails, globalQueryRange)
-          .range
+          .range,
       ).to.deep.equal(globalQueryRange);
     });
 
@@ -109,7 +109,7 @@ describe("errorUtils", () => {
         },
       };
       expect(
-        extractSqlErrorFromResponse(firstLineError, globalQueryRange).range
+        extractSqlErrorFromResponse(firstLineError, globalQueryRange).range,
       ).to.deep.equal({
         startLineNumber: 12, // original start & end lines
         endLineNumber: 12,
@@ -120,7 +120,7 @@ describe("errorUtils", () => {
 
     it("should return start and end column same as in relative error plus one for exclusive index when error on non-start line for the gloabl range", () => {
       expect(
-        extractSqlErrorFromResponse(fullResponse, globalQueryRange).range
+        extractSqlErrorFromResponse(fullResponse, globalQueryRange).range,
       ).to.deep.equal({
         startLineNumber: 13, // 12 original and 2 in the error
         startColumn: 2, // 2 in the error since we don't start on the original line
@@ -131,17 +131,17 @@ describe("errorUtils", () => {
 
     it("should return generic error if response is empty", () => {
       expect(
-        extractSqlErrorFromResponse(undefined, globalQueryRange).message
+        extractSqlErrorFromResponse(undefined, globalQueryRange).message,
       ).to.eql(DEFAULT_ERROR_MESSAGE);
       expect(extractSqlErrorFromResponse({}, globalQueryRange).message).to.eql(
-        DEFAULT_ERROR_MESSAGE
+        DEFAULT_ERROR_MESSAGE,
       );
     });
 
     it("should return global error if there are no details", () => {
       expect(
         extractSqlErrorFromResponse(responseWithNoDetails, globalQueryRange)
-          .message
+          .message,
       ).to.eql(generalError);
 
       const responseWithEmptyDetails = {
@@ -151,7 +151,7 @@ describe("errorUtils", () => {
 
       expect(
         extractSqlErrorFromResponse(responseWithEmptyDetails, globalQueryRange)
-          .message
+          .message,
       ).to.eql(generalError);
     });
 
@@ -165,13 +165,13 @@ describe("errorUtils", () => {
 
       expect(
         extractSqlErrorFromResponse(responseWithNoErrors, globalQueryRange)
-          .message
+          .message,
       ).to.eql(generalError);
     });
 
     it("should return specific error if response has details", () => {
       expect(
-        extractSqlErrorFromResponse(fullResponse, globalQueryRange).message
+        extractSqlErrorFromResponse(fullResponse, globalQueryRange).message,
       ).to.eql(specificError);
     });
 
@@ -192,8 +192,8 @@ describe("errorUtils", () => {
       expect(
         extractSqlErrorFromResponse(
           responseWithMultipleErrors,
-          globalQueryRange
-        ).message
+          globalQueryRange,
+        ).message,
       ).to.eql(specificError);
     });
   });

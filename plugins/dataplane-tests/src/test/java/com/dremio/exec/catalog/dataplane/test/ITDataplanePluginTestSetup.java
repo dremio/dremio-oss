@@ -38,6 +38,7 @@ import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.DatasetCatalogServiceImpl;
@@ -62,6 +63,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
@@ -75,6 +77,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.iceberg.CatalogProperties;
@@ -125,16 +128,16 @@ public abstract class ITDataplanePluginTestSetup extends DataplaneTestHelper {
   @BeforeAll
   static void setUp() throws Exception {
     setUpSabotNodeRule();
-    setSystemOption(DATAPLANE_AZURE_STORAGE_ENABLED, "true");
-    setSystemOption(ENABLE_MERGE_BRANCH_BEHAVIOR, "true");
-    setSystemOption(DATAPLANE_GCS_STORAGE_ENABLED, "true");
+    setSystemOption(DATAPLANE_AZURE_STORAGE_ENABLED, true);
+    setSystemOption(ENABLE_MERGE_BRANCH_BEHAVIOR, true);
+    setSystemOption(DATAPLANE_GCS_STORAGE_ENABLED, true);
     setUpNessie();
     setUpDataplanePlugin();
     setUpNessieIcebergCatalog();
 
     // Set support key for V1 views to be enabled to mimic software support key being enabled
     // TODO: Will be removed DX-91353
-    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "true");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, true);
   }
 
   @AfterAll
@@ -146,26 +149,22 @@ public abstract class ITDataplanePluginTestSetup extends DataplaneTestHelper {
   @BeforeEach
   void before() throws Exception {
     setDataplaneDefaultSessionSettings();
-    Branch defaultBranch = getNessieClient().getDefaultBranch();
-    getNessieClient().getAllReferences().stream()
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
+    getNessieApi().getAllReferences().stream()
         .forEach(
             ref -> {
               try {
                 if (ref instanceof Branch && !ref.getName().equals(defaultBranch.getName())) {
-                  getNessieClient().deleteBranch().branch((Branch) ref).delete();
+                  getNessieApi().deleteBranch().branch((Branch) ref).delete();
                 } else if (ref instanceof Tag) {
-                  getNessieClient().deleteTag().tag((Tag) ref).delete();
+                  getNessieApi().deleteTag().tag((Tag) ref).delete();
                 }
               } catch (NessieConflictException | NessieNotFoundException e) {
                 throw new RuntimeException(e);
               }
             });
 
-    getNessieClient()
-        .assignBranch()
-        .branch(defaultBranch)
-        .assignTo(Detached.of(NO_ANCESTOR))
-        .assign();
+    getNessieApi().assignBranch().branch(defaultBranch).assignTo(Detached.of(NO_ANCESTOR)).assign();
   }
 
   protected static void setUpNessie() {
@@ -228,7 +227,8 @@ public abstract class ITDataplanePluginTestSetup extends DataplaneTestHelper {
                         EnumSet.allOf(ClusterCoordinator.Role.class),
                         getProvider(ModifiableSchedulerService.class),
                         getProvider(VersionedDatasetAdapterFactory.class),
-                        getProvider(CatalogStatusEvents.class)));
+                        getProvider(CatalogStatusEvents.class),
+                        () -> mock(ExecutorService.class)));
           }
         });
     setupDefaultTestCluster();
@@ -236,7 +236,7 @@ public abstract class ITDataplanePluginTestSetup extends DataplaneTestHelper {
 
   protected static NessiePluginConfig prepareConnectionConf(
       DataplaneStorage.BucketSelection bucketSelection) {
-    return dataplaneStorage.preparePluginConfig(bucketSelection, createNessieURIString());
+    return dataplaneStorage.prepareNessiePluginConfig(bucketSelection, createNessieURIString());
   }
 
   protected static void setUpDataplanePlugin() {
@@ -254,30 +254,8 @@ public abstract class ITDataplanePluginTestSetup extends DataplaneTestHelper {
     namespaceService = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
   }
 
-  public void setupForCreatingSources(List<String> sourceNames) {
-    Catalog systemUserCatalog = getCatalogService().getSystemUserCatalog();
-    sourceNames.forEach(
-        sourceName -> {
-          SourceConfig sourceConfig =
-              new SourceConfig()
-                  .setConnectionConf(prepareConnectionConf(PRIMARY_BUCKET))
-                  .setName(sourceName)
-                  .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
-          systemUserCatalog.createSource(sourceConfig);
-        });
-  }
-
-  public void cleanupForDeletingSources(List<String> sourceNames) {
-    Catalog systemUserCatalog = getCatalogService().getSystemUserCatalog();
-    sourceNames.forEach(
-        sourceName -> {
-          SourceConfig sourceConfig =
-              new SourceConfig()
-                  .setConnectionConf(prepareConnectionConf(PRIMARY_BUCKET))
-                  .setName(sourceName)
-                  .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
-          systemUserCatalog.deleteSource(sourceConfig);
-        });
+  public static void createSpaceInNamespace(String spaceNames) throws NamespaceException {
+    namespaceService.addOrUpdateSpace(new NamespaceKey(spaceNames), new SpaceConfig());
   }
 
   public static void setupForAnotherPlugin() {
@@ -356,9 +334,8 @@ public abstract class ITDataplanePluginTestSetup extends DataplaneTestHelper {
     nessieIcebergCatalog.initialize(
         "test",
         nessieIcebergClient,
-        getDataplaneStorage().getFileIO(),
-        ImmutableMap.of(
-            CatalogProperties.WAREHOUSE_LOCATION, getDataplaneStorage().getWarehousePath()));
+        dataplaneStorage.getFileIO(),
+        ImmutableMap.of(CatalogProperties.WAREHOUSE_LOCATION, dataplaneStorage.getWarehousePath()));
   }
 
   public Table loadTable(String table) {
@@ -369,7 +346,7 @@ public abstract class ITDataplanePluginTestSetup extends DataplaneTestHelper {
     Schema icebergTableSchema =
         new Schema(ImmutableList.of(Types.NestedField.required(0, "c1", new Types.IntegerType())));
     TableIdentifier tableId = TableIdentifier.parse(table);
-    String location = String.format("%s/%s", getDataplaneStorage().getWarehousePath(), table);
+    String location = String.format("%s/%s", dataplaneStorage.getWarehousePath(), table);
     return nessieIcebergCatalog.createTable(
         tableId, icebergTableSchema, PartitionSpec.unpartitioned(), location, properties);
   }
@@ -392,8 +369,14 @@ public abstract class ITDataplanePluginTestSetup extends DataplaneTestHelper {
     dataplanePlugin = systemUserCatalog.getSource(DATAPLANE_PLUGIN_NAME);
   }
 
-  public static NessieApiV2 getNessieClient() {
+  @Override
+  public NessieApiV2 getNessieApi() {
     return nessieApi;
+  }
+
+  @Override
+  public DataplaneStorage getDataplaneStorage() {
+    return dataplaneStorage;
   }
 
   public DataplanePlugin getDataplanePlugin() {
@@ -410,10 +393,6 @@ public abstract class ITDataplanePluginTestSetup extends DataplaneTestHelper {
 
   public Catalog getCatalog() {
     return catalog;
-  }
-
-  protected static DataplaneStorage getDataplaneStorage() {
-    return dataplaneStorage;
   }
 
   public void assertAllFilesAreInBucket(
@@ -439,32 +418,40 @@ public abstract class ITDataplanePluginTestSetup extends DataplaneTestHelper {
     ImmutableGarbageCollectorConfig gcConfig =
         ImmutableGarbageCollectorConfig.builder().defaultCutoffPolicy(value).build();
     try {
-      getNessieClient().updateRepositoryConfig().repositoryConfig(gcConfig).update();
+      getNessieApi().updateRepositoryConfig().repositoryConfig(gcConfig).update();
     } catch (NessieConflictException e) {
       throw new RuntimeException("Failed to update Nessie configs", e);
     }
   }
 
-  public void setSliceTarget(String target) {
+  public void setSliceTarget(long target) {
     setSystemOption(ExecConstants.SLICE_TARGET_OPTION, target);
   }
 
   public void resetSliceTarget() {
-    resetSystemOption(SLICE_TARGET_OPTION.getOptionName());
+    resetSystemOption(SLICE_TARGET_OPTION);
   }
 
-  public void setTargetBatchSize(String batchSize) {
-    setSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MIN, "1");
+  public void setTargetBatchSize(int batchSize) {
+    setSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MIN, 1);
     setSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, batchSize);
   }
 
   public void resetTargetBatchSize() {
-    resetSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MIN.getOptionName());
-    resetSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName());
+    resetSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
+    resetSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
   }
 
   public void setDataplaneDefaultSessionSettings() throws Exception {
     resetSessionSettings();
-    setSystemOption(DATAPLANE_AZURE_STORAGE_ENABLED, "true");
+    setSystemOption(DATAPLANE_AZURE_STORAGE_ENABLED, true);
+  }
+
+  public static AutoCloseable enableVersionedSourceUdf() {
+    return withSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED, true);
+  }
+
+  public static AutoCloseable disableVersionedSourceUdf() {
+    return withSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED, false);
   }
 }

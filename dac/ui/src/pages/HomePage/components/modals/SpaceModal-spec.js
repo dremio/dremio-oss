@@ -42,7 +42,7 @@ describe("SpaceModal", () => {
 
   it("renders <SpaceForm> with initialValues when entity exists", () => {
     const wrapper = shallow(
-      <SpaceModal {...commonProps} entityId="test" spaceName="a test space" />
+      <SpaceModal {...commonProps} entityId="test" spaceName="a test space" />,
     );
     const formProps = wrapper.find(SpaceForm).props();
     expect(formProps.initialValues.name).to.equal("a test space");
@@ -53,7 +53,7 @@ describe("SpaceModal", () => {
   describe("#submit", () => {
     it("should call mutateFormValues and updateSpace if entityId is not empty", () => {
       const instance = shallow(
-        <SpaceModal {...commonProps} entityId="test" />
+        <SpaceModal {...commonProps} entityId="test" />,
       ).instance();
       instance.submit({ name: "foo" });
       expect(commonProps.updateSpace).to.be.calledOnce;

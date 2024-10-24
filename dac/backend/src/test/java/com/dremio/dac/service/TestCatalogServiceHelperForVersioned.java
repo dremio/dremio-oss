@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,9 +33,12 @@ import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
 import com.dremio.dac.api.CatalogEntity;
 import com.dremio.dac.api.Dataset;
 import com.dremio.dac.api.Folder;
+import com.dremio.dac.api.Function;
 import com.dremio.dac.api.Source;
 import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.model.folder.SourceFolderPath;
@@ -49,11 +53,14 @@ import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionManager;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.service.namespace.NamespaceException;
@@ -62,12 +69,17 @@ import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.function.proto.FunctionBody;
+import com.dremio.service.namespace.function.proto.FunctionConfig;
+import com.dremio.service.namespace.function.proto.FunctionDefinition;
+import com.dremio.service.namespace.function.proto.ReturnType;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
+import io.protostuff.ByteString;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.Collections;
@@ -75,6 +87,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import javax.inject.Provider;
 import javax.ws.rs.core.SecurityContext;
 import org.junit.Before;
 import org.junit.Rule;
@@ -103,10 +116,19 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
   @Mock private DatasetVersionMutator datasetVersionMutator;
   @Mock private SearchService searchService;
   @Mock private OptionManager optionManager;
+  @Mock private SimpleJobRunner simpleJobRunner;
 
   private static final String sourceId = UUID.randomUUID().toString();
   private static final String datasetId = UUID.randomUUID().toString();
-
+  private static final String userName = "user";
+  private static final FunctionDefinition functionDefinition =
+      new FunctionDefinition()
+          .setFunctionBody(new FunctionBody().setRawBody("SELECT 1").setSerializedPlan(null))
+          .setFunctionArgList(Collections.EMPTY_LIST);
+  private static final ReturnType rawReturnType =
+      new ReturnType().setRawDataType(ByteString.copyFrom(CompleteType.INT.serialize()));
+  private static final CompleteType returnType =
+      CompleteType.deserialize(rawReturnType.getRawDataType().toByteArray());
   private SourceConfig sourceConfig;
   private NameSpaceContainer sourceContainer;
   private CatalogServiceHelper catalogServiceHelper;
@@ -133,8 +155,12 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
         .thenReturn(Optional.empty());
     Principal principal = mock(Principal.class);
     when(securityContext.getUserPrincipal()).thenReturn(principal);
-    when(principal.getName()).thenReturn("user");
+    when(principal.getName()).thenReturn(userName);
     when(catalogService.getCatalog(any())).thenReturn(catalog);
+    when(optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)).thenReturn(true);
+
+    Provider<SimpleJobRunner> simpleJobRunnerProvider = () -> simpleJobRunner;
+    when(sabotContext.getJobsRunner()).thenReturn(simpleJobRunnerProvider);
 
     catalogServiceHelper =
         new CatalogServiceHelper(
@@ -194,6 +220,15 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
                 .setTableVersionContext(TableVersionContext.of(VersionContext.ofBranch("main")))
                 .build()
                 .asString()));
+    contents.addFunction(
+        com.dremio.dac.model.common.Function.newInstance(
+            VersionedDatasetId.newBuilder()
+                .setTableKey(Arrays.asList("versionedSource", "myFunction"))
+                .setContentId("059d108e-8b97-4ffb-bdaa-4157272d7827")
+                .setTableVersionContext(TableVersionContext.of(VersionContext.ofBranch("main")))
+                .build()
+                .asString(),
+            Arrays.asList("versionedSource", "myFunction")));
     final Source testSource = new Source();
 
     when(securityContext.getUserPrincipal()).thenReturn(() -> "user123");
@@ -204,14 +239,15 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             eq(null),
             eq(null),
             any(),
-            anyInt()))
+            anyInt(),
+            eq(true)))
         .thenReturn(contents);
     when(sourceService.fromSourceConfig(eq(sourceConfig), any(List.class), any()))
         .thenReturn(testSource);
 
     final Optional<CatalogEntity> catalogEntity =
         catalogServiceHelper.getCatalogEntityById(
-            sourceId, ImmutableList.of(), ImmutableList.of(), null, 0);
+            sourceId, ImmutableList.of(), ImmutableList.of(), null, null, true);
 
     assertThat(catalogEntity.isPresent()).isTrue();
     assertThat(catalogEntity.get()).isInstanceOf(Source.class);
@@ -271,6 +307,15 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
                 .setTableVersionContext(TableVersionContext.of(VersionContext.ofBranch("main")))
                 .build()
                 .asString()));
+    contents.addFunction(
+        com.dremio.dac.model.common.Function.newInstance(
+            VersionedDatasetId.newBuilder()
+                .setTableKey(Arrays.asList("versionedSource", "myfolder", "myFunction"))
+                .setContentId("059d108e-8b97-4ffb-bdaa-4157272d7827")
+                .setTableVersionContext(TableVersionContext.of(VersionContext.ofBranch("main")))
+                .build()
+                .asString(),
+            Arrays.asList("versionedSource", "myfolder", "myFunction")));
 
     ResolvedVersionContext resolvedVersionContext =
         ResolvedVersionContext.ofBranch("main", "abc123");
@@ -287,12 +332,13 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             eq("BRANCH"),
             eq("main"),
             any(),
-            anyInt()))
+            anyInt(),
+            eq(true)))
         .thenReturn(contents);
 
     final Optional<CatalogEntity> catalogEntity =
         catalogServiceHelper.getCatalogEntityById(
-            folderId.asString(), ImmutableList.of(), ImmutableList.of(), null, null);
+            folderId.asString(), ImmutableList.of(), ImmutableList.of(), null, null, true);
 
     assertThat(catalogEntity.isPresent()).isTrue();
     assertThat(catalogEntity.get()).isInstanceOf(Folder.class);
@@ -301,7 +347,7 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
     assertThat(folder.getId()).isEqualTo(folderId.asString());
     assertThat(folder.getName()).isEqualTo("myfolder");
     assertThat(folder.getPath()).isEqualTo(ImmutableList.of("versionedSource", "myfolder"));
-    assertThat(folder.getChildren().size()).isEqualTo(3);
+    assertThat(folder.getChildren().size()).isEqualTo(4);
   }
 
   @Test
@@ -383,12 +429,12 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
   @Test
   public void getCatalogFunctionEntityById() throws NamespaceException {
     when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
-    when(optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)).thenReturn(true);
+    final List<String> functionFullPath = Arrays.asList("versionedSource", "udf");
     final String functionId =
         VersionedDatasetId.newBuilder()
             .setTableVersionContext(TableVersionContext.of(VersionContext.ofBranch("main")))
             .setContentId(UUID.randomUUID().toString())
-            .setTableKey(Arrays.asList("versionedSource", "udf"))
+            .setTableKey(functionFullPath)
             .build()
             .asString();
 
@@ -399,12 +445,65 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
         .thenReturn(resolvedVersionContext);
     when(dataplanePlugin.getType(eq(Arrays.asList("udf")), eq(resolvedVersionContext)))
         .thenReturn(VersionedPlugin.EntityType.UDF);
+    final FunctionConfig functionConfig =
+        new FunctionConfig()
+            .setId(new EntityId(functionId))
+            .setFullPathList(functionFullPath)
+            .setFunctionDefinitionsList(Arrays.asList(functionDefinition))
+            .setReturnType(rawReturnType);
+    when(dataplanePlugin.getFunction(any(CatalogEntityKey.class)))
+        .thenReturn(Optional.of(functionConfig));
 
     final Optional<CatalogEntity> catalogEntity =
         catalogServiceHelper.getCatalogEntityById(
             functionId, ImmutableList.of(), ImmutableList.of(), null, 0);
 
-    assertThat(catalogEntity.isPresent()).isFalse();
+    assertThat(catalogEntity.isPresent()).isTrue();
+    assertThat(catalogEntity.get()).isInstanceOf(Function.class);
+
+    final Function function = (Function) catalogEntity.get();
+    assertThat(function.getId()).isEqualTo(functionId);
+    assertThat(function.getPath()).isEqualTo(functionFullPath);
+    assertThat(function.getReturnType()).isEqualTo(Function.returnTypeToString(returnType));
+    assertThat(function.getFunctionBody())
+        .isEqualTo(functionDefinition.getFunctionBody().getRawBody());
+    assertThat(function.getFunctionArgList()).isEmpty();
+  }
+
+  @Test
+  public void getCatalogFunctionEntityByIdWithBSContentId() throws NamespaceException {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+    final List<String> functionFullPath = Arrays.asList("versionedSource", "udf");
+    VersionedDatasetId.Builder versionedDatasetIdBuilder =
+        VersionedDatasetId.newBuilder()
+            .setTableVersionContext(TableVersionContext.of(VersionContext.ofBranch("main")))
+            .setContentId(UUID.randomUUID().toString())
+            .setTableKey(functionFullPath);
+
+    final String functionId = versionedDatasetIdBuilder.build().asString();
+    final String bsFunctionId = versionedDatasetIdBuilder.setContentId("bs").build().asString();
+
+    ResolvedVersionContext resolvedVersionContext =
+        ResolvedVersionContext.ofBranch("main", "abc123");
+
+    when(dataplanePlugin.resolveVersionContext(any(VersionContext.class)))
+        .thenReturn(resolvedVersionContext);
+    when(dataplanePlugin.getType(eq(Arrays.asList("udf")), eq(resolvedVersionContext)))
+        .thenReturn(VersionedPlugin.EntityType.UDF);
+    final FunctionConfig functionConfig =
+        new FunctionConfig()
+            .setId(new EntityId(functionId))
+            .setFullPathList(functionFullPath)
+            .setFunctionDefinitionsList(Arrays.asList(functionDefinition))
+            .setReturnType(rawReturnType);
+    when(dataplanePlugin.getFunction(any(CatalogEntityKey.class)))
+        .thenReturn(Optional.of(functionConfig));
+
+    final Optional<CatalogEntity> catalogEntity =
+        catalogServiceHelper.getCatalogEntityById(
+            bsFunctionId, ImmutableList.of(), ImmutableList.of(), null, 0);
+
+    assertThat(catalogEntity.isEmpty()).isTrue();
   }
 
   @Test
@@ -689,6 +788,15 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
                 .setTableVersionContext(TableVersionContext.of(VersionContext.ofBranch("main")))
                 .build()
                 .asString()));
+    contents.addFunction(
+        com.dremio.dac.model.common.Function.newInstance(
+            VersionedDatasetId.newBuilder()
+                .setTableKey(Arrays.asList("versionedSource", "myfolder", "myFunction"))
+                .setContentId("059d108e-8b97-4ffb-bdaa-4157272d7827")
+                .setTableVersionContext(TableVersionContext.of(VersionContext.ofBranch("main")))
+                .build()
+                .asString(),
+            Arrays.asList("versionedSource", "myfolder", "myFunction")));
     VersionedDatasetId testVersionedDatasetId =
         VersionedDatasetId.newBuilder()
             .setTableKey(Arrays.asList("versionedSource", "myfolder"))
@@ -713,7 +821,8 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             eq("BRANCH"),
             eq("main"),
             any(),
-            anyInt()))
+            anyInt(),
+            eq(true)))
         .thenReturn(contents);
 
     final Optional<CatalogEntity> catalogEntity =
@@ -724,7 +833,8 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             "BRANCH",
             "main",
             null,
-            null);
+            null,
+            true);
 
     assertThat(catalogEntity.isPresent()).isTrue();
     assertThat(catalogEntity.get()).isInstanceOf(Folder.class);
@@ -734,13 +844,21 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
     assertThat(folder.getId()).isEqualTo(testVersionedDatasetId.asString());
     assertThat(folder.getPath()).isEqualTo(Arrays.asList("versionedSource", "myfolder"));
     assertThat(folder.getName()).isEqualTo("myfolder");
-    assertThat(folder.getChildren().size()).isEqualTo(3);
+    assertThat(folder.getChildren().size()).isEqualTo(4);
   }
 
   @Test
   public void getCatalogEntityByPathForFunction() throws NamespaceException {
     when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
-    when(optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)).thenReturn(true);
+    final List<String> functionFullPath = Arrays.asList("versionedSource", "udf");
+    final String functionId =
+        VersionedDatasetId.newBuilder()
+            .setTableVersionContext(TableVersionContext.of(VersionContext.ofBranch("main")))
+            .setContentId(UUID.randomUUID().toString())
+            .setTableKey(functionFullPath)
+            .build()
+            .asString();
+
     ResolvedVersionContext resolvedVersionContext =
         ResolvedVersionContext.ofBranch("main", "abc123");
 
@@ -748,18 +866,29 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
         .thenReturn(resolvedVersionContext);
     when(dataplanePlugin.getType(eq(Arrays.asList("udf")), eq(resolvedVersionContext)))
         .thenReturn(VersionedPlugin.EntityType.UDF);
+    final FunctionConfig functionConfig =
+        new FunctionConfig()
+            .setId(new EntityId(functionId))
+            .setFullPathList(functionFullPath)
+            .setFunctionDefinitionsList(Arrays.asList(functionDefinition))
+            .setReturnType(rawReturnType);
+    when(dataplanePlugin.getFunction(any(CatalogEntityKey.class)))
+        .thenReturn(Optional.of(functionConfig));
 
     final Optional<CatalogEntity> catalogEntity =
         catalogServiceHelper.getCatalogEntityByPath(
-            Arrays.asList("versionedSource", "udf"),
-            ImmutableList.of(),
-            ImmutableList.of(),
-            "BRANCH",
-            "main",
-            null,
-            null);
+            functionFullPath, ImmutableList.of(), ImmutableList.of(), "BRANCH", "main", null, null);
 
-    assertThat(catalogEntity.isPresent()).isFalse();
+    assertThat(catalogEntity.isPresent()).isTrue();
+    assertThat(catalogEntity.get()).isInstanceOf(Function.class);
+
+    final Function function = (Function) catalogEntity.get();
+    assertThat(function.getId()).isEqualTo(functionId);
+    assertThat(function.getPath()).isEqualTo(functionFullPath);
+    assertThat(function.getReturnType()).isEqualTo(Function.returnTypeToString(returnType));
+    assertThat(function.getFunctionBody())
+        .isEqualTo(functionDefinition.getFunctionBody().getRawBody());
+    assertThat(function.getFunctionArgList()).isEmpty();
   }
 
   @Test
@@ -832,5 +961,424 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             TableMutationOptions.newBuilder()
                 .setResolvedVersionContext(resolvedVersionContext)
                 .build());
+  }
+
+  @Test
+  public void dropFunction() throws Exception {
+    String functionId = setupExistingFunction();
+    VersionedDatasetId id = VersionedDatasetId.tryParse(functionId);
+    final CatalogEntityKey catalogEntityKey =
+        CatalogEntityKey.newBuilder()
+            .keyComponents(id.getTableKey())
+            .tableVersionContext(id.getVersionContext())
+            .build();
+    catalogServiceHelper.deleteCatalogItem(functionId, null);
+    verify(dataplanePlugin).dropFunction(eq(catalogEntityKey), any(SchemaConfig.class));
+  }
+
+  @Test
+  public void testCreateVersionedFunctionWithEmptyPathShouldFail() {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+
+    Function function =
+        new Function(null, Collections.EMPTY_LIST, "", null, null, true, null, null, null);
+
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(function))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  public void testCreateVersionedFunctionWithEmptyNameShouldFail() {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+
+    Function function =
+        new Function(
+            null, ImmutableList.of("versionedSource", ""), "", null, null, true, null, null, null);
+
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(function))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  public void testCreateVersionedFunctionWithIdShouldFail() {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+
+    Function function =
+        new Function(
+            "id",
+            ImmutableList.of("versionedSource", "udf"),
+            "",
+            null,
+            null,
+            true,
+            null,
+            null,
+            null);
+
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(function))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  public void testCreateVersionedFunctionWithTagShouldFail() {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+
+    Function function =
+        new Function(
+            null,
+            ImmutableList.of("versionedSource", "udf"),
+            "tag",
+            null,
+            null,
+            true,
+            null,
+            null,
+            null);
+
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(function))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  public void testCreateVersionedFunctionWithEmptyReturnTypeShouldFail() {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+
+    Function function =
+        new Function(
+            null,
+            ImmutableList.of("versionedSource", "udf"),
+            null,
+            null,
+            null,
+            true,
+            null,
+            "SELECT 1",
+            "");
+
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(function))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  public void testCreateVersionedFunctionWithEmptyBodyShouldFail() {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+
+    Function function =
+        new Function(
+            null,
+            ImmutableList.of("versionedSource", "udf"),
+            null,
+            null,
+            null,
+            true,
+            null,
+            "",
+            "INT");
+
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(function))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  public void testCreateVersionedFunctionWithoutScalarTypeShouldFail() {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+
+    Function function =
+        new Function(
+            null,
+            ImmutableList.of("versionedSource", "udf"),
+            null,
+            null,
+            null,
+            null,
+            null,
+            "SELECT 1",
+            "INT");
+
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(function))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  public void testCreateVersionedFunctionWithoutFunctionNameShouldFail() throws Exception {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+
+    Function function =
+        new Function(
+            null,
+            ImmutableList.of("versionedSource"),
+            null,
+            null,
+            null,
+            true,
+            null,
+            "SELECT 1",
+            "INT");
+
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(function))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  public void testCreateVersionedFunctionWithSyntaxErrorShouldFail() throws Exception {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+
+    List<String> path = ImmutableList.of("versionedSource", "udf");
+    NamespaceKey key = new NamespaceKey(path);
+    Function function = new Function(null, path, null, null, null, true, null, "SELECT 1", "IMT");
+
+    doThrow(new IllegalStateException(UserException.parseError().buildSilently()))
+        .when(simpleJobRunner)
+        .runQueryAsJob(any(), any(), any(), any());
+
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(function))
+        .isInstanceOf(UserException.class);
+  }
+
+  @Test
+  public void testUpdateFunctionWithMismatchedIdShouldFail() throws Exception {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+
+    Function function =
+        new Function(
+            "foo",
+            ImmutableList.of("versionedSource", "udf"),
+            null,
+            null,
+            null,
+            true,
+            null,
+            "SELECT 1",
+            "INT");
+
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(function, "bar"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Ids must match");
+  }
+
+  @Test
+  public void testUpdateFunctionWithNonExistingEntityShouldFail() throws Exception {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+
+    Function function =
+        new Function(
+            "foo",
+            ImmutableList.of("versionedSource", "udf"),
+            null,
+            null,
+            null,
+            true,
+            null,
+            "SELECT 1",
+            "INT");
+
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(function, "foo"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Could not find entity");
+  }
+
+  @Test
+  public void testUpdateFunctionWithEntityBeingFolderShouldFail() throws Exception {
+    Folder folder = new Folder(null, ImmutableList.of("versionedSource", "udf"), null, null);
+    when(sourceService.createFolder(
+            new SourceName(folder.getPath().get(0)),
+            new SourceFolderPath(folder.getPath()),
+            userName,
+            "BRANCH",
+            "main"))
+        .thenReturn(
+            new com.dremio.dac.model.folder.Folder(
+                VersionedDatasetId.newBuilder()
+                    .setTableKey(Arrays.asList("versionedSource", "udf"))
+                    .setContentId("059d108e-8b97-4ffb-bdaa-4157272d7827")
+                    .setTableVersionContext(TableVersionContext.of(VersionContext.ofBranch("main")))
+                    .build()
+                    .asString(),
+                "udf",
+                "/source/versionedSource/folder/udf",
+                false,
+                false,
+                false,
+                null,
+                "0",
+                null,
+                null,
+                null,
+                0));
+    CatalogEntity folderItem = catalogServiceHelper.createCatalogItem(folder);
+    assertThat(folderItem instanceof Folder).isTrue();
+
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+    Function function =
+        new Function(
+            folderItem.getId(),
+            ImmutableList.of("versionedSource", "udf"),
+            null,
+            null,
+            null,
+            true,
+            null,
+            "SELECT 1",
+            "INT");
+    ResolvedVersionContext resolvedVersionContext =
+        ResolvedVersionContext.ofBranch("main", "abc123");
+    when(dataplanePlugin.resolveVersionContext(any(VersionContext.class)))
+        .thenReturn(resolvedVersionContext);
+    when(dataplanePlugin.getType(eq(Arrays.asList("udf")), eq(resolvedVersionContext)))
+        .thenReturn(VersionedPlugin.EntityType.FOLDER);
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(function, folderItem.getId()))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("not a function");
+  }
+
+  @Test
+  public void testUpdateFunctionWithMismatchPathShouldFail() throws Exception {
+    String functionId = setupExistingFunction();
+    Function function =
+        new Function(
+            functionId,
+            ImmutableList.of("versionedSource", "udf1"),
+            null,
+            null,
+            null,
+            true,
+            null,
+            "SELECT 1",
+            "INT");
+
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(function, functionId))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Function path is immutable");
+  }
+
+  @Test
+  public void testUpdateFunctionWithEmptyReturnTypeShouldFail() {
+    String functionId = setupExistingFunction();
+    Function function =
+        new Function(
+            functionId,
+            ImmutableList.of("versionedSource", "udf"),
+            null,
+            null,
+            null,
+            true,
+            null,
+            "SELECT 1",
+            "");
+
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(function, functionId))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Function return type can't be empty");
+  }
+
+  @Test
+  public void testUpdateFunctionWithEmptyBodyShouldFail() {
+    String functionId = setupExistingFunction();
+    Function function =
+        new Function(
+            functionId,
+            ImmutableList.of("versionedSource", "udf"),
+            null,
+            null,
+            null,
+            true,
+            null,
+            "",
+            "INT");
+
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(function, functionId))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Function body can't be empty");
+  }
+
+  @Test
+  public void testUpdateFunctionWithoutScalarTypeShouldFail() {
+    String functionId = setupExistingFunction();
+    Function function =
+        new Function(
+            functionId,
+            ImmutableList.of("versionedSource", "udf"),
+            null,
+            null,
+            null,
+            null,
+            null,
+            "SELECT 1",
+            "INT");
+
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(function, functionId))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Function is scalar or tabular must be set");
+  }
+
+  @Test
+  public void testUpdateFunctionWithSyntaxErrorShouldFailButKeepFunctionUnchanged()
+      throws Exception {
+    String functionId = setupExistingFunction();
+    Function updatedFunction =
+        new Function(
+            functionId,
+            ImmutableList.of("versionedSource", "udf"),
+            null,
+            null,
+            null,
+            true,
+            null,
+            "SELECT 1",
+            "VARCHR"); // syntax error will fail updating function definition
+
+    doThrow(new IllegalStateException(UserException.parseError().buildSilently()))
+        .when(simpleJobRunner)
+        .runQueryAsJob(any(), any(), any(), any());
+
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(updatedFunction, functionId))
+        .isInstanceOf(UserException.class);
+
+    final Optional<CatalogEntity> catalogEntity =
+        catalogServiceHelper.getCatalogEntityById(
+            functionId, ImmutableList.of(), ImmutableList.of(), null, 0);
+
+    assertThat(catalogEntity.isPresent()).isTrue();
+    assertThat(catalogEntity.get()).isInstanceOf(Function.class);
+
+    // Check function definition is NOT updated
+    final Function function = (Function) catalogEntity.get();
+    assertThat(function.getId()).isEqualTo(functionId);
+    assertThat(function.getPath()).isEqualTo(ImmutableList.of("versionedSource", "udf"));
+    assertThat(function.getReturnType()).isEqualTo(Function.returnTypeToString(returnType));
+    assertThat(function.getFunctionBody())
+        .isEqualTo(functionDefinition.getFunctionBody().getRawBody());
+    assertThat(function.getFunctionArgList()).isEmpty();
+    assertThat(function.getIsScalar()).isEqualTo(returnType.isScalar());
+  }
+
+  private String setupExistingFunction() {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+    final List<String> functionFullPath = Arrays.asList("versionedSource", "udf");
+    final VersionedDatasetId id =
+        VersionedDatasetId.newBuilder()
+            .setTableVersionContext(TableVersionContext.of(VersionContext.ofBranch("main")))
+            .setContentId(UUID.randomUUID().toString())
+            .setTableKey(functionFullPath)
+            .build();
+    final String functionId = id.asString();
+    final ResolvedVersionContext resolvedVersionContext =
+        ResolvedVersionContext.ofBranch("main", "abc123");
+
+    when(dataplanePlugin.resolveVersionContext(any(VersionContext.class)))
+        .thenReturn(resolvedVersionContext);
+    when(dataplanePlugin.getType(eq(Arrays.asList("udf")), eq(resolvedVersionContext)))
+        .thenReturn(VersionedPlugin.EntityType.UDF);
+    final FunctionConfig functionConfig =
+        new FunctionConfig()
+            .setId(new EntityId(functionId))
+            .setFullPathList(functionFullPath)
+            .setFunctionDefinitionsList(Arrays.asList(functionDefinition))
+            .setReturnType(rawReturnType);
+    when(dataplanePlugin.getFunction(any(CatalogEntityKey.class)))
+        .thenReturn(Optional.of(functionConfig));
+    when(dataplanePlugin.isWrapperFor(MutablePlugin.class)).thenReturn(true);
+    when(dataplanePlugin.unwrap(MutablePlugin.class)).thenReturn(dataplanePlugin);
+    return functionId;
   }
 }

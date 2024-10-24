@@ -28,31 +28,31 @@ describe("NumberFormatUtils", () => {
     expect(NumberFormatUtils.makeMemoryValueString(0)).to.equal("0 B");
     expect(NumberFormatUtils.makeMemoryValueString(1024)).to.equal("1 kB");
     expect(
-      NumberFormatUtils.makeMemoryValueString(1024 * 1024 * 1024)
+      NumberFormatUtils.makeMemoryValueString(1024 * 1024 * 1024),
     ).to.equal("1 GB");
     expect(
-      NumberFormatUtils.makeMemoryValueString(3 * 1024 * 1024 * 1024)
+      NumberFormatUtils.makeMemoryValueString(3 * 1024 * 1024 * 1024),
     ).to.equal("3 GB");
     expect(
-      NumberFormatUtils.makeMemoryValueString(8 * 1024 * 1024 * 1024)
+      NumberFormatUtils.makeMemoryValueString(8 * 1024 * 1024 * 1024),
     ).to.equal("8 GB");
     expect(
-      NumberFormatUtils.makeMemoryValueString(8000 * 1024 * 1024)
+      NumberFormatUtils.makeMemoryValueString(8000 * 1024 * 1024),
     ).to.equal("7.81 GB"); //long decimal
     expect(
-      NumberFormatUtils.makeMemoryValueString(1536 * 1024 * 1024)
+      NumberFormatUtils.makeMemoryValueString(1536 * 1024 * 1024),
     ).to.equal("1.5 GB"); //short decimal
     expect(NumberFormatUtils.makeMemoryValueString(1.5 * 1024 * 1024)).to.equal(
-      "1.5 MB"
+      "1.5 MB",
     ); //short decimal
     expect(
-      NumberFormatUtils.makeMemoryValueString(1.53 * 1024 * 1024)
+      NumberFormatUtils.makeMemoryValueString(1.53 * 1024 * 1024),
     ).to.equal("1.53 MB"); //short decimal
     expect(
-      NumberFormatUtils.makeMemoryValueString(1.5209874 * 1024 * 1024)
+      NumberFormatUtils.makeMemoryValueString(1.5209874 * 1024 * 1024),
     ).to.equal("1.52 MB"); //long decimal
     expect(
-      NumberFormatUtils.makeMemoryValueString(1520.9874 * 1024 * 1024)
+      NumberFormatUtils.makeMemoryValueString(1520.9874 * 1024 * 1024),
     ).to.equal("1.49 GB"); //long decimal
   });
 
@@ -60,7 +60,7 @@ describe("NumberFormatUtils", () => {
     expect(NumberFormatUtils.formatMemoryInMB(1024 * 1024)).to.equal("1.00 MB");
     expect(NumberFormatUtils.formatMemoryInMB(2048 * 1024)).to.equal("2.00 MB");
     expect(NumberFormatUtils.formatMemoryInMB(100.25 * 1024 * 1024)).to.equal(
-      "100.25 MB"
+      "100.25 MB",
     );
     expect(NumberFormatUtils.formatMemoryInMB(1000000)).to.equal("0.95 MB");
   });

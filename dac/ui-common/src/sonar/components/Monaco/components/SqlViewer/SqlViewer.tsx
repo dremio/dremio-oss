@@ -24,10 +24,10 @@ import {
 } from "../../utilities/sqlEditorOptions";
 import { useMonacoEditorInstance } from "../../utilities/useMonacoEditorInstance";
 import { useMonacoTokenProvider } from "../../utilities/useMonacoTokenProvider";
+import { useColorScheme } from "../../../../../appTheme/appTheme";
 
 type SqlViewerProps = HTMLProps<HTMLDivElement> & {
   fitHeightToContent?: boolean;
-  theme?: typeof SQL_LIGHT_THEME | typeof SQL_DARK_THEME;
   value: string;
 };
 
@@ -36,11 +36,12 @@ type SqlViewerProps = HTMLProps<HTMLDivElement> & {
  */
 export const SqlViewer: FC<SqlViewerProps> = ({
   fitHeightToContent,
-  theme = SQL_LIGHT_THEME,
   value,
   ...props
 }) => {
   const divEl = useRef<HTMLDivElement>(null);
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === "dark" ? SQL_DARK_THEME : SQL_LIGHT_THEME;
 
   const options: monaco.editor.IStandaloneEditorConstructionOptions = useMemo(
     () => ({ ...getSqlViewerOptions(), value }),

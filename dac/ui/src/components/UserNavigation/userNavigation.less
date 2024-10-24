@@ -29,6 +29,12 @@
       &:hover {
         text-decoration: none !important; // Have to set important here since global anchor has a !important to show underline
       }
+
+      &:focus-visible {
+        .userNavigation__headerLink {
+          outline: -webkit-focus-ring-color auto 1px;
+        }
+      }
     }
 
     &__iconContainer {

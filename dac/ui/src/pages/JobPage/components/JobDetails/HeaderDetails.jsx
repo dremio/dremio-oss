@@ -22,14 +22,14 @@ import { injectIntl } from "react-intl";
 
 import * as ButtonTypes from "components/Buttons/ButtonTypes";
 import { Button, Tooltip } from "dremio-ui-lib";
-import { getIconPath } from "@app/utils/getIconPath";
+import { getIconPath } from "#oss/utils/getIconPath";
 import datasetPathUtils from "utils/resourcePathUtils/dataset";
 import {
   constructFullPathAndEncode,
   constructResourcePath,
 } from "utils/pathUtils";
 import { getViewState } from "selectors/resources";
-import JobsUtils, { JobState } from "@app/utils/jobsUtils";
+import JobsUtils, { JobState } from "#oss/utils/jobsUtils";
 import headerDetailsConfig from "@inject/pages/JobPage/components/JobDetails/headerDetailsConfig";
 
 import JobStateIcon from "../JobStateIcon";
@@ -102,7 +102,7 @@ class HeaderDetails extends PureComponent {
     if (datasetFullPath && datasetFullPath.size > 0) {
       // Todo: This is a temporary fix to avoid double quotes around Space. DX-27492
       fullPath = `${datasetFullPath.get(0)}.${constructFullPathAndEncode(
-        datasetFullPath.slice(1)
+        datasetFullPath.slice(1),
       )}`;
     } else {
       fullPath = constructFullPathAndEncode(datasetFullPath);
@@ -249,7 +249,7 @@ function mapStateToProps(state, props) {
   return {
     downloadViewState: getViewState(
       state,
-      `DOWNLOAD_JOB_RESULTS-${props.jobId}`
+      `DOWNLOAD_JOB_RESULTS-${props.jobId}`,
     ),
   };
 }

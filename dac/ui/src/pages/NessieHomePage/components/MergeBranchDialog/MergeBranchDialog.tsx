@@ -24,11 +24,11 @@ import {
   SectionMessage,
   MessageDetails,
 } from "dremio-ui-lib/components";
-import { Reference } from "@app/types/nessie";
+import { Reference } from "#oss/types/nessie";
 import { Select } from "@mantine/core";
 import { useNessieContext } from "../../utils/context";
 import { addNotification } from "actions/notification";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 
 import "./MergeBranchDialog.less";
 
@@ -225,7 +225,7 @@ const styles = {
 
     // applies styles to hovered item (with mouse or keyboard)
     "&[data-hovered]": {
-      backgroundColor: "#f5fcff",
+      backgroundColor: "var(--fill--primary--hover)",
     },
   },
 };

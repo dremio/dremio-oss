@@ -51,10 +51,10 @@ describe("SelectContextForm", () => {
   it.skip("should render FieldWithError wrapping a TextField with props from this.props.fields.context", () => {
     const wrapper = shallow(<SelectContextForm {...commonProps} />);
     expect(wrapper.find("FieldWithError").prop("value")).to.equal(
-      commonProps.fields.context.value
+      commonProps.fields.context.value,
     );
     expect(wrapper.find("TextField").prop("value")).to.equal(
-      commonProps.fields.context.value
+      commonProps.fields.context.value,
     );
   });
 
@@ -63,7 +63,7 @@ describe("SelectContextForm", () => {
     const selected = "my.folder";
     wrapper.instance().handleChangeSelectedNode(selected);
     expect(commonProps.fields.context.onChange).to.have.been.calledWith(
-      selected
+      selected,
     );
   });
 });

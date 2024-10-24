@@ -31,7 +31,7 @@ import {
   DOUBLE,
   TIMESTAMP,
   VARCHAR,
-} from "@app/constants/DataTypes";
+} from "#oss/constants/DataTypes";
 
 // todo: why is this missing some items from constants/DataTypes.js?
 export const ALL_TYPES = [
@@ -104,7 +104,7 @@ export const REPLACEABLE_TYPES = [
 ];
 
 export const NOT_LIST_AND_MAP_TYPES = ALL_TYPES.filter(
-  (type) => [MAP, LIST, STRUCT].indexOf(type) === -1
+  (type) => [MAP, LIST, STRUCT].indexOf(type) === -1,
 );
 
 export const NUMBER_TYPES = [INTEGER, FLOAT, DECIMAL];

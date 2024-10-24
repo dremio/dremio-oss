@@ -19,7 +19,7 @@ import PropTypes from "prop-types";
 import { Tooltip } from "dremio-ui-lib";
 
 import { formDefault } from "uiTheme/radium/typography";
-import DefaultMenuItem from "@app/components/Menus/MenuItem";
+import DefaultMenuItem from "#oss/components/Menus/MenuItem";
 
 import "./MenuItem.less";
 

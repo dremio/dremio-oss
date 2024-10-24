@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ENTITY_TYPES } from "@app/constants/Constants";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
@@ -45,7 +45,7 @@ class MenuUtils {
     const currentlyUsingSource =
       rmProjectBase(decodedPathname ?? "").split("/")[2] === itemName;
     const currentlyUsingArctic = rmProjectBase(
-      decodedPathname ?? ""
+      decodedPathname ?? "",
     ).startsWith(`/sources/arctic/${itemName}`);
 
     showConfirmationDialog({

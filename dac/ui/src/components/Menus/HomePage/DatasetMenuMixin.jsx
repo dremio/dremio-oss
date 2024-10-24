@@ -21,14 +21,13 @@ import MenuItemLink from "components/Menus/MenuItemLink";
 import AnalyzeMenuItem from "components/Menus/HomePage/AnalyzeMenuItem";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { abilities } from "utils/datasetUtils";
-import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
+import { shouldUseNewDatasetNavigation } from "#oss/utils/datasetNavigationUtils";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     getGraphLink() {
       return null;
     },

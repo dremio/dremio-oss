@@ -17,11 +17,11 @@ import Immutable from "immutable";
 import {
   NEW_UNTITLED_FAILURE,
   NEW_UNTITLED_SUCCESS,
-} from "@app/actions/explore/dataset/new";
+} from "#oss/actions/explore/dataset/new";
 import {
   LOAD_EXPLORE_ENTITIES_FAILURE,
   LOAD_EXPLORE_ENTITIES_SUCCESS,
-} from "@app/actions/explore/dataset/get";
+} from "#oss/actions/explore/dataset/get";
 import data from "./datasetSummary";
 
 describe("datasetSummary reducer", () => {

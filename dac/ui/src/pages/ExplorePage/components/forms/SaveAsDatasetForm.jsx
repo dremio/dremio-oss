@@ -16,7 +16,7 @@
 import { Component, createRef } from "react";
 
 import PropTypes from "prop-types";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import { ModalForm, FormBody, modalFormProps } from "components/Forms";
 import { FieldWithError, TextField } from "components/Fields";
 import { applyValidators, isRequired } from "utils/validation";
@@ -29,12 +29,12 @@ import { formRow, label } from "uiTheme/radium/forms";
 import {
   TreeConfigContext,
   defaultConfigContext,
-} from "@app/components/Tree/treeConfigContext";
-import { withFilterTreeArs } from "@app/utils/datasetTreeUtils";
-import { getHomeSource, getSortedSources } from "@app/selectors/home";
+} from "#oss/components/Tree/treeConfigContext";
+import { withFilterTreeArs } from "#oss/utils/datasetTreeUtils";
+import { getHomeSource, getSortedSources } from "#oss/selectors/home";
 import { withCatalogARSFlag } from "@inject/utils/arsUtils";
-import { getSourceByName as getNessieSourceByName } from "@app/utils/nessieUtils";
-import { getRefQueryParams } from "@app/utils/nessieUtils";
+import { getSourceByName as getNessieSourceByName } from "#oss/utils/nessieUtils";
+import { getRefQueryParams } from "#oss/utils/nessieUtils";
 import { Button } from "dremio-ui-lib/components";
 import * as classes from "./SaveAsDatasetForm.module.less";
 
@@ -101,7 +101,7 @@ export class SaveAsDatasetForm extends Component {
     const { nessie } = this.props;
     const selectedVersionContext = getRefQueryParams(
       nessie,
-      this.state.preselectedNodeId
+      this.state.preselectedNodeId,
     );
     this.setState({
       selectedVersionContext,
@@ -130,12 +130,12 @@ export class SaveAsDatasetForm extends Component {
       });
     } else {
       onChange(
-        (node && constructFullPath(node.get("fullPath").toJS())) || nodeId
+        (node && constructFullPath(node.get("fullPath").toJS())) || nodeId,
       );
       if (node) {
         const selectedVersionContext = getRefQueryParams(
           this.props.nessie,
-          node.get("fullPath").first()
+          node.get("fullPath").first(),
         );
         this.setState({
           node,
@@ -233,8 +233,8 @@ export class SaveAsDatasetForm extends Component {
                       tree.filter(
                         (node) =>
                           node.get("type") !== "SOURCE" ||
-                          !!getNessieSourceByName(node.get("name"), sources)
-                      )
+                          !!getNessieSourceByName(node.get("name"), sources),
+                      ),
                     ),
                 }}
               >
@@ -280,7 +280,7 @@ const mapStateToProps = (state, props) => {
       location: getInitialResourceLocation(
         props.fullPath,
         props.datasetType,
-        state.account.getIn(["user", "userName"])
+        state.account.getIn(["user", "userName"]),
       ),
     },
     sources: sources,
@@ -297,5 +297,5 @@ export default connectComplexForm(
   },
   [],
   mapStateToProps,
-  null
+  null,
 )(withFilterTreeArs(withCatalogARSFlag(SaveAsDatasetForm)));

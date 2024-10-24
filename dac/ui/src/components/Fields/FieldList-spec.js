@@ -52,7 +52,7 @@ describe("<FieldList/>", () => {
     const wrapper = shallow(
       <FieldList {...commonProps} style={style}>
         <Item />
-      </FieldList>
+      </FieldList>,
     );
     expect(wrapper.type()).to.eql("div");
     expect(wrapper.props().style).to.eql(style);
@@ -63,7 +63,7 @@ describe("<FieldList/>", () => {
       const wrapper = mount(
         <FieldList {...commonProps}>
           <Item />
-        </FieldList>
+        </FieldList>,
       );
       expect(wrapper.find(Item)).to.have.length(2);
       const firstProps = wrapper.find(Item).first().props();
@@ -75,7 +75,7 @@ describe("<FieldList/>", () => {
       const wrapper = mount(
         <FieldList {...commonProps} minItems={2}>
           <Item />
-        </FieldList>
+        </FieldList>,
       );
       const firstProps = wrapper.find(Item).first().props();
       expect(firstProps.onRemove).to.be.undefined;
@@ -86,7 +86,7 @@ describe("<FieldList/>", () => {
     const wrapper = mount(
       <FieldList {...commonProps} listContainer={<foo />}>
         <Item />
-      </FieldList>
+      </FieldList>,
     );
     const fooEle = wrapper.find("foo").first();
     expect(fooEle).to.not.be.undefined;

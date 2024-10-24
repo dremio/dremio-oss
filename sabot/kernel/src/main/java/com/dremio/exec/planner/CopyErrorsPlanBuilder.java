@@ -17,6 +17,7 @@ package com.dremio.exec.planner;
 
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.physical.config.CopyIntoExtendedProperties;
+import com.dremio.exec.physical.config.CopyIntoExtendedProperties.PropertyKey;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.physical.config.copyinto.CopyIntoHistoryExtendedProperties;
@@ -52,7 +53,6 @@ public class CopyErrorsPlanBuilder extends CopyIntoTablePlanBuilderBase {
       OptimizerRulesContext context,
       CopyIntoTableContext copyIntoTableContext,
       CopyErrorsCatalogMetadata copyErrorsMetadata) {
-    // TODO: add support for transformations within copy_errors()
     super(
         targetTable,
         null,
@@ -89,6 +89,8 @@ public class CopyErrorsPlanBuilder extends CopyIntoTablePlanBuilderBase {
                 .addColumn(
                     Field.nullable(
                         ColumnUtils.COPY_HISTORY_COLUMN_NAME, ArrowType.Utf8.INSTANCE))));
+    properties.setProperty(
+        PropertyKey.COPY_INTO_TRANSFORMATION_PROPERTIES, transformationProperties);
     return CopyIntoExtendedProperties.Util.getByteString(properties);
   }
 
@@ -128,7 +130,8 @@ public class CopyErrorsPlanBuilder extends CopyIntoTablePlanBuilderBase {
             sourceLocationNSKey,
             storagePluginId,
             SchemaUtilities.allColPaths(copyErrorsMetadata.getSchema()),
-            getExtendedProperties());
+            getExtendedProperties(),
+            transformationProperties == null);
 
     TableFunctionConfig scanTableFunctionConfig =
         TableFunctionUtil.getDataFileScanTableFunctionConfig(scanTableFunctionContext, false, 1);

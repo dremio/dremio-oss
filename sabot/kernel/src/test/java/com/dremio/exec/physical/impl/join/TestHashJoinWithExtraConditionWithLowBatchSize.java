@@ -22,17 +22,13 @@ import org.junit.BeforeClass;
 public class TestHashJoinWithExtraConditionWithLowBatchSize extends TestHashJoinWithExtraCondition {
   @BeforeClass
   public static void beforeClass() throws Exception {
-    setSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MIN, "1");
-    setSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, "3");
+    setSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MIN, 1);
+    setSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, 3);
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    setSystemOption(
-        ExecConstants.TARGET_BATCH_RECORDS_MIN,
-        ExecConstants.TARGET_BATCH_RECORDS_MIN.getDefault().getValue().toString());
-    setSystemOption(
-        ExecConstants.TARGET_BATCH_RECORDS_MAX,
-        ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault().getValue().toString());
+    resetSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
+    resetSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
   }
 }

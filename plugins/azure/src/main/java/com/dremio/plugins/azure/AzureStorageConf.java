@@ -42,7 +42,10 @@ public class AzureStorageConf extends AbstractAzureStorageConf {
   public SharedAccessSecretType sharedAccessSecretType =
       SharedAccessSecretType.SHARED_ACCESS_SECRET_KEY;
 
-  /** Secret Key <-> Azure Key Vault selector for 'Azure Active Directory' authenticationType */
+  /**
+   * Secret Key <-> Azure Key Vault selector for 'Azure Active Directory / Microsoft Entra ID'
+   * authenticationType
+   */
   @Tag(19)
   @DisplayMetadata(label = "Application Secret Store")
   @DoNotDisplay // Soft Deprecated
@@ -55,7 +58,7 @@ public class AzureStorageConf extends AbstractAzureStorageConf {
   @DoNotDisplay // Soft Deprecated
   public String accessKeyUri;
 
-  /** vault uri for 'Azure Active Directory' authenticationType */
+  /** vault uri for 'Azure Active Directory / Microsoft Entra ID' authenticationType */
   @Tag(21)
   @DisplayMetadata()
   @DoNotDisplay // Soft Deprecated
@@ -80,8 +83,8 @@ public class AzureStorageConf extends AbstractAzureStorageConf {
   }
 
   /**
-   * @return the secret type (Secret Key 'dremio' vs. Azure Vault URI) for Azure Active Directory
-   *     authentication type
+   * @return the secret type (Secret Key 'dremio' vs. Azure Vault URI) for Azure Active Directory /
+   *     Microsoft Entra ID authentication type
    */
   @Override
   public AzureActiveDirectorySecretType getAzureADSecretType() {
@@ -89,7 +92,7 @@ public class AzureStorageConf extends AbstractAzureStorageConf {
   }
 
   /**
-   * @return the Azure Active Directory Key Vault URI
+   * @return the Azure Active Directory / Microsoft Entra ID Key Vault URI
    */
   @Override
   public String getClientSecretUri() {

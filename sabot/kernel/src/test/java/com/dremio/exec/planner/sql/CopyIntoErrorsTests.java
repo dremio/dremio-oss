@@ -25,8 +25,9 @@ import com.dremio.TestBuilder;
 import com.dremio.TestResult;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext.OnErrorAction;
-import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory;
-import com.dremio.exec.store.dfs.system.SystemIcebergViewMetadataFactory;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
+import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
+import com.dremio.exec.store.dfs.system.SystemIcebergViewMetadataFactory.SupportedSystemIcebergView;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.math.BigDecimal;
@@ -41,13 +42,14 @@ import org.junit.jupiter.api.Assertions;
 
 public class CopyIntoErrorsTests extends ITCopyIntoBase {
 
-  public static final String SYS_NAMESPACE = "sys";
+  public static final String PLUGIN_NAMESPACE =
+      SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME;
   public static final String COPY_JOB_HISTORY_TABLE_NAME =
-      SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME;
+      SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName();
   public static final String COPY_FILE_HISTORY_TABLE_NAME =
-      SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME;
+      SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName();
   public static final String COPY_ERRORS_HISTORY_TABLE_NAME =
-      SystemIcebergViewMetadataFactory.COPY_ERRORS_HISTORY_VIEW_NAME;
+      SupportedSystemIcebergView.COPY_ERRORS_HISTORY.getViewName();
 
   public static void testNoError(
       BufferAllocator allocator,
@@ -96,7 +98,7 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
     }
 
     new TestBuilder(allocator)
-        .sqlQuery(String.format(selectTemplate, SYS_NAMESPACE, COPY_ERRORS_HISTORY_TABLE_NAME))
+        .sqlQuery(String.format(selectTemplate, PLUGIN_NAMESPACE, COPY_ERRORS_HISTORY_TABLE_NAME))
         .unOrdered()
         .expectsEmptyResultSet();
   }
@@ -740,9 +742,7 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
 
     // repeat the test with lower batch size verifying that CopyIntoSkipParquetCoercionReader reads
     // the whole RG instead of just the 1st batch
-    try (AutoCloseable autoCloseable =
-        setSystemOptionWithAutoReset(
-            ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName(), "256")) {
+    try (AutoCloseable ignored = withSystemOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, 256)) {
       new TestBuilder(allocator)
           .sqlQuery(copyIntoQuery)
           .unOrdered()

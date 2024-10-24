@@ -19,7 +19,7 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { v4 as uuidv4 } from "uuid";
 
-import JobDetails from "@app/pages/JobPage/components/JobDetails/JobDetails";
+import JobDetails from "#oss/pages/JobPage/components/JobDetails/JobDetails";
 
 import {
   cancelJobAndShowNotification,
@@ -94,7 +94,7 @@ export class JobDetailsWrapper extends PureComponent {
           isWarning: true,
           error: {
             message: laDeprecated(
-              "Could not find the specified job's details, they may have been cleaned up."
+              "Could not find the specified job's details, they may have been cleaned up.",
             ),
             id: uuidv4(),
           },

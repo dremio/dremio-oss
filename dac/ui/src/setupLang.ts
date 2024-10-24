@@ -24,7 +24,7 @@ export const setupLang = () => {
     import("dremio-ui-common/lang/error-codes/en-US.json"),
   ]).then((messageBundles) => {
     messageBundles.forEach((messageBundle) =>
-      intlContext.addMessages(messageBundle.default)
+      intlContext.addMessages(messageBundle.default),
     );
     return;
   });

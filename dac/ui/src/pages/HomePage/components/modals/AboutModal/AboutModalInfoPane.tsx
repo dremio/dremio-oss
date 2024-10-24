@@ -22,7 +22,7 @@ import BuildInformation from "./BuildInformation";
 import ClusterUsageData from "./ClusterUsageData";
 import { AboutModalReducer, initialState } from "./aboutModalReducer";
 
-import { formDescription } from "@app/uiTheme/radium/typography";
+import { formDescription } from "#oss/uiTheme/radium/typography";
 import * as classes from "./AboutModal.module.less";
 
 const { t } = getIntlContext();

@@ -21,8 +21,6 @@ import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -547,11 +545,6 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
     }
   }
 
-  private static String replaceWorkingPathInString(String orig) {
-    return orig.replaceAll(
-        Pattern.quote("[WORKING_PATH]"), Matcher.quoteReplacement(TestTools.getWorkingPath()));
-  }
-
   private static void copyDirectoryIntoTempSpace(String resourcesDir) throws IOException {
     copyDirectoryIntoTempSpace(resourcesDir, null);
   }
@@ -562,6 +555,7 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
     if (destinationSubDir != null) {
       destination = new Path(path, destinationSubDir);
     }
-    fs.copyFromLocalFile(new Path(replaceWorkingPathInString(resourcesDir)), destination);
+    fs.copyFromLocalFile(
+        new Path(TestTools.replaceWorkingPathPlaceholders(resourcesDir)), destination);
   }
 }

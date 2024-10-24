@@ -70,6 +70,9 @@ public final class RegexpLikeToLikeConvertlet extends RexCallConvertlet {
     }
 
     String pattern = ((RexLiteral) call.getOperands().get(1)).getValueAs(String.class);
+    if (pattern == null) {
+      return false;
+    }
     for (int i = 0; i < pattern.length(); i++) {
       Character patternCharacter = pattern.charAt(i);
       if (SPECIAL_CHARACTERS.contains(patternCharacter)) {

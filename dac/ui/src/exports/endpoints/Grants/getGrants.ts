@@ -27,10 +27,10 @@ export const getGrants = (): Promise<GrantsResponse> =>
       res.availablePrivileges = res.availablePrivileges.filter(
         (priv: Privilege) =>
           (priv as unknown as string) !== "OWNERSHIP" &&
-          (priv as unknown as string) !== "ALL"
+          (priv as unknown as string) !== "ALL",
       );
       res.grants = res.grants.sort((a: any, b: any) =>
-        a.name > b.name ? 1 : a.name < b.name ? -1 : 0
+        a.name > b.name ? 1 : a.name < b.name ? -1 : 0,
       );
       return res;
     })

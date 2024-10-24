@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import Immutable from "immutable";
-import { Component, Fragment } from "react";
+import { Component, Fragment, StrictMode } from "react";
 import { compose } from "redux";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
@@ -26,27 +26,27 @@ import {
 import { replace } from "react-router-redux";
 import DocumentTitle from "react-document-title";
 
-import { showAppError } from "@app/actions/prodError";
-import { DnDContextDecorator } from "@app/components/DragComponents/DnDContextDecorator";
-import { Suspense } from "@app/components/Lazy";
+import { showAppError } from "#oss/actions/prodError";
+import { DnDContextDecorator } from "#oss/components/DragComponents/DnDContextDecorator";
+import { Suspense } from "#oss/components/Lazy";
 
 import socket from "@inject/utils/socket";
-import sentryUtil from "@app/utils/sentryUtil";
-import { formatMessage } from "@app/utils/locale";
+import sentryUtil from "#oss/utils/sentryUtil";
+import { formatMessage } from "#oss/utils/locale";
 
-import { SERVER_STATUS_OK } from "@app/constants/serverStatus";
+import { SERVER_STATUS_OK } from "#oss/constants/serverStatus";
 
-import ModalsContainer from "@app/components/Modals/ModalsContainer";
+import ModalsContainer from "#oss/components/Modals/ModalsContainer";
 import PATModalContainer from "dyn-load/containers/PATModalContainer";
-import AccountSettingsModalContainer from "@app/containers/AccountSettingsModalContainer";
-import AboutModal from "@app/pages/HomePage/components/modals/AboutModal/AboutModal";
+import AccountSettingsModalContainer from "#oss/containers/AccountSettingsModalContainer";
+import AboutModal from "#oss/pages/HomePage/components/modals/AboutModal/AboutModal";
 import AppHOC from "@inject/containers/AppHOC";
-import NotificationContainer from "@app/containers/Notification";
-import AddUsersContainer from "@app/containers/AddUsers";
-import ConfirmationContainer from "@app/containers/Confirmation";
-import ProdErrorContainer from "@app/containers/ProdError";
-import { LocationProvider } from "@app/containers/dremioLocation";
-import { withHookProvider } from "@app/containers/RouteLeave";
+import NotificationContainer from "#oss/containers/Notification";
+import AddUsersContainer from "#oss/containers/AddUsers";
+import ConfirmationContainer from "#oss/containers/Confirmation";
+import ProdErrorContainer from "#oss/containers/ProdError";
+import { LocationProvider } from "#oss/containers/dremioLocation";
+import { withHookProvider } from "#oss/containers/RouteLeave";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
 
 import { themeStyles } from "dremio-ui-lib";
@@ -54,7 +54,7 @@ import "../uiTheme/css/react-datepicker.css";
 import "../uiTheme/css/dialog-polyfill.css";
 import "../uiTheme/css/leantable.css";
 import "../uiTheme/css/fa.css";
-import { SearchModalWrapper } from "@app/exports/searchModal/SearchModal";
+import { CatalogSearchModalContainer } from "@inject/catalogSearch/CatalogSearchModalContainer";
 
 DocumentTitle.join = (tokens) => {
   return [...tokens, formatMessage("App.Dremio")].filter(Boolean).join(" - ");
@@ -207,7 +207,9 @@ export class App extends Component {
             <ModalsContainer modals={{ AboutModal }} />
             <div className="popup-notifications" />
             <div className="conifrmation-container" />
-            <SearchModalWrapper />
+            <StrictMode>
+              <CatalogSearchModalContainer />
+            </StrictMode>
           </LocationProvider>
         </Suspense>
         <ProdErrorContainer />

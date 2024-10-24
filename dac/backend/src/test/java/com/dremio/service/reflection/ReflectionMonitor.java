@@ -681,15 +681,26 @@ public class ReflectionMonitor {
     }
   }
 
-  public void waitUntilRemoved(final ReflectionId reflectionId) {
+  /**
+   * Wait for the reflection to be deleted from the KV store
+   *
+   * @param reflectionId reflection id
+   * @param includeGoal If true, both reflection goal and entry are checked. Otherwise, only entry
+   *     is.
+   */
+  public void waitUntilDeleted(final ReflectionId reflectionId, boolean includeGoal) {
     Wait wait = new Wait();
     String id = ReflectionUtils.getId(reflectionId);
-    String status = String.format("Waiting for reflection ID %s to get deleted", id);
+    String status =
+        String.format("Waiting for reflection with reflection id %s to get deleted", id);
     while (wait.loop(status)) {
       final Optional<ReflectionEntry> entry = reflections.getEntry(reflectionId);
       if (!entry.isPresent()) {
-        wait.log(id);
-        return;
+        final Optional<ReflectionGoal> goal = reflections.getGoal(reflectionId);
+        if (!goal.isPresent() || !includeGoal) {
+          wait.log(id);
+          return;
+        }
       }
     }
   }

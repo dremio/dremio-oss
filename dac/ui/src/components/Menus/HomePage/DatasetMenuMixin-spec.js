@@ -76,14 +76,14 @@ describe("DatasetMenuMixin", () => {
         entityType: "file",
       });
       expect(
-        findMenuItemByText(wrapper, "Common.Actions.CopyPath")
+        findMenuItemByText(wrapper, "Common.Actions.CopyPath"),
       ).to.have.length(1);
 
       wrapper.setProps({
         entityType: "folder",
       });
       expect(
-        findMenuItemByText(wrapper, "Common.Actions.CopyPath")
+        findMenuItemByText(wrapper, "Common.Actions.CopyPath"),
       ).to.have.length(1);
 
       wrapper.setProps({
@@ -93,27 +93,27 @@ describe("DatasetMenuMixin", () => {
         }),
       });
       expect(
-        findMenuItemByText(wrapper, "Common.Actions.CopyPath")
+        findMenuItemByText(wrapper, "Common.Actions.CopyPath"),
       ).to.have.length(1);
     });
 
     it('should render "Remove Format" only when entity is file/folder and not home file', () => {
       expect(
-        findMenuItemLinkByText(wrapper, "Dataset.Actions.RemoveFormat")
+        findMenuItemLinkByText(wrapper, "Dataset.Actions.RemoveFormat"),
       ).to.have.length(0);
 
       wrapper.setProps({
         entityType: "file",
       });
       expect(
-        findMenuItemLinkByText(wrapper, "Dataset.Actions.RemoveFormat")
+        findMenuItemLinkByText(wrapper, "Dataset.Actions.RemoveFormat"),
       ).to.have.length(1);
 
       wrapper.setProps({
         entityType: "folder",
       });
       expect(
-        findMenuItemLinkByText(wrapper, "Dataset.Actions.RemoveFormat")
+        findMenuItemLinkByText(wrapper, "Dataset.Actions.RemoveFormat"),
       ).to.have.length(1);
 
       wrapper.setProps({
@@ -123,76 +123,76 @@ describe("DatasetMenuMixin", () => {
         }),
       });
       expect(
-        findMenuItemLinkByText(wrapper, "Dataset.Actions.RemoveFormat")
+        findMenuItemLinkByText(wrapper, "Dataset.Actions.RemoveFormat"),
       ).to.have.length(0);
     });
 
     it('should render "Move"/"Rename"/"Remove" when can', () => {
       // just using Move as a canary
       expect(
-        findMenuItemLinkByText(wrapper, "Common.Actions.Move")
+        findMenuItemLinkByText(wrapper, "Common.Actions.Move"),
       ).to.have.length(1);
 
       wrapper.setProps({
         entityType: "folder",
       });
       expect(
-        findMenuItemLinkByText(wrapper, "Common.Actions.Move")
+        findMenuItemLinkByText(wrapper, "Common.Actions.Move"),
       ).to.have.length(0);
 
       wrapper.setProps({
         entityType: "file",
       });
       expect(
-        findMenuItemLinkByText(wrapper, "Common.Actions.Move")
+        findMenuItemLinkByText(wrapper, "Common.Actions.Move"),
       ).to.have.length(0);
 
       wrapper.setProps({
         entityType: "physicalDataset",
       });
       expect(
-        findMenuItemLinkByText(wrapper, "Common.Actions.Move")
+        findMenuItemLinkByText(wrapper, "Common.Actions.Move"),
       ).to.have.length(0);
     });
 
     it('should render "Edit" when entity not file/folder/physicalDataset', () => {
       expect(
-        findMenuItemLinkByText(wrapper, "Common.Actions.Edit")
+        findMenuItemLinkByText(wrapper, "Common.Actions.Edit"),
       ).to.have.length(1);
 
       wrapper.setProps({
         entityType: "folder",
       });
       expect(
-        findMenuItemLinkByText(wrapper, "Common.Actions.Edit")
+        findMenuItemLinkByText(wrapper, "Common.Actions.Edit"),
       ).to.have.length(0);
 
       wrapper.setProps({
         entityType: "file",
       });
       expect(
-        findMenuItemLinkByText(wrapper, "Common.Actions.Edit")
+        findMenuItemLinkByText(wrapper, "Common.Actions.Edit"),
       ).to.have.length(0);
 
       wrapper.setProps({
         entityType: "physicalDataset",
       });
       expect(
-        findMenuItemLinkByText(wrapper, "Common.Actions.Edit")
+        findMenuItemLinkByText(wrapper, "Common.Actions.Edit"),
       ).to.have.length(0);
     });
 
     // feature has a bug see DX-7054
     it.skip('should render "Browse Contents" when entity type is folder', () => {
       expect(
-        findMenuItemLinkByText(wrapper, "Common.Actions.BrowseContents")
+        findMenuItemLinkByText(wrapper, "Common.Actions.BrowseContents"),
       ).to.have.length(0);
 
       wrapper.setProps({
         entityType: "folder",
       });
       expect(
-        findMenuItemLinkByText(wrapper, "Common.Actions.BrowseContents")
+        findMenuItemLinkByText(wrapper, "Common.Actions.BrowseContents"),
       ).to.have.length(1);
     });
   });

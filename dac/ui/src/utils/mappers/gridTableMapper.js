@@ -32,9 +32,9 @@ class GridMap {
     // it can be changed later to color other operations.
     function getColumnColor(code) {
       const hash = {
-        HIGHLIGHTED: "var(--color--brand--100)",
-        DELETED: "var(--color--orange--50)",
-        DELETION_MARKER: "var(--color--orange--50)",
+        HIGHLIGHTED: "--fill--primary--selected--hover",
+        DELETED: "var(--fill--warning)",
+        DELETION_MARKER: "var(--fill--warning)",
       };
       return hash[code] || "none";
     }

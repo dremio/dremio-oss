@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { store } from "@app/store/store";
+import { store } from "#oss/store/store";
 import { useSelector } from "react-redux";
 import { useIsArsEnabled } from "@inject/utils/arsUtils";
-import { getHomeSource, getSortedSources } from "@app/selectors/home";
-import { defaultConfigContext } from "@app/components/Tree/treeConfigContext";
-import { ENTITY_TYPES } from "@app/constants/Constants";
-import { sortByName } from "@app/components/Tree/resourceTreeUtils";
+import { getHomeSource, getSortedSources } from "#oss/selectors/home";
+import { defaultConfigContext } from "#oss/components/Tree/treeConfigContext";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
+import { sortByName } from "#oss/components/Tree/resourceTreeUtils";
 
 export const findDatasetFromPath = (root: any, remainingPath: any): any => {
   const [name, ...restOfPath] = remainingPath;
@@ -45,7 +45,7 @@ export const findDatasetFromPath = (root: any, remainingPath: any): any => {
 export const getDatasetByPath = (pathList: string[]) => {
   return findDatasetFromPath(
     store.getState().resources.entities.get("tree"),
-    pathList
+    pathList,
   );
 };
 

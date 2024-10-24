@@ -19,30 +19,30 @@ import PropTypes from "prop-types";
 import { browserHistory } from "react-router";
 import Immutable from "immutable";
 
-import moment from "@app/utils/dayjs";
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
-import EntityLink from "@app/pages/HomePage/components/EntityLink";
+import moment from "#oss/utils/dayjs";
+import LinkWithRef from "#oss/components/LinkWithRef/LinkWithRef";
+import EntityLink from "#oss/pages/HomePage/components/EntityLink";
 import AllSpacesMenu from "components/Menus/HomePage/AllSpacesMenu";
 import SettingsBtn from "components/Buttons/SettingsBtn";
-import BreadCrumbs from "@app/components/BreadCrumbs";
+import BreadCrumbs from "#oss/components/BreadCrumbs";
 import CatalogListingView from "../../components/CatalogListingView/CatalogListingView";
-import EllipsedText from "@app/components/EllipsedText";
-import { RestrictedArea } from "@app/components/Auth/RestrictedArea";
-import { PureEntityIcon } from "@app/pages/HomePage/components/EntityIcon";
+import EllipsedText from "#oss/components/EllipsedText";
+import { RestrictedArea } from "#oss/components/Auth/RestrictedArea";
+import { PureEntityIcon } from "#oss/pages/HomePage/components/EntityIcon";
 import { IconButton } from "dremio-ui-lib/components";
 import { Button } from "dremio-ui-lib/components";
-import { EntityName } from "@app/pages/HomePage/components/EntityName";
+import { EntityName } from "#oss/pages/HomePage/components/EntityName";
 
 import {
   catalogListingColumns,
   CATALOG_LISTING_COLUMNS,
 } from "dremio-ui-common/sonar/components/CatalogListingTable/catalogListingColumns.js";
-import { manageSpaceRule } from "@app/utils/authUtils";
+import { manageSpaceRule } from "#oss/utils/authUtils";
 import { getSettingsLocation } from "components/Menus/HomePage/AllSpacesMenu";
 import { getSpaces } from "selectors/home";
-import { ENTITY_TYPES } from "@app/constants/Constants";
-import { intl } from "@app/utils/intl";
-import { getCatalogData } from "@app/utils/catalog-listing-utils";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
+import { intl } from "#oss/utils/intl";
+import { getCatalogData } from "#oss/utils/catalog-listing-utils";
 import { renderResourcePin } from "@inject/utils/catalog-listing-utils";
 import CatalogDetailsPanel from "../../components/CatalogDetailsPanel/CatalogDetailsPanel";
 

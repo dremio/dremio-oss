@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { APP_INIT_COMPLETE } from "@app/actions/app";
+import { APP_INIT_COMPLETE } from "#oss/actions/app";
 
 export const initialState = {
   complete: false,
@@ -22,7 +22,6 @@ export const initialState = {
 
 export default function init(state = initialState, action) {
   switch (action.type) {
-    /* eslint-disable indent */
     case APP_INIT_COMPLETE:
       return {
         ...state,
@@ -30,6 +29,5 @@ export default function init(state = initialState, action) {
       };
     default:
       return state;
-    /* eslint-enable indent */
   }
 }

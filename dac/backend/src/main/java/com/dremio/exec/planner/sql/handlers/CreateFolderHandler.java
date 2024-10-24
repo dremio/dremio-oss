@@ -55,7 +55,6 @@ public class CreateFolderHandler extends BaseVersionHandler<SimpleCommandResult>
         requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlCreateFolder.class));
     // If the path has single item, we add context.
     NamespaceKey path = catalog.resolveSingle(createFolder.getPath());
-    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
     String sourceName = path.getRoot();
 
     final boolean ifNotExists = createFolder.getIfNotExists().booleanValue();
@@ -63,6 +62,9 @@ public class CreateFolderHandler extends BaseVersionHandler<SimpleCommandResult>
         ReferenceTypeUtils.map(createFolder.getRefType(), createFolder.getRefValue(), null);
     VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
     VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+
+    // TODO: DX-94683: Should use CAC::canPerformOperation
+    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
     final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName);
 

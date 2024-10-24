@@ -52,7 +52,7 @@ public class TestForemenWorkManager {
         UserException.resourceError().message(UserException.QUERY_REJECTED_MSG).buildSilently();
     doThrow(userException)
         .when(foremenWorkManager)
-        .submitWorkCommand(any(), any(), any(), any(), any(), any(), any());
+        .submitWorkCommand(any(), any(), any(), any(), any(), any());
     final UserResult[] userResult = new UserResult[1];
 
     UserResponseHandler userResponseHandler =

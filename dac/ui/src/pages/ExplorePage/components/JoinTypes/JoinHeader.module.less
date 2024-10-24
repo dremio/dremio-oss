@@ -20,22 +20,22 @@
   justify-content: center;
   padding: 10px 20px;
   cursor: pointer;
-  &:hover {
-    color: #000000;
-  }
-  color: #000000;
+  color: var(--text--primary);
 
   &--disabled {
-    color: gray;
+    color: var(--text--disabled);
     pointer-events: none;
   }
 
   &--active,
   &--hoverable:hover {
-    border-bottom: 3px solid #77818f;
+    border-bottom: 3px solid var(--border--brand--solid);
   }
 
   &__closeIcon {
     color: var(--icon--primary);
+    &:hover {
+      color: var(--icon--hover);
+    }
   }
 }

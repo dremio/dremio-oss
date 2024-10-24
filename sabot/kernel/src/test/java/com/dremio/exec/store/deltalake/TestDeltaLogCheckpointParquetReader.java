@@ -16,7 +16,6 @@
 package com.dremio.exec.store.deltalake;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.dremio.BaseTestQuery;
@@ -292,48 +291,22 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
   }
 
   @Test
-  public void testErrorOnIncompatibleProtocolVersion() throws Exception {
-    String path =
-        "src/test/resources/deltalake/columnMappingConvertedIceberg/_delta_log/00000000000000000000.checkpoint.parquet";
-    File f = new File(path);
-    DeltaLogCheckpointParquetReader reader = new DeltaLogCheckpointParquetReader();
-    try (AutoCloseable ac =
-        withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, false)) {
-      IOException exception =
-          assertThrows(
-              IOException.class,
-              () ->
-                  reader.parseMetadata(
-                      null,
-                      sabotContext,
-                      fs,
-                      new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(f.toURI())))),
-                      0));
-      assertEquals(
-          "Protocol version 2 is incompatible for Dremio plugin",
-          exception.getCause().getCause().getMessage());
-    }
-  }
-
-  @Test
   public void testCheckpointForConvertedIcebergTable() throws Exception {
     String path =
         "src/test/resources/deltalake/columnMappingConvertedIceberg/_delta_log/00000000000000000000.checkpoint.parquet";
     File f = new File(path);
     DeltaLogCheckpointParquetReader reader = new DeltaLogCheckpointParquetReader();
-    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING, true)) {
-      DeltaLogSnapshot snapshot =
-          reader.parseMetadata(
-              null,
-              sabotContext,
-              fs,
-              new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(f.toURI())))),
-              0);
-      assertTrue(snapshot.containsCheckpoint());
-      assertEquals(DeltaColumnMappingMode.ID, snapshot.getColumnMappingMode());
-      assertEquals(2, snapshot.getNetFilesAdded());
-      assertEquals(4, snapshot.getNetOutputRows());
-      assertEquals(1657, snapshot.getNetBytesAdded());
-    }
+    DeltaLogSnapshot snapshot =
+        reader.parseMetadata(
+            null,
+            sabotContext,
+            fs,
+            new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(f.toURI())))),
+            0);
+    assertTrue(snapshot.containsCheckpoint());
+    assertEquals(DeltaColumnMappingMode.ID, snapshot.getColumnMappingMode());
+    assertEquals(2, snapshot.getNetFilesAdded());
+    assertEquals(4, snapshot.getNetOutputRows());
+    assertEquals(1657, snapshot.getNetBytesAdded());
   }
 }

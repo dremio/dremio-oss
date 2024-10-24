@@ -93,6 +93,29 @@ public abstract class IcebergBaseModel implements IcebergModel {
     }
   }
 
+  protected abstract IcebergCommand getIcebergCommand(
+      IcebergTableIdentifier tableIdentifier,
+      String tableLocation,
+      @Nullable IcebergCommitOrigin commitOrigin);
+
+  private IcebergCommand getIcebergCommandWithMetricStat(
+      IcebergTableIdentifier tableIdentifier,
+      @Nullable IcebergCommitOrigin commitOrigin,
+      String tableLocation) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    try {
+      return getIcebergCommand(tableIdentifier, tableLocation, commitOrigin);
+    } finally {
+      long icebergCommandTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
+      if (operatorContext != null && operatorContext.getStats() != null) {
+        operatorContext
+            .getStats()
+            .addLongStat(
+                WriterCommitterOperator.Metric.ICEBERG_COMMAND_CREATE_TIME, icebergCommandTime);
+      }
+    }
+  }
+
   @Override
   public IcebergOpCommitter getCreateTableCommitter(
       String tableName,
@@ -102,9 +125,11 @@ public abstract class IcebergBaseModel implements IcebergModel {
       OperatorStats operatorStats,
       PartitionSpec partitionSpec,
       SortOrder sortOrder,
-      Map<String, String> tableProperties) {
+      Map<String, String> tableProperties,
+      String tableLocation) {
     IcebergCommand icebergCommand =
-        getIcebergCommandWithMetricStat(tableIdentifier, IcebergCommitOrigin.CREATE_TABLE);
+        getIcebergCommandWithMetricStat(
+            tableIdentifier, IcebergCommitOrigin.CREATE_TABLE, tableLocation);
     return new IcebergTableCreationCommitter(
         tableName,
         batchSchema,
@@ -282,6 +307,14 @@ public abstract class IcebergBaseModel implements IcebergModel {
     IcebergCommand icebergCommand =
         getIcebergCommandWithMetricStat(tableIdentifier, IcebergCommitOrigin.EXPIRE_SNAPSHOTS);
     return icebergCommand.expireSnapshots(olderThanInMillis, retainLast, false);
+  }
+
+  @Override
+  public List<SnapshotEntry> expireSnapshotsForVersionedTable(
+      IcebergTableIdentifier tableIdentifier, long olderThanInMillis, int retainLast) {
+    IcebergCommand icebergCommand =
+        getIcebergCommandWithMetricStat(tableIdentifier, IcebergCommitOrigin.EXPIRE_SNAPSHOTS);
+    return icebergCommand.expireSnapshotsForVersionedTable(olderThanInMillis, retainLast, false);
   }
 
   @Override

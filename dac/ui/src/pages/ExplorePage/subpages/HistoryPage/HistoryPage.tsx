@@ -18,18 +18,18 @@ import { compose } from "redux";
 import {
   createNessieContext,
   NessieContext,
-} from "@app/pages/NessieHomePage/utils/context";
-import { NessieRootState } from "@app/types/nessie";
-import { getSortedSources } from "@app/selectors/home";
+} from "#oss/pages/NessieHomePage/utils/context";
+import { NessieRootState } from "#oss/types/nessie";
+import { getSortedSources } from "#oss/selectors/home";
 import { withRouter, WithRouterProps } from "react-router";
 import { getTableAndNamespace } from "./utils";
 import {
   getEndpointFromSource,
   getSourceByName,
   isArcticCatalogConfig,
-} from "@app/utils/nessieUtils";
-import TableHistoryContent from "@app/pages/NessieHomePage/components/TableDetailsPage/components/TableHistoryContent/TableHistoryContent";
-import { fetchDefaultReferenceIfNeeded as fetchDefaultReferenceAction } from "@app/actions/nessie/nessie";
+} from "#oss/utils/nessieUtils";
+import TableHistoryContent from "#oss/pages/NessieHomePage/components/TableDetailsPage/components/TableHistoryContent/TableHistoryContent";
+import { fetchDefaultReferenceIfNeeded as fetchDefaultReferenceAction } from "#oss/actions/nessie/nessie";
 import { useEffect, useMemo } from "react";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
@@ -71,9 +71,9 @@ function HistoryPage({
             })
           : commonPaths.nessieSource.link({
               sourceName: source?.name,
-            })
+            }),
       ),
-    [endpoint, nessie, source?.name, source?.id, isArcticConfig]
+    [endpoint, nessie, source?.name, source?.id, isArcticConfig],
   );
 
   useEffect(() => {
@@ -91,7 +91,7 @@ function HistoryPage({
 
 const mapStateToProps = (state: any, { location }: WithRouterProps) => {
   const [sourceName, namespaceString] = getTableAndNamespace(
-    rmProjectBase(location.pathname)
+    rmProjectBase(location.pathname),
   );
   const namespace = (namespaceString || "").split(".");
   const tableName = namespace.pop();
@@ -111,5 +111,5 @@ const mapDispatchToProps = {
 
 export default compose(
   withRouter,
-  connect(mapStateToProps, mapDispatchToProps)
+  connect(mapStateToProps, mapDispatchToProps),
 )(HistoryPage);

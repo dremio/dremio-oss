@@ -15,15 +15,15 @@
  */
 
 import { RSAA } from "redux-api-middleware";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import {
   LOAD_EXPLORE_ENTITIES_FAILURE,
   LOAD_EXPLORE_ENTITIES_STARTED,
   LOAD_EXPLORE_ENTITIES_SUCCESS,
-} from "@app/actions/explore/dataset/get";
-import { datasetWithoutData } from "@app/schemas/v2/fullDataset";
-import schemaUtils from "@app/utils/apiUtils/schemaUtils";
-import readResponseAsJSON from "@app/utils/apiUtils/responseUtils";
+} from "#oss/actions/explore/dataset/get";
+import { datasetWithoutData } from "#oss/schemas/v2/fullDataset";
+import schemaUtils from "#oss/utils/apiUtils/schemaUtils";
+import readResponseAsJSON from "#oss/utils/apiUtils/responseUtils";
 
 // used to call /preview/ to fetch dataset metadata after job completes
 const fetchEntities = (
@@ -32,7 +32,7 @@ const fetchEntities = (
   jobId: string,
   paginationUrl: string,
   viewId: string,
-  tabId: string
+  tabId: string,
 ) => {
   const meta = { viewId, href, tabId };
 
@@ -49,7 +49,7 @@ const fetchEntities = (
           meta,
           datasetVersion,
           jobId,
-          paginationUrl
+          paginationUrl,
         ),
         {
           type: LOAD_EXPLORE_ENTITIES_FAILURE,
@@ -87,11 +87,11 @@ export const loadExploreEntities = (
   jobId: string,
   paginationUrl: string,
   viewId: string,
-  tabId: string
+  tabId: string,
 ) => {
   return (dispatch: any) => {
     return dispatch(
-      fetchEntities(href, datasetVersion, jobId, paginationUrl, viewId, tabId)
+      fetchEntities(href, datasetVersion, jobId, paginationUrl, viewId, tabId),
     );
   };
 };

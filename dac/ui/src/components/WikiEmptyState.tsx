@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { intl } from "@app/utils/intl";
-import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
+import { intl } from "#oss/utils/intl";
+import EmptyStateContainer from "#oss/pages/HomePage/components/EmptyStateContainer";
 import additionalWikiControls from "@inject/shared/AdditionalWikiControls";
 import { Button } from "dremio-ui-lib/components";
 

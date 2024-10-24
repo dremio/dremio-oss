@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { useMemo } from "react";
-import SideNav from "@app/components/SideNav/SideNav";
+import SideNav from "#oss/components/SideNav/SideNav";
 import clsx from "clsx";
 import { Link } from "react-router";
 // @ts-ignore
@@ -34,8 +34,9 @@ const RenderHeaderAction = ({ logo = "sonar" }: { logo?: string }) => {
   return (
     <div
       className={clsx("sideNav-item", isOSS && "dremioLogoWithTextContainer")}
+      role="listitem"
     >
-      <Link to={getLinkForLogo}>
+      <Link to={getLinkForLogo} aria-label="home">
         <div className={`sideNav-item__link`}>
           <div className="sideNav-item__logo">
             <dremio-icon

@@ -15,19 +15,19 @@
  */
 
 import { useMemo, useState } from "react";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import { debounce } from "lodash";
 import Immutable from "immutable";
 
-import FilterSelectMenu from "@app/components/Fields/FilterSelectMenu";
-import SearchField from "@app/components/Fields/SearchField";
+import FilterSelectMenu from "#oss/components/Fields/FilterSelectMenu";
+import SearchField from "#oss/components/Fields/SearchField";
 import {
   FunctionCategoryLabels,
   sortAndFilterSQLFunctions,
-} from "@app/utils/sqlFunctionUtils";
-import { ModelFunctionFunctionCategoriesEnum as Categories } from "@app/types/sqlFunctions";
-import LoadingOverlay from "@app/components/LoadingOverlay";
-import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
+} from "#oss/utils/sqlFunctionUtils";
+import { ModelFunctionFunctionCategoriesEnum as Categories } from "#oss/types/sqlFunctions";
+import LoadingOverlay from "#oss/components/LoadingOverlay";
+import EmptyStateContainer from "#oss/pages/HomePage/components/EmptyStateContainer";
 import { useSqlFunctions } from "./hooks/useSqlFunctions";
 import MemoizedSQLFunctionItem from "./SQLFunctionItem";
 
@@ -78,7 +78,7 @@ const SQLFunctionsPanel = ({
     return sortAndFilterSQLFunctions(
       documentedFunctions,
       selectedCategories,
-      searchKey
+      searchKey,
     );
   }, [documentedFunctions, searchKey, selectedCategories]);
 

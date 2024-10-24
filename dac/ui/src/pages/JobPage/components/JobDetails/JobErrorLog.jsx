@@ -89,7 +89,7 @@ const styles = {
     fontFamily: "var(--dremio--font-family--monospace)",
     fontWeight: 400,
     fontSize: 12,
-    color: "rgb(51, 51, 51)",
+    color: "var(--text--primary)",
     lineHeight: 1.5,
     wordWrap: "break-word",
     width: "100%",

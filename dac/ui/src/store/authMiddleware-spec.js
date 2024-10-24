@@ -16,7 +16,7 @@
 import { push } from "react-router-redux";
 import * as accountActions from "actions/account";
 
-import * as routes from "@app/sagas/loginLogout";
+import * as routes from "#oss/sagas/loginLogout";
 
 import authMiddleware, {
   UNAUTHORIZED_URL_PARAM,

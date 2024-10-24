@@ -23,7 +23,7 @@ import { getViewState } from "selectors/resources";
 
 import ViewStateWrapper from "components/ViewStateWrapper";
 import FormUnsavedRouteLeave from "components/Forms/FormUnsavedRouteLeave";
-import SettingHeader from "@app/components/SettingHeader";
+import SettingHeader from "#oss/components/SettingHeader";
 
 import SettingsMicroForm from "./SettingsMicroForm";
 import { LABELS, SECTIONS } from "./settingsConfig";

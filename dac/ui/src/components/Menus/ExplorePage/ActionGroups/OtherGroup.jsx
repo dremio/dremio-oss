@@ -16,8 +16,8 @@
 import { PureComponent } from "react";
 
 import PropTypes from "prop-types";
-import { KEEP_ONLY_TYPES } from "@app/constants/columnTypeGroups";
-import ColumnMenuItem from "@app/components/Menus/ExplorePage/ColumnMenus/ColumnMenuItem";
+import { KEEP_ONLY_TYPES } from "#oss/constants/columnTypeGroups";
+import ColumnMenuItem from "#oss/components/Menus/ExplorePage/ColumnMenus/ColumnMenuItem";
 
 class OtherGroup extends PureComponent {
   static propTypes = {

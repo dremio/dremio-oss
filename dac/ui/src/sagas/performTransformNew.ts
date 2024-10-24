@@ -18,38 +18,38 @@ import { call, put, select } from "redux-saga/effects";
 import {
   newTmpUntitledSql,
   newTmpUntitledSqlAndRun,
-} from "@app/actions/explore/datasetNew/new";
+} from "#oss/actions/explore/datasetNew/new";
 import {
   newRunDataset,
   newTransformAndRunDataset,
-} from "@app/actions/explore/datasetNew/run";
-import { newRunTableTransform } from "@app/actions/explore/datasetNew/transform";
-import { newLoadDataset } from "@app/sagas/performLoadDatasetNew";
+} from "#oss/actions/explore/datasetNew/run";
+import { newRunTableTransform } from "#oss/actions/explore/datasetNew/transform";
+import { newLoadDataset } from "#oss/sagas/performLoadDatasetNew";
 import {
   NewGetFetchDatasetMetaActionProps,
   NewPerformTransformSingleProps,
   HandlePostNewQueryJobSuccessProps,
-} from "@app/types/performTransformNewTypes";
-import { cancelDataLoad } from "@app/sagas/performLoadDataset";
-import { initializeExploreJobProgress } from "@app/actions/explore/dataset/data";
-import { submitTransformationJob } from "@app/sagas/transformWatcherNew";
-import { setQueryStatuses } from "@app/actions/explore/view";
-import { getExploreState } from "@app/selectors/explore";
+} from "#oss/types/performTransformNewTypes";
+import { cancelDataLoad } from "#oss/sagas/performLoadDataset";
+import { initializeExploreJobProgress } from "#oss/actions/explore/dataset/data";
+import { submitTransformationJob } from "#oss/sagas/transformWatcherNew";
+import { setQueryStatuses } from "#oss/actions/explore/view";
+import { getExploreState } from "#oss/selectors/explore";
 import {
   fetchJobDetails,
   fetchJobSummary,
-} from "@app/actions/explore/exploreJobs";
-import { JobSummary } from "@app/exports/types/JobSummary.type";
-import { showFailedJobDialog } from "@app/sagas/performTransform";
+} from "#oss/actions/explore/exploreJobs";
+import { JobSummary } from "#oss/exports/types/JobSummary.type";
+import { showFailedJobDialog } from "#oss/sagas/performTransform";
 // @ts-ignore
 import { updateTransformData } from "@inject/actions/explore/dataset/updateLocation";
-import { EXPLORE_TABLE_ID } from "@app/reducers/explore/view";
-import { resetViewState } from "@app/actions/resources";
-import { addNotification } from "@app/actions/notification";
+import { EXPLORE_TABLE_ID } from "#oss/reducers/explore/view";
+import { resetViewState } from "#oss/actions/resources";
+import { addNotification } from "#oss/actions/notification";
 import { cloneDeep } from "lodash";
 import Immutable from "immutable";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
 
 const logger = getLoggingContext().createLogger("sagas/performTransformNew.ts");
@@ -270,7 +270,7 @@ export function* fetchJobFailureInfo(
             showFailedJobDialog,
             curIndex,
             mostRecentStatuses[curIndex].sqlStatement,
-            isParseError ? undefined : error?.message ?? failureInfo.message,
+            isParseError ? undefined : (error?.message ?? failureInfo.message),
           );
         }
       }

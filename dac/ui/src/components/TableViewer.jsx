@@ -43,7 +43,7 @@ export default class TableViewer extends Component {
             PropTypes.arrayOf(cellType),
           ]).isRequired,
           rowClassName: PropTypes.string,
-        })
+        }),
       ),
       PropTypes.arrayOf(
         PropTypes.shape({
@@ -52,7 +52,7 @@ export default class TableViewer extends Component {
             PropTypes.arrayOf(cellType),
           ]).isRequired,
           rowClassName: PropTypes.string,
-        })
+        }),
       ),
     ]),
     className: PropTypes.string,
@@ -65,7 +65,7 @@ export default class TableViewer extends Component {
         align: PropTypes.oneOf(Object.values(cellAlignment)),
         flexGrow: PropTypes.number,
         width: PropTypes.number,
-      })
+      }),
     ).isRequired,
     // other props passed to fixed-data-table-2 Table
   };
@@ -89,7 +89,7 @@ export default class TableViewer extends Component {
       width = 20,
       fixed = false,
     },
-    columnIndex
+    columnIndex,
   ) => {
     return (
       <Column
@@ -121,7 +121,7 @@ export default class TableViewer extends Component {
         rowIndex,
         columnKey,
         ...cellProps // eslint-disable-line @typescript-eslint/no-unused-vars
-      }
+      },
     ) => {
       const { tableData } = this.props;
       const currentTableData = List.isList(tableData)

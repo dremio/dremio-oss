@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import {
   Button,
   DialogContent,

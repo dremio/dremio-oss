@@ -93,7 +93,7 @@ public class TestTelemetryJmx extends BaseTestQuery {
           "metrics:name=dremio\\.memory\\.jvm_direct_current,type=gauges",
           "metrics:name=dremio\\.memory\\.jvm_direct_memory_max,type=gauges",
           "metrics:name=fabric.send_durations_ms,type=histograms",
-          "metrics:name=fragments\\.active,type=gauges",
+          "metrics:name=exec\\.fragments_active,type=gauges",
           "metrics:name=gc\\..*\\.count,type=gauges",
           "metrics:name=gc\\..*\\.time,type=gauges",
           "metrics:name=jobs\\.active,type=gauges",

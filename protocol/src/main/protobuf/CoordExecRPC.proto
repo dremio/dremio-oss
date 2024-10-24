@@ -238,6 +238,8 @@ message NodeQueryScreenCompletion {
   optional exec.shared.QueryId id = 1;
   optional NodeEndpoint endpoint = 2;
   optional NodeEndpoint foreman = 3;
+  optional int64 screen_operator_completion_time = 4;
+  optional int64 rpc_started_at = 5;
 }
 
 // executor > coordinator : completion of all fragments on an executor for a query
@@ -255,6 +257,7 @@ message NodeQueryCompletion {
   optional ExecutorQueryProfile final_node_query_profile = 7;
 
   optional NodeEndpoint foreman = 8;
+  optional int64 rpc_started_at = 9;
 }
 
 // executor > coordinator : report first error for a query on an executor
@@ -263,6 +266,7 @@ message NodeQueryFirstError {
   optional NodeEndpoint endpoint = 2;
   optional exec.shared.DremioPBError error = 3;
   optional NodeEndpoint foreman = 4;
+  optional int64 rpc_started_at = 5;
 }
 
 // progress metrics

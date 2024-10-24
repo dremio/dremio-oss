@@ -16,8 +16,8 @@
 import { expect } from "chai";
 import { RSAA } from "redux-api-middleware";
 
-import { APIV2Call } from "@app/core/APICall";
-import { API_URL_V2 } from "@app/constants/Api";
+import { APIV2Call } from "#oss/core/APICall";
+import { API_URL_V2 } from "#oss/constants/Api";
 
 import * as Actions from "./sqlActions";
 

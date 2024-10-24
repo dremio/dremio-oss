@@ -16,9 +16,9 @@
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
 import Immutable from "immutable";
-import jobsUtils from "@app/utils/jobsUtils";
+import jobsUtils from "#oss/utils/jobsUtils";
 import { Tooltip } from "dremio-ui-lib";
-import { getIconPath } from "@app/utils/getIconPath";
+import { getIconPath } from "#oss/utils/getIconPath";
 import { formatDurationBetweenTimes } from "dremio-ui-common/utilities/formatDurationBetweenTimes.js";
 
 import "./Reflection.less";

@@ -21,7 +21,7 @@ export default class ColumnDragItem {
   constructor(id = null, dragOrigin = null) {
     invariant(
       dragOrigin === null || validTypes.includes(dragOrigin),
-      "Drag origin should be one of the valid types"
+      "Drag origin should be one of the valid types",
     );
 
     this.id = id;

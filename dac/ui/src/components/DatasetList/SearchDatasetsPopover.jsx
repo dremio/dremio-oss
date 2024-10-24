@@ -21,7 +21,7 @@ import { injectIntl } from "react-intl";
 
 import { loadSearchData } from "actions/search";
 import { getSearchResult } from "selectors/resources";
-import { Popover } from "@app/components/Popover";
+import { Popover } from "#oss/components/Popover";
 import SearchDatasetsComponent from "@inject/components/DatasetList/SearchDatasetsComponent"; // Hidden on non-software
 
 import { compose } from "redux";
@@ -199,7 +199,7 @@ const styles = {
   searchStyle: {
     width: 500,
     margin: "9px 0 0 -18px",
-    zIndex: 1001,
+    zIndex: 1000,
   },
   fontIcon: {
     Icon: {

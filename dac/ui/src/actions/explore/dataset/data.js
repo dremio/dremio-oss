@@ -15,8 +15,8 @@
  */
 import { RSAA } from "redux-api-middleware";
 
-import apiUtils from "@app/utils/apiUtils/apiUtils";
-import { APIV2Call } from "@app/core/APICall";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const PAGE_SIZE = 100;
 

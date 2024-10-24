@@ -17,13 +17,11 @@ package com.dremio.exec.impersonation;
 
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static com.dremio.common.TestProfileHelper.isMaprProfile;
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.junit.Assert.assertEquals;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import java.net.URISyntaxException;
@@ -64,11 +62,6 @@ public class TestImpersonationMetadataRefresh extends BaseTestImpersonation {
       return;
     }
 
-    SourceConfig config =
-        getSabotContext()
-            .getNamespaceService(SYSTEM_USERNAME)
-            .getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
-    getCatalogService().getSystemUserCatalog().deleteSource(config);
     stopMiniDfsCluster();
   }
 

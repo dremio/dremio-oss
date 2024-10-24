@@ -17,3 +17,5 @@
 ---
 nessie_catalog:folder_is_not_empty: All items in this folder must be deleted first before you can delete the folder.
 scripts:max_limit_reached:from_dataset: You can't create more than 1000 scripts.
+scripts:validation/field-conflict:name: A script with the name “{name}” already exists.
+scripts:validation/min-length:name: Script name is required.

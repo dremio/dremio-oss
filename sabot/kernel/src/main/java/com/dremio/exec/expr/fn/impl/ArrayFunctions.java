@@ -21,9 +21,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
-import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionGenerationHelper;
-import javax.inject.Inject;
 import org.apache.arrow.vector.complex.impl.UnionListReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.NullableBitHolder;
@@ -45,7 +43,6 @@ public class ArrayFunctions {
     @Param FieldReader left;
     @Param FieldReader right;
     @Output NullableBitHolder resultHolder;
-    @Inject FunctionErrorContext errorContext;
 
     @Override
     public void setup() {}
@@ -59,8 +56,7 @@ public class ArrayFunctions {
 
       resultHolder.isSet = 1;
       boolean areFieldReadersEqual =
-          com.dremio.exec.expr.fn.impl.ArrayFunctions.areFieldReadersEqual(
-              left, right, errorContext);
+          com.dremio.exec.expr.fn.impl.ArrayFunctions.areFieldReadersEqual(left, right);
       resultHolder.value = areFieldReadersEqual ? 1 : 0;
     }
   }
@@ -73,7 +69,6 @@ public class ArrayFunctions {
     @Param FieldReader left;
     @Param FieldReader right;
     @Output NullableBitHolder resultHolder;
-    @Inject FunctionErrorContext errorContext;
 
     @Override
     public void setup() {}
@@ -87,15 +82,13 @@ public class ArrayFunctions {
 
       resultHolder.isSet = 1;
       boolean areFieldReadersEqual =
-          com.dremio.exec.expr.fn.impl.ArrayFunctions.areFieldReadersEqual(
-              left, right, errorContext);
+          com.dremio.exec.expr.fn.impl.ArrayFunctions.areFieldReadersEqual(left, right);
       resultHolder.value = areFieldReadersEqual ? 0 : 1;
     }
   }
 
-  public static boolean areFieldReadersEqual(
-      FieldReader left, FieldReader right, FunctionErrorContext functionErrorContext) {
-    return compareTo(left, right, functionErrorContext) == 0;
+  public static boolean areFieldReadersEqual(FieldReader left, FieldReader right) {
+    return compareTo(left, right) == 0;
   }
 
   /** Array comparator where null appears last i.e. nulls are considered larger than all values. */
@@ -107,7 +100,6 @@ public class ArrayFunctions {
     @Param FieldReader left;
     @Param FieldReader right;
     @Output NullableIntHolder out;
-    @Inject FunctionErrorContext errorContext;
 
     @Override
     public void setup() {}
@@ -116,8 +108,7 @@ public class ArrayFunctions {
     public void eval() {
       out.isSet = 1;
       if (left.isSet() && right.isSet()) {
-        out.value =
-            com.dremio.exec.expr.fn.impl.ArrayFunctions.compareTo(left, right, errorContext);
+        out.value = com.dremio.exec.expr.fn.impl.ArrayFunctions.compareTo(left, right);
       } else if (left.isSet() && !right.isSet()) {
         out.value = 1;
       } else if (!left.isSet() && right.isSet()) {
@@ -128,8 +119,7 @@ public class ArrayFunctions {
     }
   }
 
-  public static int compareTo(
-      FieldReader left, FieldReader right, FunctionErrorContext functionErrorContext) {
+  public static int compareTo(FieldReader left, FieldReader right) {
     boolean leftIsValid = left instanceof UnionListReader;
     boolean rightIsValid = right instanceof UnionListReader;
     if (leftIsValid && !rightIsValid) {

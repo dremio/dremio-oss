@@ -15,7 +15,7 @@
  */
 import { normalize } from "normalizr";
 import Immutable from "immutable";
-import ApiUtils from "@app/utils/apiUtils/apiUtils";
+import ApiUtils from "#oss/utils/apiUtils/apiUtils";
 import crudFactory from "./crudFactory";
 
 const resourceName = "setting";
@@ -63,14 +63,14 @@ export const getDefinedSettings =
             notification: {
               level: "error",
               message: laDeprecated(
-                "Failed to load settings from the server. "
+                "Failed to load settings from the server. ",
               ),
             },
           },
         });
       },
       options,
-      2
+      2,
     );
   };
 export default actions;

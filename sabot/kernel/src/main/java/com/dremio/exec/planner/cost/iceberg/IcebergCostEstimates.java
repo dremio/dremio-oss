@@ -15,16 +15,15 @@
  */
 package com.dremio.exec.planner.cost.iceberg;
 
+import static com.dremio.exec.planner.VacuumCatalogUtil.isGCEnabledForIcebergTable;
 import static com.dremio.exec.store.iceberg.model.IcebergConstants.ADDED_DATA_FILES;
 import static com.dremio.exec.store.iceberg.model.IcebergConstants.DELETED_DATA_FILES;
-import static org.apache.iceberg.TableProperties.GC_ENABLED;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.util.PropertyUtil;
 
 /** Captures estimated costs for scanning Iceberg spec elements - manifests, data files etc. */
 public class IcebergCostEstimates {
@@ -45,7 +44,7 @@ public class IcebergCostEstimates {
      * to directly load the Iceberg table and read back its all snapshots and stats of each snapshot for row estimates.
      * Another approach is tracked in DX-63280.
      */
-    boolean gcEnabled = PropertyUtil.propertyAsBoolean(icebergTable.properties(), GC_ENABLED, true);
+    boolean gcEnabled = isGCEnabledForIcebergTable(icebergTable.properties());
     if (gcEnabled) {
       for (Snapshot snapshot : icebergTable.snapshots()) {
         includeSnapshotCosts(snapshot, ++snapshotsCount);

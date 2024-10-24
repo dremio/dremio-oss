@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.resource;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
 import com.dremio.dac.resource.TemporaryTokenResource.TempTokenResponse;
@@ -24,6 +25,7 @@ import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.users.SystemUser;
+import java.util.Arrays;
 import java.util.Collections;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.core.Response;
@@ -56,7 +58,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
   public void testTempTokenCreation() {
     Response tokenResponse =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("temp-token")
                     .queryParam("durationSeconds", 30)
                     .queryParam("request", "/apiv2/test/?query=random"))
@@ -66,7 +69,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
 
     tokenResponse =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("temp-token")
                     .queryParam("durationSeconds", -1)
                     .queryParam("request", "/apiv2/test/?query=random"))
@@ -75,20 +79,25 @@ public class TestTemporaryTokenResource extends BaseTestServer {
     assertEquals("Duration cannot be negative.", 400, tokenResponse.getStatus());
 
     tokenResponse =
-        getBuilder(getAPIv2().path("temp-token").queryParam("request", "/apiv2/test/?query=random"))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv2()
+                    .path("temp-token")
+                    .queryParam("request", "/apiv2/test/?query=random"))
             .buildPost(null)
             .invoke();
     assertEquals("Missing duration.", 400, tokenResponse.getStatus());
 
     tokenResponse =
-        getBuilder(getAPIv2().path("temp-token").queryParam("durationSeconds", 30))
+        getBuilder(getHttpClient().getAPIv2().path("temp-token").queryParam("durationSeconds", 30))
             .buildPost(null)
             .invoke();
     assertEquals("Missing request url.", 400, tokenResponse.getStatus());
 
     tokenResponse =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("temp-token")
                     .queryParam("durationSeconds", 30)
                     .queryParam("request", "mailto:a@b.com"))
@@ -101,7 +110,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
   public void testTempTokenValidation() {
     final Response tokenResponse =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("temp-token")
                     .queryParam("durationSeconds", 180)
                     .queryParam(
@@ -116,7 +126,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
     // download should succeed with temp token in query param
     Invocation invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")
@@ -126,15 +137,13 @@ public class TestTemporaryTokenResource extends BaseTestServer {
             .buildGet();
     Response response = invocation.invoke();
     assertEquals("Should pass.", 200, response.getStatus());
-    assertEquals(
-        "Invalid referrer policy",
-        "strict-origin-when-cross-origin,no-referrer",
-        response.getHeaderString("Referrer-Policy"));
+    checkReferrerPolicy(response);
 
     // download should succeed with temp token in auth header
     invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")
@@ -144,20 +153,18 @@ public class TestTemporaryTokenResource extends BaseTestServer {
             .buildGet();
     response = invocation.invoke();
     assertEquals("Should pass.", 200, response.getStatus());
-    assertEquals(
-        "Invalid referrer policy",
-        "strict-origin-when-cross-origin,no-referrer",
-        response.getHeaderString("Referrer-Policy"));
+    checkReferrerPolicy(response);
 
     // download should fail with regular token in query param
     invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")
                     .queryParam("downloadFormat", "JSON")
-                    .queryParam(".token", getAuthHeaderValue()))
+                    .queryParam(".token", getHttpClient().getAuthHeaderValue()))
             .header(HttpHeaders.AUTHORIZATION, null)
             .buildGet();
     response = invocation.invoke();
@@ -169,7 +176,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
     // missing temp token and auth header
     invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")
@@ -178,15 +186,13 @@ public class TestTemporaryTokenResource extends BaseTestServer {
             .buildGet();
     response = invocation.invoke();
     assertEquals("Missing temp token: Unauthorized.", 401, response.getStatus());
-    assertEquals(
-        "Invalid referrer policy",
-        "strict-origin-when-cross-origin,no-referrer",
-        response.getHeaderString("Referrer-Policy"));
+    checkReferrerPolicy(response);
 
     // invalid temp token
     invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")
@@ -196,10 +202,13 @@ public class TestTemporaryTokenResource extends BaseTestServer {
             .buildGet();
     response = invocation.invoke();
     assertEquals("Invalid temp token: Unauthorized.", 401, response.getStatus());
-    assertEquals(
-        "Invalid referrer policy",
-        "strict-origin-when-cross-origin,no-referrer",
-        response.getHeaderString("Referrer-Policy"));
+    checkReferrerPolicy(response);
+  }
+
+  private void checkReferrerPolicy(Response response) {
+    assertThat(response.getStringHeaders().get("Referrer-Policy"))
+        .as("Check referer policy")
+        .hasSameElementsAs(Arrays.asList("strict-origin-when-cross-origin", "no-referrer"));
   }
 
   @Test
@@ -207,7 +216,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
     // slash at the end of the request url path
     final Response tokenResponse1 =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("temp-token")
                     .queryParam("durationSeconds", 30)
                     .queryParam(
@@ -221,7 +231,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
 
     final Invocation invocation1 =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")
@@ -235,7 +246,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
     // slash at the beginning of the request url path
     final Response tokenResponse2 =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("temp-token")
                     .queryParam("durationSeconds", 30)
                     .queryParam(
@@ -249,7 +261,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
 
     final Invocation invocation2 =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")
@@ -263,7 +276,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
     // multiple query params
     final Response tokenResponse3 =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("temp-token")
                     .queryParam("durationSeconds", 30)
                     .queryParam(
@@ -277,7 +291,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
 
     final Invocation invocation3 =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")
@@ -296,7 +311,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
   public void testRequestUrlNotMatch() {
     final Response tokenResponse =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("temp-token")
                     .queryParam("durationSeconds", 180)
                     .queryParam(
@@ -310,7 +326,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
     // query params not match
     Invocation invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")
@@ -324,7 +341,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
     // missing query param
     invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")
@@ -345,7 +363,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
 
     invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(diffJobId.getId())
                     .path("download")
@@ -358,7 +377,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
     // extra query param
     final Response tokenResponse2 =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("temp-token")
                     .queryParam("durationSeconds", 30)
                     .queryParam(
@@ -369,7 +389,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
 
     final Invocation invocation2 =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("download")
@@ -386,7 +407,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
     // non temporary access method use a temporary token
     final Response tokenResponse =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("temp-token")
                     .queryParam("durationSeconds", 30)
                     .queryParam("request", String.format("/apiv2/testjob/%s/test?", jobId.getId())))
@@ -397,7 +419,8 @@ public class TestTemporaryTokenResource extends BaseTestServer {
     // temp token in query param
     Invocation invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("test")
@@ -413,12 +436,15 @@ public class TestTemporaryTokenResource extends BaseTestServer {
     // session auth token in query param
     invocation =
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("testjob")
                     .path(jobId.getId())
                     .path("test")
                     .queryParam(
-                        ".token", getAuthHeaderValue())) // place session auth token in query param
+                        ".token",
+                        getHttpClient()
+                            .getAuthHeaderValue())) // place session auth token in query param
             .header(HttpHeaders.AUTHORIZATION, null) // remove session auth header
             .buildGet();
     response = invocation.invoke();
@@ -429,7 +455,7 @@ public class TestTemporaryTokenResource extends BaseTestServer {
 
     // temp token in auth header
     invocation =
-        getBuilder(getAPIv2().path("testjob").path(jobId.getId()).path("test"))
+        getBuilder(getHttpClient().getAPIv2().path("testjob").path(jobId.getId()).path("test"))
             .header(HttpHeaders.AUTHORIZATION, null) // remove old session auth header
             .header(HttpHeaders.AUTHORIZATION, token)
             .buildGet();

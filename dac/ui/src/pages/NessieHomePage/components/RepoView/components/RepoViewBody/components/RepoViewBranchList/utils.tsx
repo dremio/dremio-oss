@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Reference } from "@app/types/nessie";
-import { intl } from "@app/utils/intl";
-import SettingsBtn from "@app/components/Buttons/SettingsBtn";
+import { Reference } from "#oss/types/nessie";
+import { intl } from "#oss/utils/intl";
+import SettingsBtn from "#oss/components/Buttons/SettingsBtn";
 import { IconButton } from "dremio-ui-lib/components";
-import Menu from "@app/components/Menus/Menu";
-import MenuItem from "@app/components/Menus/MenuItem";
-import moment from "@app/utils/dayjs";
+import Menu from "#oss/components/Menus/Menu";
+import MenuItem from "#oss/components/Menus/MenuItem";
+import moment from "#oss/utils/dayjs";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 import {
@@ -27,7 +27,7 @@ import {
   formatDate,
   formatDateRelative,
   formatDateSince,
-} from "@app/utils/date";
+} from "#oss/utils/date";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
 export const convertISOStringWithTooltip = (
   commitTime: string,

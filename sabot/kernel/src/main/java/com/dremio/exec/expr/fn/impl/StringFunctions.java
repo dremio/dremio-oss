@@ -60,6 +60,7 @@ public class StringFunctions {
 
     @Override
     public void setup() {
+
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
       matcher =
           com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(
@@ -830,7 +831,10 @@ public class StringFunctions {
   /*
    * Convert string to lower case.
    */
-  @FunctionTemplate(name = "lower", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      names = {"lower", "lcase"},
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL)
   public static class LowerCase implements SimpleFunction {
     @Param VarCharHolder input;
     @Output VarCharHolder out;
@@ -862,7 +866,10 @@ public class StringFunctions {
   /*
    * Convert string to upper case.
    */
-  @FunctionTemplate(name = "upper", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      names = {"upper", "ucase"},
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL)
   public static class UpperCase implements SimpleFunction {
 
     @Param VarCharHolder input;
@@ -1103,12 +1110,12 @@ public class StringFunctions {
   @FunctionTemplate(
       names = {"substring", "substr"},
       scope = FunctionScope.SIMPLE,
-      nulls = NullHandling.INTERNAL)
+      nulls = NullHandling.NULL_IF_NULL)
   public static class SubstringRegexNullable implements SimpleFunction {
-    @Param NullableVarCharHolder input;
+    @Param VarCharHolder input;
 
     @Param(constant = true)
-    NullableVarCharHolder pattern;
+    VarCharHolder pattern;
 
     @Output NullableVarCharHolder out;
     @Workspace java.util.regex.Matcher matcher;
@@ -1129,33 +1136,29 @@ public class StringFunctions {
 
     @Override
     public void eval() {
-      if (input.isSet == 0) {
-        out.isSet = 0;
+      charSequenceWrapper.setBuffer(input.start, input.end, input.buffer);
+      // Reusing same charSequenceWrapper, no need to pass it in.
+      // This saves one method call since reset(CharSequence) calls reset()
+      matcher.reset();
+      if (matcher.find()) {
+        out.isSet = 1;
+        out.buffer = input.buffer;
+        out.start =
+            com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
+                io.netty.buffer.NettyArrowBuf.unwrapBuffer(input.buffer),
+                input.start,
+                input.end,
+                matcher.start(),
+                errCtx);
+        out.end =
+            com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
+                io.netty.buffer.NettyArrowBuf.unwrapBuffer(input.buffer),
+                input.start,
+                input.end,
+                matcher.end(),
+                errCtx);
       } else {
-        charSequenceWrapper.setBuffer(input.start, input.end, input.buffer);
-        // Reusing same charSequenceWrapper, no need to pass it in.
-        // This saves one method call since reset(CharSequence) calls reset()
-        matcher.reset();
-        if (matcher.find()) {
-          out.isSet = 1;
-          out.buffer = input.buffer;
-          out.start =
-              com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
-                  io.netty.buffer.NettyArrowBuf.unwrapBuffer(input.buffer),
-                  input.start,
-                  input.end,
-                  matcher.start(),
-                  errCtx);
-          out.end =
-              com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
-                  io.netty.buffer.NettyArrowBuf.unwrapBuffer(input.buffer),
-                  input.start,
-                  input.end,
-                  matcher.end(),
-                  errCtx);
-        } else {
-          out.isSet = 0;
-        }
+        out.isSet = 0;
       }
     }
   }

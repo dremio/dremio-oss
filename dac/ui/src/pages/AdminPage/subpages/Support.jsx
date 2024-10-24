@@ -29,26 +29,26 @@ import { addNotification } from "actions/notification";
 
 import { getViewState } from "selectors/resources";
 import Immutable from "immutable";
-import { getErrorMessage } from "@app/reducers/resources/view";
+import { getErrorMessage } from "#oss/reducers/resources/view";
 
 import { description } from "uiTheme/radium/forms";
 import { formContext } from "uiTheme/radium/typography";
 
-import SettingHeader from "@app/components/SettingHeader";
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
-import TextField from "@app/components/Fields/TextField";
-import ApiUtils from "@app/utils/apiUtils/apiUtils";
+import SettingHeader from "#oss/components/SettingHeader";
+import ViewStateWrapper from "#oss/components/ViewStateWrapper";
+import TextField from "#oss/components/Fields/TextField";
+import ApiUtils from "#oss/utils/apiUtils/apiUtils";
 import SupportAccess, {
   RESERVED as SUPPORT_ACCESS_RESERVED,
 } from "@inject/pages/AdminPage/subpages/SupportAccess";
-import FormUnsavedRouteLeave from "@app/components/Forms/FormUnsavedRouteLeave";
+import FormUnsavedRouteLeave from "#oss/components/Forms/FormUnsavedRouteLeave";
 import { Button } from "dremio-ui-lib/components";
 import SettingsMicroForm from "./SettingsMicroForm";
 import { LABELS, LABELS_IN_SECTIONS } from "./settingsConfig";
 import InternalSupportEmail, {
   RESERVED as INTERNAL_SUPPORT_RESERVED,
 } from "./InternalSupportEmail";
-import { clearCachedSupportFlags } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { clearCachedSupportFlags } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
 import DDCWrapper from "@inject/pages/AdminPage/subpages/Support/DDC/DDCWrapper";
 import "./Support.less";
 

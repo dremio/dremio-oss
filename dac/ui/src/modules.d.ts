@@ -19,6 +19,11 @@ declare module "*.module.less" {
   export = classes;
 }
 
+declare module "*.less" {
+  const classes: { readonly [key: string]: string };
+  export = classes;
+}
+
 declare module "*.module.scss" {
   const classes: { readonly [key: string]: string };
   export = classes;
@@ -42,9 +47,11 @@ declare module "*.yaml" {
 declare namespace JSX {
   interface IntrinsicElements {
     "dremio-icon": {
-      alt: string;
+      alt?: string;
       class?: string;
       name: string;
+      style?: Record<string, any>;
+      title?: string;
     };
   }
 }

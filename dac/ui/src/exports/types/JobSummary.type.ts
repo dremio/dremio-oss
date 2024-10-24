@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { SqlError } from "@app/pages/ExplorePage/components/SqlEditor/utils/errorUtils";
+import { SqlError } from "#oss/pages/ExplorePage/components/SqlEditor/utils/errorUtils";
 
 type FailureInfo = {
   errors: SqlError[];

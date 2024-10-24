@@ -80,7 +80,7 @@ const DurationBreakdown = ({
           progressPercentage={getPercentage(planning, durationPercent)}
           startsFrom={getPercentage(
             pending + metadataRetrival,
-            durationPercent
+            durationPercent,
           )}
         />
       )}
@@ -94,7 +94,7 @@ const DurationBreakdown = ({
           progressPercentage={getPercentage(engineStart, durationPercent)}
           startsFrom={getPercentage(
             pending + metadataRetrival + planning,
-            durationPercent
+            durationPercent,
           )}
         />
       )}
@@ -108,7 +108,7 @@ const DurationBreakdown = ({
           progressPercentage={getPercentage(queued, durationPercent)}
           startsFrom={getPercentage(
             pending + metadataRetrival + planning + engineStart,
-            durationPercent
+            durationPercent,
           )}
         />
       )}
@@ -124,7 +124,7 @@ const DurationBreakdown = ({
           progressPercentage={getPercentage(executionPlanning, durationPercent)}
           startsFrom={getPercentage(
             pending + metadataRetrival + planning + engineStart + queued,
-            durationPercent
+            durationPercent,
           )}
         />
       )}
@@ -143,7 +143,7 @@ const DurationBreakdown = ({
               engineStart +
               queued +
               executionPlanning,
-            durationPercent
+            durationPercent,
           )}
         />
       )}
@@ -163,7 +163,7 @@ const DurationBreakdown = ({
               queued +
               executionPlanning +
               starting,
-            durationPercent
+            durationPercent,
           )}
         />
       )}

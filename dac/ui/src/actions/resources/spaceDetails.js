@@ -23,14 +23,14 @@ import actionUtils from "utils/actionUtils/actionUtils";
 import { constructFullPathAndEncode } from "utils/pathUtils";
 
 import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from "pages/HomePage/subpages/HomeContents";
-import { getEntityType, getNormalizedEntityPath } from "@app/selectors/home";
-import { ENTITY_TYPES } from "@app/constants/Constants";
-import { APIV2Call } from "@app/core/APICall";
+import { getEntityType, getNormalizedEntityPath } from "#oss/selectors/home";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
+import { APIV2Call } from "#oss/core/APICall";
 import { ALL_SPACES_VIEW_ID } from "./spaces";
 import {
   getRefQueryParams,
   getRefQueryParamsFromDataset,
-} from "@app/utils/nessieUtils";
+} from "#oss/utils/nessieUtils";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 const { t } = getIntlContext();

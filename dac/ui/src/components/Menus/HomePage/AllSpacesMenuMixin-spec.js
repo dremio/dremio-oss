@@ -16,8 +16,8 @@
 import { shallow } from "enzyme";
 
 import { AllSpacesMenu as AllSpacesMenuBase } from "components/Menus/HomePage/AllSpacesMenu";
-import { getRenderEntityLinkContent } from "@app/pages/HomePage/components/EntityLink-spec";
-import { EntityLinkProvider } from "@app/pages/HomePage/components/EntityLink";
+import { getRenderEntityLinkContent } from "#oss/pages/HomePage/components/EntityLink-spec";
+import { EntityLinkProvider } from "#oss/pages/HomePage/components/EntityLink";
 import AllSpacesMenuMixin from "./AllSpacesMenuMixin";
 
 @AllSpacesMenuMixin

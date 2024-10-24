@@ -35,14 +35,14 @@ describe("Meter", () => {
 
   it("should render bar with min-width 1px when value is larger than 0", () => {
     const wrapper = shallow(<Meter {...minimalProps} value={0.1} />).find(
-      "div > div"
+      "div > div",
     );
     expect(wrapper.props().style.minWidth).to.be.eql(1);
   });
 
   it("should render bar with correct scale", () => {
     const wrapper = shallow(<Meter {...minimalProps} value={0.1} />).find(
-      "div > div"
+      "div > div",
     );
     expect(wrapper.props().style.width).to.be.eql("10%");
   });

@@ -19,6 +19,20 @@ import javax.annotation.Nullable;
 
 /** Listener for events in {@link InProcessPubSubClient}. */
 public interface InProcessPubSubEventListener {
+  InProcessPubSubEventListener NO_OP =
+      new InProcessPubSubEventListener() {
+        @Override
+        public void onPublish(
+            String topicName, int queueLength, boolean success, @Nullable String exceptionName) {}
+
+        @Override
+        public void onMessageReceived(
+            String topicName,
+            String subscriptionName,
+            boolean success,
+            @Nullable String exceptionName) {}
+      };
+
   /**
    * Called when a message is published or failed to publish.
    *

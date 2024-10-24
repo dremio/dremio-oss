@@ -24,14 +24,14 @@ import { connectComplexForm } from "components/Forms/connectComplexForm";
 
 import TransformForm, {
   formWrapperProps,
-} from "@app/pages/ExplorePage/components/forms/TransformForm";
-import { transformProps } from "@app/pages/ExplorePage/components/forms/TransformationPropTypes";
+} from "#oss/pages/ExplorePage/components/forms/TransformForm";
+import { transformProps } from "#oss/pages/ExplorePage/components/forms/TransformationPropTypes";
 import {
   radioStacked,
   sectionTitle,
   rowMargin,
   fieldsHorizontalSpacing,
-} from "@app/uiTheme/less/forms.less";
+} from "#oss/uiTheme/less/forms.less";
 import {
   delimiterContainer,
   customDelimiterInput,
@@ -148,5 +148,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(ConvertListToTextForm);

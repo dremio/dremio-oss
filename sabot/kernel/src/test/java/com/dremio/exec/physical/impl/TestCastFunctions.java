@@ -139,11 +139,11 @@ public class TestCastFunctions extends BaseTestFunction {
             {"castDECIMALNullOnOverflow(c0, 2l, 0l)", "s3AWS", Fixtures.createDecimal(null, 2, 0)},
           });
     } catch (Exception e) {
-      Throwable rootCause = e.getCause().getCause();
-      exceptionClass = rootCause.getClass();
+      Throwable causedInUserException = e.getCause().getCause().getCause();
+      exceptionClass = causedInUserException.getClass();
     }
     Assert.assertEquals(
-        "Expected a number format exception", NumberFormatException.class, exceptionClass);
+        "Expected a number format exception as cause", NumberFormatException.class, exceptionClass);
   }
 
   @Test

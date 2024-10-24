@@ -118,7 +118,7 @@ describe("AddProvisionModal", () => {
       const promise = instance.promptEditProvisionRestart("values");
       expect(commonProps.editProvision).to.be.calledWith(
         "values",
-        "AddProvisionModal"
+        "AddProvisionModal",
       );
       expect(commonProps.hide).to.be.calledWith(null, true);
 
@@ -136,7 +136,7 @@ describe("AddProvisionModal", () => {
     it("should return true when provisionId passed", () => {
       const instance = shallow(
         <AddProvisionModal {...minimalProps} provisionId="1" />,
-        { context }
+        { context },
       ).instance();
       expect(instance.isEditMode()).to.be.true;
     });
@@ -166,7 +166,7 @@ describe("AddProvisionModal", () => {
       instance.submit("values", false);
       expect(commonProps.createProvision).to.be.calledWith(
         "values",
-        "AddProvisionModal"
+        "AddProvisionModal",
       );
       expect(commonProps.hide).to.be.calledWith(null, true);
     });
@@ -187,7 +187,7 @@ describe("AddProvisionModal", () => {
       expect(commonProps.hide).to.be.called;
       expect(commonProps.editProvision).to.be.calledWith(
         "values",
-        "AddProvisionModal"
+        "AddProvisionModal",
       );
     });
   });

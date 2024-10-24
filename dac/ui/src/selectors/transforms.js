@@ -16,12 +16,12 @@
 import Immutable from "immutable";
 import invariant from "invariant";
 import exploreUtils from "utils/explore/exploreUtils";
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 
 export function getTransformCards(state, transform, defaultCard) {
   invariant(
     transform,
-    "Missed transformation state for getTransformCards selector"
+    "Missed transformation state for getTransformCards selector",
   );
   if (!transform) {
     return Immutable.List();

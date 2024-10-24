@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { newPostDatasetOperation } from "@app/actions/explore/datasetNew/common";
+import { newPostDatasetOperation } from "#oss/actions/explore/datasetNew/common";
 import Immutable from "immutable";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 
 export const newRunTableTransform = (
   dataset: Immutable.Map<string, any>,
@@ -24,12 +24,12 @@ export const newRunTableTransform = (
   viewId: string,
   tableData: any,
   sessionId: string,
-  newVersion: string
+  newVersion: string,
 ) => {
   return (dispatch: any) => {
     const href = exploreUtils.getNewPreviewTransformationLink(
       dataset,
-      newVersion
+      newVersion,
     );
 
     const nextTable = tableData?.set("version", newVersion);
@@ -41,8 +41,8 @@ export const newRunTableTransform = (
         viewId,
         nextTable,
         transformData,
-        sessionId
-      )
+        sessionId,
+      ),
     );
   };
 };

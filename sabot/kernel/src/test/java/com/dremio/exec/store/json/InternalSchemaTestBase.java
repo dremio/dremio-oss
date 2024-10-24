@@ -35,14 +35,12 @@ public class InternalSchemaTestBase extends PlanTestBase {
 
   @BeforeClass
   public static void setUp() {
-    setSystemOption(ExecConstants.ENABLE_INTERNAL_SCHEMA, "true");
+    setSystemOption(ExecConstants.ENABLE_INTERNAL_SCHEMA, true);
   }
 
   @AfterClass
   public static void cleanUp() {
-    setSystemOption(
-        ExecConstants.ENABLE_INTERNAL_SCHEMA,
-        ExecConstants.ENABLE_INTERNAL_SCHEMA.getDefault().getBoolVal().toString());
+    resetSystemOption(ExecConstants.ENABLE_INTERNAL_SCHEMA);
   }
 
   void verifyRecords(String dirName, String col, Object... values) throws Exception {

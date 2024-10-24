@@ -97,7 +97,7 @@ public class TestServerTracing extends BaseTestServer {
   @Test
   public void testTracingHeaderDisabled() {
     expectSuccess(
-        getBuilder(getAPIv2().path("server_status"))
+        getBuilder(getHttpClient().getAPIv2().path("server_status"))
             .header("x-tracing-enabled", Boolean.FALSE)
             .buildGet());
     assertFinishedSpans(0);
@@ -107,7 +107,7 @@ public class TestServerTracing extends BaseTestServer {
   @Ignore
   public void testTracingHeaderEnabled() {
     expectSuccess(
-        getBuilder(getAPIv2().path("server_status"))
+        getBuilder(getHttpClient().getAPIv2().path("server_status"))
             .header("x-tracing-enabled", Boolean.TRUE)
             .buildGet());
     assertFinishedSpans(1);
@@ -116,7 +116,7 @@ public class TestServerTracing extends BaseTestServer {
   @Test
   public void testTracingHeaderMangled() {
     expectSuccess(
-        getBuilder(getAPIv2().path("server_status"))
+        getBuilder(getHttpClient().getAPIv2().path("server_status"))
             .header("x-tracing-enabled", "not-a-valid-value")
             .buildGet());
     assertFinishedSpans(0);
@@ -126,7 +126,7 @@ public class TestServerTracing extends BaseTestServer {
   public void testTracingNonExistentEndpointWithTracingHeader() {
     expect(
         FamilyExpectation.CLIENT_ERROR,
-        getBuilder(getAPIv2().path("does-not-exist"))
+        getBuilder(getHttpClient().getAPIv2().path("does-not-exist"))
             .header("x-tracing-enabled", Boolean.TRUE)
             .buildGet());
     assertFinishedSpans(0);

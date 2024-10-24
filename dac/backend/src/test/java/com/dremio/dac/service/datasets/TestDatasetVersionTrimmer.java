@@ -39,6 +39,7 @@ import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -112,7 +113,7 @@ public class TestDatasetVersionTrimmer extends BaseTestServerJunit5 {
     List<VirtualDatasetUI> versionsBefore = getAllVersions(viewPath);
 
     DatasetVersionTrimmer.trimHistory(
-        Clock.systemUTC(), datasetVersionsStore, namespaceService, 10, 30);
+        Clock.systemUTC(), datasetVersionsStore, namespaceService, ImmutableSet.of(), 10, 30);
 
     // Verify versions are the same.
     List<VirtualDatasetUI> versionsAfter = getAllVersions(viewPath);
@@ -130,14 +131,15 @@ public class TestDatasetVersionTrimmer extends BaseTestServerJunit5 {
 
     // Should not trim with system clock as age is under 30 days.
     DatasetVersionTrimmer.trimHistory(
-        Clock.systemUTC(), datasetVersionsStore, namespaceService, 3, 30);
+        Clock.systemUTC(), datasetVersionsStore, namespaceService, ImmutableSet.of(), 3, 30);
     List<VirtualDatasetUI> versionsAfter = getAllVersions(viewPath);
     assertEquals(4, versionsAfter.size());
     assertEquals(latestVersion, versionsAfter.get(3).getVersion());
 
     // Should trim to 3 with clock in the future as age of last version is greater than 30 days.
     Clock clock = Clock.fixed(Instant.now().plus(100, ChronoUnit.DAYS), ZoneId.of("UTC"));
-    DatasetVersionTrimmer.trimHistory(clock, datasetVersionsStore, namespaceService, 3, 30);
+    DatasetVersionTrimmer.trimHistory(
+        clock, datasetVersionsStore, namespaceService, ImmutableSet.of(), 3, 30);
     versionsAfter = getAllVersions(viewPath);
     assertEquals(3, versionsAfter.size());
     assertEquals(latestVersion, versionsAfter.get(2).getVersion());
@@ -156,7 +158,7 @@ public class TestDatasetVersionTrimmer extends BaseTestServerJunit5 {
     // Should not trim because of the loop, should remove the loop and point dataset to the
     // version before the loop.
     DatasetVersionTrimmer.trimHistory(
-        Clock.systemUTC(), datasetVersionsStore, namespaceService, 1, 30);
+        Clock.systemUTC(), datasetVersionsStore, namespaceService, ImmutableSet.of(), 1, 30);
     List<VirtualDatasetUI> versionsAfter = getAllVersions(viewPath);
     assertEquals(2, versionsAfter.size());
     DatasetConfig datasetConfig = namespaceService.getDataset(viewPath.toNamespaceKey());
@@ -183,7 +185,7 @@ public class TestDatasetVersionTrimmer extends BaseTestServerJunit5 {
     // Should not trim because of the corruption.
     List<VirtualDatasetUI> versionsBefore = getAllVersions(viewPath);
     DatasetVersionTrimmer.trimHistory(
-        Clock.systemUTC(), datasetVersionsStore, namespaceService, 1, 30);
+        Clock.systemUTC(), datasetVersionsStore, namespaceService, ImmutableSet.of(), 1, 30);
     List<VirtualDatasetUI> versionsAfter = getAllVersions(viewPath);
     assertEquals(versionsBefore.size(), versionsAfter.size());
   }
@@ -207,7 +209,7 @@ public class TestDatasetVersionTrimmer extends BaseTestServerJunit5 {
     // Should not trim the list and should update dataset to point to latest version.
     List<VirtualDatasetUI> versionsBefore = getAllVersions(viewPath);
     DatasetVersionTrimmer.trimHistory(
-        Clock.systemUTC(), datasetVersionsStore, namespaceService, 1, 30);
+        Clock.systemUTC(), datasetVersionsStore, namespaceService, ImmutableSet.of(), 1, 30);
     List<VirtualDatasetUI> versionsAfter = getAllVersions(viewPath);
     assertThat(versionsAfter).hasSize(versionsBefore.size());
     assertThat(
@@ -241,7 +243,8 @@ public class TestDatasetVersionTrimmer extends BaseTestServerJunit5 {
     // Trim with the clock in the future so that the orhpaned versions were old enough to delete.
     Clock clock =
         Clock.fixed(Instant.now().plus(orphansAreOld ? 14 : 0, ChronoUnit.DAYS), ZoneId.of("UTC"));
-    DatasetVersionTrimmer.trimHistory(clock, datasetVersionsStore, namespaceService, 1, 30);
+    DatasetVersionTrimmer.trimHistory(
+        clock, datasetVersionsStore, namespaceService, ImmutableSet.of(), 1, 30);
 
     // Verify versions were deleted.
     if (orphansAreOld) {
@@ -265,7 +268,8 @@ public class TestDatasetVersionTrimmer extends BaseTestServerJunit5 {
         previousVersion.getVersion(), latestVersionVds.getPreviousVersion().getDatasetVersion());
 
     Clock clock = Clock.fixed(Instant.now().plus(100, ChronoUnit.DAYS), ZoneId.of("UTC"));
-    DatasetVersionTrimmer.trimHistory(clock, datasetVersionsStore, namespaceService, 1, 30);
+    DatasetVersionTrimmer.trimHistory(
+        clock, datasetVersionsStore, namespaceService, ImmutableSet.of(), 1, 30);
 
     // Verify there is one remaining version pointing to null.
     versions = getAllVersions(viewPath);
@@ -274,7 +278,7 @@ public class TestDatasetVersionTrimmer extends BaseTestServerJunit5 {
     assertNull(versions.get(0).getPreviousVersion());
   }
 
-  private List<VirtualDatasetUI> getAllVersions(DatasetPath path) throws Exception {
+  private List<VirtualDatasetUI> getAllVersions(DatasetPath path) {
     if (path.equals(new DatasetPath(FULL_VIEW_NAME2))) {
       // Convert to "canonical" case as mutator will not do it if the dataset was deleted.
       path = new DatasetPath(FULL_VIEW_NAME2_UPPER);

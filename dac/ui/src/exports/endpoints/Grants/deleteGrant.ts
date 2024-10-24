@@ -16,14 +16,14 @@
 
 //@ts-ignore
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-import { APIV3Call } from "@app/core/APICall";
+import { APIV3Call } from "#oss/core/APICall";
 
 export const getGrantsUrl = () =>
   new APIV3Call().projectScope(false).paths(`organizations/grants`).toString();
 
 export const deleteGrant = (
   granteeType: string,
-  granteeId: string
+  granteeId: string,
 ): Promise<any> =>
   getApiContext().fetch(`${getGrantsUrl()}/${granteeType}/${granteeId}`, {
     method: "delete",

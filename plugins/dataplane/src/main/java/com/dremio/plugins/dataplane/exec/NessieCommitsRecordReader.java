@@ -18,9 +18,16 @@ package com.dremio.plugins.dataplane.exec;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_ACCESS_DENIED;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_NOT_FOUND;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_PARTIAL_FAILURES;
+import static com.dremio.exec.store.iceberg.logging.VacuumLogProto.ErrorType.CONTAINER_NOT_FOUND_EXCEPTION;
+import static com.dremio.exec.store.iceberg.logging.VacuumLogProto.ErrorType.NOT_FOUND_EXCEPTION;
+import static com.dremio.exec.store.iceberg.logging.VacuumLogProto.ErrorType.PERMISSION_EXCEPTION;
+import static com.dremio.exec.store.iceberg.logging.VacuumLoggingUtil.createCommitScanLog;
+import static com.dremio.exec.store.iceberg.logging.VacuumLoggingUtil.getVacuumLogger;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.logging.StructuredLogger;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.IcebergExpiryMetric;
 import com.dremio.exec.store.SystemSchemas;
@@ -53,17 +60,20 @@ import org.slf4j.LoggerFactory;
 /** Scans all live Nessie contents, and outputs the metadata locations for each one of them. */
 public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader {
   private static final Logger LOGGER = LoggerFactory.getLogger(NessieCommitsRecordReader.class);
+  private static final StructuredLogger vacuumLogger = getVacuumLogger();
 
   private volatile VarCharVector metadataFilePathOutVector;
   private volatile BigIntVector snapshotIdOutVector;
   private volatile VarCharVector manifestListPathOutVector;
   private FileIO io = null;
   private final ExecutorService opExecService;
+  private final String queryId;
 
   public NessieCommitsRecordReader(
       FragmentExecutionContext fec, OperatorContext context, NessieCommitsSubScan config) {
     super(fec, context, config);
     opExecService = context.getExecutor();
+    this.queryId = QueryIdHelper.getQueryId(context.getFragmentHandle().getQueryId());
   }
 
   @Override
@@ -115,24 +125,47 @@ public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader
             contentReference.commitId());
     Stopwatch loadTime = Stopwatch.createStarted();
     try {
-      return loadSnapshot(
-          contentReference.metadataLocation(), contentReference.snapshotId(), tableId);
+      final Optional<Snapshot> snapshot =
+          loadSnapshot(contentReference.metadataLocation(), contentReference.snapshotId(), tableId);
+      vacuumLogger.info(
+          createCommitScanLog(
+              queryId,
+              tableId,
+              contentReference.metadataLocation(),
+              contentReference.snapshotId().toString()),
+          "");
+      return snapshot;
     } catch (NotFoundException nfe) {
-      LOGGER.warn(
-          String.format(
-              "Skipping table [%s] since table metadata is not found [metadata=%s]",
-              tableId, contentReference.metadataLocation()),
-          nfe);
+      String message = "Skipping table [%s] since table metadata is not found [metadata=%s]";
+      vacuumLogger.warn(
+          createCommitScanLog(
+              queryId,
+              tableId,
+              contentReference.metadataLocation(),
+              contentReference.snapshotId().toString(),
+              NOT_FOUND_EXCEPTION,
+              String.format(
+                  message + ".\n" + nfe.toString(), tableId, contentReference.metadataLocation())),
+          "");
+      LOGGER.warn(String.format(message, tableId, contentReference.metadataLocation()), nfe);
       getContext().getStats().addLongStat(NUM_PARTIAL_FAILURES, 1L);
       getContext().getStats().addLongStat(NUM_NOT_FOUND, 1L);
       return Optional.empty();
     } catch (UserException e) {
       if (UserBitShared.DremioPBError.ErrorType.PERMISSION.equals(e.getErrorType())) {
-        LOGGER.warn(
-            String.format(
-                "Skipping table [%s] since access to table metadata is denied [metadata=%s]",
-                tableId, contentReference.metadataLocation()),
-            e);
+        String message =
+            "Skipping table [%s] since access to table metadata is denied [metadata=%s]";
+        vacuumLogger.warn(
+            createCommitScanLog(
+                queryId,
+                tableId,
+                contentReference.metadataLocation(),
+                contentReference.snapshotId().toString(),
+                PERMISSION_EXCEPTION,
+                String.format(
+                    message + ".\n" + e.toString(), tableId, contentReference.metadataLocation())),
+            "");
+        LOGGER.warn(String.format(message, tableId, contentReference.metadataLocation()), e);
         getContext().getStats().addLongStat(NUM_PARTIAL_FAILURES, 1L);
         getContext().getStats().addLongStat(NUM_ACCESS_DENIED, 1L);
         return Optional.empty();
@@ -203,7 +236,16 @@ public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader
         throw ue; // Not the exception we're looking for, or not allowed to catch, rethrow it as-is
       }
       // Found CNFE inside UE; log and return empty
-      LOGGER.warn("Skipping table {} since its storage container was not found", tableId, ue);
+      String message = "Skipping table %s since its storage container was not found";
+      vacuumLogger.warn(
+          createCommitScanLog(
+              QueryIdHelper.getQueryId(context.getFragmentHandle().getQueryId()),
+              tableId,
+              metadataLocation,
+              CONTAINER_NOT_FOUND_EXCEPTION,
+              String.format(message + ".\n" + ue.toString(), tableId)),
+          "");
+      LOGGER.warn(String.format(message, tableId), ue);
       context.getStats().addLongStat(NUM_PARTIAL_FAILURES, 1L);
       context.getStats().addLongStat(NUM_NOT_FOUND, 1L);
       return Optional.empty();

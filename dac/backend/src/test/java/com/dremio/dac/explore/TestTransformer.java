@@ -31,6 +31,8 @@ import static com.dremio.dac.proto.model.dataset.FilterType.ConvertibleData;
 import static com.dremio.dac.proto.model.dataset.FilterType.Custom;
 import static com.dremio.dac.proto.model.dataset.MeasureType.Count;
 import static com.dremio.dac.proto.model.dataset.MeasureType.Count_Star;
+import static com.dremio.dac.proto.model.dataset.MeasureType.Variance;
+import static com.dremio.dac.proto.model.dataset.MeasureType.Variance_Population;
 import static com.dremio.dac.proto.model.dataset.NumberToDateFormat.EXCEL;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
@@ -364,11 +366,19 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
         transform(
             new TransformGroupBy()
                 .setColumnsDimensionsList(asList(new Dimension("a")))
-                .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))));
+                .setColumnsMeasuresList(
+                    asList(
+                        new Measure(Count).setColumn("b"),
+                        new Measure(Variance).setColumn("b"),
+                        new Measure(Variance_Population).setColumn("b"))));
     VirtualDatasetState newState = result.getNewState();
     assertEquals(
         asList(
-            new Column("a", a), new Column("Count_b", new ExpMeasure(Count).setOperand(b).wrap())),
+            new Column("a", a),
+            new Column("Count_b", new ExpMeasure(Count).setOperand(b).wrap()),
+            new Column("Variance_b", new ExpMeasure(Variance).setOperand(b).wrap()),
+            new Column(
+                "Variance_Population_b", new ExpMeasure(Variance_Population).setOperand(b).wrap())),
         newState.getColumnsList());
     assertEquals(asList(new Column("a", a)), newState.getGroupBysList());
   }
@@ -1129,7 +1139,9 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
   public void testTransformWithExtract() throws Exception {
     setSpace();
     DatasetPath myDatasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.datasetbuzz");
-    createDatasetFromParentAndSave(myDatasetPath, "cp.\"tpch/supplier.parquet\"");
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromParentAndSave(myDatasetPath, "cp.\"tpch/supplier.parquet\"");
 
     Transformer testTransformer =
         new Transformer(
@@ -1178,7 +1190,9 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
   public void testTransformWithExtract_SameSQL() throws Exception {
     setSpace();
     DatasetPath myDatasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.datasetbuzz");
-    createDatasetFromParentAndSave(myDatasetPath, "cp.\"tpch/supplier.parquet\"");
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromParentAndSave(myDatasetPath, "cp.\"tpch/supplier.parquet\"");
 
     Transformer testTransformer =
         new Transformer(
@@ -1210,7 +1224,10 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     final String updatedSQL = "SELECT * FROM cp.\"tpch/supplier.parquet\" LIMIT 3";
     final DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.testTransform");
-    final DatasetUI dataset = createDatasetFromSQLAndSave(datasetPath, updatedSQL, asList("cp"));
+    final DatasetUI dataset =
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromSQLAndSave(datasetPath, updatedSQL, asList("cp"));
 
     final Transform firstTransform =
         new Transform()

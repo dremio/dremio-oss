@@ -45,7 +45,7 @@ import com.dremio.io.file.FileSystemUtils;
 import com.dremio.io.file.Path;
 import com.dremio.io.file.PathFilters;
 import com.dremio.security.SecurityFolder;
-import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
+import com.dremio.service.jobtelemetry.server.store.LocalProfileKVStoreCreator;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.tokens.TokenStoreCreator;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -668,7 +668,7 @@ public final class BackupRestoreUtil {
               return;
             }
 
-            if (LocalProfileStore.PROFILES_NAME.equals(kvstoreInfo.getTablename())
+            if (LocalProfileKVStoreCreator.PROFILES_NAME.equals(kvstoreInfo.getTablename())
                 && !options.isIncludeProfiles()) {
               return;
             }

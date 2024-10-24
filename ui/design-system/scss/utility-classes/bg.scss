@@ -28,8 +28,13 @@
   @extend .bg-vars--brand-solid;
 }
 
+.bg-popover {
+  @extend .bg-vars--popover;
+}
+
 .bg-primary,
 .bg-secondary,
+.bg-popover,
 .bg-brand-solid,
 .bg-danger-solid {
   background: var(--bg);

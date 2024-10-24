@@ -23,7 +23,7 @@ import PropTypes from "prop-types";
 
 import Tabs from "components/Tabs";
 import { getViewState } from "selectors/resources";
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 import { loadCleanData, CLEAN_DATA_VIEW_ID } from "actions/explore/dataset/get";
 
 import { FLEX_COL_START, LINE_START_CENTER } from "uiTheme/radium/flexStyle";
@@ -141,7 +141,7 @@ export default connect(mapStateToProps, {
 const styles = {
   base: {
     position: "relative",
-    backgroundColor: "var(--fill--brand)",
+    backgroundColor: "var(--fill--primary)",
     ...FLEX_COL_START,
   },
 };

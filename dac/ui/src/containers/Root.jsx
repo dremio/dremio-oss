@@ -26,19 +26,19 @@ import routes from "routes";
 
 import useLoadLocale from "utils/locale/useLoadLocale";
 import { add } from "utils/storageUtils/localStorageListener";
-import { setUserState } from "@app/actions/account";
-import { intl } from "@app/utils/intl";
+import { setUserState } from "#oss/actions/account";
+import { intl } from "#oss/utils/intl";
 import { MantineProvider } from "@mantine/core";
 import { mantineTheme } from "dremio-ui-lib/components";
 
 import { NetworkConnectivityBanner } from "dremio-ui-common/components/NetworkConnectivityBanner.js";
-import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
+import { ErrorBoundary } from "#oss/components/ErrorBoundary/ErrorBoundary";
 
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 import { TutorialController } from "dremio-ui-common/walkthrough/TutorialController";
 import { TutorialOutlet } from "@inject/tutorials/components/TutorialOutlet";
 import socket from "@inject/utils/socket";
-import { SearchModalProvider } from "@app/exports/searchModal/SearchModal";
+import { SearchModalProvider } from "#oss/exports/searchModal/SearchModal";
 
 function Root({ store }) {
   const history = syncHistoryWithStore(browserHistory, store);

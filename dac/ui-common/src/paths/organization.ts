@@ -36,6 +36,7 @@ export const authentication = settings.extend(() => "authentication");
 export const biApplications = settings.extend(() => "bi-applications");
 export const externalTokens = settings.extend(() => "external-tokens");
 export const oauthApps = settings.extend(() => "oauth-applications");
+export const auditing = settings.extend(() => "auditing");
 export const users = settings.extend(() => "users");
 export const userId = users.extend((params: UserIdParam) => `${params.userId}`);
 export const roles = settings.extend(() => "roles");

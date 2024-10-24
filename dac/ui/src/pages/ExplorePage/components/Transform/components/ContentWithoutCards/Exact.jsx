@@ -18,9 +18,9 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 
 import { Radio, TextField, DateInput } from "components/Fields";
-import { isDateType } from "@app/constants/DataTypes";
-import { rowOfInputsSpacing } from "@app/uiTheme/less/forms.less";
-import { sectionMargin } from "@app/uiTheme/less/layout.less";
+import { isDateType } from "#oss/constants/DataTypes";
+import { rowOfInputsSpacing } from "#oss/uiTheme/less/forms.less";
+import { sectionMargin } from "#oss/uiTheme/less/layout.less";
 
 import CardFooter from "./../CardFooter";
 
@@ -111,7 +111,7 @@ const styles = {
     width: 300,
     height: 24,
     fontSize: 13,
-    border: "1px solid #ccc",
+    border: "1px solid var(--border--neutral)",
     borderRadius: 3,
     outline: "none",
     padding: 2,

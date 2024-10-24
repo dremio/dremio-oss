@@ -19,6 +19,7 @@ import static com.dremio.common.utils.PathUtils.constructFullPath;
 import static com.dremio.exec.ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS;
 import static com.dremio.service.reflection.ReflectionOptions.COMPACTION_TRIGGER_FILE_SIZE;
 import static com.dremio.service.reflection.ReflectionOptions.COMPACTION_TRIGGER_NUMBER_FILES;
+import static com.dremio.service.reflection.ReflectionOptions.DELETED_DATASET_HANDLING_DELAY_MILLIS;
 import static com.dremio.service.reflection.ReflectionOptions.ENABLE_COMPACTION;
 import static com.dremio.service.reflection.ReflectionOptions.ENABLE_OPTIMIZE_TABLE_FOR_INCREMENTAL_REFLECTIONS;
 import static com.dremio.service.reflection.ReflectionOptions.LOAD_MATERIALIZATION_JOB_ENABLED;
@@ -196,11 +197,13 @@ public class ReflectionManager implements Runnable {
   private final NamespaceService namespaceService;
   private volatile EntryCounts lastStats = new EntryCounts();
   private long lastWakeupTime;
+  private long lastDeletedDatasetsCleanupTime;
   private long lastOrphanCheckTime;
   private DependencyResolutionContextFactory dependencyResolutionContextFactory;
   private final MeterProvider<Timer> syncHistogram;
   private final Meter.MeterProvider<Counter> deletedCounter;
   private final DatasetEventHub datasetEventHub;
+  private final WakeUpCallback wakeUpCacheRefresherCallback;
 
   ReflectionManager(
       SabotContext sabotContext,
@@ -221,7 +224,8 @@ public class ReflectionManager implements Runnable {
       ReflectionGoalChecker reflectionGoalChecker,
       RefreshStartHandler refreshStartHandler,
       DependencyResolutionContextFactory dependencyResolutionContextFactory,
-      DatasetEventHub datasetEventHub) {
+      DatasetEventHub datasetEventHub,
+      WakeUpCallback wakeUpCacheRefresherCallback) {
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabotContext required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobsService required");
     this.optionManager = Preconditions.checkNotNull(optionManager, "optionManager required");
@@ -245,6 +249,9 @@ public class ReflectionManager implements Runnable {
     this.refreshStartHandler = Preconditions.checkNotNull(refreshStartHandler);
     this.dependencyResolutionContextFactory =
         Preconditions.checkNotNull(dependencyResolutionContextFactory);
+    this.wakeUpCacheRefresherCallback =
+        Preconditions.checkNotNull(
+            wakeUpCacheRefresherCallback, "wakeup cache refresher callback required");
     newGauge(
         ReflectionMetrics.createName(ReflectionMetrics.RM_UNKNOWN),
         () -> ReflectionManager.this.lastStats.unknown);
@@ -275,7 +282,7 @@ public class ReflectionManager implements Runnable {
   @Override
   public void run() {
     try (WarningTimer timer =
-        new WarningTimer("Reflection Manager", TimeUnit.SECONDS.toMillis(5))) {
+        new WarningTimer("Reflection Manager", TimeUnit.SECONDS.toMillis(5), logger)) {
       boolean success = false;
       logger.trace("running the reflection manager");
       Instant start = Instant.now();
@@ -315,7 +322,12 @@ public class ReflectionManager implements Runnable {
     Span.current().setAttribute("dremio.reflectionmanager.current_time", currentTime);
     Span.current().setAttribute("dremio.reflectionmanager.last_wakeup_time", lastWakeupTime);
 
-    handleDeletedDatasets();
+    if (lastDeletedDatasetsCleanupTime == 0
+        || currentTime - lastDeletedDatasetsCleanupTime
+            > optionManager.getOption(DELETED_DATASET_HANDLING_DELAY_MILLIS)) {
+      handleDeletedDatasets();
+      this.lastDeletedDatasetsCleanupTime = currentTime;
+    }
     handleGoals(lastWakeupTime - WAKEUP_OVERLAP_MS);
     try (DependencyResolutionContext context = dependencyResolutionContextFactory.create()) {
       Span.current()
@@ -1423,7 +1435,9 @@ public class ReflectionManager implements Runnable {
     materializationStore.save(materialization);
     updateReflectionEntry(entry);
 
-    updateMaterializationCache(entry, materialization);
+    wakeUpCacheRefresherCallback.wakeup(
+        String.format(
+            "Adding %s to the materialization cache on this coordinator", getId(materialization)));
     // if the materialization fails during materialization cache update, then don't invalidate plan
     // cache.
     if (materialization.getState() == MaterializationState.FAILED) {
@@ -1760,7 +1774,8 @@ public class ReflectionManager implements Runnable {
             materialization.getId(),
             sql,
             com.dremio.service.job.proto.QueryType.ACCELERATOR_CREATE,
-            new WakeUpManagerWhenJobDone(wakeUpCallback, "compaction job done"));
+            new WakeUpManagerWhenJobDone(wakeUpCallback, "compaction job done"),
+            optionManager);
 
     newMaterialization.setInitRefreshJobId(compactionJobId.getId());
     materializationStore.save(newMaterialization);
@@ -1869,6 +1884,7 @@ public class ReflectionManager implements Runnable {
         String.format(
             "OPTIMIZE TABLE \"%s\".\"%s\".\"%s\"",
             ACCELERATOR_STORAGEPLUGIN_NAME, entry.getId().getId(), materialization.getId().getId());
+
     final JobId jobId =
         submitRefreshJob(
             jobsService,
@@ -1877,7 +1893,15 @@ public class ReflectionManager implements Runnable {
             materialization.getId(),
             sql,
             com.dremio.service.job.proto.QueryType.ACCELERATOR_OPTIMIZE,
-            new WakeUpManagerWhenJobDone(wakeUpCallback, "OPTIMIZE TABLE for reflection job done"));
+            new WakeUpManagerWhenJobDone(wakeUpCallback, "OPTIMIZE TABLE for reflection job done"),
+            optionManager);
+
+    if (jobId == null) {
+      newMaterialization.setState(MaterializationState.FAILED);
+      materializationStore.save(newMaterialization);
+      logger.warn("Timed out waiting to submit OPTIMIZE TABLE job for {}", getId(entry));
+      return;
+    }
 
     newMaterialization.setInitRefreshJobId(jobId.getId());
     materializationStore.save(newMaterialization);
@@ -1918,14 +1942,20 @@ public class ReflectionManager implements Runnable {
             formattedOlderThanTime);
     logger.debug(
         "Submitting VACUUM TABLE job for reflection {}.{}", entryIdString, materializationIdString);
-    submitRefreshJob(
-        jobsService,
-        catalogService,
-        entry,
-        materializationInfo.getMaterializationId(),
-        vacuumQuery,
-        com.dremio.service.job.proto.QueryType.ACCELERATOR_OPTIMIZE,
-        JobStatusListener.NO_OP);
+    JobId jobId =
+        submitRefreshJob(
+            jobsService,
+            catalogService,
+            entry,
+            materializationInfo.getMaterializationId(),
+            vacuumQuery,
+            com.dremio.service.job.proto.QueryType.ACCELERATOR_OPTIMIZE,
+            JobStatusListener.NO_OP,
+            optionManager);
+    if (jobId == null) {
+      logger.warn("Failed to submit VACUUM table job for {}", getId(entry));
+      return;
+    }
     dependencyManager.updateMaterializationInfo(
         entry.getId(),
         materializationInfo.getMaterializationId(),
@@ -2136,25 +2166,6 @@ public class ReflectionManager implements Runnable {
   }
 
   private void metadataRefreshJobSucceeded(ReflectionEntry entry, Materialization materialization) {
-
-    try {
-      descriptorCache.update(materialization);
-      materialization = materializationStore.get(materialization.getId());
-    } catch (Exception | AssertionError e) {
-      logger.warn("Failed to update materialization cache for {}", getId(materialization), e);
-      materialization
-          .setState(MaterializationState.FAILED)
-          .setFailure(
-              new Failure()
-                  .setMessage(
-                      String.format("Materialization cache update failed: %s", e.getMessage())));
-      entry.setLastFailure(
-          new Failure()
-              .setMessage(String.format("Materialization cache update failed: %s", e.getMessage()))
-              .setStackTrace(Throwables.getStackTraceAsString(e)));
-      updateReflectionEntry(entry);
-    }
-
     if (materialization.getState() != MaterializationState.FAILED) {
       handleMaterializationDone(entry, materialization);
     }
@@ -2168,6 +2179,9 @@ public class ReflectionManager implements Runnable {
 
     materializationStore.save(materialization);
     updateReflectionEntry(entry);
+    wakeUpCacheRefresherCallback.wakeup(
+        String.format(
+            "Adding %s to the materialization cache on this coordinator", getId(materialization)));
     if (entry.getState().equals(ACTIVE)
         && materialization.getState().equals(MaterializationState.DONE)) {
       maybeOptimizeIncrementalReflectionFiles(entry, materialization);
@@ -2188,33 +2202,14 @@ public class ReflectionManager implements Runnable {
             materialization.getId(),
             sql,
             com.dremio.service.job.proto.QueryType.ACCELERATOR_CREATE,
-            new WakeUpManagerWhenJobDone(wakeUpCallback, "metadata refresh job done"));
+            new WakeUpManagerWhenJobDone(wakeUpCallback, "metadata refresh job done"),
+            optionManager);
 
     entry.setState(METADATA_REFRESH).setRefreshJobId(jobId);
     updateReflectionEntry(entry);
 
     logger.debug(
         "Submitted LOAD MATERIALIZATION job {} for {}", jobId.getId(), getId(materialization));
-  }
-
-  private void updateMaterializationCache(ReflectionEntry entry, Materialization materialization) {
-    try {
-      descriptorCache.update(materialization);
-    } catch (Exception | AssertionError e) {
-      logger.warn("Failed to update materialization cache for {}", getId(materialization), e);
-      materialization
-          .setState(MaterializationState.FAILED)
-          .setFailure(
-              new Failure()
-                  .setMessage(
-                      String.format("Materialization cache update failed: %s", e.getMessage())));
-      materializationStore.save(materialization);
-      entry.setLastFailure(
-          new Failure()
-              .setMessage(String.format("Materialization cache update failed: %s", e.getMessage()))
-              .setStackTrace(Throwables.getStackTraceAsString(e)));
-      reportFailure(entry, ACTIVE);
-    }
   }
 
   private void startRefresh(ReflectionEntry entry) {

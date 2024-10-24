@@ -288,6 +288,11 @@ public class JSONRecordReader extends AbstractRecordReader {
         final int sizeLimit =
             Math.toIntExact(
                 this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+        final int rowSizeLimit =
+            Math.toIntExact(
+                this.context.getOptions().getOption(ExecConstants.LIMIT_ROW_SIZE_BYTES));
+        final boolean rowSizeLimitEnabled =
+            this.context.getOptions().getOption(ExecConstants.ENABLE_ROW_SIZE_LIMIT_ENFORCEMENT);
         final int maxLeafLimit =
             Math.toIntExact(
                 this.context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
@@ -306,6 +311,8 @@ public class JSONRecordReader extends AbstractRecordReader {
                   context.getManagedBuffer(),
                   ImmutableList.copyOf(getColumns()),
                   sizeLimit,
+                  rowSizeLimitEnabled,
+                  rowSizeLimit,
                   maxLeafLimit,
                   enableAllTextMode,
                   true,
@@ -330,6 +337,8 @@ public class JSONRecordReader extends AbstractRecordReader {
                   context.getManagedBuffer(),
                   ImmutableList.copyOf(getColumns()),
                   sizeLimit,
+                  rowSizeLimitEnabled,
+                  rowSizeLimit,
                   maxLeafLimit,
                   enableAllTextMode,
                   true,
@@ -357,6 +366,8 @@ public class JSONRecordReader extends AbstractRecordReader {
                   context.getManagedBuffer(),
                   ImmutableList.copyOf(getColumns()),
                   sizeLimit,
+                  rowSizeLimitEnabled,
+                  rowSizeLimit,
                   maxLeafLimit,
                   enableAllTextMode,
                   true,

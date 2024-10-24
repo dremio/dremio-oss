@@ -305,7 +305,9 @@ public class TestFragmentTracker {
 
     // Ideally, we should not even call succeeded...
     inOrder.verify(completionListener).failed(any(Exception.class));
-    inOrder.verify(completionListener).succeeded();
+    inOrder
+        .verify(completionListener)
+        .succeeded(any(Long.class), any(Long.class), any(Long.class), any(Long.class));
   }
 
   // Verify that FragmentTracker can handle the case that NodeEndpoint has additional
@@ -351,7 +353,9 @@ public class TestFragmentTracker {
     fragmentTracker.handleFailedNodes(ImmutableSet.of(verboseEndpoint));
 
     inOrder.verify(completionListener).failed(any(Exception.class));
-    inOrder.verify(completionListener).succeeded();
+    inOrder
+        .verify(completionListener)
+        .succeeded(any(Long.class), any(Long.class), any(Long.class), any(Long.class));
   }
 
   @Mock Runnable queryCloser;
@@ -371,7 +375,9 @@ public class TestFragmentTracker {
 
     fragmentTracker.populate(Collections.emptyList(), new ResourceSchedulingDecisionInfo());
 
-    inOrder.verify(completionListener).succeeded();
+    inOrder
+        .verify(completionListener)
+        .succeeded(any(Long.class), any(Long.class), any(Long.class), any(Long.class));
     inOrder.verify(queryCloser).run();
   }
 }

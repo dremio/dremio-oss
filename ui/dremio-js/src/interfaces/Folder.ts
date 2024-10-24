@@ -16,9 +16,13 @@
 
 import type { CatalogObjectMethods } from "./CatalogObject.js";
 import type { CatalogReference } from "./CatalogReference.js";
+import type { Grantee } from "./Grantee.js";
 
 export type FolderProperties = {
   createdAt: Date;
+  /**
+   * @deprecated
+   */
   id: string;
   path: string[];
 };
@@ -30,3 +34,12 @@ export type FolderMethods = {
 } & CatalogObjectMethods;
 
 export type Folder = FolderProperties & FolderMethods;
+
+export type EnterpriseFolderMethods = {
+  grants(): Promise<{
+    availablePrivileges: string[];
+    grants: { grantee: Grantee; privileges: string[] }[];
+  }>;
+};
+
+export type EnterpriseFolder = Folder & EnterpriseFolderMethods;

@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
@@ -33,6 +34,7 @@ import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.dremio.services.pubsub.MessagePublisher;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -70,7 +72,9 @@ public abstract class AbstractTestNamespaceService {
     storeProvider.start();
     provider = storeProvider.asLegacy();
     provider.start();
-    namespaceService = new NamespaceServiceImpl(storeProvider, new CatalogStatusEventsImpl());
+    namespaceService =
+        new NamespaceServiceImpl(
+            storeProvider, new CatalogStatusEventsImpl(), () -> mock(MessagePublisher.class));
   }
 
   @After

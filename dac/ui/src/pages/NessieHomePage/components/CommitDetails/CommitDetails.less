@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/mixins.less";
+@import "~#oss/uiTheme/less/mixins.less";
 
 :global {
   .commitDetails {
@@ -36,6 +36,7 @@
       flex-shrink: 0;
       &:after {
         content: ":";
+        margin-top: 3px;
       }
     }
     &-desc {
@@ -57,7 +58,7 @@
 
     &-metaHeader {
       text-transform: uppercase;
-      color: var(--color--neutral--300);
+      color: var(--text--faded);
       padding-bottom: 12px;
       user-select: none;
     }

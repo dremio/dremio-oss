@@ -18,7 +18,7 @@ import { bodySmall } from "./typography";
 export const button = {
   outline: "none",
   textDecoration: "none",
-  border: "1px solid #D9D9D9",
+  border: "1px solid var(--border--neutral--solid)",
   padding: "0 6px",
   position: "relative",
   lineHeight: "30px",

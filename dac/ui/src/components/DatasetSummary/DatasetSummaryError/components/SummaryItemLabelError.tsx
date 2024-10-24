@@ -16,7 +16,7 @@
 import { useState, useRef } from "react";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
-import { addTooltip } from "@app/components/DatasetSummary/datasetSummaryUtils";
+import { addTooltip } from "#oss/components/DatasetSummary/datasetSummaryUtils";
 import * as classes from "./SummaryItemLabelError.module.less";
 
 type SummaryItemlabelErrorProps = {

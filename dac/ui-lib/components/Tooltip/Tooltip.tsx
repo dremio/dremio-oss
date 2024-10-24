@@ -99,13 +99,16 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
     }
   };
 
-  const { x, y, context, refs, strategy, middlewareData } = useFloating({
-    middleware: [
-      offset(8),
-      flip(),
-      shift({ padding: 8 }),
-      arrow({ element: arrowElRef }),
-    ],
+  const {
+    x,
+    y,
+    context,
+    refs,
+    strategy,
+    middlewareData,
+    placement: calculatedPlacement,
+  } = useFloating({
+    middleware: [offset(8), flip(), shift(), arrow({ element: arrowElRef })],
     onOpenChange: handleOpenChange,
     open,
     placement,
@@ -138,7 +141,7 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
       bottom: "top",
       left: "right",
     } as const
-  )[placement.split("-")[0]];
+  )[calculatedPlacement.split("-")[0]];
 
   const tooltipContent = (
     <CSSTransition

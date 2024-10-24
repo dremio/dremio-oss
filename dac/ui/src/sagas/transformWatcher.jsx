@@ -19,14 +19,14 @@ import { delay } from "redux-saga";
 import {
   startDatasetMetadataLoad,
   completeDatasetMetadataLoad,
-} from "@app/actions/explore/view";
-import { explorePageChanged } from "@app/sagas/runDataset";
-import { navigateToNextDataset } from "@app/actions/explore/dataset/common";
+} from "#oss/actions/explore/view";
+import { explorePageChanged } from "#oss/sagas/runDataset";
+import { navigateToNextDataset } from "#oss/actions/explore/dataset/common";
 import {
   startExplorePageListener,
   failedExploreJobProgress,
   stopExplorePageListener,
-} from "@app/actions/explore/dataset/data";
+} from "#oss/actions/explore/dataset/data";
 
 import {
   showConfirmationDialog,
@@ -110,7 +110,7 @@ export function* performWatchedTransform(apiAction, viewId) {
 
   if (raceResults.locationChange) {
     throw new TransformCanceledByLocationChangeError(
-      getApiActionEntity(apiAction)
+      getApiActionEntity(apiAction),
     );
   }
   return raceResults.tableTransform;

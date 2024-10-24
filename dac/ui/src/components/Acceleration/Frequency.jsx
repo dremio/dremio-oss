@@ -22,7 +22,7 @@ import {
   selectDay,
   selectWeek,
   input,
-} from "@app/uiTheme/less/Acceleration/Frequency.less";
+} from "#oss/uiTheme/less/Acceleration/Frequency.less";
 import Tabs from "../Tabs";
 
 class Frequency extends PureComponent {

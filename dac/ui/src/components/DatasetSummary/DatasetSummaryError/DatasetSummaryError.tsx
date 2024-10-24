@@ -17,9 +17,9 @@
 import SummaryItemLabelError from "./components/SummaryItemLabelError";
 import SummarySubHeader from "../components/SummarySubHeader/SummarySubHeader";
 import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";
-import Message from "@app/components/Message";
+import Message from "#oss/components/Message";
 import { getIconType } from "../datasetSummaryUtils";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import clsx from "clsx";
 
 import * as classes from "./DatasetSummaryError.module.less";

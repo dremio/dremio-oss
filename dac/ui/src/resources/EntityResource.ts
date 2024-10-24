@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { getEntity } from "@app/endpoints/Entity/getEntity";
+import { getEntity } from "#oss/endpoints/Entity/getEntity";
 import { SmartResource } from "smart-resource";
-import { getEntitySummary } from "@app/endpoints/EntitySummary/getEntitySummary";
+import { getEntitySummary } from "#oss/endpoints/EntitySummary/getEntitySummary";
 
 export const EntityOverlayResource = new SmartResource(getEntity);
 

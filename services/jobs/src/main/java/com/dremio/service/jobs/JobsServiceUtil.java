@@ -46,9 +46,12 @@ import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.beans.NodeEndpoint;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.exec.store.parquet.ParquetWriter;
 import com.dremio.service.job.ActiveJobSummary;
+import com.dremio.service.job.JobAndUserStat;
+import com.dremio.service.job.JobCountByQueryType;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobStats;
 import com.dremio.service.job.JobSummary;
@@ -56,6 +59,7 @@ import com.dremio.service.job.RecentJobSummary;
 import com.dremio.service.job.RequestType;
 import com.dremio.service.job.StoreJobResultRequest;
 import com.dremio.service.job.SubmitJobRequest;
+import com.dremio.service.job.UniqueUsersCountByQueryType;
 import com.dremio.service.job.UsedReflections;
 import com.dremio.service.job.VersionedDatasetPath;
 import com.dremio.service.job.proto.DataSet;
@@ -86,16 +90,21 @@ import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
 import java.text.MessageFormat;
 import java.text.ParseException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -173,6 +182,79 @@ public final class JobsServiceUtil {
    */
   public static JobId getExternalIdAsJobId(ExternalId id) {
     return new JobId(new UUID(id.getPart1(), id.getPart2()).toString());
+  }
+
+  public static boolean ifJobAttemptHasRunningState(JobAttempt attempt) {
+    for (com.dremio.exec.proto.beans.AttemptEvent event : attempt.getStateListList()) {
+      if (event.getState() == com.dremio.exec.proto.beans.AttemptEvent.State.RUNNING) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static List<JobAndUserStat> buildDailyJobAndUserStats(
+      int days, LocalDate today, List<RecordBatchHolder> results) {
+    Set<String> dates = new HashSet<>();
+    Map<String, List<JobCountByQueryType>> jobCountByQueryType = new HashMap<>();
+    Map<String, List<UniqueUsersCountByQueryType>> uniqueUsersByQueryType = new HashMap<>();
+    Map<String, Map<String, Long>> totalStats = new HashMap<>();
+    for (RecordBatchHolder recordBatchHolder : results) {
+      for (int i = 0; i < recordBatchHolder.getData().getVectors().get(0).getValueCount(); i++) {
+        byte[] dateBytes = ((VarCharVector) recordBatchHolder.getData().getVectors().get(0)).get(i);
+        if (dateBytes == null) {
+          continue;
+        }
+        String date = new String(dateBytes, java.nio.charset.StandardCharsets.UTF_8);
+        dates.add(date);
+        byte[] queryTypeBytes =
+            ((VarCharVector) recordBatchHolder.getData().getVectors().get(1)).get(i);
+        byte[] uniqueUsersBytes =
+            ((VarCharVector) recordBatchHolder.getData().getVectors().get(2)).get(i);
+        String[] uniqueUsers =
+            new String(uniqueUsersBytes, java.nio.charset.StandardCharsets.UTF_8).split(";");
+        long jobsExecuted = ((BigIntVector) recordBatchHolder.getData().getVectors().get(3)).get(i);
+        if (queryTypeBytes == null) {
+          totalStats.putIfAbsent(date, new HashMap<>());
+          totalStats.get(date).put("totalJobs", jobsExecuted);
+          totalStats.get(date).put("totalUniqueUsers", (long) uniqueUsers.length);
+          continue;
+        }
+        String queryType = new String(queryTypeBytes, java.nio.charset.StandardCharsets.UTF_8);
+        jobCountByQueryType.putIfAbsent(date, new ArrayList<>());
+        jobCountByQueryType
+            .get(date)
+            .add(
+                JobCountByQueryType.newBuilder()
+                    .setQueryType(com.dremio.service.job.QueryType.valueOf(queryType))
+                    .setJobCount(jobsExecuted)
+                    .build());
+        uniqueUsersByQueryType.putIfAbsent(date, new ArrayList<>());
+        uniqueUsersByQueryType
+            .get(date)
+            .add(
+                UniqueUsersCountByQueryType.newBuilder()
+                    .setQueryType(com.dremio.service.job.QueryType.valueOf(queryType))
+                    .addAllUniqueUsers(Arrays.asList(uniqueUsers))
+                    .build());
+      }
+    }
+    List<JobAndUserStat> stats = new ArrayList<>();
+    for (LocalDate date = today; date.isAfter(today.minusDays(days)); date = date.minusDays(1)) {
+      if (dates.contains(date.toString())) {
+        stats.add(
+            JobAndUserStat.newBuilder()
+                .setDate(date.toString())
+                .setTotalJobs(totalStats.get(date.toString()).get("totalJobs"))
+                .setTotalUniqueUsers(totalStats.get(date.toString()).get("totalUniqueUsers"))
+                .addAllJobCountByQueryType(jobCountByQueryType.get(date.toString()))
+                .addAllUniqueUsersCountByQueryType(uniqueUsersByQueryType.get(date.toString()))
+                .build());
+      } else {
+        stats.add(JobAndUserStat.newBuilder().setDate(date.toString()).build());
+      }
+    }
+    return stats;
   }
 
   /**

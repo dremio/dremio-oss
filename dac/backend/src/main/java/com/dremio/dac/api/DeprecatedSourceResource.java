@@ -17,6 +17,7 @@ package com.dremio.dac.api;
 
 import static com.dremio.dac.options.UIOptions.ALLOW_HIVE_SOURCE;
 import static com.dremio.exec.store.DataplanePluginOptions.NESSIE_PLUGIN_ENABLED;
+import static com.dremio.exec.store.IcebergCatalogPluginOptions.RESTCATALOG_PLUGIN_ENABLED;
 import static com.dremio.exec.store.jdbc.JdbcPluginOptions.JDBC_OPENSEARCH_ENABLED;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
@@ -217,19 +218,18 @@ public class DeprecatedSourceResource {
   }
 
   private boolean isSourceTypeVisible(String sourceType) {
-    if ("HIVE".equals(sourceType)) {
-      return optionManager.getOption(ALLOW_HIVE_SOURCE);
+    switch (sourceType) {
+      case "HIVE":
+        return optionManager.getOption(ALLOW_HIVE_SOURCE);
+      case "OPENSEARCH":
+        return optionManager.getOption(JDBC_OPENSEARCH_ENABLED);
+      case "NESSIE":
+        return optionManager.getOption(NESSIE_PLUGIN_ENABLED);
+      case "RESTCATALOG":
+        return optionManager.getOption(RESTCATALOG_PLUGIN_ENABLED);
+      default:
+        return true;
     }
-
-    if ("OPENSEARCH".equals(sourceType)) {
-      return optionManager.getOption(JDBC_OPENSEARCH_ENABLED);
-    }
-
-    if ("NESSIE".equals(sourceType)) {
-      return optionManager.getOption(NESSIE_PLUGIN_ENABLED);
-    }
-
-    return true;
   }
 
   // Returns the specified source type with all its properties expanded

@@ -15,8 +15,8 @@
  */
 
 import { useMemo } from "react";
-import { useUsersDetails } from "@app/exports/providers/useUsersDetails";
-import { getUserId } from "@app/exports/utilities/getUserId";
+import { useUsersDetails } from "#oss/exports/providers/useUsersDetails";
+import { getUserId } from "#oss/exports/utilities/getUserId";
 
 export const useUserDetails = () => {
   const id = getUserId() ?? "";

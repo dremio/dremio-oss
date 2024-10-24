@@ -68,8 +68,7 @@ public class TestSelectWithOption extends BaseTestQuery {
 
     String queryTemplate =
         "select columns from table(%s (type => 'TeXT', fieldDelimiter => '%s', extractHeader => true))";
-    try (AutoCloseable closeable =
-        setSystemOptionWithAutoReset("store.plugin.max_metadata_leaf_columns", "2")) {
+    try (AutoCloseable ignored = setMaxLeafColumns(2)) {
       test(format(queryTemplate, tableName, ","));
       fail("query should have failed");
     } catch (UserException e) {

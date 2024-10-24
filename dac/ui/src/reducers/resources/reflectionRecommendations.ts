@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { ReflectionRecommendations } from "@app/components/Acceleration/ReflectionRecommendations.types";
-import { SET_REFLECTION_RECOMMENDATIONS } from "@app/actions/resources/reflectionRecommendations";
+import { ReflectionRecommendations } from "#oss/components/Acceleration/ReflectionRecommendations.types";
+import { SET_REFLECTION_RECOMMENDATIONS } from "#oss/actions/resources/reflectionRecommendations";
 
 type ReflectionRecommendationsActions = {
   type: string;

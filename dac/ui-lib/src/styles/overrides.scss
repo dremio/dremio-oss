@@ -16,7 +16,7 @@
 @import "./constants/index.scss";
 
 .MuiTooltip-arrow::before {
-  background-color: var(--color--neutral--700) !important;
+  background-color: var(--fill--popover) !important;
 }
 
 .MuiMenuItem-root {

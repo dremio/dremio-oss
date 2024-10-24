@@ -19,6 +19,7 @@ import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.sabot.exec.context.OperatorContext;
+import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.io.FileIO;
 
@@ -28,10 +29,18 @@ public interface SupportsIcebergMutablePlugin extends MutablePlugin, SupportsIce
    * @param userName userName of current user
    * @param context Operator Context
    * @param fileIO FileIO instance for creating the Iceberg Model
+   * @param userId userId of current user - The userId is needed for commit operations that involve
+   *     Nessie commits which are performed from the executor. Insert, Update, Merge and CTAS
+   *     operations are examples of such operations. The userId can be null for vanilla Iceberg
+   *     operations that don't involve Nessie commits.
    * @return IcebergModel which is used for performing Iceberg operations
    */
   IcebergModel getIcebergModel(
-      IcebergTableProps tableProps, String userName, OperatorContext context, FileIO fileIO);
+      IcebergTableProps tableProps,
+      String userName,
+      OperatorContext context,
+      FileIO fileIO,
+      @Nullable String userId);
 
   /**
    * @param tableProps

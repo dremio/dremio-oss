@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { QueryRange } from "@app/utils/statements/statement";
-import sentryUtil from "@app/utils/sentryUtil";
+import { QueryRange } from "#oss/utils/statements/statement";
+import sentryUtil from "#oss/utils/sentryUtil";
 
 export const QUERY_SELECTIONS = "querySelections";
 

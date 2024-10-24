@@ -18,6 +18,9 @@ import type { CatalogObjectMethods } from "./CatalogObject.js";
 
 export type FunctionProperties = {
   createdAt: Date;
+  /**
+   * @deprecated
+   */
   id: string;
   isScalar: boolean;
   lastModified: Date;

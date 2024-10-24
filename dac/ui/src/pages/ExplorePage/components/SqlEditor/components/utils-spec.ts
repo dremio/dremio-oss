@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 import { renderHook } from "@testing-library/react-hooks";
-import { NESSIE_REF_PREFIX } from "@app/constants/nessie";
+import { NESSIE_REF_PREFIX } from "#oss/constants/nessie";
 import { getContextValue, useCtxPickerActions, getCtxState } from "./utils";
-import { NessieRootState } from "@app/types/nessie";
+import { NessieRootState } from "#oss/types/nessie";
 import * as sinon from "sinon";
 import { act } from "@testing-library/react";
 

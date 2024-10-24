@@ -90,8 +90,8 @@ describe("AccelerationGrid", () => {
     expect(wrapper.find(Table)).to.have.length(1);
     expect(
       wrapper.find(
-        ".fixedDataTableRowLayout_body .fixedDataTableCellGroupLayout_cellGroupWrapper"
-      )
+        ".fixedDataTableRowLayout_body .fixedDataTableCellGroupLayout_cellGroupWrapper",
+      ),
     ).to.have.length(2);
   });
 

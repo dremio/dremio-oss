@@ -19,6 +19,7 @@ import static com.dremio.exec.catalog.CatalogOptions.VERSIONED_SOURCE_UDF_ENABLE
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -36,9 +37,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.dremio.catalog.model.CatalogEntityId;
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.concurrent.bulk.BulkRequest;
 import com.dremio.common.concurrent.bulk.BulkResponse;
@@ -77,6 +80,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.test.UserExceptionAssert;
@@ -167,6 +171,74 @@ public class TestCatalogImpl {
             () -> catalog.alterDataset(CatalogEntityKey.fromNamespaceKey(key), attributes))
         .hasErrorType(VALIDATION)
         .hasMessageContaining("Unknown source");
+  }
+
+  @Test
+  public void testEntityExistsById() {
+    CatalogEntityId catalogEntityId =
+        CatalogEntityId.fromVersionedDatasetId(
+            new VersionedDatasetId(
+                ImmutableList.of("catalog", "table"),
+                "contentId",
+                TableVersionContext.NOT_SPECIFIED));
+    StoragePlugin mockStoragePlugin = mock(StoragePlugin.class);
+    VersionedPlugin mockVersionedPlugin = mock(VersionedPlugin.class);
+    ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofCommit("abc123");
+    when(sourceModifier.getSource("catalog")).thenReturn(mockStoragePlugin);
+    when(mockStoragePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(mockStoragePlugin.unwrap(VersionedPlugin.class)).thenReturn(mockVersionedPlugin);
+    when(mockVersionedPlugin.resolveVersionContext(VersionContext.NOT_SPECIFIED))
+        .thenReturn(resolvedVersionContext);
+    when(mockVersionedPlugin.getContentId(ImmutableList.of("table"), resolvedVersionContext))
+        .thenReturn("id");
+
+    CatalogImpl catalogImpl = newCatalogImpl(null);
+
+    assertTrue(catalogImpl.existsById(catalogEntityId));
+  }
+
+  @Test
+  public void testEntityExistsByIdDoesNotExist() {
+    CatalogEntityId catalogEntityId =
+        CatalogEntityId.fromVersionedDatasetId(
+            new VersionedDatasetId(
+                ImmutableList.of("catalog", "table"),
+                "contentId",
+                TableVersionContext.NOT_SPECIFIED));
+    StoragePlugin mockStoragePlugin = mock(StoragePlugin.class);
+    VersionedPlugin mockVersionedPlugin = mock(VersionedPlugin.class);
+    ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofCommit("abc123");
+    when(sourceModifier.getSource("catalog")).thenReturn(mockStoragePlugin);
+    when(mockStoragePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(mockStoragePlugin.unwrap(VersionedPlugin.class)).thenReturn(mockVersionedPlugin);
+    when(mockVersionedPlugin.resolveVersionContext(VersionContext.NOT_SPECIFIED))
+        .thenReturn(resolvedVersionContext);
+    when(mockVersionedPlugin.getContentId(ImmutableList.of("table"), resolvedVersionContext))
+        .thenReturn(null);
+
+    CatalogImpl catalogImpl = newCatalogImpl(null);
+
+    assertFalse(catalogImpl.existsById(catalogEntityId));
+  }
+
+  @Test
+  public void testEntityExistsByIdForNamespace() {
+    CatalogEntityId catalogEntityId = CatalogEntityId.fromString("catalog.someTable");
+    when(userNamespaceService.getEntityById(new EntityId("catalog.someTable")))
+        .thenReturn(Optional.of(mock(NameSpaceContainer.class)));
+
+    CatalogImpl catalogImpl = newCatalogImpl(null);
+    assertTrue(catalogImpl.existsById(catalogEntityId));
+  }
+
+  @Test
+  public void testEntityExistsByIdDoesNotExistForNamespace() {
+    CatalogEntityId catalogEntityId = CatalogEntityId.fromString("catalog.someTable");
+    when(userNamespaceService.getEntityById(new EntityId("catalog.someTable")))
+        .thenReturn(Optional.empty());
+
+    CatalogImpl catalogImpl = newCatalogImpl(null);
+    assertFalse(catalogImpl.existsById(catalogEntityId));
   }
 
   @Test

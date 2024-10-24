@@ -52,12 +52,12 @@ export const getCreatedSource = createSelector(
   [_getCreatedSource],
   (source) => {
     return source;
-  }
+  },
 );
 
 export const getSearchResult = createSelector(
   [getSearchData],
-  (datasets) => datasets
+  (datasets) => datasets,
 );
 
 export function getEntity(state, entityId, entityType) {
@@ -79,7 +79,7 @@ export const getDatasetAcceleration = (state, fullPath) => {
   const constructedFullPath = constructFullPathAndEncode(fullPath);
   const allAccelerations = state.resources.entities.get(
     "datasetAcceleration",
-    Immutable.Map()
+    Immutable.Map(),
   );
   return allAccelerations.find((item) => {
     return item.get("fullPath") === constructedFullPath;

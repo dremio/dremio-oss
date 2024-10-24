@@ -36,7 +36,7 @@ export const getStarredItemIds = createSelector(
       returnVal.push(newItem);
     }
     return returnVal;
-  }
+  },
 );
 
 const getStarredResourcesData = (state) => {
@@ -51,16 +51,16 @@ export const getStarredResources = createSelector(
   [getStarredResourcesData],
   (starredResourceList) => {
     return Immutable.List(starredResourceList);
-  }
+  },
 );
 
 export const getResourceTreeModal = createSelector(
   [getResourceTreeModalData],
   (resourceModalList) => {
     return Immutable.List(resourceModalList);
-  }
+  },
 );
 
 export const getResourceTree = createSelector([getResourceTreeData], (tree) =>
-  tree.sortBy((t) => t.get("type") !== "HOME" && t.get("name"))
+  tree.sortBy((t) => t.get("type") !== "HOME" && t.get("name")),
 );

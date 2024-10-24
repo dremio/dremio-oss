@@ -52,7 +52,8 @@ public class TestIcebergHadoopCommand {
             null,
             null,
             null,
-            Collections.emptyMap());
+            Collections.emptyMap(),
+            Path.of(tempDir.getRoot().getPath()).resolve(tableName).toString());
     createTableCommitter.commit();
 
     File tableFolder = new File(tempDir.getRoot(), tableName);

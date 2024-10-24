@@ -35,30 +35,30 @@ import {
   jobUpdateWatchers,
 } from "sagas/runDataset";
 import { EXPLORE_TABLE_ID } from "reducers/explore/view";
-import { focusSqlEditor } from "@app/actions/explore/view";
-import { getViewStateFromAction } from "@app/reducers/resources/view";
+import { focusSqlEditor } from "#oss/actions/explore/view";
+import { getViewStateFromAction } from "#oss/reducers/resources/view";
 import {
   getFullDataset,
   getDatasetVersionFromLocation,
   getTableDataRaw,
   oldGetExploreJobId,
-} from "@app/selectors/explore";
+} from "#oss/selectors/explore";
 import { getLocation } from "selectors/routing";
-import { TRANSFORM_PEEK_START } from "@app/actions/explore/dataset/peek";
+import { TRANSFORM_PEEK_START } from "#oss/actions/explore/dataset/peek";
 import {
   EXPLORE_PAGE_LISTENER_START,
   EXPLORE_PAGE_LISTENER_STOP,
   EXPLORE_PAGE_EXIT,
   initializeExploreJobProgress,
   setExploreJobIdInProgress,
-} from "@app/actions/explore/dataset/data";
+} from "#oss/actions/explore/dataset/data";
 import { sonarEvents } from "dremio-ui-common/sonar/sonarEvents.js";
-import { log } from "@app/utils/logger";
+import { log } from "#oss/utils/logger";
 
 import apiUtils from "utils/apiUtils/apiUtils";
 import { constructFullPath } from "utils/pathUtils";
 
-import { setReference, setRefs } from "@app/actions/nessie/nessie";
+import { setReference, setRefs } from "#oss/actions/nessie/nessie";
 import {
   transformThenNavigate,
   TransformCanceledError,
@@ -66,8 +66,8 @@ import {
   TransformFailedError,
 } from "./transformWatcher";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { SQLRUNNER_TABS_UI } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 
 export default function* watchLoadDataset() {
@@ -86,7 +86,7 @@ export function* handlePerformLoadDataset({ meta }) {
       viewId,
       undefined,
       undefined,
-      willLoadTable
+      willLoadTable,
     );
 
     const response = yield call(transformThenNavigate, apiAction, viewId, {
@@ -96,7 +96,7 @@ export function* handlePerformLoadDataset({ meta }) {
 
     const nextFullDataset = apiUtils.getEntityFromResponse(
       "fullDataset",
-      response
+      response,
     );
     const datasetUI = apiUtils.getEntityFromResponse("datasetUI", response);
     if (datasetUI) {
@@ -114,8 +114,8 @@ export function* handlePerformLoadDataset({ meta }) {
                 type: versionContext.type,
               },
             },
-            sourceName
-          )
+            sourceName,
+          ),
         );
       }
     }
@@ -129,7 +129,7 @@ export function* handlePerformLoadDataset({ meta }) {
             error: {
               message: nextFullDataset.getIn(["error", "errorMessage"]),
             },
-          })
+          }),
         );
       } else {
         const version = nextFullDataset.get("version");
@@ -175,7 +175,7 @@ export function* cancelDataLoad() {
 export function* loadTableData(
   datasetVersion,
   forceReload,
-  isRunOrPreview = true
+  isRunOrPreview = true,
 ) {
   log(`prerequisites check; forceReload=${!!forceReload}`);
   let resetViewState = true;
@@ -213,7 +213,7 @@ export function* loadTableData(
         isInProgress: true,
         isFailed: false,
         error: null,
-      })
+      }),
     );
 
     // load first page for a table
@@ -224,7 +224,7 @@ export function* loadTableData(
         jobId,
         forceReload,
         paginationUrl,
-        isRunOrPreview
+        isRunOrPreview,
       ),
       isLoadCanceled: take([CANCEL_TABLE_DATA_LOAD, TRANSFORM_PEEK_START]), // cancel previous data load
       locationChange: call(resetTableViewStateOnPageLeave),
@@ -256,7 +256,6 @@ const defaultViewState = {
 function* explorePageDataChecker() {
   // use infinite loop to listen start/stop actions
   while (true) {
-    // eslint-disable-line no-constant-condition
     const { doInitialLoad } = yield take(EXPLORE_PAGE_LISTENER_START);
     log("explore page listener is started");
 
@@ -280,7 +279,6 @@ function* pageChangeListener(doInitialLoad) {
 
   // use infinite loop for a listener
   while (true) {
-    // eslint-disable-line no-constant-condition
     yield call(explorePageChanged);
     log("listener starts data load");
     // spawn non-blocking effect and start listen for next page change action immediately
@@ -322,7 +320,7 @@ export function* loadDataset(
   viewId,
   forceDataLoad,
   sessionId,
-  willLoadTable
+  willLoadTable,
 ) {
   const location = yield select(getLocation);
   const { mode, tipVersion, refType, refValue, sourceName } =
@@ -339,13 +337,13 @@ export function* loadDataset(
       sessionId,
       willLoadTable,
       refType,
-      refValue
+      refValue,
     );
   } else {
     const loc = rmProjectBase(location.pathname);
     const pathnameParts = loc.split("/");
     const parentFullPath = decodeURIComponent(
-      constructFullPath([pathnameParts[2]]) + "." + pathnameParts[3]
+      constructFullPath([pathnameParts[2]]) + "." + pathnameParts[3],
     );
 
     let customReference = {};
@@ -365,7 +363,7 @@ export function* loadDataset(
       parentFullPath,
       viewId,
       willLoadTable,
-      customReference
+      customReference,
     );
   }
 

@@ -21,6 +21,7 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.sun.codemodel.JVar;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
@@ -150,5 +151,17 @@ public class GandivaFunctionHolder extends AbstractFunctionHolder {
     }
 
     return derivation.getOutputType(CompleteType.DECIMAL, args);
+  }
+
+  @Override
+  public String toString() {
+    return this.getClass().getSimpleName()
+        + " [functionName="
+        + name
+        + ", returnType="
+        + (returnTypeIndependent ? returnType : "arg dependent")
+        + ", parameters="
+        + Arrays.toString(argTypes)
+        + "]";
   }
 }

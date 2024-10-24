@@ -15,7 +15,7 @@
  */
 import Immutable from "immutable";
 
-import { AUTO_PREVIEW_DELAY } from "@app/constants/Constants";
+import { AUTO_PREVIEW_DELAY } from "#oss/constants/Constants";
 
 import { DEFAULT_ERR_MSG } from "@inject/constants/errors";
 
@@ -41,7 +41,7 @@ class ActionUtils {
       const defaultMessage =
         payload && payload.status === 409
           ? laDeprecated(
-              "The data has been changed since you last accessed it. Please reload the page."
+              "The data has been changed since you last accessed it. Please reload the page.",
             )
           : DEFAULT_ERR_MSG;
       const _errorMessage =

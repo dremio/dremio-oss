@@ -63,6 +63,15 @@ export function toggleObjectStorageSourcesExpanded() {
   };
 }
 
+export const TOGGLE_LAKEHOUSE_SOURCES_EXPANDED =
+  "TOGGLE_LAKEHOUSE_SOURCES_EXPANDED";
+export function toggleLakehouseSourcesExpanded() {
+  return (dispatch) => {
+    const action = { type: TOGGLE_LAKEHOUSE_SOURCES_EXPANDED };
+    dispatch(action);
+  };
+}
+
 export const TOGGLE_METASTORE_EXPANDED = "TOGGLE_METASTORE_EXPANDED";
 export function toggleMetastoreSourcesExpanded() {
   return (dispatch) => {

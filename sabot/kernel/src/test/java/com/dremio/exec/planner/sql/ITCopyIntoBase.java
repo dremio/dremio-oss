@@ -30,8 +30,13 @@ import org.apache.commons.text.RandomStringGenerator;
 public abstract class ITCopyIntoBase extends ITDmlQueryBase {
 
   protected static final String JSON_SOURCE_FOLDER_COPY_INTO = "/store/json/copyintosource/";
+  protected static final String JSON_RESULT_FOLDER_COPY_INTO =
+      "/store/json/copyintosource/results/";
   protected static final String CSV_SOURCE_FOLDER_COPY_INTO = "/store/text/copyintosource/";
+  protected static final String CSV_RESULT_FOLDER_COPY_INTO = "/store/text/copyintosource/results/";
   protected static final String PARQUET_SOURCE_FOLDER_COPY_INTO = "/store/parquet/copyintosource/";
+  protected static final String PARQUET_RESULT_FOLDER_COPY_INTO =
+      "/store/parquet/copyintosource/results/";
 
   public static File createTempLocation() {
     Random random = new Random(System.currentTimeMillis());
@@ -72,12 +77,12 @@ public abstract class ITCopyIntoBase extends ITDmlQueryBase {
   protected static File createTableAndGenerateSourceFile(
       String tableName,
       List<Pair<String, String>> colNameTypePairs,
-      String inputFilName,
+      String inputFileName,
       File destLocation,
       FileFormat fileFormat)
       throws Exception {
     return createTableAndGenerateSourceFiles(
-        tableName, colNameTypePairs, new String[] {inputFilName}, destLocation, fileFormat)[0];
+        tableName, colNameTypePairs, new String[] {inputFileName}, destLocation, fileFormat)[0];
   }
 
   public static void createTable(
@@ -143,6 +148,20 @@ public abstract class ITCopyIntoBase extends ITDmlQueryBase {
       files[i] = newSourceFile;
     }
     return files;
+  }
+
+  protected static String getCopyIntoResultFileLocation(
+      String resultFileName, FileFormat inputFileFormat) {
+    switch (inputFileFormat) {
+      case CSV:
+        return CSV_RESULT_FOLDER_COPY_INTO + resultFileName;
+      case JSON:
+        return JSON_RESULT_FOLDER_COPY_INTO + resultFileName;
+      case PARQUET:
+        return PARQUET_RESULT_FOLDER_COPY_INTO + resultFileName;
+      default:
+        throw new UnsupportedOperationException("Unrecognized file format.");
+    }
   }
 
   protected static void dropTable(String tableName) throws Exception {

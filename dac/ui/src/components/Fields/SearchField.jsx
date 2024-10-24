@@ -15,7 +15,7 @@
  */
 import { Component, createRef } from "react";
 import PropTypes from "prop-types";
-import Keys from "@app/constants/Keys.json";
+import Keys from "#oss/constants/Keys.json";
 import classNames from "clsx";
 import { base, searchInput } from "./SearchField.less";
 import { IconButton, Spinner } from "dremio-ui-lib/components";
@@ -91,7 +91,7 @@ class SearchField extends Component {
             {this.props.loading ? (
               <Spinner />
             ) : (
-              <dremio-icon name="interface/search" />
+              <dremio-icon name="interface/search" class="icon-primary" />
             )}
           </div>
         )}

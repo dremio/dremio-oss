@@ -30,7 +30,7 @@ describe("Dremio location context provider", () => {
     mount(
       <LocationProvider location={inputLocation}>
         <Comp />
-      </LocationProvider>
+      </LocationProvider>,
     );
     expect(innerLocation).to.eql(inputLocation);
   });

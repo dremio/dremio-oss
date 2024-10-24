@@ -19,7 +19,7 @@ import { updateViewState } from "actions/resources";
 import { addNotification } from "actions/notification";
 
 import FileUtils from "utils/FileUtils";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 const DOWNLOAD_FILE = "DOWNLOAD_FILE";
 
@@ -41,7 +41,7 @@ export function* handleDownloadFile(action) {
   try {
     const downloadConfig = yield call(
       [FileUtils, FileUtils.getFileDownloadConfigFromResponse],
-      res
+      res,
     );
     yield call(FileUtils.downloadFile, downloadConfig);
     if (viewId) yield put(updateViewState(viewId, { isInProgress: false }));
@@ -49,7 +49,7 @@ export function* handleDownloadFile(action) {
     yield put(addNotification(e.message, "error"));
     if (viewId)
       yield put(
-        updateViewState(viewId, { isInProgress: false, isFailed: true })
+        updateViewState(viewId, { isInProgress: false, isFailed: true }),
       );
   }
 }

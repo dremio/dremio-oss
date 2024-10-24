@@ -20,7 +20,7 @@ import FormatField from "./FormatField";
 describe("FormatField", () => {
   it("should set the value of MenuSelect and TextField", () => {
     const wrapper = shallow(
-      <FormatField value="foo" options={[{ option: "foo", label: "foo" }]} />
+      <FormatField value="foo" options={[{ option: "foo", label: "foo" }]} />,
     );
     expect(wrapper.find("Select").props().value).to.eql("foo");
     expect(wrapper.find("TextField").props().value).to.equal("foo");
@@ -28,7 +28,7 @@ describe("FormatField", () => {
 
   it('should set value = "" on MenuSelect (i.e. select Custom) when the value does not match a menu item', () => {
     const wrapper = shallow(
-      <FormatField value="bar" options={[{ option: "foo", label: "foo" }]} />
+      <FormatField value="bar" options={[{ option: "foo", label: "foo" }]} />,
     );
     expect(wrapper.find("Select").props().value).to.equal("");
   });

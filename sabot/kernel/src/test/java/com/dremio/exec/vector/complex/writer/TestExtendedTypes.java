@@ -25,8 +25,6 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -39,10 +37,8 @@ public class TestExtendedTypes extends BaseTestQuery {
   public void checkReadWriteExtended() throws Exception {
 
     final String originalFile =
-        "${WORKING_PATH}/src/test/resources/vector/complex/extended.json"
-            .replaceAll(
-                Pattern.quote("${WORKING_PATH}"),
-                Matcher.quoteReplacement(TestTools.getWorkingPath()));
+        TestTools.replaceWorkingPathPlaceholders(
+            "${WORKING_PATH}/src/test/resources/vector/complex/extended.json");
 
     final String newTable = "TestExtendedTypes/newjson";
     try {
@@ -62,12 +58,12 @@ public class TestExtendedTypes extends BaseTestQuery {
       test("select * from dfs_test.tmp.\"%s\"", newTable);
 
       // check that original file and new file match.
-      final byte[] originalData = Files.readAllBytes(Paths.get(originalFile));
-      final byte[] newData =
-          Files.readAllBytes(
+      final String originalData = Files.readString(Paths.get(originalFile));
+      final String newData =
+          Files.readString(
               Paths.get(
                   BaseTestQuery.getDfsTestTmpSchemaLocation() + '/' + newTable + "/0_0_0.json"));
-      assertEquals(new String(originalData), new String(newData));
+      assertEquals(originalData, newData);
     } finally {
       testNoResult(
           String.format(
@@ -86,10 +82,8 @@ public class TestExtendedTypes extends BaseTestQuery {
   public void testMongoExtendedTypes() throws Exception {
 
     final String originalFile =
-        "${WORKING_PATH}/src/test/resources/vector/complex/mongo_extended.json"
-            .replaceAll(
-                Pattern.quote("${WORKING_PATH}"),
-                Matcher.quoteReplacement(TestTools.getWorkingPath()));
+        TestTools.replaceWorkingPathPlaceholders(
+            "${WORKING_PATH}/src/test/resources/vector/complex/mongo_extended.json");
 
     try {
       testNoResult(

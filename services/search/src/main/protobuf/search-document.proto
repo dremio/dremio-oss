@@ -27,26 +27,52 @@ option java_outer_classname = "SearchDocumentProto";
 // is implementation dependent. To customize the behavior per field, add annotations
 // to the fields.
 message SearchDocument {
+  // Defines categories for counting search results. The facet key is passed to the
+  // search engine to return counts in that category.
+  enum Category {
+    CATEGORY_UNSPECIFIED = 0;
+
+    CATEGORY_FOLDER = 1;
+
+    CATEGORY_SPACE = 2;
+
+    CATEGORY_TABLE = 3;
+
+    CATEGORY_VIEW = 4;
+
+    CATEGORY_REFLECTION = 5;
+
+    CATEGORY_UDF = 6;
+
+    CATEGORY_SCRIPT = 7;
+
+    CATEGORY_JOB = 8;
+
+    CATEGORY_COMMIT = 9;
+
+    CATEGORY_SOURCE = 10;
+  }
+
   // Optional context fields pertinent to all document types.
   map<string, string> context = 1;
 
+  Category category = 2;
+
   // Oneof choice defines document type.
   oneof document {
-    CatalogObject catalog_object = 2;
+    CatalogObject catalog_object = 3;
   }
 }
 
 message CatalogObject {
-  // Dot-separated path
-  //   - if dot is part of a name that name is double-quoted.
-  //   - if double quote is part of a name, the quote is duplicated.
-  string path = 1;
+  // Path components.
+  repeated string path = 1;
+
+  // The path prefixes and components for filtering.
+  repeated string sub_paths = 2;
 
   // Versioned catalog branch name.
-  optional string branch = 2;
-
-  // Versioned catalog tags.
-  repeated string tags = 3;
+  optional string branch = 3;
 
   // There is no meaningful action search components can take on
   // meaning of this field, catalog publisher decides what to put here.
@@ -61,17 +87,17 @@ message CatalogObject {
   // Column names for views and tables.
   repeated string columns = 7;
 
-  // UDF SQL definition.
-  optional string udf_sql = 8;
+  // Function SQL definition.
+  optional string function_sql = 8;
 
   // Owner of the object.
   UserOrRole owner = 9;
 
   // Creation timestamp.
-  google.protobuf.Timestamp created = 11;
+  google.protobuf.Timestamp created = 10;
 
   // Last modified timestamp.
-  google.protobuf.Timestamp last_modified = 12;
+  google.protobuf.Timestamp last_modified = 11;
 }
 
 message UserOrRole {

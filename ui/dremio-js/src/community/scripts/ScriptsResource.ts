@@ -21,41 +21,18 @@ import type {
 import { Script } from "./Script.js";
 import { Ok, Err } from "ts-results-es";
 import { HttpError } from "../../common/HttpError.js";
-import {
-  isProblem,
-  type Problem,
-  type ValidationProblem,
-} from "../../interfaces/Problem.js";
+import { isProblem } from "../../interfaces/Problem.js";
 import type { Query } from "../../common/Query.js";
-
-const scriptNotFoundError = (id: string) =>
-  ({
-    meta: {
-      provided: {
-        id,
-      },
-    },
-    title:
-      "The script could not be found or you do not have permission to view it",
-    type: "https://api.dremio.dev/problems/scripts/not-found",
-  }) as const satisfies Problem;
-
-const duplicateScriptNameError = {
-  errors: [
-    {
-      detail: "A script with this name already exists",
-      pointer: "#/name",
-      type: "https://api.dremio.dev/problems/validation/field-conflict",
-    },
-  ],
-  title: "There was a problem validating the content of the request",
-  type: "https://api.dremio.dev/problems/validation-problem",
-} as const satisfies ValidationProblem;
+import type { SignalParam } from "../../_internal/types/Params.js";
+import {
+  duplicateScriptNameError,
+  scriptNotFoundError,
+} from "./ScriptErrors.js";
 
 export const ScriptsResource = (config: ResourceConfig & SonarV3Config) => {
-  const retrieve = (id: string) =>
+  const retrieve = (id: string, { signal }: SignalParam = {}) =>
     config
-      .sonarV3Request(`scripts/${id}`)
+      .sonarV3Request(`scripts/${id}`, { signal })
       .then((res) => res.json())
       .then((properties) => Ok(Script.fromResource(properties, config)))
       .catch((e) => {
@@ -85,7 +62,7 @@ export const ScriptsResource = (config: ResourceConfig & SonarV3Config) => {
       .catch((e) => {
         if (e instanceof HttpError && isProblem(e.body)) {
           if (e.body.detail?.includes("Cannot reuse the same script name"))
-            return Err(duplicateScriptNameError);
+            return Err(duplicateScriptNameError(properties.name));
         }
         return Err(e);
       });
@@ -94,9 +71,9 @@ export const ScriptsResource = (config: ResourceConfig & SonarV3Config) => {
   return {
     list() {
       return {
-        async *data() {
+        async *data({ signal }: SignalParam = {}) {
           yield* await config
-            .sonarV3Request("scripts?maxResults=1000")
+            .sonarV3Request("scripts?maxResults=1000", { signal })
             .then((res) => res.json())
             .then(
               (response) =>

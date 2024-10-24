@@ -17,7 +17,7 @@ import { RSAA } from "redux-api-middleware";
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import { arrayOf } from "normalizr";
 import userSchema from "schemas/user";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const SOURCE_NODES_START = "SOURCE_NODES_START";
 export const SOURCE_NODES_SUCCESS = "SOURCE_NODES_SUCCESS";
@@ -77,7 +77,7 @@ function fetchFilteredUsers(value = "") {
         schemaUtils.getSuccessActionTypeWithSchema(
           LOAD_FILTERED_USER_SUCCESS,
           { users: arrayOf(userSchema) },
-          meta
+          meta,
         ),
         { type: LOAD_FILTERED_USER_FAILURE, meta },
       ],

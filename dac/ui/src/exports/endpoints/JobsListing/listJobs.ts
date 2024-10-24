@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 // @ts-ignore
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 

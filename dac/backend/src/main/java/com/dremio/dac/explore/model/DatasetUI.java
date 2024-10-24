@@ -39,6 +39,7 @@ import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -383,5 +384,15 @@ public class DatasetUI {
       default:
         return null;
     }
+  }
+
+  @JsonIgnore
+  public DatasetPath toDatasetPath() {
+    return new DatasetPath(getFullPath());
+  }
+
+  @JsonIgnore
+  public DatasetVersionResourcePath toDatasetVersionPath() {
+    return new DatasetVersionResourcePath(toDatasetPath(), getDatasetVersion());
   }
 }

@@ -19,10 +19,10 @@ import { useIntl } from "react-intl";
 import Immutable from "immutable";
 import { IconButton } from "dremio-ui-lib/components";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
-import { getIconPath } from "@app/utils/getIconPath";
-import { getIconType } from "@app/components/DatasetSummary/datasetSummaryUtils";
+import { getIconPath } from "#oss/utils/getIconPath";
+import { getIconType } from "#oss/components/DatasetSummary/datasetSummaryUtils";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
-import { PHYSICAL_DATASET } from "@app/constants/datasetTypes";
+import { PHYSICAL_DATASET } from "#oss/constants/datasetTypes";
 
 type WikiDrawerTitleProps = {
   datasetDetails: Immutable.Map<string, any> | undefined;
@@ -38,12 +38,12 @@ function WikiDrawerTitle({
   const { formatMessage } = useIntl();
 
   const versionContext = getVersionContextFromId(
-    datasetDetails?.get("entityId")
+    datasetDetails?.get("entityId"),
   );
 
   const iconName = getIconType(
     datasetDetails?.get("datasetType"),
-    versionContext
+    versionContext,
   );
 
   const openDatasetInNewTab = useCallback(() => {
@@ -63,7 +63,7 @@ function WikiDrawerTitle({
         pathname += `&refType=${type}&refValue=${value}`;
       } else if (datasetDetails.get("datasetType") === PHYSICAL_DATASET) {
         pathname += `?refType=${type}&refValue=${value}&sourceName=${fullPath.get(
-          0
+          0,
         )}`;
       }
     }

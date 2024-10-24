@@ -51,6 +51,12 @@ public class ContextAwareCompletableFuture<T> extends CompletableFuture<T> {
         });
   }
 
+  public static <U> ContextAwareCompletableFuture<U> of(U result) {
+    ContextAwareCompletableFuture<U> cf = new ContextAwareCompletableFuture<>();
+    cf.complete(result);
+    return cf;
+  }
+
   /**
    * Creates a {@link ContextAwareCompletableFuture} instance based on the current {@link Context}
    * that will complete when the provided dependency completes. If the provided dependency action is

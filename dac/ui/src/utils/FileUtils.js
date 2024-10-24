@@ -49,7 +49,7 @@ export default class FileUtils {
 
   static getFileDownloadConfigFromResponse(response) {
     const defaultError = new FileDownloadError(
-      "Download failed: " + response.statusText
+      "Download failed: " + response.statusText,
     );
     if (!response.ok) {
       return response

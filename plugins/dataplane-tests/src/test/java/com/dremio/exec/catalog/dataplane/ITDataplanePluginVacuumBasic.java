@@ -16,6 +16,7 @@
 package com.dremio.exec.catalog.dataplane;
 
 import static com.dremio.PlanTestBase.testMatchingPatterns;
+import static com.dremio.exec.ExecConstants.ENABLE_VACUUM_CATALOG_BRIDGE_OPERATOR;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneStorage.BucketSelection.PRIMARY_BUCKET;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_BRANCH_NAME;
@@ -27,15 +28,16 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.insert
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tablePathWithFolders;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBranchQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.vacuumTableQuery;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.getSubPathFromNessieTableContent;
 import static com.dremio.exec.planner.VacuumOutputSchema.DELETED_FILES_COUNT;
 import static com.dremio.exec.planner.VacuumOutputSchema.DELETED_FILES_SIZE_MB;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static com.dremio.services.nessie.validation.GarbageCollectorConfValidator.DEFAULT_CUTOFF_POLICY_EMPTY_ERROR_MESSAGE;
 import static com.dremio.services.nessie.validation.GarbageCollectorConfValidator.DEFAULT_CUTOFF_POLICY_WITH_COMMITS_ERROR_MESSAGE;
+import static org.apache.iceberg.DremioTableProperties.NESSIE_GC_ENABLED;
 import static org.apache.iceberg.TableProperties.COMMIT_NUM_RETRIES;
 import static org.apache.iceberg.TableProperties.DELETE_MODE;
 import static org.apache.iceberg.TableProperties.FORMAT_VERSION;
-import static org.apache.iceberg.TableProperties.GC_ENABLED;
 import static org.apache.iceberg.TableProperties.MAX_SNAPSHOT_AGE_MS;
 import static org.apache.iceberg.TableProperties.MIN_SNAPSHOTS_TO_KEEP;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -129,48 +131,101 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
   }
 
   @Test
-  public void testVacuumCatalogPlan() throws Exception {
-    setUpForPhysicalPlan();
+  public void testLegacyVacuumCatalogPlan() throws Exception {
+    try (AutoCloseable c = withSystemOption(ENABLE_VACUUM_CATALOG_BRIDGE_OPERATOR, false)) {
+      setUpForPhysicalPlan();
 
-    final List<String> table1 = createTable();
+      final List<String> table1 = createTable();
 
-    newSnapshot(table1);
+      newSnapshot(table1);
 
-    String vacuumSQL = "VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME;
-    SqlNode deleteNode = converter.parse(vacuumSQL);
-    VacuumCatalogHandler vacuumCatalogHandler = new VacuumCatalogHandler();
-    vacuumCatalogHandler.getPlan(config, vacuumSQL, deleteNode);
-    testMatchingPatterns(
-        vacuumCatalogHandler.getTextPlan(),
-        new String[] {
-          // We should have at least all these operators
-          "IcebergOrphanFileDelete",
-          "IcebergLocationFinder",
-          "NessieCommitsScan",
-          "IcebergManifestScan",
-          "IcebergManifestListScan",
-          "PartitionStatsScan",
-          "TableFunction",
+      String vacuumSQL = "VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME;
+      SqlNode deleteNode = converter.parse(vacuumSQL);
+      VacuumCatalogHandler vacuumCatalogHandler = new VacuumCatalogHandler();
+      vacuumCatalogHandler.getPlan(config, vacuumSQL, deleteNode);
+      testMatchingPatterns(
+          vacuumCatalogHandler.getTextPlan(),
+          new String[] {
+            // We should have at least all these operators
+            "IcebergOrphanFileDelete",
+            "IcebergLocationFinder",
+            "NessieCommitsScan",
+            "IcebergManifestScan",
+            "IcebergManifestListScan",
+            "PartitionStatsScan",
+            "TableFunction",
 
-          // The operators should be in this order for HashExchange with LocationFinder operator
-          "(?s)"
-              + "IcebergLocationFinder.*"
-              + "Project.*"
-              + "HashToRandomExchange.*"
-              + "Project.*"
-              + "NessieCommitsScan.*",
+            // The operators should be in this order for HashExchange with LocationFinder operator
+            "(?s)"
+                + "IcebergLocationFinder.*"
+                + "Project.*"
+                + "HashToRandomExchange.*"
+                + "Project.*"
+                + "NessieCommitsScan.*",
 
-          // The operators should be in this order for RoundRobinExchange with ManifestScan operator
-          "(?s)" + "IcebergManifestScan.*" + "HashToRandomExchange.*" + "IcebergManifestListScan.*"
-        });
+            // The operators should be in this order for RoundRobinExchange with ManifestScan
+            // operator
+            "(?s)"
+                + "IcebergManifestScan.*"
+                + "HashToRandomExchange.*"
+                + "IcebergManifestListScan.*"
+          });
 
-    cleanupSilently(table1);
+      cleanupSilently(table1);
+    }
+  }
+
+  @Test
+  public void testVacuumCatalogPlanWithBridgeOperator() throws Exception {
+    try (AutoCloseable c = withSystemOption(ENABLE_VACUUM_CATALOG_BRIDGE_OPERATOR, true)) {
+      setUpForPhysicalPlan();
+
+      final List<String> table1 = createTable();
+
+      newSnapshot(table1);
+
+      String vacuumSQL = "VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME;
+      SqlNode deleteNode = converter.parse(vacuumSQL);
+      VacuumCatalogHandler vacuumCatalogHandler = new VacuumCatalogHandler();
+      vacuumCatalogHandler.getPlan(config, vacuumSQL, deleteNode);
+      testMatchingPatterns(
+          vacuumCatalogHandler.getTextPlan(),
+          new String[] {
+            // We should have at least all these operators
+            "IcebergOrphanFileDelete",
+            "IcebergLocationFinder",
+            "NessieCommitsScan",
+            "IcebergManifestScan",
+            "IcebergManifestListScan",
+            "PartitionStatsScan",
+            "TableFunction",
+
+            // The operators should be in this order for HashExchange with LocationFinder operator
+            "(?s)"
+                + "IcebergLocationFinder.*"
+                + "Project.*"
+                + "HashToRandomExchange.*"
+                + "Project.*"
+                + "BridgeExchange.*"
+                + "NessieCommitsScan.*",
+
+            // The operators should be in this order for RoundRobinExchange with ManifestScan
+            // operator
+            "(?s)"
+                + "IcebergManifestScan.*"
+                + "HashToRandomExchange.*"
+                + "IcebergManifestListScan.*"
+                + "BridgeReader.*"
+          });
+
+      cleanupSilently(table1);
+    }
   }
 
   @Test
   public void testRemoveAllHistoryInMultipleTables() throws Exception {
     // only live snapshots will be retained
-    Branch defaultBranch = getNessieClient().getDefaultBranch();
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
 
     final List<String> table1 = createTable(); // 1 Snapshot
     final List<String> table2 = createTable(); // 1 Snapshot
@@ -178,11 +233,11 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
     String table1s1 = newSnapshot(table1);
     String table2s1 = newSnapshot(table2);
 
-    Reference commitPoint1 = getNessieClient().getReference().refName("main").get();
+    Reference commitPoint1 = getNessieApi().getReference().refName("main").get();
 
     String table1s2 = newSnapshot(table1);
 
-    Reference commitPoint2 = getNessieClient().getReference().refName("main").get();
+    Reference commitPoint2 = getNessieApi().getReference().refName("main").get();
     wait1MS();
 
     runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);
@@ -220,7 +275,7 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
   @Test
   public void testNoExpiryOnTag() throws Exception {
     String tagName = "Tag1";
-    Branch defaultBranch = getNessieClient().getDefaultBranch();
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
 
     final List<String> table1 = createTable(); // 1 Snapshot
     String table1s1 = newSnapshot(table1);
@@ -245,7 +300,7 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
   @Test
   public void testBranchHeadRetained() throws Exception {
     String branchName = "branch1";
-    Branch defaultBranch = getNessieClient().getDefaultBranch();
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
 
     final List<String> table1 = createTable(); // 1 Snapshot
     String table1s1 = newSnapshot(table1);
@@ -293,13 +348,14 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
   @Test
   public void testGCDisabledOnOneBranchOnly() throws Exception {
     String branchName = "branch1";
-    Branch defaultBranch = getNessieClient().getDefaultBranch();
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
 
     final List<String> table1 = createTable(); // 1 Snapshot
     String table1s1 = newSnapshot(table1);
-    Reference commitPoint1 = getNessieClient().getReference().refName("main").get();
+    Reference commitPoint1 = getNessieApi().getReference().refName("main").get();
     String table1s2 = newSnapshot(table1);
-    String table1OrphanPath = placeOrphanFile(table1);
+    String table1OrphanPath =
+        placeOrphanFile(getSubPathFromNessieTableContent(table1, DEFAULT_BRANCH_NAME, this));
 
     runSQL(createBranchAtBranchQuery(branchName, defaultBranch.getName()));
 
@@ -309,7 +365,7 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
     Table icebergTable1 = loadTable(table1QualifiedName);
     icebergTable1
         .updateProperties()
-        .set(GC_ENABLED, Boolean.FALSE.toString())
+        .set(NESSIE_GC_ENABLED, Boolean.FALSE.toString())
         .set(
             TableProperties.COMMIT_NUM_RETRIES,
             "5") // Set an additional property for the change to reach table metadata.
@@ -332,12 +388,12 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
     // orphans are collected if at-least one live commit has gc.enabled=true for this table
     assertThat(getDataplaneStorage().doesObjectExist(PRIMARY_BUCKET, table1OrphanPath)).isFalse();
 
-    cleanupSilently(table1);
+    cleanupSilently(getSubPathFromNessieTableContent(table1, DEFAULT_BRANCH_NAME, this));
   }
 
   @Test
   public void testVacuumOnPartitionedTable() throws Exception {
-    Branch defaultBranch = getNessieClient().getDefaultBranch();
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
 
     List<String> table1 = createPartitionedTable();
     String table1s1 = newSnapshot(table1);
@@ -367,7 +423,7 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
 
   @Test
   public void testVacuumOnEmptyCatalog() throws Exception {
-    Branch defaultBranch = getNessieClient().getDefaultBranch();
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
 
     createBranchAtBranchQuery("branch1", defaultBranch.getName());
 
@@ -382,12 +438,12 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
 
   @Test
   public void testTableOverrideMinSnapshotsHistory() throws Exception {
-    Branch defaultBranch = getNessieClient().getDefaultBranch();
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
 
     final List<String> table1 = createTable(); // 1 Snapshot
     String table1s1 = newSnapshot(table1);
     String table1s2 = newSnapshot(table1);
-    Reference commitPoint1 = getNessieClient().getReference().refName("main").get();
+    Reference commitPoint1 = getNessieApi().getReference().refName("main").get();
     String table1s3 = newSnapshot(table1);
 
     // Set MIN_SNAPSHOTS_TO_KEEP property
@@ -396,7 +452,7 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
     Table icebergTable1 = loadTable(table1QualifiedName);
     icebergTable1
         .updateProperties()
-        .set(GC_ENABLED, "true")
+        .set(NESSIE_GC_ENABLED, "true")
         .set(MIN_SNAPSHOTS_TO_KEEP, "2")
         .commit();
     wait1MS();
@@ -419,12 +475,12 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
 
   @Test
   public void testTableOverrideCutoffTime() throws Exception {
-    Branch defaultBranch = getNessieClient().getDefaultBranch();
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
 
     final List<String> table1 = createTable(); // 1 Snapshot
     String table1s1 = newSnapshot(table1);
     String table1s2 = newSnapshot(table1);
-    Reference commitPoint1 = getNessieClient().getReference().refName("main").get();
+    Reference commitPoint1 = getNessieApi().getReference().refName("main").get();
     String table1s3 = newSnapshot(table1);
 
     // Setup snapshot age to retain in table property
@@ -433,7 +489,7 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
     Table icebergTable1 = loadTable(table1QualifiedName);
     icebergTable1
         .updateProperties()
-        .set(GC_ENABLED, "true")
+        .set(NESSIE_GC_ENABLED, "true")
         .set(
             MAX_SNAPSHOT_AGE_MS,
             String.valueOf(TimeUnit.HOURS.toMillis(1))) // all snapshots will get retained
@@ -453,7 +509,11 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
     setNessieGCDefaultCutOffPolicy("PT10M");
 
     // Test other way round, default policy is conservative whereas table level policy is aggressive
-    icebergTable1.updateProperties().set(GC_ENABLED, "true").set(MAX_SNAPSHOT_AGE_MS, "1").commit();
+    icebergTable1
+        .updateProperties()
+        .set(NESSIE_GC_ENABLED, "true")
+        .set(MAX_SNAPSHOT_AGE_MS, "1")
+        .commit();
     wait1MS();
 
     runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);
@@ -501,7 +561,7 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
 
   @Test
   public void testRemoveAllHistoryInMultipleTablesUsingNessieConfig() throws Exception {
-    Branch defaultBranch = getNessieClient().getDefaultBranch();
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
 
     final List<String> table1 = createTable(); // 1 Snapshot
     final List<String> table2 = createTable(); // 1 Snapshot
@@ -509,11 +569,11 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
     String table1s1 = newSnapshot(table1);
     String table2s1 = newSnapshot(table2);
 
-    Reference commitPoint1 = getNessieClient().getReference().refName("main").get();
+    Reference commitPoint1 = getNessieApi().getReference().refName("main").get();
 
     String table1s2 = newSnapshot(table1);
 
-    Reference commitPoint2 = getNessieClient().getReference().refName("main").get();
+    Reference commitPoint2 = getNessieApi().getReference().refName("main").get();
     wait1MS();
 
     runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);
@@ -558,7 +618,7 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
   @Test
   public void testNullCutoffPolicyWithNessieConfig() throws Exception {
     ImmutableGarbageCollectorConfig gcConfig = ImmutableGarbageCollectorConfig.builder().build();
-    getNessieClient().updateRepositoryConfig().repositoryConfig(gcConfig).update();
+    getNessieApi().updateRepositoryConfig().repositoryConfig(gcConfig).update();
     assertThatThrownBy(() -> runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME))
         .isInstanceOf(UserException.class)
         .hasMessageContaining(DEFAULT_CUTOFF_POLICY_EMPTY_ERROR_MESSAGE);
@@ -585,7 +645,7 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
     runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);
 
     String table1s4 = newSnapshot(table1);
-    Reference commitPoint = getNessieClient().getReference().refName("main").get();
+    Reference commitPoint = getNessieApi().getReference().refName("main").get();
 
     assertThatThrownBy(
         () -> selectOnSnapshotAtRef(table1, table1s1, commitPoint.getHash())); // not collected
@@ -611,7 +671,7 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
     String table1s2 = newSnapshot(table1);
     String table1s3 = newSnapshot(table1);
     setNessieGCDefaultCutOffPolicy(instantTime);
-    Reference commitPoint2 = getNessieClient().getReference().refName("main").get();
+    Reference commitPoint2 = getNessieApi().getReference().refName("main").get();
     wait1MS();
 
     runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);
@@ -645,7 +705,8 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
   @Test
   public void testV2TableWithPositionalDeletes() throws Exception {
     Map<String, String> tableProps =
-        ImmutableMap.of(GC_ENABLED, "true", FORMAT_VERSION, "2", DELETE_MODE, "merge-on-read");
+        ImmutableMap.of(
+            NESSIE_GC_ENABLED, "true", FORMAT_VERSION, "2", DELETE_MODE, "merge-on-read");
     String tableName = "table_with_positional_deletes";
     Table table = createTable(String.format("%s@main", tableName), tableProps);
 
@@ -653,7 +714,7 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
     DeleteFile deleteFile = addDeleteFile(table, "positional_delete.parquet");
     table
         .updateProperties()
-        .set(GC_ENABLED, "true")
+        .set(NESSIE_GC_ENABLED, "true")
         .set(COMMIT_NUM_RETRIES, "2")
         .commit(); // Reset GC enabled as it is defaulted in NessieCatalog
 
@@ -735,7 +796,7 @@ public class ITDataplanePluginVacuumBasic extends ITDataplanePluginVacuumTestSet
         IntStream.range(0, numOfTables).mapToObj(i -> createTable()).collect(Collectors.toList());
     IntStream.range(0, numOfSnapshots).forEach(i -> tables.forEach(this::newSnapshot));
 
-    setTargetBatchSize("2");
+    setTargetBatchSize(2);
     runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);
     resetTargetBatchSize();
 

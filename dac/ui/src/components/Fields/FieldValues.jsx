@@ -18,7 +18,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import PropTypes from "prop-types";
 
-import { typeToIconType } from "@app/constants/DataTypes";
+import { typeToIconType } from "#oss/constants/DataTypes";
 import EllipsedText from "components/EllipsedText";
 import Meter from "components/Meter";
 
@@ -64,6 +64,7 @@ class FieldValues extends PureComponent {
               <tr key={uuidv4()}>
                 <td>
                   <dremio-icon
+                    class="icon-primary"
                     name={`data-types/${typeToIconType[option.type ? option.type.toUpperCase() : "TEXT"]}`}
                     style={styles.icon}
                   ></dremio-icon>

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import getIconColor from "@app/utils/getIconColor";
+import getIconColor from "#oss/utils/getIconColor";
 import "./UserIcon.less";
 
 function UserIcon({ user }: { user: string }) {

@@ -135,7 +135,7 @@ const styles = {
   largeItem: {
     marginTop: 0,
     display: "flex",
-    backgroundColor: "rgb(255, 245, 220)",
+    backgroundColor: "var(--fill--warning)",
   },
   input: {
     width: 180,

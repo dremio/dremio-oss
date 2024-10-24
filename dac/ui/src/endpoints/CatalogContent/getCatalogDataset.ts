@@ -16,7 +16,7 @@
 
 //@ts-ignore
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-import APICall from "@app/core/APICall";
+import APICall from "#oss/core/APICall";
 
 const getCatalogDatasetUrl = (id: string) =>
   new APICall().path("catalog").path(id).toString();

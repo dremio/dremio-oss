@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.dataplane.store;
 
+import static com.dremio.exec.store.DataplanePluginOptions.DATAPLANE_AWS_STORAGE_ENABLED;
 import static com.dremio.exec.store.DataplanePluginOptions.NESSIE_PLUGIN_ENABLED;
 import static com.dremio.plugins.dataplane.NessiePluginConfigConstants.MINIMUM_NESSIE_SPECIFICATION_VERSION;
 import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
@@ -31,6 +32,7 @@ import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
@@ -60,10 +62,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -169,6 +173,7 @@ public class TestDataplanePlugin2 {
     when(optionManager.getOption(NESSIE_PLUGIN_ENABLED)).thenReturn(true);
     when(context.getOptionManager()).thenReturn(optionManager);
     when(context.getUserService()).thenReturn(userService);
+    when(optionManager.getOption(DATAPLANE_AWS_STORAGE_ENABLED)).thenReturn(true);
 
     // S3Mock settings
     nessiePluginConfig.propertyList =
@@ -178,18 +183,18 @@ public class TestDataplanePlugin2 {
             new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));
 
     NessiePluginConfig mockNessiePluginConfig = spy(nessiePluginConfig);
+
+    dataplanePluginNotAuthorized =
+        spy(mockNessiePluginConfig.newPlugin(context, DATAPLANE_PLUGIN_NAME, null));
     NessieClient nessieClient = mock(NessieClient.class);
+    when(dataplanePluginNotAuthorized.getNessieClient()).thenReturn(nessieClient);
     NessieApiV2 nessieApi = mock(NessieApiV2.class);
     NessieConfiguration nessieConfiguration = mock(NessieConfiguration.class);
     when(nessieClient.getNessieApi()).thenReturn(nessieApi);
     when(nessieApi.getConfig()).thenReturn(nessieConfiguration);
     when(nessieConfiguration.getSpecVersion()).thenReturn(MINIMUM_NESSIE_SPECIFICATION_VERSION);
-    when(nessieClient.getDefaultBranch()).thenThrow(UnAuthenticatedException.class);
-    when(mockNessiePluginConfig.getNessieClient(DATAPLANE_PLUGIN_NAME, context))
-        .thenReturn(nessieClient);
-
-    dataplanePluginNotAuthorized =
-        spy(mockNessiePluginConfig.newPlugin(context, DATAPLANE_PLUGIN_NAME, null));
+    when(nessieClient.getDefaultBranch())
+        .thenThrow(new UnAuthenticatedException("Unable to authenticate to the Nessie server"));
   }
 
   private static void setUpDataplanePlugin() throws Exception {
@@ -207,6 +212,7 @@ public class TestDataplanePlugin2 {
     OptionManager optionManager = mock(OptionManager.class);
     UserService userService = mock(UserService.class);
     when(optionManager.getOption(NESSIE_PLUGIN_ENABLED)).thenReturn(true);
+    when(optionManager.getOption(DATAPLANE_AWS_STORAGE_ENABLED)).thenReturn(true);
     when(context.getUserService()).thenReturn(userService);
     when(context.getOptionManager()).thenReturn(optionManager);
     when(context.getClasspathScan()).thenReturn(CLASSPATH_SCAN_RESULT);
@@ -261,7 +267,8 @@ public class TestDataplanePlugin2 {
     // Assert
     assertNessieHasCommitForTable(DEFAULT_TABLE_COMPONENTS, Operation.Put.class);
     assertNessieHasTable(DEFAULT_TABLE_COMPONENTS);
-    assertIcebergTableExistsAtSubPath(DEFAULT_TABLE_COMPONENTS);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(DEFAULT_TABLE_COMPONENTS, DEFAULT_BRANCH_NAME));
   }
 
   @Test
@@ -317,6 +324,8 @@ public class TestDataplanePlugin2 {
     dataplanePlugin.createEmptyTable(
         DEFAULT_NAMESPACE_KEY, getSchemaConfig(), DEFAULT_BATCH_SCHEMA, makeWriterOptions());
 
+    List<String> storagePath =
+        getSubPathFromNessieTableContent(DEFAULT_TABLE_COMPONENTS, DEFAULT_BRANCH_NAME);
     // Act
     dataplanePlugin.dropTable(DEFAULT_NAMESPACE_KEY, getSchemaConfig(), defaultTableOption());
 
@@ -326,7 +335,7 @@ public class TestDataplanePlugin2 {
 
     // TODO For now, we aren't doing filesystem cleanup, so this check is correct. Might change in
     // the future.
-    assertIcebergTableExistsAtSubPath(DEFAULT_TABLE_COMPONENTS);
+    assertIcebergTableExistsAtSubPath(storagePath);
   }
 
   private WriterOptions makeWriterOptions()
@@ -387,18 +396,9 @@ public class TestDataplanePlugin2 {
     ContentKey expectedContentsKey = ContentKey.of(tableSchemaComponents);
     assertTrue(contentsMap.containsKey(expectedContentsKey));
 
-    String expectedMetadataLocationPrefix =
-        S3_PREFIX
-            + BUCKET_NAME
-            + "/"
-            + String.join("/", tableSchemaComponents)
-            + "/"
-            + METADATA_FOLDER;
     Optional<IcebergTable> maybeIcebergTable =
         contentsMap.get(expectedContentsKey).unwrap(IcebergTable.class);
     assertTrue(maybeIcebergTable.isPresent());
-    assertTrue(
-        maybeIcebergTable.get().getMetadataLocation().startsWith(expectedMetadataLocationPrefix));
   }
 
   private void assertNessieDoesNotHaveTable(List<String> tableSchemaComponents)
@@ -420,5 +420,28 @@ public class TestDataplanePlugin2 {
         bucketPath.resolve(String.join("/", subPath)).resolve(METADATA_FOLDER);
 
     assertTrue(Files.exists(pathToMetadataFolder));
+  }
+
+  public static List<String> getSubPathFromNessieTableContent(
+      List<String> tablePath, String refName) throws NessieNotFoundException {
+    Map<ContentKey, Content> contentsMap =
+        nessieClient.getContent().refName(refName).key(ContentKey.of(tablePath)).get();
+    ContentKey contentKey = ContentKey.of(tablePath);
+    Optional<IcebergTable> maybeIcebergTable =
+        contentsMap.get(contentKey).unwrap(IcebergTable.class);
+
+    List<String> pathComponents =
+        PathUtils.toPathComponents(maybeIcebergTable.get().getMetadataLocation());
+    int metadataIndex = pathComponents.indexOf(METADATA_FOLDER);
+    int beginningKeyIndex =
+        IntStream.range(0, pathComponents.size())
+            .filter(i -> pathComponents.get(i).startsWith(tablePath.get(0)))
+            .findFirst()
+            .orElse(-1);
+    if (beginningKeyIndex != -1 && (metadataIndex > 0) && (metadataIndex < pathComponents.size())) {
+      return pathComponents.subList(beginningKeyIndex, metadataIndex);
+    } else {
+      return Collections.emptyList();
+    }
   }
 }

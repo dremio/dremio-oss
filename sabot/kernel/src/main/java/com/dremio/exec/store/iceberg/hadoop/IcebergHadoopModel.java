@@ -70,6 +70,19 @@ public class IcebergHadoopModel extends IcebergBaseModel {
   }
 
   @Override
+  protected IcebergCommand getIcebergCommand(
+      IcebergTableIdentifier tableIdentifier,
+      String tableLocation,
+      @Nullable IcebergCommitOrigin commitOrigin) {
+    TableOperations tableOperations =
+        new IcebergHadoopTableOperations(
+            new Path(((IcebergHadoopTableIdentifier) tableIdentifier).getTableFolder()),
+            configuration,
+            fileIO);
+    return new IcebergBaseCommand(configuration, tableLocation, tableOperations, currentQueryId());
+  }
+
+  @Override
   public IcebergTableIdentifier getTableIdentifier(String rootFolder) {
     return new IcebergHadoopTableIdentifier(namespace, rootFolder);
   }

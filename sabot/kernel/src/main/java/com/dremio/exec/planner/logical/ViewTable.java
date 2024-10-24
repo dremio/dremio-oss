@@ -25,6 +25,7 @@ import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import javax.annotation.Nullable;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.rel.RelNode;
@@ -37,7 +38,7 @@ import org.apache.calcite.schema.Statistics;
 public class ViewTable implements DremioTable {
 
   private final View view;
-  private final CatalogIdentity viewOwner;
+  private final @Nullable CatalogIdentity viewOwner;
   private final NamespaceKey path;
   private final DatasetConfig config;
   private BatchSchema schema;
@@ -60,7 +61,7 @@ public class ViewTable implements DremioTable {
   public ViewTable(
       NamespaceKey path,
       View view,
-      CatalogIdentity viewOwner,
+      @Nullable CatalogIdentity viewOwner,
       DatasetConfig config,
       BatchSchema schema,
       VersionContext versionContext,
@@ -106,7 +107,7 @@ public class ViewTable implements DremioTable {
     return Statistics.UNKNOWN;
   }
 
-  public CatalogIdentity getViewOwner() {
+  public @Nullable CatalogIdentity getViewOwner() {
     return viewOwner;
   }
 

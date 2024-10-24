@@ -19,15 +19,10 @@ describe("SQL", () => {
   const minimalProps = {
     title: "SQL title",
     sqlString: "select * from test",
-    contrast: true,
-    showContrast: true,
     sqlClass: "className",
   };
   const wrapper = shallow(<SQL {...minimalProps} />);
   it("should render with minimal props without exploding", () => {
     expect(wrapper).to.have.length(1);
-  });
-  it("user click button", () => {
-    expect(wrapper.find("#toggle-icon")).to.have.length(1);
   });
 });

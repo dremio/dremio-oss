@@ -14,16 +14,23 @@
  * limitations under the License.
  */
 
+import type { SonarV3Config } from "../../_internal/types/Config.js";
 import type { CatalogObjectMethods } from "../../interfaces/CatalogObject.js";
-import { CatalogReference } from "./CatalogReference.js";
+import { SpaceCatalogReference } from "./CatalogReference.js";
+import { catalogReferenceFromProperties } from "./catalogReferenceFromProperties.js";
 import { catalogReferenceEntityToProperties, pathString } from "./utils.js";
 
 export class Space implements CatalogObjectMethods {
-  #children: CatalogReference[];
+  readonly catalogReference: SpaceCatalogReference;
+  #children: ReturnType<typeof catalogReferenceFromProperties>[];
   readonly createdAt: Date;
+  /**
+   * @deprecated
+   */
   readonly id: string;
   readonly name: string;
   constructor(properties: any) {
+    this.catalogReference = properties.catalogReference;
     this.#children = properties.children;
     this.createdAt = properties.createdAt;
     this.id = properties.id;
@@ -43,16 +50,26 @@ export class Space implements CatalogObjectMethods {
     return [this.name];
   }
 
+  get referenceType() {
+    return "SPACE" as const;
+  }
+
   pathString = pathString(() => this.path);
 
-  static fromResource(properties: any, retrieve: any) {
+  static fromResource(properties: any, config: SonarV3Config) {
     return new Space({
-      children: properties.children.map(
-        (child: any) =>
-          new CatalogReference(
-            catalogReferenceEntityToProperties(child),
-            retrieve,
-          ),
+      catalogReference: new SpaceCatalogReference(
+        {
+          id: properties.id,
+          path: [properties.name],
+        },
+        config,
+      ),
+      children: properties.children.map((child: unknown) =>
+        catalogReferenceFromProperties(
+          catalogReferenceEntityToProperties(child),
+          config,
+        ),
       ),
       createdAt: new Date(properties.createdAt),
       id: properties.id,

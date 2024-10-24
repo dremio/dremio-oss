@@ -20,9 +20,9 @@ import { ModalForm, modalFormProps } from "components/Forms";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
 import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
 
-import { NESSIE_REF_PREFIX } from "@app/constants/nessie";
+import { NESSIE_REF_PREFIX } from "#oss/constants/nessie";
 import { Button, IconButton, DialogContent } from "dremio-ui-lib/components";
-import { TreeConfigContext } from "@app/components/Tree/treeConfigContext";
+import { TreeConfigContext } from "#oss/components/Tree/treeConfigContext";
 
 import * as classes from "./SelectContextForm.module.less";
 
@@ -122,5 +122,5 @@ export default connectComplexForm(
   },
   [],
   null,
-  null
+  null,
 )(SelectContextForm);

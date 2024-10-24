@@ -15,6 +15,9 @@
  */
 package com.dremio.plugins.dataplane.store;
 
+import static com.dremio.exec.store.DataplanePluginOptions.DATAPLANE_AWS_STORAGE_ENABLED;
+import static com.dremio.exec.store.DataplanePluginOptions.DATAPLANE_AZURE_STORAGE_ENABLED;
+import static com.dremio.exec.store.DataplanePluginOptions.DATAPLANE_GCS_STORAGE_ENABLED;
 import static com.dremio.exec.store.DataplanePluginOptions.NESSIE_PLUGIN_ENABLED;
 import static com.dremio.nessiemetadata.cache.NessieMetadataCacheOptions.BYPASS_DATAPLANE_CACHE;
 import static com.dremio.nessiemetadata.cache.NessieMetadataCacheOptions.DATAPLANE_ICEBERG_METADATA_CACHE_EXPIRE_AFTER_ACCESS_MINUTES;
@@ -40,7 +43,6 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.options.OptionManager;
-import com.dremio.plugins.UsernameAwareNessieClientImpl;
 import com.dremio.plugins.azure.AzureAuthenticationType;
 import com.dremio.plugins.dataplane.store.AbstractDataplanePluginConfig.StorageProviderType;
 import com.dremio.plugins.gcs.GCSConf.AuthMode;
@@ -61,7 +63,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.projectnessie.client.api.NessieApiV2;
 
 @MockitoSettings(strictness = Strictness.STRICT_STUBS)
 public class TestNessiePluginConfig {
@@ -73,34 +74,6 @@ public class TestNessiePluginConfig {
   @Mock private SabotContext sabotContext;
   @Mock private UserService userService;
   @Mock private OptionManager optionManager;
-  @Mock private NessieApiV2 nessieApiV2;
-
-  @Nested
-  class NessieConfig {
-    @Test
-    public void testGetNessieClient() {
-      NessiePluginConfig nessiePluginConfig = basicNessieConnectionConfig();
-      setUpNessieCacheSettings();
-      setUpUserService();
-
-      // Currently NessiePlugin is using the wrapper UsernameAwareNessieClientImpl (on top of
-      // NessieClient). This is basically to test the correct NessieClient instance used from
-      // NessiePlugin. If there are multiple wrappers used for each service (like one for
-      // coordinator and another for executor), then this might break.
-      assertThat(nessiePluginConfig.getNessieClient(SOURCE_NAME, sabotContext))
-          .isInstanceOf(UsernameAwareNessieClientImpl.class);
-    }
-
-    @Test
-    public void testGetNessieClientThrowsError() {
-      NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-      nessiePluginConfig.nessieEndpoint = "invalid://test-nessie";
-
-      assertThatThrownBy(() -> nessiePluginConfig.getNessieClient(SOURCE_NAME, sabotContext))
-          .isInstanceOf(UserException.class)
-          .hasMessageContaining("must be a valid http or https address");
-    }
-  }
 
   @Nested
   @TestInstance(TestInstance.Lifecycle.PER_CLASS) // For MethodSource
@@ -207,7 +180,7 @@ public class TestNessiePluginConfig {
     @NullAndEmptySource
     @ValueSource(strings = "invalid..bucketName")
     public void testAwsInvalidRootPath(String awsRootPath) {
-      NessiePluginConfig nessiePluginConfig = setUpForStart();
+      NessiePluginConfig nessiePluginConfig = setUpForStart(StorageProviderType.AWS);
       nessiePluginConfig.awsRootPath = awsRootPath;
 
       DataplanePlugin nessieSource = nessiePluginConfig.newPlugin(sabotContext, SOURCE_NAME, null);
@@ -385,7 +358,8 @@ public class TestNessiePluginConfig {
     @NullAndEmptySource
     @ValueSource(strings = "invalid..bucketName")
     public void testAzureInvalidRootPath(String azureRootPath) {
-      NessiePluginConfig nessiePluginConfig = setUpForStart();
+      when(optionManager.getOption(DATAPLANE_AZURE_STORAGE_ENABLED)).thenReturn(true);
+      NessiePluginConfig nessiePluginConfig = setUpForStart(StorageProviderType.AZURE);
       nessiePluginConfig.storageProvider = StorageProviderType.AZURE;
       nessiePluginConfig.azureRootPath = azureRootPath;
 
@@ -510,7 +484,8 @@ public class TestNessiePluginConfig {
     @NullAndEmptySource
     @ValueSource(strings = "invalid..bucketName")
     public void testGoogleInvalidRootPath(String googleRootPath) {
-      NessiePluginConfig nessiePluginConfig = setUpForStart();
+      when(optionManager.getOption(DATAPLANE_GCS_STORAGE_ENABLED)).thenReturn(true);
+      NessiePluginConfig nessiePluginConfig = setUpForStart(StorageProviderType.GOOGLE);
       nessiePluginConfig.storageProvider = StorageProviderType.GOOGLE;
       nessiePluginConfig.googleRootPath = googleRootPath;
 
@@ -609,17 +584,24 @@ public class TestNessiePluginConfig {
     return nessiePluginConfig;
   }
 
-  private NessiePluginConfig setUpForStart() {
+  private NessiePluginConfig setUpForStart(StorageProviderType storageProviderType) {
     setUpNessieCacheSettings();
     setUpDataplaneCacheSettings();
-    setUpUserService();
+    switch (storageProviderType) {
+      case AZURE:
+        when(optionManager.getOption(DATAPLANE_AZURE_STORAGE_ENABLED)).thenReturn(true);
+        break;
+      case GOOGLE:
+        when(optionManager.getOption(DATAPLANE_GCS_STORAGE_ENABLED)).thenReturn(true);
+        break;
+      case AWS:
+      default:
+        when(optionManager.getOption(DATAPLANE_AWS_STORAGE_ENABLED)).thenReturn(true);
+        break;
+    }
     doReturn(true).when(optionManager).getOption(NESSIE_PLUGIN_ENABLED);
 
     return basicNessieConnectionConfig();
-  }
-
-  private void setUpUserService() {
-    when(sabotContext.getUserService()).thenReturn(userService);
   }
 
   private void setUpNessieCacheSettings() {

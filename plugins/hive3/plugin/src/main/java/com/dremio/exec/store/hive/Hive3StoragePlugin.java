@@ -26,9 +26,6 @@ import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_
 
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
-import com.dremio.common.concurrent.ContextAwareCompletableFuture;
-import com.dremio.common.concurrent.bulk.BulkRequest;
-import com.dremio.common.concurrent.bulk.BulkResponse;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
@@ -46,7 +43,6 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetMetadataVerifyResult;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.EntityPath;
-import com.dremio.connector.metadata.EntityPathWithOptions;
 import com.dremio.connector.metadata.ExtendedPropertyOption;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
@@ -86,7 +82,6 @@ import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
-import com.dremio.exec.store.BulkSourceMetadata;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.StoragePluginRulesFactory;
@@ -102,7 +97,6 @@ import com.dremio.exec.store.dfs.DropColumn;
 import com.dremio.exec.store.dfs.DropPrimaryKey;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.dfs.MetadataIOPool;
 import com.dremio.exec.store.hive.deltalake.DeltaHiveInputFormat;
 import com.dremio.exec.store.hive.exec.AsyncReaderUtils;
 import com.dremio.exec.store.hive.exec.HadoopFsCacheWrapperPluginClassLoader;
@@ -261,8 +255,7 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin
         SupportsImpersonation,
         SupportsIcebergMutablePlugin,
         HadoopFsSupplierProviderPluginClassLoader,
-        SupportsMetadataVerify,
-        BulkSourceMetadata {
+        SupportsMetadataVerify {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(Hive3StoragePlugin.class);
 
@@ -895,7 +888,8 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin
             null,
             partitionSpec,
             writerOptions.getDeserializedSortOrder(),
-            tableProperties);
+            tableProperties,
+            tableLocation);
     icebergOpCommitter.commit();
   }
 
@@ -1509,7 +1503,11 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin
 
   @Override
   public IcebergModel getIcebergModel(
-      IcebergTableProps tableProps, String userName, OperatorContext context, FileIO fileIO) {
+      IcebergTableProps tableProps,
+      String userName,
+      OperatorContext context,
+      FileIO fileIO,
+      String userId) {
     if (fileIO == null) {
       try {
         FileSystem fs = createFS(tableProps.getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
@@ -1936,27 +1934,6 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin
         toIntExact(optionManager.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE)),
         toIntExact(optionManager.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE)),
         hiveSettings);
-  }
-
-  @Override
-  public BulkResponse<EntityPathWithOptions, Optional<DatasetHandle>> bulkGetDatasetHandles(
-      BulkRequest<EntityPathWithOptions> requestedDatasets) {
-    MetadataIOPool metadataIOPool = context.getMetadataIOPool();
-    return requestedDatasets.handleRequests(
-        dataset ->
-            ContextAwareCompletableFuture.createFrom(
-                metadataIOPool.execute(
-                    new MetadataIOPool.MetadataTask<>(
-                        "bulk_get_dataset_handles_async",
-                        dataset.entityPath(),
-                        () -> {
-                          try {
-                            return internalGetDatasetHandle(
-                                dataset.entityPath(), dataset.options());
-                          } catch (ConnectorException ex) {
-                            throw new RuntimeException(ex);
-                          }
-                        }))));
   }
 
   @Override

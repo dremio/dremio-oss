@@ -16,7 +16,7 @@
 import { useState, useRef, useEffect } from "react";
 import PropTypes from "prop-types";
 import classNames from "clsx";
-import { Tooltip } from "@app/components/Tooltip";
+import { Tooltip } from "#oss/components/Tooltip";
 import "./JobsContent.less";
 
 const ColumnCell = ({ data, isNumeric, className }) => {
@@ -26,8 +26,8 @@ const ColumnCell = ({ data, isNumeric, className }) => {
   const TooltipInnerStyle = {
     width: "auto",
     maxWidth: "33.31rem",
-    background: "#F4FAFC", //DX-34369
-    border: "1.5px solid var(--border--focused)",
+    background: "var(--color--neutral--700)",
+    border: "1.5px solid transparent",
   };
 
   const handleMouseEnter = () => {

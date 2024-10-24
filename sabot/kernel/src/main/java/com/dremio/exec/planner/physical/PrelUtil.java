@@ -166,15 +166,21 @@ public class PrelUtil {
     return lastUsed.getLastUsedReference();
   }
 
-  public static ProjectPushInfo getColumns(RelDataType rowType, List<RexNode> projects) {
+  public static ProjectPushInfo getColumns(
+      RelDataType rowType, List<RexNode> projects, boolean pushItemOperator) {
     final List<String> fieldNames = rowType.getFieldNames();
     if (fieldNames.isEmpty()) {
       return null;
     }
 
-    RefFieldsVisitor v = new RefFieldsVisitor(rowType);
+    // Remove delta lake dataset check after DX-93768 gets resolved.
+    RefFieldsVisitor v = new RefFieldsVisitor(rowType, pushItemOperator);
     for (RexNode exp : projects) {
-      exp.accept(v);
+      if (pushItemOperator) {
+        v.addColumn(exp.accept(v));
+      } else {
+        exp.accept(v);
+      }
     }
 
     if (v.hasNonLiteralIndex) {
@@ -331,8 +337,9 @@ public class PrelUtil {
     private final Set<DesiredField> desiredFields;
     private final Map<String, Integer> fieldNameMap = new HashMap<>();
     private boolean hasNonLiteralIndex = false;
+    private final boolean includeItemOperator;
 
-    public RefFieldsVisitor(RelDataType rowType) {
+    public RefFieldsVisitor(RelDataType rowType, boolean includeItemOperator) {
       super(true);
       this.fieldNames = rowType.getFieldNames();
       this.fields = rowType.getFieldList();
@@ -346,6 +353,7 @@ public class PrelUtil {
       Comparator<DesiredField> desiredFieldComparator =
           Comparator.comparingInt(field -> fieldNameMap.get(field.name.toLowerCase()));
       this.desiredFields = new TreeSet<>(desiredFieldComparator);
+      this.includeItemOperator = includeItemOperator;
     }
 
     public void addColumn(PathSegment segment) {
@@ -369,9 +377,11 @@ public class PrelUtil {
       DesiredField f = new DesiredField(index, name, field);
       desiredFields.add(f);
       inputRefs.add(inputRef);
-      PathSegment segment = new NameSegment(name);
-      addColumn(segment);
-      return segment;
+      NameSegment nameSegment = new NameSegment(name);
+      if (!includeItemOperator) {
+        addColumn(nameSegment);
+      }
+      return nameSegment;
     }
 
     @Override
@@ -390,7 +400,13 @@ public class PrelUtil {
       String operatorName = call.getOperator().getName();
       boolean indexingFunction = "ITEM".equals(operatorName) || "DOT".equals(operatorName);
       if (!indexingFunction) {
-        return super.visitCall(call);
+        if (!includeItemOperator) {
+          return super.visitCall(call);
+        }
+        for (RexNode operand : call.operands) {
+          addColumn(operand.accept(this));
+        }
+        return null;
       }
 
       if (!(call.getOperands().get(1) instanceof RexLiteral)) {

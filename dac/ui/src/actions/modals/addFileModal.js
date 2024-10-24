@@ -20,9 +20,9 @@ import fileFormatSchema from "schemas/fileFormat";
 
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import addFileModalMapper from "utils/mappers/addFileModalMapper";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
-import { getHomeEntity } from "@app/selectors/home";
-import { APIV2Call } from "@app/core/APICall";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
+import { getHomeEntity } from "#oss/selectors/home";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const UPLOAD_FILE_REQUEST = "UPLOAD_FILE_REQUEST";
 export const UPLOAD_FILE_SUCCESS = "UPLOAD_FILE_SUCCESS";
@@ -51,7 +51,7 @@ export const uploadFileToPath =
           schemaUtils.getSuccessActionTypeWithSchema(
             UPLOAD_FILE_SUCCESS,
             fileSchema,
-            meta
+            meta,
           ),
           { type: UPLOAD_FILE_FAILURE, meta },
         ],
@@ -105,7 +105,7 @@ export const FILE_FORMAT_LOAD_SUCCESS = "FILE_FORMAT_LOAD_SUCCESS";
 export const FILE_FORMAT_LOAD_FAILURE = "FILE_FORMAT_LOAD_FAILURE";
 
 export function loadFileFormat(formatUrl, viewId) {
-  const abortController = new AbortController(); // eslint-disable-line no-undef
+  const abortController = new AbortController();
   const meta = {
     viewId,
   };
@@ -125,7 +125,7 @@ export function loadFileFormat(formatUrl, viewId) {
       schemaUtils.getSuccessActionTypeWithSchema(
         FILE_FORMAT_LOAD_SUCCESS,
         fileFormatSchema,
-        nonAbortableMeta
+        nonAbortableMeta,
       ),
       { type: FILE_FORMAT_LOAD_FAILURE, meta: nonAbortableMeta },
     ],
@@ -227,7 +227,7 @@ function postUploadCancel(file) {
       ],
       method: "POST",
       body: addFileModalMapper.unescapeFilePayload(
-        file.get("fileFormat").toJS()
+        file.get("fileFormat").toJS(),
       ),
       headers: { "Content-Type": "application/json" },
       endpoint: apiCall,

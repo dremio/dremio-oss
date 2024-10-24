@@ -454,7 +454,7 @@ public class TestVHashJoin extends BaseTestJoin {
         expected);
   }
 
-  private JoinInfo getJoinInfo(
+  protected JoinInfo getJoinInfo(
       List<JoinCondition> conditions, LogicalExpression extraCondition, JoinRelType type) {
     return new JoinInfo(
         VectorizedHashJoinOperator.class,

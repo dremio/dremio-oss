@@ -86,7 +86,7 @@ describe("ExploreTableCell", () => {
     it("should render blank if no cell data", () => {
       const data = commonProps.data.deleteIn([0, "row", 0, "v"]);
       const wrapper = shallow(
-        <ExploreTableCell {...commonProps} data={data} />
+        <ExploreTableCell {...commonProps} data={data} />,
       );
       expect(wrapper.find(".cell-wrap").text()).to.eql("null");
     });
@@ -132,8 +132,8 @@ describe("ExploreTableCell", () => {
               columnType: instance.props.columnType,
               data: instance.props.data,
             },
-            instance.state
-          )
+            instance.state,
+          ),
         ).to.be.false;
       });
       it("with same state and same rowIndex, columnKey, columnStatus and equitable data", () => {
@@ -155,15 +155,15 @@ describe("ExploreTableCell", () => {
                 },
               ]),
             },
-            instance.state
-          )
+            instance.state,
+          ),
         ).to.be.false;
       });
       it("with different state and same rowIndex, columnKey, columnStatus, data", () => {
         expect(
           instance.shouldComponentUpdate(instance.props, {
             ...instance.state,
-          })
+          }),
         ).to.be.false;
       });
     });
@@ -176,8 +176,8 @@ describe("ExploreTableCell", () => {
               ...instance.props,
               rowIndex: instance.props.rowIndex + 1,
             },
-            instance.state
-          )
+            instance.state,
+          ),
         ).to.be.true;
       });
       it("with different columnKey", () => {
@@ -187,8 +187,8 @@ describe("ExploreTableCell", () => {
               ...instance.props,
               columnKey: "foo",
             },
-            instance.state
-          )
+            instance.state,
+          ),
         ).to.be.true;
       });
       it("with different columnStatus", () => {
@@ -198,8 +198,8 @@ describe("ExploreTableCell", () => {
               ...instance.props,
               columnStatus: "HIGHLIGHTED",
             },
-            instance.state
-          )
+            instance.state,
+          ),
         ).to.be.true;
       });
       it("with different data", () => {
@@ -209,8 +209,8 @@ describe("ExploreTableCell", () => {
               ...instance.props,
               data: new Immutable.List(),
             },
-            instance.state
-          )
+            instance.state,
+          ),
         ).to.be.true;
       });
       it("with different state", () => {
@@ -218,7 +218,7 @@ describe("ExploreTableCell", () => {
           instance.shouldComponentUpdate(instance.props, {
             ...instance.state,
             foo: 1,
-          })
+          }),
         ).to.be.true;
       });
     });
@@ -270,7 +270,7 @@ describe("ExploreTableCell", () => {
       commonProps.isDumbTable = false;
       const instance = shallow(
         <ExploreTableCell {...commonProps} columns={Immutable.fromJS([])} />,
-        { context }
+        { context },
       ).instance();
       expect(instance.prohibitSelection(selectionData)).to.be.true;
     });
@@ -303,7 +303,7 @@ describe("ExploreTableCell", () => {
       commonProps.isDumbTable = false;
       commonProps.columns = commonProps.columns.setIn(
         [0, "status"],
-        "HIGHLIGHTED"
+        "HIGHLIGHTED",
       );
       context.router.location = { query: { type: "transform" } };
       const instance = shallow(<ExploreTableCell {...commonProps} />, {
@@ -361,7 +361,7 @@ describe("ExploreTableCell", () => {
         "column_text",
         "col1",
         "LIST",
-        selectionData
+        selectionData,
       );
       expect(context.router.push).to.not.be.called;
     });
@@ -404,7 +404,7 @@ describe("ExploreTableCell", () => {
         selectionData.parentElement,
         "NUMBER",
         "col1",
-        "column_text"
+        "column_text",
       );
       expect(props.selectItemsOfList).to.not.be.called;
       expect(context.router.push).to.not.be.called;

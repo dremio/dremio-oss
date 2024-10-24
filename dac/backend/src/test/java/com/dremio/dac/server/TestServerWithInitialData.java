@@ -76,7 +76,8 @@ public class TestServerWithInitialData extends BaseTestServer {
 
   private InitialPreviewResponse transformAndValidate(
       DatasetUI versionedDataset, TransformBase transform) {
-    InitialPreviewResponse transformResponse = transform(versionedDataset, transform);
+    InitialPreviewResponse transformResponse =
+        getHttpClient().getDatasetApi().transform(versionedDataset, transform);
 
     String initialResults = transformResponse.getData().toString();
     assertTrue(initialResults, transformResponse.getData().getColumns().size() > 0);
@@ -89,9 +90,11 @@ public class TestServerWithInitialData extends BaseTestServer {
   public void testSortExistingDataset() throws Exception {
     initData();
     doc("get spaces");
-    expectSuccess(getBuilder(getAPIv2().path("space/Sales-Sample")).buildGet(), Space.class);
+    expectSuccess(
+        getBuilder(getHttpClient().getAPIv2().path("space/Sales-Sample")).buildGet(), Space.class);
 
-    final DatasetUI dsGet = getDataset(new DatasetPath("Sales-Sample.ds4"));
+    final DatasetUI dsGet =
+        getHttpClient().getDatasetApi().getDataset(new DatasetPath("Sales-Sample.ds4"));
 
     doc("sort dataset by B");
     // transform and save
@@ -112,7 +115,8 @@ public class TestServerWithInitialData extends BaseTestServer {
   public void testDropColExistingDataset() throws Exception {
     initData();
 
-    final DatasetUI dsGet = getDataset(new DatasetPath("Prod-Sample.ds1"));
+    final DatasetUI dsGet =
+        getHttpClient().getDatasetApi().getDataset(new DatasetPath("Prod-Sample.ds1"));
 
     doc("sort dataset by B");
     transformAndValidate(dsGet, new TransformDrop("age"));
@@ -122,7 +126,8 @@ public class TestServerWithInitialData extends BaseTestServer {
   public void testSort2ExistingDataset() throws Exception {
     initData();
 
-    final DatasetUI dsGet = getDataset(new DatasetPath("Prod-Sample.ds1"));
+    final DatasetUI dsGet =
+        getHttpClient().getDatasetApi().getDataset(new DatasetPath("Prod-Sample.ds1"));
 
     doc("sort dataset by B");
     transformAndValidate(dsGet, new TransformSort().setSortedColumnName("age"));
@@ -132,7 +137,8 @@ public class TestServerWithInitialData extends BaseTestServer {
   public void testRenameColExistingDataset() throws Exception {
     initData();
 
-    final DatasetUI dsGet = getDataset(new DatasetPath("Sales-Sample.ds3"));
+    final DatasetUI dsGet =
+        getHttpClient().getDatasetApi().getDataset(new DatasetPath("Sales-Sample.ds3"));
 
     doc("rename col B");
     transformAndValidate(dsGet, new TransformRename("B", "asdasdasB"));
@@ -143,8 +149,10 @@ public class TestServerWithInitialData extends BaseTestServer {
     setSpace();
 
     DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.trimexisting");
-    createDatasetFromParentAndSave(datasetPath, "cp.\"json/stringCaseAndTrim.json\"");
-    final DatasetUI dsGet = getDataset(datasetPath);
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromParentAndSave(datasetPath, "cp.\"json/stringCaseAndTrim.json\"");
+    final DatasetUI dsGet = getHttpClient().getDatasetApi().getDataset(datasetPath);
 
     doc("trim col B");
     transformAndValidate(dsGet, new TransformTrim("a", TrimType.BOTH, "C", false));
@@ -159,8 +167,10 @@ public class TestServerWithInitialData extends BaseTestServer {
     setSpace();
 
     DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.caseexistingdata");
-    createDatasetFromParentAndSave(datasetPath, "cp.\"json/stringCaseAndTrim.json\"");
-    final DatasetUI dsGet = getDataset(datasetPath);
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromParentAndSave(datasetPath, "cp.\"json/stringCaseAndTrim.json\"");
+    final DatasetUI dsGet = getHttpClient().getDatasetApi().getDataset(datasetPath);
 
     doc("uppercase col a");
     transformAndValidate(dsGet, new TransformConvertCase("a", ConvertCase.UPPER_CASE, "B", false));
@@ -175,17 +185,19 @@ public class TestServerWithInitialData extends BaseTestServer {
   public void testExtractExistingDataset() throws Exception {
     initData();
 
-    final DatasetUI dsGet = getDataset(new DatasetPath("Prod-Sample.ds1"));
+    final DatasetUI dsGet =
+        getHttpClient().getDatasetApi().getDataset(new DatasetPath("Prod-Sample.ds1"));
 
     doc("extract recommendations");
     expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(dsGet) + "/extract"))
+        getBuilder(getHttpClient().getAPIv2().path(versionedResourcePath(dsGet) + "/extract"))
             .buildPost(entity(new Selection("address", "address75", 7, 2), JSON)), // => sending
         ExtractCards.class);
 
     doc("extract preview");
     expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(dsGet) + "/extract_preview"))
+        getBuilder(
+                getHttpClient().getAPIv2().path(versionedResourcePath(dsGet) + "/extract_preview"))
             .buildPost(
                 entity(
                     new ExtractPreviewReq(
@@ -206,7 +218,7 @@ public class TestServerWithInitialData extends BaseTestServer {
                   DatasetsUtil.position(
                       new Offset(3, FROM_THE_START), new Offset(6, FROM_THE_START)),
                   false));
-      JobDataFragment data = getData(transformResponse.getPaginationUrl(), 0, 2000);
+      JobDataFragment data = getHttpClient().getDatasetApi().getJobData(transformResponse, 0, 2000);
       for (int i = 0; i < data.getReturnedRowCount(); i++) {
         assertEquals("ress", data.extractString(colName, i));
       }
@@ -221,7 +233,7 @@ public class TestServerWithInitialData extends BaseTestServer {
                   "s",
                   DatasetsUtil.position(new Offset(1, FROM_THE_END), new Offset(0, FROM_THE_END)),
                   false));
-      JobDataFragment data = getData(transformResponse.getPaginationUrl(), 0, 2000);
+      JobDataFragment data = getHttpClient().getDatasetApi().getJobData(transformResponse, 0, 2000);
       for (int i = 0; i < data.getReturnedRowCount(); i++) {
         String addressValue = data.extractString("address", i);
         String resValue = data.extractString("s", i);
@@ -251,7 +263,8 @@ public class TestServerWithInitialData extends BaseTestServer {
   @Test
   public void testCreateUntitled() throws Exception {
     initData();
-    DatasetUI dataset = createDatasetFromParent("Prod-Sample.ds1").getDataset();
+    DatasetUI dataset =
+        getHttpClient().getDatasetApi().createDatasetFromParent("Prod-Sample.ds1").getDataset();
 
     doc("sort dataset by address");
     transformAndValidate(dataset, new TransformSort().setSortedColumnName("address"));
@@ -263,7 +276,10 @@ public class TestServerWithInitialData extends BaseTestServer {
   public void testCreateUntitledSQL() throws Exception {
     initData();
     DatasetUI dataset =
-        createDatasetFromSQL("Select * from \"Prod-Sample\".ds1 limit 1", asList("Prod-Sample"))
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromSQL(
+                "Select * from \"Prod-Sample\".ds1 limit 1", asList("Prod-Sample"))
             .getDataset();
 
     doc("sort dataset by address");
@@ -276,7 +292,7 @@ public class TestServerWithInitialData extends BaseTestServer {
     initData();
 
     DatasetPath dp = new DatasetPath("Prod-Sample.ds1");
-    final DatasetUI dsGet = getDataset(dp);
+    final DatasetUI dsGet = getHttpClient().getDatasetApi().getDataset(dp);
 
     doc("update SQL");
     DatasetUI dsTransformed =
@@ -294,7 +310,7 @@ public class TestServerWithInitialData extends BaseTestServer {
   public void testHistory() throws Exception {
     initData();
     DatasetPath dp = new DatasetPath("Prod-Sample.ds1");
-    final DatasetUI dsGet = getDataset(dp);
+    final DatasetUI dsGet = getHttpClient().getDatasetApi().getDataset(dp);
 
     doc("update SQL");
     InitialPreviewResponse transformResponse =
@@ -306,9 +322,8 @@ public class TestServerWithInitialData extends BaseTestServer {
     List<HistoryItem> historyItems = transformResponse.getHistory().getItems();
     assertEquals(historyItems.toString(), 2, historyItems.size());
     HistoryItem lastHistoryItem = historyItems.get(1);
-    assertEquals(
-        getDatasetVersionPath(transformResponse.getDataset()),
-        lastHistoryItem.getVersionedResourcePath());
+    DatasetUI datasetUI = transformResponse.getDataset();
+    assertEquals(datasetUI.toDatasetVersionPath(), lastHistoryItem.getVersionedResourcePath());
     JobState lastItemState = lastHistoryItem.getState();
 
     // Job is always in completed state.
@@ -332,23 +347,31 @@ public class TestServerWithInitialData extends BaseTestServer {
     sourceService.registerSourceWithRuntime(source);
 
     // preview a file in NAS source, so that it will be added as a physical dataset
-    getPreview(new DatasetPath(asList("testNAS", "datasets", "users.json")));
+    getHttpClient()
+        .getDatasetApi()
+        .getPreview(new DatasetPath(asList("testNAS", "datasets", "users.json")));
 
     // Now create a VDS in home.
-    final DatasetPath datasetPath = new DatasetPath(asList("@" + DEFAULT_USERNAME, "vds1"));
-    createDatasetFromSQLAndSave(datasetPath, "SELECT * FROM sys.version", asList("cp"));
+    getHttpClient()
+        .getDatasetApi()
+        .createDatasetFromSQLAndSave(
+            new DatasetPath(asList("@" + DEFAULT_USERNAME, "vds1")),
+            "SELECT * FROM sys.version",
+            asList("cp"));
 
     InitialPreviewResponse response =
-        createDatasetFromSQL(
-            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, CASE TABLE_TYPE WHEN 'VIEW' THEN 'TABLE' ELSE TABLE_TYPE END as TABLE_TYPE "
-                + "FROM INFORMATION_SCHEMA.\"TABLES\" "
-                + "WHERE "
-                + "      TABLE_CATALOG LIKE 'DREMIO' ESCAPE '\\' AND"
-                + "      (TABLE_SCHEMA LIKE 'testNAS.datasets' OR TABLE_SCHEMA LIKE '@"
-                + DEFAULT_USERNAME
-                + "') "
-                + "ORDER BY TABLE_SCHEMA",
-            asList("cp"));
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromSQL(
+                "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, CASE TABLE_TYPE WHEN 'VIEW' THEN 'TABLE' ELSE TABLE_TYPE END as TABLE_TYPE "
+                    + "FROM INFORMATION_SCHEMA.\"TABLES\" "
+                    + "WHERE "
+                    + "      TABLE_CATALOG LIKE 'DREMIO' ESCAPE '\\' AND"
+                    + "      (TABLE_SCHEMA LIKE 'testNAS.datasets' OR TABLE_SCHEMA LIKE '@"
+                    + DEFAULT_USERNAME
+                    + "') "
+                    + "ORDER BY TABLE_SCHEMA",
+                asList("cp"));
     assertEquals(2, response.getData().getReturnedRowCount());
     assertEquals("vds1", response.getData().extractString("TABLE_NAME", 0));
     assertEquals("users.json", response.getData().extractString("TABLE_NAME", 1));

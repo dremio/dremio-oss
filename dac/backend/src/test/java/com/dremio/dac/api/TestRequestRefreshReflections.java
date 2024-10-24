@@ -180,7 +180,8 @@ public class TestRequestRefreshReflections extends BaseTestReflection {
 
     Invocation invocation =
         getBuilder(
-                getPublicAPI(3)
+                getHttpClient()
+                    .getAPIv3()
                     .path(CATALOG_PATH)
                     .path(datasetConfigEmp.getId().getId())
                     .path("refresh"))
@@ -208,7 +209,8 @@ public class TestRequestRefreshReflections extends BaseTestReflection {
 
     Invocation invocation =
         getBuilder(
-                getPublicAPI(3)
+                getHttpClient()
+                    .getAPIv3()
                     .path(CATALOG_PATH)
                     .path(datasetConfigEmpView.getId().getId())
                     .path("refresh"))
@@ -241,7 +243,8 @@ public class TestRequestRefreshReflections extends BaseTestReflection {
 
     Invocation invocation =
         getBuilder(
-                getPublicAPI(3)
+                getHttpClient()
+                    .getAPIv3()
                     .path(CATALOG_PATH)
                     .path(datasetConfigEmpJoinDeptView.getId().getId())
                     .path("refresh"))
@@ -270,7 +273,12 @@ public class TestRequestRefreshReflections extends BaseTestReflection {
       Response.StatusType status, String expResponse) throws Exception {
 
     Invocation invocation =
-        getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path("reflection_1").path("refresh"))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv3()
+                    .path(REFLECTIONS_PATH)
+                    .path("reflection_1")
+                    .path("refresh"))
             .buildPost(null);
 
     // Test / Verify
@@ -282,7 +290,12 @@ public class TestRequestRefreshReflections extends BaseTestReflection {
       Response.StatusType status, String expResponse) throws Exception {
 
     Invocation invocation =
-        getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path("reflection_1").path("refresh"))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv3()
+                    .path(REFLECTIONS_PATH)
+                    .path("reflection_1")
+                    .path("refresh"))
             .buildPost(null);
 
     // Test / Verify
@@ -294,7 +307,12 @@ public class TestRequestRefreshReflections extends BaseTestReflection {
       Response.StatusType status, String expResponse) throws Exception {
 
     Invocation invocation =
-        getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path("reflection_1").path("refresh"))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv3()
+                    .path(REFLECTIONS_PATH)
+                    .path("reflection_1")
+                    .path("refresh"))
             .buildPost(null);
 
     // Test / Verify

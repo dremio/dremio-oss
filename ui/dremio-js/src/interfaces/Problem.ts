@@ -46,6 +46,7 @@ export interface ValidationProblem {
     readonly detail?: string;
     readonly pointer: string;
     readonly type: ValidationProblemType;
+    readonly value?: unknown;
   }[];
   readonly title: "There was a problem validating the content of the request";
   readonly type: "https://api.dremio.dev/problems/validation-problem";
@@ -64,5 +65,14 @@ export const isProblem = (object: unknown): object is Problem => {
     typeof object === "object" &&
     typeof (object as Record<string, any>)["type"] === "string" &&
     (object as Record<string, any>)["type"].startsWith(problemPrefix)
+  );
+};
+
+export const isValidationProblem = (
+  object: unknown,
+): object is ValidationProblem => {
+  return (
+    isProblem(object) &&
+    object.type === "https://api.dremio.dev/problems/validation-problem"
   );
 };

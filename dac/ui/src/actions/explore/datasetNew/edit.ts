@@ -17,15 +17,15 @@
 import {
   loadExploreEntities,
   newLoadExploreEntities,
-} from "@app/actions/explore/datasetNew/get";
+} from "#oss/actions/explore/datasetNew/get";
 import Immutable from "immutable";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 
 export const newLoadExistingDataset = (
   dataset: Immutable.Map<string, any>,
   viewId: string,
   tipVersion: string,
-  sessionId: string
+  sessionId: string,
 ) => {
   return (dispatch: any) => {
     const href = exploreUtils.getPreviewLink(dataset, tipVersion, sessionId);
@@ -42,14 +42,14 @@ export const loadNewDataset = (
   jobId: string,
   paginationUrl: string,
   viewId: string,
-  tabId: string
+  tabId: string,
 ) => {
   return (dispatch: any) => {
     const href = exploreUtils.getDatasetMetadataLink(
       dataset,
       datasetPath,
       sessionId,
-      datasetVersion
+      datasetVersion,
     );
 
     if (!href) {
@@ -63,8 +63,8 @@ export const loadNewDataset = (
         jobId,
         paginationUrl,
         viewId,
-        tabId
-      )
+        tabId,
+      ),
     );
   };
 };

@@ -116,11 +116,7 @@ $lines: 2, 3, 4;
 .border {
   @each $direction in $directions {
     &-#{$direction} {
-      border-#{$direction}: 1px solid var(--border--neutral--solid);
-
-      &.--dark {
-        border-color: var(--color--neutral--800);
-      }
+      border-#{$direction}: 1px solid var(--border--neutral);
     }
   }
 }

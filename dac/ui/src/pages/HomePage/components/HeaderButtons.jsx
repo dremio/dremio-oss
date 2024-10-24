@@ -14,19 +14,20 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import LinkWithRef from "#oss/components/LinkWithRef/LinkWithRef";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { browserHistory } from "react-router";
-import { IconButton } from "dremio-ui-lib/components";
-import DropdownMenu from "@app/components/Menus/DropdownMenu";
-import { ENTITY_TYPES } from "@app/constants/Constants";
-import { intl } from "@app/utils/intl";
+import { IconButton, Popover } from "dremio-ui-lib/components";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
+import { intl } from "#oss/utils/intl";
 import HeaderButtonsMixin from "@inject/pages/HomePage/components/HeaderButtonsMixin";
-import { RestrictedArea } from "@app/components/Auth/RestrictedArea";
+import { RestrictedArea } from "#oss/components/Auth/RestrictedArea";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
 import HeaderButtonAddActions from "./HeaderButtonAddActions.tsx";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
+import clsx from "clsx";
+
 import * as classes from "./HeaderButtonAddActions.module.less";
 
 @HeaderButtonsMixin
@@ -185,23 +186,29 @@ export class HeaderButtons extends Component {
         {hasAddMenu && (
           <>
             {rootEntityType === ENTITY_TYPES.home && canAddInHomeSpace ? (
-              <DropdownMenu
-                customItemRenderer={
-                  <IconButton
-                    tooltip={intl.formatMessage({ id: "Common.Add" })}
-                    tooltipPortal
-                    tooltipPlacement="top"
-                    className={classes["headerButtons__plusIcon"]}
-                  >
-                    <dremio-icon name="interface/circle-plus"></dremio-icon>
-                  </IconButton>
-                }
-                hideArrow
-                closeOnSelect
-                menu={
+              <Popover
+                mode="click"
+                role="menu"
+                content={
                   <HeaderButtonAddActions canUploadFile={canAddInHomeSpace} />
                 }
-              />
+                placement="bottom-end"
+                portal={false}
+                className={clsx(
+                  classes["headerButtons__popover"],
+                  "drop-shadow-lg",
+                )}
+                dismissable
+              >
+                <IconButton
+                  tooltip={intl.formatMessage({ id: "Common.Add" })}
+                  tooltipPortal
+                  tooltipPlacement="top"
+                  className={classes["headerButtons__plusIcon"]}
+                >
+                  <dremio-icon name="interface/circle-plus"></dremio-icon>
+                </IconButton>
+              </Popover>
             ) : (
               <IconButton
                 tooltip={intl.formatMessage({ id: "Common.NewFolder" })}

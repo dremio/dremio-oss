@@ -18,13 +18,13 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { Map, fromJS } from "immutable";
-import Modal from "@app/components/Modals/Modal";
-import ConfirmCancelFooter from "@app/components/Modals/ConfirmCancelFooter";
-import { showUnsavedChangesConfirmDialog } from "@app/actions/confirmation";
-import MarkdownEditor from "@app/components/MarkdownEditor";
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
-import ApiUtils from "@app/utils/apiUtils/apiUtils";
-import { SectionTitle } from "@app/pages/ExplorePage/components/Wiki/SectionTitle";
+import Modal from "#oss/components/Modals/Modal";
+import ConfirmCancelFooter from "#oss/components/Modals/ConfirmCancelFooter";
+import { showUnsavedChangesConfirmDialog } from "#oss/actions/confirmation";
+import MarkdownEditor from "#oss/components/MarkdownEditor";
+import ViewStateWrapper from "#oss/components/ViewStateWrapper";
+import ApiUtils from "#oss/utils/apiUtils/apiUtils";
+import { SectionTitle } from "#oss/pages/ExplorePage/components/Wiki/SectionTitle";
 import { modalBody, content, footer, editor } from "./WikiModal.less";
 
 export class WikiModalView extends PureComponent {
@@ -175,7 +175,7 @@ export class WikiModalWithSave extends PureComponent {
           version: wikiVersion,
         }),
       },
-      3
+      3,
     ).then(
       (response) => {
         this.resetError();
@@ -189,13 +189,13 @@ export class WikiModalWithSave extends PureComponent {
             error: {
               message: await ApiUtils.getErrorMessage(
                 laDeprecated("Wiki is not saved."),
-                response
+                response,
               ),
               id: "" + Math.random(),
             },
           }),
         });
-      }
+      },
     );
   };
 

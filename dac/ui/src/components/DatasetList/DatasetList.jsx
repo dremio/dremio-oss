@@ -25,7 +25,7 @@ import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
 import { constructFullPath } from "utils/pathUtils";
 import { bodySmall } from "uiTheme/radium/typography";
 import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
-import * as classes from "@app/components/DatasetList/DatasetList.module.less";
+import * as classes from "#oss/components/DatasetList/DatasetList.module.less";
 
 class DatasetList extends PureComponent {
   static propTypes = {

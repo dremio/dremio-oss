@@ -86,7 +86,7 @@ public class TestShowViewsHandler {
         .thenReturn(VersionContext.ofBranch(SESSION_BRANCH_NAME));
     when(catalog.containerExists(
             CatalogEntityKey.newBuilder()
-                .keyComponents(ImmutableList.of(SESSION_SOURCE_NAME))
+                .keyComponents(SESSION_SOURCE_NAME)
                 .tableVersionContext(
                     TableVersionContext.of(VersionContext.ofBranch(SESSION_BRANCH_NAME)))
                 .build()))
@@ -187,7 +187,7 @@ public class TestShowViewsHandler {
     setUpSupportKeys();
     when(catalog.containerExists(
             CatalogEntityKey.newBuilder()
-                .keyComponents(ImmutableList.of(STATEMENT_SOURCE_NAME, nestedFolder))
+                .keyComponents(STATEMENT_SOURCE_NAME, nestedFolder)
                 .tableVersionContext(
                     TableVersionContext.of(VersionContext.ofBranch(SESSION_BRANCH_NAME)))
                 .build()))
@@ -250,7 +250,7 @@ public class TestShowViewsHandler {
     ExternalNamespaceEntry viewEntry = createRandomViewEntry();
     when(catalog.containerExists(
             CatalogEntityKey.newBuilder()
-                .keyComponents(ImmutableList.of(STATEMENT_SOURCE_NAME))
+                .keyComponents(STATEMENT_SOURCE_NAME)
                 .tableVersionContext(
                     TableVersionContext.of(VersionContext.ofBranch(STATEMENT_BRANCH_NAME)))
                 .build()))
@@ -285,7 +285,7 @@ public class TestShowViewsHandler {
     ExternalNamespaceEntry viewEntry = createRandomViewEntry();
     when(catalog.containerExists(
             CatalogEntityKey.newBuilder()
-                .keyComponents(ImmutableList.of(STATEMENT_SOURCE_NAME))
+                .keyComponents(STATEMENT_SOURCE_NAME)
                 .tableVersionContext(
                     TableVersionContext.of(VersionContext.ofTag(STATEMENT_TAG_NAME)))
                 .build()))
@@ -316,7 +316,7 @@ public class TestShowViewsHandler {
     VersionContext statementVersionContext = VersionContext.ofRef(STATEMENT_REF_NAME);
     when(catalog.containerExists(
             CatalogEntityKey.newBuilder()
-                .keyComponents(ImmutableList.of(SESSION_SOURCE_NAME))
+                .keyComponents(SESSION_SOURCE_NAME)
                 .tableVersionContext(TableVersionContext.of(statementVersionContext))
                 .build()))
         .thenReturn(false);
@@ -344,7 +344,7 @@ public class TestShowViewsHandler {
         .thenReturn(VersionContext.NOT_SPECIFIED);
     when(catalog.containerExists(
             CatalogEntityKey.newBuilder()
-                .keyComponents(ImmutableList.of(SESSION_SOURCE_NAME, "unusedFolder"))
+                .keyComponents(SESSION_SOURCE_NAME, "unusedFolder")
                 .tableVersionContext(
                     TableVersionContext.of(VersionContext.ofRef(STATEMENT_REF_NAME)))
                 .build()))
@@ -373,7 +373,7 @@ public class TestShowViewsHandler {
     setUpSupportKeys();
     when(catalog.containerExists(
             CatalogEntityKey.newBuilder()
-                .keyComponents(ImmutableList.of(STATEMENT_SOURCE_NAME))
+                .keyComponents(STATEMENT_SOURCE_NAME)
                 .tableVersionContext(
                     TableVersionContext.of(VersionContext.ofRef(STATEMENT_REF_NAME)))
                 .build()))
@@ -404,7 +404,7 @@ public class TestShowViewsHandler {
     setUpSupportKeys();
     when(catalog.containerExists(
             CatalogEntityKey.newBuilder()
-                .keyComponents(ImmutableList.of(STATEMENT_SOURCE_NAME))
+                .keyComponents(STATEMENT_SOURCE_NAME)
                 .tableVersionContext(
                     TableVersionContext.of(VersionContext.ofRef(STATEMENT_REF_NAME)))
                 .build()))

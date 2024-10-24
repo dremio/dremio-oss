@@ -115,7 +115,11 @@ public class TestDropView extends BaseTestServer {
 
   private void deleteView(List<String> path, String tag) {
     WebTarget target =
-        getAPIv2().path("dataset").path(String.join(".", path)).queryParam("savedTag", tag);
+        getHttpClient()
+            .getAPIv2()
+            .path("dataset")
+            .path(String.join(".", path))
+            .queryParam("savedTag", tag);
     expectSuccess(getBuilder(target).buildDelete(), new GenericType<DatasetUI>() {});
   }
 

@@ -37,7 +37,7 @@ describe("transformCardPreview saga", () => {
       const success = { payload: "successPayload", meta: "successMeta" };
       next = gen.next({ success });
       expect(next.value).to.eql(
-        put(updateTransformCard(success.payload, success.meta))
+        put(updateTransformCard(success.payload, success.meta)),
       );
       next = gen.next();
       expect(next.done).to.be.true;
@@ -67,7 +67,10 @@ describe("transformCardPreview saga", () => {
       expect(predicate({ type: actionType, meta })).to.be.true;
       expect(predicate({ type: "foo", meta })).to.be.false;
       expect(
-        predicate({ type: actionType, meta: { ...meta, transformType: "foo" } })
+        predicate({
+          type: actionType,
+          meta: { ...meta, transformType: "foo" },
+        }),
       ).to.be.false;
       expect(predicate({ type: actionType, meta: { ...meta, method: "foo" } }))
         .to.be.false;

@@ -55,6 +55,7 @@ import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.ass
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasCommitForTable;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasNamespace;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasTable;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.getSubPathFromNessieTableContent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -69,6 +70,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import org.projectnessie.model.Operation;
 
@@ -87,7 +89,8 @@ public class ITDataplanePluginCreate extends ITDataplanePluginTestSetup {
     // Assert
     assertNessieHasCommitForTable(tablePath, Operation.Put.class, DEFAULT_BRANCH_NAME, this);
     assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), this);
   }
 
   @Test
@@ -102,7 +105,8 @@ public class ITDataplanePluginCreate extends ITDataplanePluginTestSetup {
     // Assert
     assertNessieHasCommitForTable(tablePath, Operation.Put.class, DEFAULT_BRANCH_NAME, this);
     assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), this);
 
     // check table properties
     List<QueryDataBatch> queryDataBatches =
@@ -119,7 +123,8 @@ public class ITDataplanePluginCreate extends ITDataplanePluginTestSetup {
     runSQL(createEmptyTableQuery(tablePath));
     assertNessieHasCommitForTable(tablePath, Operation.Put.class, DEFAULT_BRANCH_NAME, this);
     assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), this);
 
     // Act and Assert
     assertQueryThrowsExpectedError(
@@ -142,7 +147,8 @@ public class ITDataplanePluginCreate extends ITDataplanePluginTestSetup {
     // Assert
     assertNessieHasCommitForTable(tablePath, Operation.Put.class, DEFAULT_BRANCH_NAME, this);
     assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), this);
   }
 
   @Test
@@ -159,7 +165,8 @@ public class ITDataplanePluginCreate extends ITDataplanePluginTestSetup {
     // Assert
     assertNessieHasCommitForTable(tablePath, Operation.Put.class, devBranch, this);
     assertNessieHasTable(tablePath, devBranch, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, devBranch, this), this);
   }
 
   @Test
@@ -175,7 +182,8 @@ public class ITDataplanePluginCreate extends ITDataplanePluginTestSetup {
     // Assert
     assertNessieHasCommitForTable(tablePath, Operation.Put.class, devBranch, this);
     assertNessieHasTable(tablePath, devBranch, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, devBranch, this), this);
   }
 
   @Test
@@ -276,11 +284,14 @@ public class ITDataplanePluginCreate extends ITDataplanePluginTestSetup {
     runSQL(createEmptyTableQuery(tablePath));
     assertNessieHasCommitForTable(tablePath, Operation.Put.class, DEFAULT_BRANCH_NAME, this);
     assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    List<String> storageSubPath =
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), this);
 
     runSQL(dropTableQuery(tablePath));
     assertNessieDoesNotHaveEntity(tablePath, DEFAULT_BRANCH_NAME, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(storageSubPath, this);
 
     // Act
     runSQL(createEmptyTableQuery(tablePath));
@@ -288,7 +299,8 @@ public class ITDataplanePluginCreate extends ITDataplanePluginTestSetup {
     // Assert
     assertNessieHasCommitForTable(tablePath, Operation.Put.class, DEFAULT_BRANCH_NAME, this);
     assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), this);
     runSQL(dropTableQuery(tablePath));
 
     assertCommitLogTail(
@@ -761,5 +773,55 @@ public class ITDataplanePluginCreate extends ITDataplanePluginTestSetup {
         createTableAsQuery(path, 10),
         String.format(
             " An Entity of type FOLDER with given name [%s] already exists", joinedTableKey(path)));
+  }
+
+  @Test
+  public void testGCEnabledFlagSetAfterCreate() throws Exception {
+    // Arrange
+    final String tableName = generateUniqueTableName();
+    final List<String> tablePath = tablePathWithFolders(tableName);
+
+    // Act
+    runSQL(createEmptyTableQuery(tablePath));
+
+    // Assert
+    assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), this);
+    AtomicBoolean foundFlag = new AtomicBoolean(false);
+    runSqlWithResults(showTablePropertiesQuery(tablePath))
+        .forEach(
+            row -> {
+              if (row.get(0).equals("gc.enabled")) {
+                assertThat(row.get(1)).isEqualTo("false");
+                foundFlag.set(true);
+              }
+            });
+    assertThat(foundFlag.get()).isTrue();
+  }
+
+  @Test
+  public void testMetadataDeleteAfterCommitEnabledFlagSetAfterCreate() throws Exception {
+    // Arrange
+    final String tableName = generateUniqueTableName();
+    final List<String> tablePath = tablePathWithFolders(tableName);
+
+    // Act
+    runSQL(createEmptyTableQuery(tablePath));
+
+    // Assert
+    assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
+    assertIcebergTableExistsAtSubPath(
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this), this);
+    AtomicBoolean foundFlag = new AtomicBoolean(false);
+    runSqlWithResults(showTablePropertiesQuery(tablePath))
+        .forEach(
+            row -> {
+              if (row.get(0).equals("write.metadata.delete-after-commit.enabled")) {
+                assertThat(row.get(1)).isEqualTo("false");
+                foundFlag.set(true);
+              }
+            });
+    assertThat(foundFlag.get()).isTrue();
   }
 }

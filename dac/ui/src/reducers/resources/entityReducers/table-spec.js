@@ -22,8 +22,8 @@ import {
   INIT_EXPLORE_JOB_PROGRESS,
   SET_EXPLORE_JOBID_IN_PROGRESS,
   UPDATE_EXPLORE_JOB_RECORDS,
-} from "@app/actions/explore/dataset/data";
-import { UPDATE_COLUMN_FILTER } from "@app/actions/explore/view";
+} from "#oss/actions/explore/dataset/data";
+import { UPDATE_COLUMN_FILTER } from "#oss/actions/explore/view";
 
 import table from "./table";
 
@@ -55,7 +55,7 @@ describe("table", () => {
         meta: { nextTable: Immutable.fromJS({ table: 1, version: "123" }) },
       });
       expect(result.getIn(["tableData", "123"])).to.eql(
-        Immutable.fromJS({ table: 1, version: "123" })
+        Immutable.fromJS({ table: 1, version: "123" }),
       );
     });
 
@@ -85,7 +85,7 @@ describe("table", () => {
     ]);
     const initRows = initialState.setIn(
       ["tableData", 123, "rows"],
-      initialRows
+      initialRows,
     );
     const payload = {
       rows: [{ row: [{ v: "bla" }, { v: "bla" }, { v: "bla" }, { v: "bla" }] }],
@@ -99,7 +99,7 @@ describe("table", () => {
         meta: { datasetVersion: 123, offset: 0 },
       });
       expect(result.getIn(["tableData", 123, "rows"])).to.equal(
-        Immutable.fromJS(payload.rows)
+        Immutable.fromJS(payload.rows),
       );
     });
 
@@ -110,7 +110,7 @@ describe("table", () => {
         meta: { datasetVersion: 123, offset: 4 },
       });
       expect(result.getIn(["tableData", 123, "rows"])).to.equal(
-        initialRows.concat(Immutable.fromJS(payload.rows))
+        initialRows.concat(Immutable.fromJS(payload.rows)),
       );
     });
 
@@ -132,7 +132,7 @@ describe("table", () => {
           },
           { row: [{ v: "initial" }, { v: 10 }, { v: "dremio" }, { v: 1001 }] },
           ...payload.rows,
-        ])
+        ]),
       );
     });
 
@@ -145,7 +145,7 @@ describe("table", () => {
       expect(
         result
           .getIn(["tableData", 123, "rows"])
-          .equals(Immutable.fromJS(payload.rows))
+          .equals(Immutable.fromJS(payload.rows)),
       ).to.be.true;
     });
 
@@ -158,7 +158,7 @@ describe("table", () => {
       expect(
         result
           .getIn(["tableData", 123, "columns"])
-          .equals(Immutable.fromJS(payload.columns))
+          .equals(Immutable.fromJS(payload.columns)),
       ).to.be.true;
     });
   });
@@ -171,7 +171,7 @@ describe("table", () => {
         datasetVersion: "1234",
       });
       expect(result.getIn(["tableData", "1234", "columnFilter"])).to.equal(
-        "test"
+        "test",
       );
     });
   });

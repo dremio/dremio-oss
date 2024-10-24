@@ -34,7 +34,9 @@ describe("exploreTransforms", () => {
       ],
     });
     expect(
-      exploreTransforms.dropColumn({ name: "col1", table: originalData }).toJS()
+      exploreTransforms
+        .dropColumn({ name: "col1", table: originalData })
+        .toJS(),
     ).to.be.eql({
       columns: [
         {
@@ -56,7 +58,9 @@ describe("exploreTransforms", () => {
       ],
     });
     expect(
-      exploreTransforms.dropColumn({ name: "col1", table: originalData }).toJS()
+      exploreTransforms
+        .dropColumn({ name: "col1", table: originalData })
+        .toJS(),
     ).to.be.eql({
       columns: [
         {

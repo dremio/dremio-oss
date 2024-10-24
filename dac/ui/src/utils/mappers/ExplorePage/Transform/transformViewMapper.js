@@ -82,7 +82,7 @@ class TransformViewMapper {
             item.rule.pattern &&
             this.getValueForPattern(
               item.rule.pattern.index,
-              item.rule.pattern.indexType
+              item.rule.pattern.indexType,
             ),
         },
       };

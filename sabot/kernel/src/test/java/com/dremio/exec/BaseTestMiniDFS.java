@@ -44,7 +44,8 @@ public class BaseTestMiniDFS extends PlanTestBase {
   protected static MiniDFSCluster dfsCluster;
   protected static Configuration dfsConf;
   protected static FileSystem fs;
-  protected static String miniDfsStoragePath;
+  private static String miniDfsStoragePath;
+  private static SourceConfig miniDfsSourceConfig;
 
   /**
    * Start a MiniDFS cluster backed SabotNode cluster
@@ -67,6 +68,8 @@ public class BaseTestMiniDFS extends PlanTestBase {
     // Set the MiniDfs base dir to be the temp directory of the test, so that all files created
     // within the MiniDfs
     // are properly cleanup when test exits.
+    Preconditions.checkArgument(
+        miniDfsStoragePath == null, "Previous miniDfsStoragePath was not cleaned up properly");
     miniDfsStoragePath = Files.createTempDirectory(testClass).toString();
     dfsConf.set("hdfs.minidfs.basedir", miniDfsStoragePath);
     // HDFS-8880 and HDFS-8953 introduce metrics logging that requires log4j, but log4j is
@@ -76,6 +79,8 @@ public class BaseTestMiniDFS extends PlanTestBase {
     dfsConf.set("dfs.datanode.metrics.logger.period.seconds", "0");
 
     // Start the MiniDfs cluster
+    Preconditions.checkArgument(
+        dfsCluster == null, "Previous dfsCluster was not cleaned up properly");
     dfsCluster = new MiniDFSCluster.Builder(dfsConf).numDataNodes(3).format(true).build();
 
     fs = dfsCluster.getFileSystem();
@@ -83,6 +88,8 @@ public class BaseTestMiniDFS extends PlanTestBase {
 
   protected static void addMiniDfsBasedStorage(boolean impersonationEnabled) throws Exception {
     // Create a HDFS based storage plugin (connection string for mini dfs is varies for each run).
+    Preconditions.checkArgument(
+        miniDfsSourceConfig == null, "Previous miniDfsSourceConfig was not cleaned up properly");
 
     final Path dirPath = new Path("/");
     FileSystem.mkdirs(fs, dirPath, new FsPermission((short) 0777));
@@ -100,6 +107,7 @@ public class BaseTestMiniDFS extends PlanTestBase {
     config.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE);
 
     getCatalogService().getSystemUserCatalog().createSource(config);
+    miniDfsSourceConfig = config;
   }
 
   protected static void createAndAddWorkspace(
@@ -118,13 +126,21 @@ public class BaseTestMiniDFS extends PlanTestBase {
   }
 
   protected static void stopMiniDfsCluster() {
-    if (dfsCluster != null) {
-      dfsCluster.shutdown();
+    try {
+      // if we created a source clean it up first
+      if (miniDfsSourceConfig != null) {
+        getCatalogService().getSystemUserCatalog().deleteSource(miniDfsSourceConfig);
+      }
+      if (dfsCluster != null) {
+        dfsCluster.shutdown();
+      }
+      if (miniDfsStoragePath != null) {
+        FileUtils.deleteQuietly(new File(miniDfsStoragePath));
+      }
+    } finally {
+      miniDfsSourceConfig = null;
       dfsCluster = null;
-    }
-
-    if (miniDfsStoragePath != null) {
-      FileUtils.deleteQuietly(new File(miniDfsStoragePath));
+      miniDfsStoragePath = null;
     }
   }
 

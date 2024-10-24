@@ -112,12 +112,12 @@ public abstract class AbstractTestSnapshotBasedIncrementalRefresh extends BaseTe
   @Before
   public void before() throws Exception {
     allocator = getRootAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
-    setSystemOption(ENABLE_OPTIMIZE_TABLE_FOR_INCREMENTAL_REFLECTIONS, "false");
+    setSystemOption(ENABLE_OPTIMIZE_TABLE_FOR_INCREMENTAL_REFLECTIONS, false);
   }
 
   @After
   public void after() throws Exception {
-    resetSystemOption(ENABLE_OPTIMIZE_TABLE_FOR_INCREMENTAL_REFLECTIONS.getOptionName());
+    resetSystemOption(ENABLE_OPTIMIZE_TABLE_FOR_INCREMENTAL_REFLECTIONS);
     setDeletionGracePeriod();
     getReflectionService().clearAll();
     monitor.waitUntilNoMaterializationsAvailable();

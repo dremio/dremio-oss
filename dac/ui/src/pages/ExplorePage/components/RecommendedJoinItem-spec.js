@@ -50,7 +50,7 @@ describe("RecommendedJoinItem", () => {
         .goToCustomTab(event);
       expect(commonProps.selectJoin).to.be.calledWith(
         commonProps.recommendation,
-        true
+        true,
       );
     });
   });
@@ -63,7 +63,7 @@ describe("RecommendedJoinItem", () => {
         .selectRecommendation(event);
       expect(commonProps.selectJoin).to.be.calledWith(
         commonProps.recommendation,
-        false
+        false,
       );
     });
   });

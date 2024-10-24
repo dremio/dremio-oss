@@ -113,14 +113,14 @@ public class ITDataplanePluginInfoSchemaCombination extends ITDataplanePluginTes
     createEntitiesForContainer(emptyExplicitFolder7);
   }
 
-  private static void createEntitiesForContainer(ContainerEntity container) throws Exception {
+  private void createEntitiesForContainer(ContainerEntity container) throws Exception {
     switch (container.getType()) {
       case SOURCE:
         // Intentional fallthrough
       case IMPLICIT_FOLDER:
         break;
       case EXPLICIT_FOLDER:
-        getNessieClient()
+        getNessieApi()
             .createNamespace()
             .namespace(Namespace.of(container.getPathWithoutRoot()))
             .refName("main")

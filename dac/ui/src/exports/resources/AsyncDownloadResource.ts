@@ -18,7 +18,7 @@ import {
   GetDownloadStatusParams,
   getDownloadStatus,
 } from "../endpoints/Datasets/getDownloadStatus";
-import { PollingResource } from "@app/exports/utilities/PollingResource";
+import { PollingResource } from "#oss/exports/utilities/PollingResource";
 
 export const DownloadStatusResource = new PollingResource(
   (params: GetDownloadStatusParams) => getDownloadStatus(params),

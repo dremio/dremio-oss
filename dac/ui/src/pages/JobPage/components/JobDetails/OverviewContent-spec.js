@@ -65,7 +65,7 @@ describe("OverviewContent", () => {
 
   it("should render with minimal props without exploding", () => {
     expect(
-      shallow(<OverviewContent {...minimalProps} />, { context })
+      shallow(<OverviewContent {...minimalProps} />, { context }),
     ).to.have.length(1);
   });
 
@@ -82,7 +82,7 @@ describe("OverviewContent", () => {
         },
       ]);
       expect(OverviewContent.checkResultOfProfile(attemptDetails)).to.eql(
-        undefined
+        undefined,
       );
     });
 
@@ -90,8 +90,8 @@ describe("OverviewContent", () => {
       expect(
         OverviewContent.checkResultOfProfile(
           commonProps.jobDetails.get("attemptDetails"),
-          "schema"
-        )
+          "schema",
+        ),
       ).to.eql(1);
     });
 
@@ -99,8 +99,8 @@ describe("OverviewContent", () => {
       expect(
         OverviewContent.checkResultOfProfile(
           commonProps.jobDetails.get("attemptDetails"),
-          "memory"
-        )
+          "memory",
+        ),
       ).to.eql(1);
     });
   });
@@ -124,7 +124,7 @@ describe("OverviewContent", () => {
       };
       wrapper = shallow(<OverviewContent {...props} />, { context });
       expect(wrapper.instance().renderInfoAboutProfile()).to.eql(
-        "This query was attempted 2 times"
+        "This query was attempted 2 times",
       );
     });
 
@@ -146,7 +146,7 @@ describe("OverviewContent", () => {
       };
       wrapper = shallow(<OverviewContent {...props} />, { context });
       expect(wrapper.instance().renderInfoAboutProfile()).to.eql(
-        "This query was attempted 2 times due to schema learning 1"
+        "This query was attempted 2 times due to schema learning 1",
       );
     });
 
@@ -217,7 +217,7 @@ describe("OverviewContent", () => {
       const props = {
         jobDetails: commonProps.jobDetails.set(
           "materializationFor",
-          new Immutable.Map()
+          new Immutable.Map(),
         ),
       };
       wrapper = shallow(<OverviewContent {...props} />, { context });
@@ -242,13 +242,13 @@ describe("OverviewContent", () => {
       };
       wrapper = shallow(<OverviewContent {...props} />, { context });
       expect(wrapper.instance().renderInfoAboutProfile()).to.eql(
-        "This query was attempted 2 times due to insufficient memory 1"
+        "This query was attempted 2 times due to insufficient memory 1",
       );
     });
 
     it("should return string about attempts with memory and schema", () => {
       expect(wrapper.instance().renderInfoAboutProfile()).to.eql(
-        "This query was attempted 2 times due to insufficient memory 1 and schema learning 1"
+        "This query was attempted 2 times due to insufficient memory 1 and schema learning 1",
       );
     });
   });

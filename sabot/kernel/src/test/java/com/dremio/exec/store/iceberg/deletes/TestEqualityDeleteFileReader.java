@@ -20,6 +20,7 @@ import static com.dremio.sabot.RecordSet.rs;
 import static com.dremio.sabot.op.common.ht2.LBlockHashTable.ORDINAL_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.record.VectorAccessible;
@@ -49,7 +50,8 @@ public class TestEqualityDeleteFileReader extends BaseTestEqualityDeleteFilter {
   // contains 30 rows deleting product_ids [ 0 .. 29 ]
   private static final Path DELETE_FILE_1 =
       Path.of(
-          "/tmp/iceberg-test-tables/v2/products_with_eq_deletes/data/widget/eqdelete-widget-00.parquet");
+          IcebergTestTables.PRODUCTS_WITH_EQ_DELETES_FULL_PATH
+              + "/data/widget/eqdelete-widget-00.parquet");
 
   private static final List<IcebergProtobuf.IcebergSchemaField> PRODUCTS_ICEBERG_FIELDS =
       ImmutableList.of(
@@ -87,7 +89,7 @@ public class TestEqualityDeleteFileReader extends BaseTestEqualityDeleteFilter {
 
   @AfterClass
   public static void closeTables() throws Exception {
-    table.close();
+    AutoCloseables.close(table);
   }
 
   @Before

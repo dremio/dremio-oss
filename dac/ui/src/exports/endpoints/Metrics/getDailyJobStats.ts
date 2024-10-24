@@ -15,7 +15,7 @@
  */
 
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-import { APIV3Call } from "@app/core/APICall";
+import { APIV3Call } from "#oss/core/APICall";
 
 type GetDailyJobsStatsParams = {
   end: number;
@@ -38,7 +38,7 @@ type DailyJobStats = {
 };
 
 export const getDailyJobStats = async (
-  params: GetDailyJobsStatsParams
+  params: GetDailyJobsStatsParams,
 ): Promise<DailyJobStats> => {
   return getApiContext()
     .fetch(dailyJobStatsUrl(params))

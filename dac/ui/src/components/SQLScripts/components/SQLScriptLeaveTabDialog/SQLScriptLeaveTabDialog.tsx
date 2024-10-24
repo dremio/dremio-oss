@@ -26,7 +26,7 @@ type SQLScriptLeaveTabDialogProps = {
   onConfirm: () => void;
 };
 const SQLScriptLeaveTabDialog = (
-  props: SQLScriptLeaveTabDialogProps
+  props: SQLScriptLeaveTabDialogProps,
 ): React.ReactElement => {
   const { t } = getIntlContext();
   const { isOpen, onCancel, onConfirm } = props;

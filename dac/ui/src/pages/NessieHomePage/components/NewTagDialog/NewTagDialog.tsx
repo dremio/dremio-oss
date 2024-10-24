@@ -23,10 +23,10 @@ import {
   DialogContent,
 } from "dremio-ui-lib/components";
 import { TextField } from "@mui/material";
-import { Reference } from "@app/types/nessie";
+import { Reference } from "#oss/types/nessie";
 import { useNessieContext } from "../../utils/context";
 import { addNotification } from "actions/notification";
-import { ReferenceType } from "@app/services/nessie/client/index";
+import { ReferenceType } from "#oss/services/nessie/client/index";
 
 import "./NewTagDialog.less";
 

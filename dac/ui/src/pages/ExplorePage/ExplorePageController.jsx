@@ -21,10 +21,10 @@ import { connect } from "react-redux";
 import { withRouter } from "react-router";
 import domHelpers from "dom-helpers";
 
-import { getExploreViewState } from "@app/selectors/resources";
-import { getActiveScript } from "@app/selectors/scripts";
-import { moduleStateHOC } from "@app/containers/ModuleStateContainer";
-import explore from "@app/reducers/explore";
+import { getExploreViewState } from "#oss/selectors/resources";
+import { getActiveScript } from "#oss/selectors/scripts";
+import { moduleStateHOC } from "#oss/containers/ModuleStateContainer";
+import explore from "#oss/reducers/explore";
 import {
   getHistory,
   exploreStateKey,
@@ -33,18 +33,18 @@ import {
 } from "selectors/explore";
 import { performLoadDataset } from "actions/explore/dataset/get";
 import { resetViewState } from "actions/resources";
-import { withDatasetChanges } from "@app/pages/ExplorePage/DatasetChanges";
+import { withDatasetChanges } from "#oss/pages/ExplorePage/DatasetChanges";
 import {
   withRouteLeaveSubscription,
   withRouteLeaveEvent,
-} from "@app/containers/RouteLeave";
-import { initRefs as initRefsAction } from "@app/actions/nessie/nessie";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+} from "#oss/containers/RouteLeave";
+import { initRefs as initRefsAction } from "#oss/actions/nessie/nessie";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 import { updateSqlPartSize } from "actions/explore/ui";
 import { showConfirmationDialog } from "actions/confirmation";
 import { updateRightTreeVisibility } from "actions/ui/ui";
 import { hasDatasetChanged } from "utils/datasetUtils";
-import { PageTypes, pageTypeValuesSet } from "@app/pages/ExplorePage/pageTypes";
+import { PageTypes, pageTypeValuesSet } from "#oss/pages/ExplorePage/pageTypes";
 import explorePageControllerConfig from "@inject/pages/ExplorePage/explorePageControllerConfig";
 import QlikStateModal from "./components/modals/QlikStateModal";
 import ExplorePage from "./ExplorePage";
@@ -56,17 +56,17 @@ import { excludePageType } from "./pageTypeUtils";
 import {
   isTabbableUrl,
   isTmpDatasetUrl,
-} from "@app/utils/explorePageTypeUtils";
-import { scriptReplaceSideEffect } from "@app/sagas/currentSql";
-import { store } from "@app/store/store";
+} from "#oss/utils/explorePageTypeUtils";
+import { scriptReplaceSideEffect } from "#oss/sagas/currentSql";
+import { store } from "#oss/store/store";
 import {
   selectActiveScript,
   selectCurrentSql,
-} from "@app/components/SQLScripts/sqlScriptsUtils";
-import { withIsMultiTabEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
-import { refreshScriptsResource } from "@app/actions/resources/scripts";
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+} from "#oss/components/SQLScripts/sqlScriptsUtils";
+import { withIsMultiTabEnabled } from "#oss/components/SQLScripts/useMultiTabIsEnabled";
+import { refreshScriptsResource } from "#oss/actions/resources/scripts";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
+import { SQLRUNNER_TABS_UI } from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 
 const HEIGHT_AROUND_SQL_EDITOR = 175;
 const defaultPageType = PageTypes.default;

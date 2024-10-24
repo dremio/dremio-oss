@@ -74,15 +74,11 @@ public final class DeltaLakeSchemaConverter {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final boolean isMapDataTypeEnabled;
-  private final boolean isColumnMappingEnabled;
   private final DeltaColumnMappingMode columnMappingMode;
 
   private DeltaLakeSchemaConverter(
-      boolean isMapDataTypeEnabled,
-      boolean isColumnMappingEnabled,
-      DeltaColumnMappingMode columnMappingMode) {
+      boolean isMapDataTypeEnabled, DeltaColumnMappingMode columnMappingMode) {
     this.isMapDataTypeEnabled = isMapDataTypeEnabled;
-    this.isColumnMappingEnabled = isColumnMappingEnabled;
     this.columnMappingMode = columnMappingMode;
   }
 
@@ -92,7 +88,6 @@ public final class DeltaLakeSchemaConverter {
 
   public static final class Builder {
     private boolean isMapDataTypeEnabled = false;
-    private boolean isColumnMappingEnabled = false;
     private DeltaColumnMappingMode columnMappingMode = DeltaColumnMappingMode.NONE;
 
     public Builder withMapEnabled(boolean isMapDataTypeEnabled) {
@@ -100,16 +95,13 @@ public final class DeltaLakeSchemaConverter {
       return this;
     }
 
-    public Builder withColumnMapping(
-        boolean isColumnMappingEnabled, DeltaColumnMappingMode columnMappingMode) {
-      this.isColumnMappingEnabled = isColumnMappingEnabled;
+    public Builder withColumnMapping(DeltaColumnMappingMode columnMappingMode) {
       this.columnMappingMode = columnMappingMode;
       return this;
     }
 
     public DeltaLakeSchemaConverter build() {
-      return new DeltaLakeSchemaConverter(
-          isMapDataTypeEnabled, isColumnMappingEnabled, columnMappingMode);
+      return new DeltaLakeSchemaConverter(isMapDataTypeEnabled, columnMappingMode);
     }
   }
 
@@ -135,8 +127,7 @@ public final class DeltaLakeSchemaConverter {
   }
 
   private Map<String, String> readMetadataNode(final JsonNode fields) {
-    if (!isColumnMappingEnabled
-        || columnMappingMode == DeltaColumnMappingMode.NONE
+    if (columnMappingMode == DeltaColumnMappingMode.NONE
         || !fields.has(SCHEMA_STRING_FIELDS_METADATA)) {
       return null;
     }

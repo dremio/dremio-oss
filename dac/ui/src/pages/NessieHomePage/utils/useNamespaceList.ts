@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { useEffect, useReducer, useRef } from "react";
-import { EntryV2, V2BetaApi } from "@app/services/nessie/client";
+import { EntryV2, V2BetaApi } from "#oss/services/nessie/client";
 import { SmartResource } from "smart-resource";
 import { useResourceSnapshot, useResourceStatus } from "smart-resource/react";
 

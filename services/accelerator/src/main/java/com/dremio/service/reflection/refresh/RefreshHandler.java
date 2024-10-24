@@ -119,6 +119,7 @@ import org.apache.calcite.util.Pair;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Sql syntax handler for the $MATERIALIZE command, an internal command used to materialize
@@ -195,26 +196,11 @@ public class RefreshHandler implements SqlToPlanHandler {
             .build(logger);
       }
 
-      Optional<Materialization> materializationOpt =
-          service.getMaterialization(new MaterializationId(materialize.getMaterializationId()));
-      if (!materializationOpt.isPresent()) {
-        throw SqlExceptionHelper.parseError(
-                "Unknown materialization id.", sql, materialize.getReflectionIdPos())
-            .build(logger);
-      }
-      final Materialization materialization = materializationOpt.get();
-      if (!ReflectionGoalChecker.checkGoal(goal, materialization)) {
-        throw UserException.validationError()
-            .message("Reflection has been updated since reflection was scheduled.")
-            .build(logger);
-      }
-
-      if (materialization.getState() != MaterializationState.RUNNING && !isLogicalExplainOnly) {
-        throw UserException.validationError()
-            .message(
-                "Materialization in unexpected state for Reflection %s, Materialization %s. State: %s",
-                reflectionId.getId(), materialization.getId(), materialization.getState())
-            .build(logger);
+      Materialization materialization = null;
+      if (!isLogicalExplainOnly) {
+        materialization = getMaterialization(sql, service, materialize, reflectionId, goal);
+      } else {
+        materialization = getMaterializationForLogicalOnly(service, reflectionId, goal);
       }
 
       final RefreshHelper helper = ((ReflectionServiceImpl) service).getRefreshHelper();
@@ -411,6 +397,57 @@ public class RefreshHandler implements SqlToPlanHandler {
     } catch (Exception ex) {
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
     }
+  }
+
+  /**
+   * Get the materialization for this SqlRefreshReflection Also perform some checks on the
+   * materialization and its state
+   */
+  @NotNull
+  private static Materialization getMaterialization(
+      String sql,
+      ReflectionService service,
+      SqlRefreshReflection materialize,
+      ReflectionId reflectionId,
+      ReflectionGoal goal) {
+    Optional<Materialization> materializationOpt =
+        service.getMaterialization(new MaterializationId(materialize.getMaterializationId()));
+    if (!materializationOpt.isPresent()) {
+      throw SqlExceptionHelper.parseError(
+              "Unknown materialization id.", sql, materialize.getReflectionIdPos())
+          .build(logger);
+    }
+    final Materialization materialization = materializationOpt.get();
+    if (!ReflectionGoalChecker.checkGoal(goal, materialization)) {
+      throw UserException.validationError()
+          .message("Reflection has been updated since reflection was scheduled.")
+          .build(logger);
+    }
+
+    if (materialization.getState() != MaterializationState.RUNNING) {
+      throw UserException.validationError()
+          .message(
+              "Materialization in unexpected state for Reflection %s, Materialization %s. State: %s",
+              reflectionId.getId(), materialization.getId(), materialization.getState())
+          .build(logger);
+    }
+    return materialization;
+  }
+
+  /**
+   * This function is called only when we try to generate logical plan only for this reflection As
+   * the plan will not be executed we can skip some checks Also it could be called on an old
+   * materialization, so we will just used the latest materialization for that reflection
+   */
+  private static Materialization getMaterializationForLogicalOnly(
+      ReflectionService service, ReflectionId reflectionId, ReflectionGoal goal) {
+    final Materialization materialization = service.getLastMaterialization(reflectionId);
+    if (!ReflectionGoalChecker.checkGoal(goal, materialization)) {
+      throw UserException.validationError()
+          .message("Reflection has been updated since reflection was scheduled.")
+          .build(logger);
+    }
+    return materialization;
   }
 
   /**
@@ -831,23 +868,30 @@ public class RefreshHandler implements SqlToPlanHandler {
 
       // First, generate the plan with no DRRs to determine if the refresh method is incremental or
       // full.
+      RelNode normalizedPlan = null;
+      ReflectionPlanGenerator planGenerator = null;
       sqlHandlerConfig.getConverter().getSubstitutionProvider().disableDefaultRawReflection();
       ReflectionRecordingObserver recordingObserver = new ReflectionRecordingObserver();
       SqlHandlerConfig recordingConfig = sqlHandlerConfig.cloneWithNewObserver(recordingObserver);
-      ReflectionPlanGenerator planGenerator =
-          new ReflectionPlanGenerator(
-              recordingConfig,
-              catalogService,
-              config,
-              goal,
-              entry,
-              materialization,
-              reflectionSettings,
-              materializationStore,
-              dependenciesStore,
-              getForceFullRefresh(materialization),
-              false);
-      RelNode normalizedPlan = planGenerator.generateNormalizedPlan();
+      try {
+        planGenerator =
+            new ReflectionPlanGenerator(
+                recordingConfig,
+                catalogService,
+                config,
+                goal,
+                entry,
+                materialization,
+                reflectionSettings,
+                materializationStore,
+                dependenciesStore,
+                getForceFullRefresh(materialization),
+                false);
+        normalizedPlan = planGenerator.generateNormalizedPlan();
+      } catch (Exception e) {
+        recordingObserver.replay(sqlHandlerConfig.getObserver());
+        throw e;
+      }
       final RefreshDecisionWrapper noDefaultReflectionDecisionWrapper =
           planGenerator.getRefreshDecisionWrapper();
 

@@ -16,9 +16,9 @@
 
 import { useModalContainer, Button } from "dremio-ui-lib/components";
 import { MessageDialog } from "dremio-ui-common/components/MessageDialog.js";
-import MarkdownEditor from "@app/components/MarkdownEditor";
-import ConfirmCancelFooter from "@app/components/Modals/ConfirmCancelFooter";
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
+import MarkdownEditor from "#oss/components/MarkdownEditor";
+import ConfirmCancelFooter from "#oss/components/Modals/ConfirmCancelFooter";
+import ViewStateWrapper from "#oss/components/ViewStateWrapper";
 import { FormattedMessage, useIntl } from "react-intl";
 //@ts-ignore
 import ImmutablePropTypes from "react-immutable-proptypes";

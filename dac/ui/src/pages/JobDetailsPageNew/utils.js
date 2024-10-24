@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 import { getPrivilegeContext } from "dremio-ui-common/contexts/PrivilegeContext.js";
-import { getClusterInfo } from "@app/utils/infoUtils";
-import { getSupport } from "@app/utils/supportUtils";
+import { getClusterInfo } from "#oss/utils/infoUtils";
+import { getSupport } from "#oss/utils/supportUtils";
 import { setClusterType } from "actions/jobs/jobs";
 export const getFormatMessageIdForQueryType = (jobDetails) => {
   const requestType = jobDetails.get("requestType");

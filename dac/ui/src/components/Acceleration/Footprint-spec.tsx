@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 
-import Footprint from "@app/components/Acceleration/Footprint";
+import Footprint from "#oss/components/Acceleration/Footprint";
 
 describe("Footprint", () => {
   let minimalProps;

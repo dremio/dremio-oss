@@ -23,7 +23,7 @@ import { connectComplexForm } from "components/Forms/connectComplexForm";
 import NewFieldSection from "components/Forms/NewFieldSection";
 import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
 import { getTransformCards } from "selectors/transforms";
-import { sectionMargin } from "@app/uiTheme/less/layout.less";
+import { sectionMargin } from "#oss/uiTheme/less/layout.less";
 import TransformForm, { formWrapperProps } from "../../../forms/TransformForm";
 import ExtractMapCards from "./sections/ExtractMapCards";
 
@@ -58,7 +58,7 @@ export class ExtractMapForm extends Component {
           rule: fieldsMappers.getRuleFromCards(values.cards, values.activeCard),
         },
       },
-      submitType
+      submitType,
     );
 
   render() {
@@ -84,7 +84,7 @@ export function getExtractMapCards(selection) {
   }
   invariant(
     selection.get("mapPathList") !== undefined,
-    "must have map selection to get extract map cards"
+    "must have map selection to get extract map cards",
   );
   return Immutable.fromJS([
     {
@@ -119,5 +119,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(ExtractMapForm);

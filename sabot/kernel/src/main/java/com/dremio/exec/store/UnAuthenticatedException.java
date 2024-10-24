@@ -28,8 +28,8 @@ public class UnAuthenticatedException extends RuntimeException {
     super();
   }
 
-  public UnAuthenticatedException(Throwable cause) {
-    super(cause);
+  public UnAuthenticatedException(String errorMessage) {
+    super(errorMessage);
   }
 
   @FormatMethod

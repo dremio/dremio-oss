@@ -13,8 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import { ARCTIC, NESSIE } from "@app/constants/sourceTypes";
+import { intl } from "#oss/utils/intl";
+import {
+  NESSIE,
+  NAS,
+  HDFS,
+  HIVE,
+  HIVE3,
+  RESTCATALOG,
+  GCS,
+  AZURE_STORAGE,
+  S3,
+  AWSGLUE,
+  POLARIS,
+  UNITY,
+} from "#oss/constants/sourceTypes";
 
 export function sourceTypesIncludeS3(sourceTypes: { sourceType: string }[]) {
   return sourceTypes && !!sourceTypes.find((type) => type.sourceType === "S3");
@@ -32,31 +45,53 @@ export function sourceTypesIncludeSampleSource(
 export function isVersionedSource(type: string) {
   switch (type) {
     case NESSIE:
-    case ARCTIC:
       return true;
     default:
       return false;
   }
 }
 
-export function isArcticSource(type?: string) {
-  return type === ARCTIC;
-}
-
 export function isNessieSource(type?: string) {
   return type === NESSIE;
 }
 
+export function isArcticSource(type?: string) {
+  return false;
+}
+
 export const isIcebergSource = (sourceType: string) => {
   return (
-    "NAS" === sourceType ||
-    "HDFS" === sourceType ||
-    "NESSIE" === sourceType ||
-    "HIVE" === sourceType ||
-    "HIVE3" === sourceType ||
-    "GCS" === sourceType ||
-    "AZURE_STORAGE" === sourceType ||
-    "S3" === sourceType ||
-    "AWSGLUE" === sourceType
+    NAS === sourceType ||
+    HDFS === sourceType ||
+    NESSIE === sourceType ||
+    HIVE === sourceType ||
+    HIVE3 === sourceType ||
+    RESTCATALOG === sourceType ||
+    GCS === sourceType ||
+    UNITY === sourceType ||
+    POLARIS === sourceType ||
+    AZURE_STORAGE === sourceType ||
+    S3 === sourceType ||
+    AWSGLUE === sourceType
   );
+};
+
+export const getSourceIcon = (sourceType: string) => {
+  if (NESSIE === sourceType) {
+    return "entities/nessie-source";
+  } else {
+    return "entities/datalake-source";
+  }
+};
+
+export const showSourceIcon = (sourceType: string) => {
+  return true;
+};
+
+export const getAddSourceModalTitle = (sourceType: string) => {
+  return undefined;
+};
+
+export const getEditSourceModalTitle = (sourceType: string, name: string) => {
+  return intl.formatMessage({ id: "Source.EditSource" });
 };

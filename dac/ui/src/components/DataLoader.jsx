@@ -15,7 +15,7 @@
  */
 import { PureComponent, Fragment } from "react";
 import PropTypes from "prop-types";
-import { KeyChangeTrigger } from "@app/components/KeyChangeTrigger";
+import { KeyChangeTrigger } from "#oss/components/KeyChangeTrigger";
 
 /**
  * A utility class, that monitors {@see #keyValue} property change and triggers {#onChange} if key value

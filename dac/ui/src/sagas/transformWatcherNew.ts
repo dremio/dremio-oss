@@ -18,16 +18,16 @@ import { call, put } from "redux-saga/effects";
 import {
   performWatchedTransform,
   TransformFailedError,
-} from "@app/sagas/transformWatcher";
-import { failedExploreJobProgress } from "@app/actions/explore/dataset/data";
+} from "#oss/sagas/transformWatcher";
+import { failedExploreJobProgress } from "#oss/actions/explore/dataset/data";
 import {
   completeDatasetMetadataLoad,
   startDatasetMetadataLoad,
-} from "@app/actions/explore/view";
+} from "#oss/actions/explore/view";
 
 export function* submitTransformationJob(
   action: any,
-  viewId: string
+  viewId: string,
 ): Record<string, any> {
   const response = yield call(performWatchedTransform, action, viewId);
 
@@ -41,7 +41,7 @@ export function* submitTransformationJob(
 
 export function* fetchDatasetMetadata(
   action: any,
-  viewId: string
+  viewId: string,
 ): Record<string, any> {
   try {
     yield put(startDatasetMetadataLoad());

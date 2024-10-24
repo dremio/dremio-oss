@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { addNotification } from "@app/actions/notification";
-import { deleteScripts } from "@app/exports/endpoints/Scripts/deleteScripts";
+import { addNotification } from "#oss/actions/notification";
+import { deleteScripts } from "#oss/exports/endpoints/Scripts/deleteScripts";
 import { Button, DialogContent } from "dremio-ui-lib/components";
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import { usePromise } from "react-smart-promise";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
-import sentryUtil from "@app/utils/sentryUtil";
+import sentryUtil from "#oss/utils/sentryUtil";
 
 export const SQLScriptsBulkDeleteDialog = (props: {
   onCancel: () => void;

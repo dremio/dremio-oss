@@ -155,7 +155,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
       throws Exception {
     Folder parent =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/folder/" + parentPath)).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test/folder/" + parentPath))
+                .buildGet(),
             Folder.class);
     for (com.dremio.file.File file : parent.getContents().getFiles()) {
       if (name.equals(file.getName())) {
@@ -218,7 +219,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
       doc("preview json source file");
       JobDataFragment data =
           expectSuccess(
-              getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + fileUrlPath))
+              getBuilder(
+                      getHttpClient()
+                          .getAPIv2()
+                          .path("/source/dacfs_test/file_preview" + fileUrlPath))
                   .buildPost(Entity.json(jsonFileConfig)),
               JobDataFragment.class);
       assertEquals(3, data.getReturnedRowCount());
@@ -241,7 +245,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     doc("preview data for source file");
     JobDataFragment data =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + fileUrlPath))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dacfs_test/file_preview" + fileUrlPath))
                 .buildPost(Entity.json(fileConfig)),
             JobDataFragment.class);
     assertEquals(4, data.getReturnedRowCount());
@@ -267,7 +274,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     doc("preview data for source file");
     JobDataFragment data =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dacfs_test/file_preview/" + fileUrlPath))
                 .buildPost(Entity.json(fileConfig)),
             JobDataFragment.class);
     assertEquals(4, data.getReturnedRowCount());
@@ -275,11 +285,14 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
     fileConfig.setExtractHeader(true);
     expectSuccess(
-        getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath))
+        getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath))
             .buildPut(Entity.json(fileConfig)));
     data =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dacfs_test/file_preview/" + fileUrlPath))
                 .buildPost(Entity.json(fileConfig)),
             JobDataFragment.class);
     assertEquals(3, data.getReturnedRowCount());
@@ -310,7 +323,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     doc("preview data for source file");
     JobDataFragment data =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dacfs_test/file_preview/" + fileUrlPath))
                 .buildPost(Entity.json(fileConfig)),
             JobDataFragment.class);
     assertEquals(4, data.getReturnedRowCount());
@@ -318,11 +334,14 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
     fileConfig.setExtractHeader(true);
     expectSuccess(
-        getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath))
+        getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath))
             .buildPut(Entity.json(fileConfig)));
     data =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dacfs_test/file_preview/" + fileUrlPath))
                 .buildPost(Entity.json(fileConfig)),
             JobDataFragment.class);
     assertEquals(3, data.getReturnedRowCount());
@@ -355,7 +374,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
     JobDataFragment data =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dacfs_test/file_preview/" + fileUrlPath))
                 .buildPost(Entity.json(fileConfig)),
             JobDataFragment.class);
     assertEquals(3, data.getReturnedRowCount());
@@ -366,7 +388,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     fileConfig.setTrimHeader(false);
     JobDataFragment data2 =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dacfs_test/file_preview/" + fileUrlPath))
                 .buildPost(Entity.json(fileConfig)),
             JobDataFragment.class);
     assertEquals(3, data2.getReturnedRowCount());
@@ -386,12 +411,14 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String fileParentUrlPath = getUrlPath("/datasets/");
 
     doc("preview data for source file");
-    try (AutoCloseable ignore =
-        withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getOptionName(), "800")) {
+    try (AutoCloseable ignore = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX, 800)) {
       UserExceptionMapper.ErrorMessageWithContext error =
           expectError(
               FamilyExpectation.CLIENT_ERROR,
-              getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + fileUrlPath))
+              getBuilder(
+                      getHttpClient()
+                          .getAPIv2()
+                          .path("/source/dacfs_test/file_preview" + fileUrlPath))
                   .buildPost(Entity.json(fileConfig)),
               UserExceptionMapper.ErrorMessageWithContext.class);
       assertTrue(
@@ -415,7 +442,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     doc("preview json source file");
     JobDataFragment data =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview" + fileUrlPath))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dacfs_test/folder_preview" + fileUrlPath))
                 .buildPost(Entity.json(jsonFileConfig)),
             JobDataFragment.class);
     assertEquals(1, data.getReturnedRowCount());
@@ -425,7 +455,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
   @Test
   public void testLargeJsonFileWorksWithIncreasedScanLimit() throws Exception {
     try (AutoCloseable ignore =
-        withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")) {
+        withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX, 1000)) {
       try (JobDataFragment result =
           submitJobAndGetData(
               l(JobsService.class),
@@ -452,12 +482,9 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testLargeJsonFileColumnLimit() throws Exception {
-
-    try (AutoCloseable ignore1 =
-            withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getOptionName(), "800");
+    try (AutoCloseable ignore1 = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX, 800);
         AutoCloseable ignore2 =
-            withSystemOption(
-                CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")) {
+            withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX, 1000)) {
       UserExceptionAssert.assertThatThrownBy(
           () ->
               submitJobAndGetData(
@@ -472,7 +499,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
   @Test
   public void testLargeNestedJsonFileWorksWithIncreasedScanLimit() throws Exception {
     try (AutoCloseable ignore =
-        withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")) {
+        withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX, 1000)) {
       try (JobDataFragment result =
           submitJobAndGetData(
               l(JobsService.class),
@@ -499,11 +526,9 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testLargeNestedJsonFileColumnLimit() throws Exception {
-    try (AutoCloseable ignore1 =
-            withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getOptionName(), "800");
+    try (AutoCloseable ignore1 = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX, 800);
         AutoCloseable ignore2 =
-            withSystemOption(
-                CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")) {
+            withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX, 1000)) {
       UserExceptionAssert.assertThatThrownBy(
           () ->
               submitJobAndGetData(
@@ -522,15 +547,17 @@ public class TestPhysicalDatasets extends BaseTestServer {
      * that only 20 records are read while reading parquet file is slow in preview because there is a time limit for reading in preview.
      * The time limit is 500ms in getData for preview in FormatTools.
      */
-    setSystemOption("dac.format.preview.batch_size", "100");
-    try {
+    try (AutoCloseable ignored = withSystemOption(FormatTools.BATCH_SIZE, 100)) {
       String fileUrlPath = getUrlPath("/singlefile_parquet_dir/0_0_0.parquet");
       String fileParentUrlPath = getUrlPath("/singlefile_parquet_dir/");
 
       ParquetFileConfig fileConfig = new ParquetFileConfig();
       JobDataFragment data =
           expectSuccess(
-              getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+              getBuilder(
+                      getHttpClient()
+                          .getAPIv2()
+                          .path("/source/dacfs_test/file_preview/" + fileUrlPath))
                   .buildPost(Entity.json(fileConfig)),
               JobDataFragment.class);
       assertEquals(25, data.getReturnedRowCount());
@@ -547,8 +574,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
         assertEquals(4, jobData.getColumns().size());
       }
       checkCounts(fileParentUrlPath, "0_0_0.parquet", true, 1, 0, 0);
-    } finally {
-      resetSystemOption("dac.format.preview.batch_size");
     }
   }
 
@@ -559,7 +584,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     ParquetFileConfig fileConfig = new ParquetFileConfig();
     JobDataFragment data =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dacfs_test/file_preview/" + fileUrlPath))
                 .buildPost(Entity.json(fileConfig)),
             JobDataFragment.class);
     assertEquals(0, data.getReturnedRowCount());
@@ -575,7 +603,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     TextFileConfig format1 =
         (TextFileConfig)
             expectSuccess(
-                    getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath1))
+                    getBuilder(
+                            getHttpClient()
+                                .getAPIv2()
+                                .path("/source/dacfs_test/file_format/" + filePath1))
                         .buildGet(),
                     FileFormatUI.class)
                 .getFileFormat();
@@ -587,7 +618,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     format1 =
         (TextFileConfig)
             expectSuccess(
-                    getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath1))
+                    getBuilder(
+                            getHttpClient()
+                                .getAPIv2()
+                                .path("/source/dacfs_test/file_format/" + filePath1))
                         .buildGet(),
                     FileFormatUI.class)
                 .getFileFormat();
@@ -606,8 +640,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
      * that only 20 records are read while reading parquet file is slow in preview because there is a time limit for reading in preview.
      * The time limit is 500ms in getData for preview in FormatTools.
      */
-    setSystemOption("dac.format.preview.batch_size", "100");
-    try {
+    try (AutoCloseable ignored = withSystemOption(FormatTools.BATCH_SIZE, 100)) {
       ParquetFileConfig fileConfig = new ParquetFileConfig();
       fileConfig.setName("parquet");
 
@@ -617,18 +650,20 @@ public class TestPhysicalDatasets extends BaseTestServer {
       doc("preview data for source folder");
       JobDataFragment data =
           expectSuccess(
-              getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview/" + filePath))
+              getBuilder(
+                      getHttpClient()
+                          .getAPIv2()
+                          .path("/source/dacfs_test/folder_preview/" + filePath))
                   .buildPost(Entity.json(fileConfig)),
               JobDataFragment.class);
       assertEquals(25, data.getReturnedRowCount());
 
       expectSuccess(
-          getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
+          getBuilder(
+                  getHttpClient().getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
               .buildPut(Entity.json(fileConfig)));
 
       checkCounts(fileParentPath, "folderdataset", true, 1, 0, 0);
-    } finally {
-      resetSystemOption("dac.format.preview.batch_size");
     }
   }
 
@@ -643,20 +678,25 @@ public class TestPhysicalDatasets extends BaseTestServer {
     doc("preview data for source folder");
     JobDataFragment data =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview/" + filePath))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dacfs_test/folder_preview/" + filePath))
                 .buildPost(Entity.json(fileConfig)),
             JobDataFragment.class);
     assertEquals(4, data.getReturnedRowCount());
 
     expectSuccess(
-        getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
+        getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
             .buildPut(Entity.json(fileConfig)));
   }
 
   @Test
   public void listSource() {
     SourceUI source =
-        expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test")).buildGet(), SourceUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test")).buildGet(),
+            SourceUI.class);
     System.out.println(source.getContents());
   }
 
@@ -666,7 +706,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String filePath = getUrlPath("/datasets/text");
     Folder folder =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/folder/" + filePath)).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test/folder/" + filePath))
+                .buildGet(),
             Folder.class);
     NamespaceTree ns = folder.getContents();
     assertEquals(0, ns.getFolders().size());
@@ -682,23 +723,24 @@ public class TestPhysicalDatasets extends BaseTestServer {
     fileConfig.setName("comma.txt");
 
     expectSuccess(
-        getBuilder(getAPIv2().path(ns.getFiles().get(0).getLinks().get("format")))
+        getBuilder(getHttpClient().getAPIv2().path(ns.getFiles().get(0).getLinks().get("format")))
             .buildPut(Entity.json(fileConfig)),
         FileFormatUI.class);
 
     expectSuccess(
-        getBuilder(getAPIv2().path(ns.getFiles().get(1).getLinks().get("format")))
+        getBuilder(getHttpClient().getAPIv2().path(ns.getFiles().get(1).getLinks().get("format")))
             .buildPut(Entity.json(fileConfig)),
         FileFormatUI.class);
 
     expectSuccess(
-        getBuilder(getAPIv2().path(ns.getFiles().get(2).getLinks().get("format")))
+        getBuilder(getHttpClient().getAPIv2().path(ns.getFiles().get(2).getLinks().get("format")))
             .buildPut(Entity.json(fileConfig)),
         FileFormatUI.class);
 
     folder =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/folder/" + filePath)).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test/folder/" + filePath))
+                .buildGet(),
             Folder.class);
     ns = folder.getContents();
     assertEquals(0, ns.getFolders().size());
@@ -727,7 +769,9 @@ public class TestPhysicalDatasets extends BaseTestServer {
     Files.write(new File(folder1, "file.tsv").toPath(), "a\tf\nc\td".getBytes(UTF_8));
     String folderFormatUrl = "/source/LocalFS1/file_format/tmp/_dac2/folderTSV/file.tsv";
     FileFormatUI defaultFormat =
-        expectSuccess(getBuilder(getAPIv2().path(folderFormatUrl)).buildGet(), FileFormatUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path(folderFormatUrl)).buildGet(),
+            FileFormatUI.class);
     assertEquals(FileType.TEXT, defaultFormat.getFileFormat().getFileType());
     assertFalse(defaultFormat.getFileFormat().getIsFolder());
     assertEquals(folderFormatUrl, defaultFormat.getLinks().get("self"));
@@ -752,7 +796,9 @@ public class TestPhysicalDatasets extends BaseTestServer {
     doc("get default format for folder");
     String folderFormatUrl = "/source/LocalFS1/folder_format/tmp/_dac/folder1";
     FileFormatUI defaultFormat =
-        expectSuccess(getBuilder(getAPIv2().path(folderFormatUrl)).buildGet(), FileFormatUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path(folderFormatUrl)).buildGet(),
+            FileFormatUI.class);
     assertEquals(folderFormatUrl, defaultFormat.getLinks().get("self"));
 
     TextFileConfig fileConfig = new TextFileConfig();
@@ -769,17 +815,22 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
     doc("create physical dataset from source folder");
     expectSuccess(
-        getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
+        getBuilder(
+                getHttpClient().getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
             .buildPut(Entity.json(fileFormat1)));
 
     expectSuccess(
-        getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder2"))
+        getBuilder(
+                getHttpClient().getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder2"))
             .buildPut(Entity.json(fileFormat2)));
 
     doc("get physical dataset config from source folder");
     fileFormat1 =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -787,7 +838,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
     fileFormat2 =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder2"))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/LocalFS1/folder_format/tmp/_dac/folder2"))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -800,13 +854,19 @@ public class TestPhysicalDatasets extends BaseTestServer {
       fileFormat1 = FileFormat.getForFolder(fileConfig.asFileConfig());
 
       expectSuccess(
-          getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
+          getBuilder(
+                  getHttpClient()
+                      .getAPIv2()
+                      .path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
               .buildPut(Entity.json(fileFormat1)));
 
       // retrieve the format back and check the updates are present.
       fileFormat1 =
           expectSuccess(
-                  getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
+                  getBuilder(
+                          getHttpClient()
+                              .getAPIv2()
+                              .path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
                       .buildGet(),
                   FileFormatUI.class)
               .getFileFormat();
@@ -818,7 +878,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
     doc("list source folder and see if folder1 and folder2 are marked as physical dataset");
     Folder folder =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/LocalFS1/folder/tmp/_dac")).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("/source/LocalFS1/folder/tmp/_dac"))
+                .buildGet(),
             Folder.class);
     NamespaceTree ns = folder.getContents();
     assertEquals(3, ns.getFolders().size());
@@ -847,7 +908,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
         expectStatus(
             CONFLICT,
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("/source/LocalFS1/folder_format/tmp/_dac/folder1")
                         .queryParam("version", badVersion))
                 .buildDelete(),
@@ -857,14 +919,18 @@ public class TestPhysicalDatasets extends BaseTestServer {
     doc("delete physical dataset for source folder");
     expectSuccess(
         getBuilder(
-                getAPIv2()
+                getHttpClient()
+                    .getAPIv2()
                     .path("/source/LocalFS1/folder_format/tmp/_dac/folder1")
                     .queryParam("version", fileFormat1.getVersion()))
             .buildDelete());
 
     FileFormat fileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/LocalFS1/folder_format/tmp/_dac/folder1"))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -872,7 +938,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
     folder =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/LocalFS1/folder/tmp/_dac")).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("/source/LocalFS1/folder/tmp/_dac"))
+                .buildGet(),
             Folder.class);
     ns = folder.getContents();
     assertEquals(3, ns.getFolders().size());
@@ -975,7 +1042,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
       fileConfig.setHasMergedCells(true);
     } // false is the default value
 
-    return getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + filePath))
+    return getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test/file_preview" + filePath))
         .buildPost(Entity.json(fileConfig));
   }
 
@@ -990,7 +1057,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
       fileConfig.setHasMergedCells(true);
     } // false is the default value
 
-    return getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + filePath))
+    return getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test/file_preview" + filePath))
         .buildPost(Entity.json(fileConfig));
   }
 
@@ -1026,7 +1093,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String folderPath = getUrlPath("/singlefile_parquet_dir");
     FileFormat fileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + folderPath))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/dacfs_test/folder_format/" + folderPath))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -1038,7 +1108,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String folderPath = getUrlPath("/datasets/text");
     FileFormat fileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + folderPath))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/dacfs_test/folder_format/" + folderPath))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -1050,7 +1123,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String folderPath = getUrlPath("/datasets/csv");
     FileFormat fileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + folderPath))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/dacfs_test/folder_format/" + folderPath))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -1062,7 +1138,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String folderPath = getUrlPath("/json");
     FileFormat fileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + folderPath))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/dacfs_test/folder_format/" + folderPath))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -1074,7 +1153,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String filePath = getUrlPath("/singlefile_parquet_dir/0_0_0.parquet");
     FileFormat fileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/dacfs_test/file_format/" + filePath))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -1086,7 +1168,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String filePath = getUrlPath("/datasets/compressed/test.json.gz");
     FileFormat fileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/dacfs_test/file_format/" + filePath))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -1098,7 +1183,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String filePath = getUrlPath("/datasets/compressed/test.json.zip");
     FileFormat fileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/dacfs_test/file_format/" + filePath))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -1110,7 +1198,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String filePath = getUrlPath("/datasets/folderdataset/");
     FileFormat fileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/dacfs_test/folder_format/" + filePath))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -1122,7 +1213,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String filePath = getUrlPath("/datasets/csv/comma.csv");
     FileFormat fileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/dacfs_test/file_format/" + filePath))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -1134,7 +1228,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String filePath = getUrlPath("/datasets/text/comma.txt");
     FileFormat fileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/dacfs_test/file_format/" + filePath))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -1146,7 +1243,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String filePath = getUrlPath("/json/mixed.json");
     FileFormat fileFormat =
         expectSuccess(
-                getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath))
+                getBuilder(
+                        getHttpClient()
+                            .getAPIv2()
+                            .path("/source/dacfs_test/file_format/" + filePath))
                     .buildGet(),
                 FileFormatUI.class)
             .getFileFormat();
@@ -1166,7 +1266,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     doc("preview data for source file");
     JobDataFragment data =
         expectSuccess(
-            getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("/source/dacfs_test/file_preview/" + fileUrlPath))
                 .buildPost(Entity.json(fileConfig)),
             JobDataFragment.class);
     assertEquals(23, data.getColumns().size());
@@ -1188,7 +1291,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String fileUrlPath = getUrlPath("/datasets/tinyacq.txt");
 
     expectSuccess(
-        getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath))
+        getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath))
             .buildPut(Entity.json(fileConfig)));
     try (final JobDataFragment jobData =
         submitJobAndGetData(
@@ -1219,7 +1322,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
     setLastModified(filePath + "/2020-01-02/1_0_1.parquet", currentTime);
 
     expectSuccess(
-        getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
+        getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
             .buildPut(Entity.json(fileConfig)));
 
     int expectedNumOfPartitionChunks = 1;
@@ -1264,7 +1367,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
     setLastModified(filePath + "/2020-01-02/2.txt", currentTime);
 
     expectSuccess(
-        getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
+        getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
             .buildPut(Entity.json(fileConfig)));
 
     int expectedNumOfPartitionChunks = 2;
@@ -1308,7 +1411,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
     setLastModified(filePath + "/2023-03-03/2023-03-03.csv", currentTime);
 
     expectSuccess(
-        getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
+        getBuilder(getHttpClient().getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
             .buildPut(Entity.json(fileConfig)));
 
     doc("ensure select * works");

@@ -28,7 +28,7 @@ const pendingRequests = new Set<string>();
  * every time the `featureFlags` map is updated.
  */
 export const FeaturesFlagsResource = new SmartResource(
-  () => new Map(featureFlags)
+  () => new Map(featureFlags),
 );
 
 export const resetFeatureFlagsResource = () => {
@@ -45,7 +45,7 @@ export const loadFeatureFlags = (flag: Flag): Promise<void> | undefined => {
   const flags = Array.isArray(flag) ? flag : [flag];
 
   const unfetchedFlags = flags.filter(
-    (flag) => !featureFlags.has(flag) && !pendingRequests.has(flag)
+    (flag) => !featureFlags.has(flag) && !pendingRequests.has(flag),
   );
 
   if (unfetchedFlags.length) {
@@ -58,7 +58,7 @@ export const loadFeatureFlags = (flag: Flag): Promise<void> | undefined => {
             .finally(() => {
               pendingRequests.delete(unfetchedFlag);
             });
-        })
+        }),
       )
         // Trigger a refresh on the resource now that we've updated the map
         .then(() => FeaturesFlagsResource.fetch())

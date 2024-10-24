@@ -52,17 +52,17 @@
                         {
                           "propName": "config.clientId",
                           "size": "full",
-                          "errMsg": "ApplicationId is required for Azure Active Directory OAuth 2.0"
+                          "errMsg": "ApplicationId is required for Microsoft Entra ID OAuth 2.0"
                         },
                         {
                           "propName": "config.tokenEndpoint",
                           "size": "full",
-                          "errMsg": "Token endpoint is required for Azure Active Directory OAuth 2.0"
+                          "errMsg": "Token endpoint is required for Microsoft Entra ID OAuth 2.0"
                         },
                         {
                           "propName": "config.clientSecret",
                           "size": "full",
-                          "errMsg": "Client secret is required for Azure Active Directory OAuth 2.0"
+                          "errMsg": "Client secret is required for Microsoft Entra ID OAuth 2.0"
                         }
                       ]
                     }

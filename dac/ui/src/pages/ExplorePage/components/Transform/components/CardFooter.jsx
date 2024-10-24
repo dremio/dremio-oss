@@ -105,7 +105,7 @@ const styles = {
   text: {
     marginLeft: "var(--dremio--spacing--05)",
     fontSize: 11,
-    color: "#999999",
+    color: "var(--text--primary)",
     display: "inline-block",
     height: 16,
   },

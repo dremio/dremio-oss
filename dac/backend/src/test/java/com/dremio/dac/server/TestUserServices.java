@@ -121,28 +121,33 @@ public class TestUserServices extends BaseTestServer {
             .setLastName("dremio")
             .build();
     expectSuccess(
-        getBuilder(getAPIv2().path("user/" + testUserName("test11")))
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test11")))
             .buildPut(Entity.json(new UserForm(uc, testPassword("test11")))),
         UserUI.class);
     UserUI u1 =
         expectSuccess(
-            getBuilder(getAPIv2().path("user/" + testUserName("test11"))).buildGet(), UserUI.class);
+            getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test11")))
+                .buildGet(),
+            UserUI.class);
 
     doc("update user");
     final User uc2 = SimpleUser.newBuilder(u1.getUser()).setEmail("test22@dremio.test").build();
     expectSuccess(
-        getBuilder(getAPIv2().path("user/" + testUserName("test11")))
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test11")))
             .buildPost(Entity.json(new UserForm(uc2))),
         UserUI.class);
     UserUI u2 =
-        expectSuccess(getBuilder(getUserApiV2(testUserName("test11"))).buildGet(), UserUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getUserApiV2(testUserName("test11"))).buildGet(),
+            UserUI.class);
     assertEquals(uc2.getUserName(), u2.getUser().getUserName());
 
     doc("delete with missing version");
     final GenericErrorMessage errorDelete =
         expectStatus(
             BAD_REQUEST,
-            getBuilder(getAPIv2().path("user/" + testUserName("test11"))).buildDelete(),
+            getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test11")))
+                .buildDelete(),
             GenericErrorMessage.class);
     assertThat(errorDelete.getErrorMessage())
         .isEqualTo(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
@@ -158,7 +163,8 @@ public class TestUserServices extends BaseTestServer {
         expectStatus(
             CONFLICT,
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("user/" + testUserName("test11"))
                         .queryParam("version", badVersion))
                 .buildDelete(),
@@ -168,7 +174,11 @@ public class TestUserServices extends BaseTestServer {
     doc("delete");
     String version = getUserVersionFromStore(testUserName("test11"));
     expectSuccess(
-        getBuilder(getAPIv2().path("user/" + testUserName("test11")).queryParam("version", version))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv2()
+                    .path("user/" + testUserName("test11"))
+                    .queryParam("version", version))
             .buildDelete());
   }
 
@@ -178,7 +188,8 @@ public class TestUserServices extends BaseTestServer {
     doc("getting user info");
     UserUI u1 =
         expectSuccess(
-            getBuilder(getUserApiV2(SampleDataPopulator.DEFAULT_USER_NAME)).buildGet(),
+            getBuilder(getHttpClient().getUserApiV2(SampleDataPopulator.DEFAULT_USER_NAME))
+                .buildGet(),
             UserUI.class);
     assertEquals(SampleDataPopulator.DEFAULT_USER_NAME, u1.getUserName().getName());
 
@@ -186,7 +197,7 @@ public class TestUserServices extends BaseTestServer {
     // common module.
     expectError(
         CLIENT_ERROR,
-        getBuilder(getAPIv2().path("user/dac")).buildGet(),
+        getBuilder(getHttpClient().getAPIv2().path("user/dac")).buildGet(),
         GenericErrorMessage.class);
     doc("Creating user");
     final User userConfig2 =
@@ -197,22 +208,26 @@ public class TestUserServices extends BaseTestServer {
             .setLastName("dremio")
             .build();
     expectSuccess(
-        getBuilder(getAPIv2().path("user/" + testUserName("test11")))
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test11")))
             .buildPut(Entity.json(new UserForm(userConfig2, testPassword("test11")))),
         UserUI.class);
     UserUI u2 =
-        expectSuccess(getBuilder(getUserApiV2(testUserName("test11"))).buildGet(), UserUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getUserApiV2(testUserName("test11"))).buildGet(),
+            UserUI.class);
     assertEquals(userConfig2.getFirstName(), u2.getUser().getFirstName());
     assertEquals(userConfig2.getLastName(), u2.getUser().getLastName());
 
     doc("updating user");
     User uc3 = SimpleUser.newBuilder(u2.getUser()).setEmail("test2@dremio.test").build();
     expectSuccess(
-        getBuilder(getAPIv2().path("user/" + testUserName("test11")))
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test11")))
             .buildPost(Entity.json(new UserForm(uc3))),
         UserUI.class);
     UserUI u3 =
-        expectSuccess(getBuilder(getUserApiV2(testUserName("test11"))).buildGet(), UserUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getUserApiV2(testUserName("test11"))).buildGet(),
+            UserUI.class);
     assertEquals(u3.getUser().getFirstName(), uc3.getFirstName());
     assertEquals(u3.getUser().getLastName(), uc3.getLastName());
 
@@ -220,14 +235,18 @@ public class TestUserServices extends BaseTestServer {
     // Get version from store
     String version = getUserVersionFromStore(testUserName("test11"));
     expectSuccess(
-        getBuilder(getAPIv2().path("user/" + testUserName("test11")).queryParam("version", version))
+        getBuilder(
+                getHttpClient()
+                    .getAPIv2()
+                    .path("user/" + testUserName("test11"))
+                    .queryParam("version", version))
             .buildDelete());
 
     // TODO: Expected error is going to change after refactoring of DAC/dependent services into a
     // common module.
     expectError(
         CLIENT_ERROR,
-        getBuilder(getAPIv2().path("user/" + testUserName("test11"))).buildGet(),
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test11"))).buildGet(),
         GenericErrorMessage.class);
   }
 
@@ -276,54 +295,69 @@ public class TestUserServices extends BaseTestServer {
     dw = userService.createUser(dw, dw.getFirstName() + "1234");
     mj = userService.createUser(mj, mj.getFirstName() + "1234");
 
-    UserUI u = expectSuccess(getBuilder(getUserApiV2(md.getUserName())).buildGet(), UserUI.class);
+    final String username1 = md.getUserName();
+    UserUI u =
+        expectSuccess(getBuilder(getHttpClient().getUserApiV2(username1)).buildGet(), UserUI.class);
     assertEquals(md.getFirstName(), u.getUser().getFirstName());
     assertEquals(md.getLastName(), u.getUser().getLastName());
 
-    u = expectSuccess(getBuilder(getUserApiV2(mj.getUserName())).buildGet(), UserUI.class);
+    final String username = mj.getUserName();
+    u = expectSuccess(getBuilder(getHttpClient().getUserApiV2(username)).buildGet(), UserUI.class);
     assertEquals(mj.getFirstName(), u.getUser().getFirstName());
     assertEquals(mj.getLastName(), u.getUser().getLastName());
 
     doc("Get all users");
     UsersUI users1 =
-        expectSuccess(getBuilder(getAPIv2().path("users/all")).buildGet(), UsersUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("users/all")).buildGet(), UsersUI.class);
     assertEquals(7, users1.getUsers().size());
 
     doc("Search all users");
     UsersUI users2 =
-        expectSuccess(getBuilder(getAPIv2().path("users/search")).buildGet(), UsersUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("users/search")).buildGet(), UsersUI.class);
     assertEquals(7, users2.getUsers().size());
 
     doc("Search for a user");
     UsersUI users3 =
         expectSuccess(
-            getBuilder(getAPIv2().path("users/search").queryParam("filter", "David")).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path("users/search").queryParam("filter", "David"))
+                .buildGet(),
             UsersUI.class);
     assertEquals(3, users3.getUsers().size());
 
     UsersUI users4 =
         expectSuccess(
-            getBuilder(getAPIv2().path("users/search").queryParam("filter", "Mark")).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("users/search").queryParam("filter", "Mark"))
+                .buildGet(),
             UsersUI.class);
     assertEquals(2, users4.getUsers().size());
 
     UsersUI users5 =
         expectSuccess(
-            getBuilder(getAPIv2().path("users/search").queryParam("filter", "Johnson")).buildGet(),
+            getBuilder(
+                    getHttpClient().getAPIv2().path("users/search").queryParam("filter", "Johnson"))
+                .buildGet(),
             UsersUI.class);
     assertEquals(1, users5.getUsers().size());
 
     doc("Search users using job filters");
     JobFilterItems users6 =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs/filters/users").queryParam("filter", "David"))
+            getBuilder(
+                    getHttpClient()
+                        .getAPIv2()
+                        .path("jobs/filters/users")
+                        .queryParam("filter", "David"))
                 .buildGet(),
             JobFilterItems.class);
     assertEquals(3, users6.getItems().size());
 
     final JobFilterItems users7 =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs/filters/users").queryParam("limit", 2)).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("jobs/filters/users").queryParam("limit", 2))
+                .buildGet(),
             JobFilterItems.class);
     assertEquals(toString(), 2, users7.getItems().size());
 
@@ -345,7 +379,7 @@ public class TestUserServices extends BaseTestServer {
             .setLastName("dremio")
             .build();
     expectSuccess(
-        getBuilder(getAPIv2().path("user/" + testUserName("test12")))
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test12")))
             .buildPut(Entity.json(new UserForm(userConfig2, testPassword("test12")))),
         UserUI.class);
 
@@ -354,7 +388,7 @@ public class TestUserServices extends BaseTestServer {
     UserLogin userLogin = new UserLogin(testUserName("test12"), testPassword("test12"));
     UserLoginSession userLoginToken =
         expectSuccess(
-            getBuilder(getAPIv2().path("/login")).buildPost(Entity.json(userLogin)),
+            getBuilder(getHttpClient().getAPIv2().path("/login")).buildPost(Entity.json(userLogin)),
             UserLoginSession.class);
     assertEquals(testUserName("test12"), userLoginToken.getUserName());
     assertEquals("test1@dremio.test", userLoginToken.getEmail());
@@ -371,12 +405,15 @@ public class TestUserServices extends BaseTestServer {
     doc("login with wrong password");
     UserLogin userLogin1 = new UserLogin(testUserName("test12"), "test1-p2");
     expectStatus(
-        UNAUTHORIZED, getBuilder(getAPIv2().path("/login")).buildPost(Entity.json(userLogin1)));
+        UNAUTHORIZED,
+        getBuilder(getHttpClient().getAPIv2().path("/login")).buildPost(Entity.json(userLogin1)));
 
     // start of next test
     UserUI u =
         expectSuccess(
-            getBuilder(getAPIv2().path("user/" + testUserName("test12"))).buildGet(), UserUI.class);
+            getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test12")))
+                .buildGet(),
+            UserUI.class);
     userService.deleteUser(
         new UserName(testUserName("test12")).getName(), u.getUser().getVersion());
 
@@ -412,12 +449,17 @@ public class TestUserServices extends BaseTestServer {
     userLogin = new UserLogin(testUserName("test1"), testPassword("test1"));
     String token =
         expectSuccess(
-                getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)),
+                getHttpClient()
+                    .getAPIv2()
+                    .path("/login")
+                    .request(JSON)
+                    .buildPost(Entity.json(userLogin)),
                 UserLoginSession.class)
             .getToken();
     doc("set auth header and make request");
     expectSuccess(
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/testuserservices-helper/test1")
             .request(JSON)
             .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + token)
@@ -425,7 +467,8 @@ public class TestUserServices extends BaseTestServer {
         String.class);
 
     expectSuccess(
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/testuserservices-helper/test3")
             .request(JSON)
             .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + token)
@@ -433,7 +476,8 @@ public class TestUserServices extends BaseTestServer {
         String.class);
 
     expectSuccess(
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/testuserservices-helper/test2")
             .request(JSON)
             .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + token)
@@ -443,27 +487,31 @@ public class TestUserServices extends BaseTestServer {
     userLogin = new UserLogin(testUserName("test2"), testPassword("test2"));
     token =
         expectSuccess(
-                getBuilder(getAPIv2().path("/login")).buildPost(Entity.json(userLogin)),
+                getBuilder(getHttpClient().getAPIv2().path("/login"))
+                    .buildPost(Entity.json(userLogin)),
                 UserLoginSession.class)
             .getToken();
     doc("set auth header and make request");
     // Every user is part of "user" after the introduction of the roles service.
     expectSuccess(
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/testuserservices-helper/test1")
             .request(JSON)
             .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + token)
             .buildGet());
 
     expectSuccess(
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/testuserservices-helper/test2")
             .request(JSON)
             .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + token)
             .buildGet());
 
     expectSuccess(
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/testuserservices-helper/test3")
             .request(JSON)
             .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + token)
@@ -473,12 +521,17 @@ public class TestUserServices extends BaseTestServer {
     userLogin = new UserLogin(testUserName("test3"), testPassword("test3"));
     token =
         expectSuccess(
-                getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)),
+                getHttpClient()
+                    .getAPIv2()
+                    .path("/login")
+                    .request(JSON)
+                    .buildPost(Entity.json(userLogin)),
                 UserLoginSession.class)
             .getToken();
     doc("set auth header and make request");
     expectSuccess(
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/testuserservices-helper/test1")
             .request(JSON)
             .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + token)
@@ -486,7 +539,8 @@ public class TestUserServices extends BaseTestServer {
         String.class);
 
     expectSuccess(
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/testuserservices-helper/test2")
             .request(JSON)
             .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + token)
@@ -494,7 +548,8 @@ public class TestUserServices extends BaseTestServer {
         String.class);
 
     expectSuccess(
-        getAPIv2()
+        getHttpClient()
+            .getAPIv2()
             .path("/testuserservices-helper/test3")
             .request(JSON)
             .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + token)
@@ -503,15 +558,18 @@ public class TestUserServices extends BaseTestServer {
 
     u =
         expectSuccess(
-            getBuilder(getAPIv2().path("user/" + testUserName("test1"))).buildGet(), UserUI.class);
+            getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test1"))).buildGet(),
+            UserUI.class);
     userService.deleteUser(new UserName(testUserName("test1")).getName(), u.getUser().getVersion());
     u =
         expectSuccess(
-            getBuilder(getAPIv2().path("user/" + testUserName("test2"))).buildGet(), UserUI.class);
+            getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test2"))).buildGet(),
+            UserUI.class);
     userService.deleteUser(new UserName(testUserName("test2")).getName(), u.getUser().getVersion());
     u =
         expectSuccess(
-            getBuilder(getAPIv2().path("user/" + testUserName("test3"))).buildGet(), UserUI.class);
+            getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test3"))).buildGet(),
+            UserUI.class);
     userService.deleteUser(new UserName(testUserName("test3")).getName(), u.getUser().getVersion());
   }
 
@@ -526,35 +584,38 @@ public class TestUserServices extends BaseTestServer {
             .setLastName("dremio")
             .build();
     expectSuccess(
-        getBuilder(getAPIv2().path("user/" + testUserName("test12")))
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test12")))
             .buildPut(Entity.json(new UserForm(userConfig, testPassword("test12")))),
         UserUI.class);
     UserUI u =
         expectSuccess(
-            getBuilder(getAPIv2().path("user/" + testUserName("test12"))).buildGet(), UserUI.class);
+            getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test12")))
+                .buildGet(),
+            UserUI.class);
 
     doc("login");
     UserLogin userLogin = new UserLogin(testUserName("test12"), testPassword("test12"));
     expectSuccess(
-        getBuilder(getAPIv2().path("/login")).buildPost(Entity.json(userLogin)),
+        getBuilder(getHttpClient().getAPIv2().path("/login")).buildPost(Entity.json(userLogin)),
         UserLoginSession.class);
 
     doc("change name");
     User userConfig2 =
         SimpleUser.newBuilder(u.getUser()).setUserName(testUserName("newTestName")).build();
     expectSuccess(
-        getBuilder(getAPIv2().path("user/" + testUserName("test12")))
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("test12")))
             .buildPost(Entity.json(new UserForm(userConfig2, testPassword("test12")))),
         UserUI.class);
 
     UserLogin userLogin2 = new UserLogin(testUserName("newTestName"), testPassword("test12"));
     expectSuccess(
-        getBuilder(getAPIv2().path("/login")).buildPost(Entity.json(userLogin2)),
+        getBuilder(getHttpClient().getAPIv2().path("/login")).buildPost(Entity.json(userLogin2)),
         UserLoginSession.class);
 
     u =
         expectSuccess(
-            getBuilder(getAPIv2().path("user/" + testUserName("newTestName"))).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("newTestName")))
+                .buildGet(),
             UserUI.class);
     l(UserService.class)
         .deleteUser(new UserName(testUserName("newTestName")).getName(), u.getUser().getVersion());
@@ -595,13 +656,15 @@ public class TestUserServices extends BaseTestServer {
     UserLogin adminLogin = new UserLogin(testUserName("admin"), testPassword("admin"));
     UserLoginSession adminLoginToken =
         expectSuccess(
-            getBuilder(getAPIv2().path("/login")).buildPost(Entity.json(adminLogin)),
+            getBuilder(getHttpClient().getAPIv2().path("/login"))
+                .buildPost(Entity.json(adminLogin)),
             UserLoginSession.class);
 
     // create user2 as admin
     UserUI user =
         expectSuccess(
-            getAPIv2()
+            getHttpClient()
+                .getAPIv2()
                 .path("user/" + testUserName("user2"))
                 .request(JSON)
                 .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + adminLoginToken.getToken())
@@ -614,7 +677,8 @@ public class TestUserServices extends BaseTestServer {
     @SuppressWarnings("unused")
     UserLoginSession user2LoginToken =
         expectSuccess(
-            getBuilder(getAPIv2().path("/login")).buildPost(Entity.json(user2Login)),
+            getBuilder(getHttpClient().getAPIv2().path("/login"))
+                .buildPost(Entity.json(user2Login)),
             UserLoginSession.class);
 
     // test admin overrides
@@ -626,7 +690,8 @@ public class TestUserServices extends BaseTestServer {
             .build();
     user =
         expectSuccess(
-            getAPIv2()
+            getHttpClient()
+                .getAPIv2()
                 .path("user/" + testUserName("user2"))
                 .request(JSON)
                 .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + adminLoginToken.getToken())
@@ -638,7 +703,8 @@ public class TestUserServices extends BaseTestServer {
     // Password set only password in user form
     user =
         expectSuccess(
-            getAPIv2()
+            getHttpClient()
+                .getAPIv2()
                 .path("user/" + testUserName("user2"))
                 .request(JSON)
                 .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + adminLoginToken.getToken())
@@ -649,18 +715,21 @@ public class TestUserServices extends BaseTestServer {
 
     // login with old password should fail
     expectStatus(
-        UNAUTHORIZED, getBuilder(getAPIv2().path("/login")).buildPost(Entity.json(user2Login)));
+        UNAUTHORIZED,
+        getBuilder(getHttpClient().getAPIv2().path("/login")).buildPost(Entity.json(user2Login)));
     // login with new password
     user2Login = new UserLogin(testUserName("user2"), testPassword("user2_new"));
     user2LoginToken =
         expectSuccess(
-            getBuilder(getAPIv2().path("/login")).buildPost(Entity.json(user2Login)),
+            getBuilder(getHttpClient().getAPIv2().path("/login"))
+                .buildPost(Entity.json(user2Login)),
             UserLoginSession.class);
 
     // admin changes username
     user =
         expectSuccess(
-            getAPIv2()
+            getHttpClient()
+                .getAPIv2()
                 .path("user/" + testUserName("user2"))
                 .request(JSON)
                 .header(HttpHeader.AUTHORIZATION.toString(), "_dremio" + adminLoginToken.getToken())
@@ -677,13 +746,14 @@ public class TestUserServices extends BaseTestServer {
     // old login should fail
     expectError(
         CLIENT_ERROR,
-        getBuilder(getAPIv2().path("/login")).buildPost(Entity.json(user2Login)),
+        getBuilder(getHttpClient().getAPIv2().path("/login")).buildPost(Entity.json(user2Login)),
         NotFoundErrorMessage.class);
     // new login should work
     user2Login = new UserLogin(testUserName("user2_new"), testPassword("user2_new"));
     user2LoginToken =
         expectSuccess(
-            getBuilder(getAPIv2().path("/login")).buildPost(Entity.json(user2Login)),
+            getBuilder(getHttpClient().getAPIv2().path("/login"))
+                .buildPost(Entity.json(user2Login)),
             UserLoginSession.class);
 
     user2 = SimpleUser.newBuilder(user2).setVersion(user.getUser().getVersion()).build();
@@ -694,7 +764,8 @@ public class TestUserServices extends BaseTestServer {
     // Get the current user info
     UserUI u1 =
         expectSuccess(
-            getBuilder(getUserApiV2(SampleDataPopulator.DEFAULT_USER_NAME)).buildGet(),
+            getBuilder(getHttpClient().getUserApiV2(SampleDataPopulator.DEFAULT_USER_NAME))
+                .buildGet(),
             UserUI.class);
     assertEquals(SampleDataPopulator.DEFAULT_USER_NAME, u1.getUserName().getName());
     String version = getUserVersionFromStore(SampleDataPopulator.DEFAULT_USER_NAME);
@@ -702,7 +773,8 @@ public class TestUserServices extends BaseTestServer {
         expectStatus(
             FORBIDDEN,
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("user/" + SampleDataPopulator.DEFAULT_USER_NAME)
                         .queryParam("version", version))
                 .buildDelete(),
@@ -716,7 +788,8 @@ public class TestUserServices extends BaseTestServer {
   @Test
   public void testInvalidUsername() throws Exception {
     int originalCount =
-        expectSuccess(getBuilder(getAPIv2().path("users/all")).buildGet(), UsersUI.class)
+        expectSuccess(
+                getBuilder(getHttpClient().getAPIv2().path("users/all")).buildGet(), UsersUI.class)
             .getUsers()
             .size();
 
@@ -730,15 +803,17 @@ public class TestUserServices extends BaseTestServer {
             .build();
 
     expectSuccess(
-        getBuilder(getAPIv2().path("user/" + testUserName("valid")))
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("valid")))
             .buildPut(Entity.json(new UserForm(validUserConfig, testPassword("valid")))),
         UserUI.class);
     expectSuccess(
-        getBuilder(getAPIv2().path("user/" + testUserName("valid"))).buildGet(), UserUI.class);
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("valid"))).buildGet(),
+        UserUI.class);
 
     doc("Get all users");
     UsersUI allUsers1 =
-        expectSuccess(getBuilder(getAPIv2().path("users/all")).buildGet(), UsersUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("users/all")).buildGet(), UsersUI.class);
     assertEquals(originalCount + 1, allUsers1.getUsers().size());
 
     doc("Creating invalid user (includes quotation mark)");
@@ -752,7 +827,7 @@ public class TestUserServices extends BaseTestServer {
 
     expectStatus(
         BAD_REQUEST,
-        getBuilder(getAPIv2().path("user/" + testUserName("invalid")))
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("invalid")))
             .buildPut(Entity.json(new UserForm(invalidUserConfig1, testPassword("invalid")))));
 
     doc("Creating invalid user (includes colon)");
@@ -761,12 +836,13 @@ public class TestUserServices extends BaseTestServer {
 
     expectStatus(
         BAD_REQUEST,
-        getBuilder(getAPIv2().path("user/" + testUserName("invalid")))
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("invalid")))
             .buildPut(Entity.json(new UserForm(invalidUserConfig2, testPassword("invalid")))));
 
     doc("Sanity check the number of users");
     UsersUI allUsers2 =
-        expectSuccess(getBuilder(getAPIv2().path("users/all")).buildGet(), UsersUI.class);
+        expectSuccess(
+            getBuilder(getHttpClient().getAPIv2().path("users/all")).buildGet(), UsersUI.class);
     assertEquals(originalCount + 1, allUsers1.getUsers().size());
 
     doc("Try changing a valid username into an invalid one");
@@ -774,7 +850,7 @@ public class TestUserServices extends BaseTestServer {
         SimpleUser.newBuilder(validUserConfig).setUserName(testUserName("\"valid\"")).build();
     expectStatus(
         BAD_REQUEST,
-        getBuilder(getAPIv2().path("user/" + testUserName("valid")))
+        getBuilder(getHttpClient().getAPIv2().path("user/" + testUserName("valid")))
             .buildPost(Entity.json(new UserForm(invalidUserConfig3, testPassword("valid")))));
   }
 

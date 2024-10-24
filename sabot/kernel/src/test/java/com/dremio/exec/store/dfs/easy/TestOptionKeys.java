@@ -50,8 +50,7 @@ public class TestOptionKeys extends BaseTestQuery {
 
     // Test the "$file" column appears using dremio.store.file.file-field-enabled
 
-    setSystemOption(
-        ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_ENABLE.getOptionName(), "true");
+    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_ENABLE, true);
 
     testBuilder()
         .sqlQuery("select $file from dfs_test.file_field_enabled.\"enabled.json\"")
@@ -63,9 +62,7 @@ public class TestOptionKeys extends BaseTestQuery {
 
     // Test the rename of the "$file" column using dremio.store.file.file-field-label
 
-    setSystemOption(
-        ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_LABEL.getOptionName(),
-        "\'XX_FileName_XX\'");
+    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_LABEL, "XX_FileName_XX");
 
     testBuilder()
         .sqlQuery("select XX_FileName_XX from dfs_test.file_field_enabled.\"labeled.json\"")
@@ -76,7 +73,7 @@ public class TestOptionKeys extends BaseTestQuery {
         .run();
 
     // Reset to Off/Baseline and verify off
-    resetSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_LABEL.getOptionName());
+    resetSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_LABEL);
 
     try {
       testBuilder()
@@ -92,7 +89,7 @@ public class TestOptionKeys extends BaseTestQuery {
       Assert.assertTrue(e.getMessage().contains("Column 'XX_FileName_XX' not found in any table"));
     }
 
-    resetSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_ENABLE.getOptionName());
+    resetSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_ENABLE);
 
     try {
       testBuilder()
@@ -152,8 +149,7 @@ public class TestOptionKeys extends BaseTestQuery {
 
     // Test the "$file" column appears using dremio.store.file.file-field-enabled
 
-    setSystemOption(
-        ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_ENABLE.getOptionName(), "true");
+    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_FILE_FIELD_ENABLE, true);
 
     testBuilder()
         .sqlQuery("select $file from dfs_test.file_field_enabled.dirName1")
@@ -186,8 +182,7 @@ public class TestOptionKeys extends BaseTestQuery {
 
     // Test the "$mtime" column appears using dremio.store.file.mod-field-enabled
 
-    setSystemOption(
-        ImplicitFilesystemColumnFinder.IMPLICIT_MOD_FIELD_ENABLE.getOptionName(), "true");
+    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_MOD_FIELD_ENABLE, true);
 
     testBuilder()
         .sqlQuery("select $mtime from dfs_test.mod_field_enabled.\"enabled.json\"")
@@ -199,9 +194,7 @@ public class TestOptionKeys extends BaseTestQuery {
 
     // Test the rename of the "$mtime" column using dremio.store.file.mod-field-label
 
-    setSystemOption(
-        ImplicitFilesystemColumnFinder.IMPLICIT_MOD_FIELD_LABEL.getOptionName(),
-        "\'XX_Modified_XX\'");
+    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_MOD_FIELD_LABEL, "XX_Modified_XX");
 
     testBuilder()
         .sqlQuery("select XX_Modified_XX from dfs_test.mod_field_enabled.\"labeled.json\"")
@@ -213,7 +206,7 @@ public class TestOptionKeys extends BaseTestQuery {
 
     // Reset to Off/Baseline and verify off
 
-    resetSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_MOD_FIELD_LABEL.getOptionName());
+    resetSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_MOD_FIELD_LABEL);
 
     try {
       testBuilder()
@@ -229,7 +222,7 @@ public class TestOptionKeys extends BaseTestQuery {
       Assert.assertTrue(e.getMessage().contains("Column 'XX_Modified_XX' not found in any table"));
     }
 
-    resetSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_MOD_FIELD_ENABLE.getOptionName());
+    resetSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_MOD_FIELD_ENABLE);
 
     try {
       testBuilder()
@@ -288,8 +281,7 @@ public class TestOptionKeys extends BaseTestQuery {
 
     // Test the directories appear as columns using dremio.store.file.dir-field-enabled
 
-    setSystemOption(
-        ImplicitFilesystemColumnFinder.IMPLICIT_DIRS_FIELD_ENABLE.getOptionName(), "true");
+    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_DIRS_FIELD_ENABLE, true);
 
     testBuilder()
         .sqlQuery("select * from dfs_test.dirName1A")
@@ -311,8 +303,7 @@ public class TestOptionKeys extends BaseTestQuery {
 
     // Set to Off/Baseline and verify off
 
-    setSystemOption(
-        ImplicitFilesystemColumnFinder.IMPLICIT_DIRS_FIELD_ENABLE.getOptionName(), "false");
+    setSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_DIRS_FIELD_ENABLE, false);
 
     testBuilder()
         .sqlQuery("select * from dfs_test.dirName1B")
@@ -323,6 +314,6 @@ public class TestOptionKeys extends BaseTestQuery {
         .build()
         .run();
 
-    resetSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_DIRS_FIELD_ENABLE.getOptionName());
+    resetSystemOption(ImplicitFilesystemColumnFinder.IMPLICIT_DIRS_FIELD_ENABLE);
   }
 }

@@ -21,16 +21,20 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.CopyIntoExtendedProperties;
+import com.dremio.exec.physical.config.CopyIntoExtendedProperties.PropertyKey;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.physical.config.copyinto.CopyIntoHistoryExtendedProperties;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
+import com.dremio.exec.physical.config.copyinto.CopyIntoTransformationProperties;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.easy.triggerpipe.TriggerPipeScanUtils;
 import com.dremio.exec.store.iceberg.deletes.RowLevelDeleteFilterFactory;
+import com.dremio.exec.store.parquet.copyinto.CopyIntoSkipParquetSplitReaderCreatorIterator;
+import com.dremio.exec.store.parquet.copyinto.CopyIntoTransformationParquetSplitReaderCreatorIterator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import io.protostuff.ByteString;
@@ -56,6 +60,7 @@ public class ParquetScanTableFunction extends ScanTableFunction {
   private ListVector inputDeleteFiles;
   private boolean isCopyIntoSkip;
   private boolean isTriggerPipe;
+  private boolean isCopyIntoTransformations;
   private TriggerPipeScanUtils scanUtils;
 
   public ParquetScanTableFunction(
@@ -65,7 +70,7 @@ public class ParquetScanTableFunction extends ScanTableFunction {
       TableFunctionConfig functionConfig) {
     super(fec, context, props, functionConfig);
     parseExtendedProperty(functionConfig.getFunctionContext());
-    if (isCopyIntoSkip && isTriggerPipe) {
+    if (isTriggerPipe) {
       scanUtils = new TriggerPipeScanUtils();
     }
   }
@@ -114,18 +119,19 @@ public class ParquetScanTableFunction extends ScanTableFunction {
     splitReaderCreatorIterator.addSplits(splits);
   }
 
-  @Override
-  protected void addBoostSplits() throws IOException {
-    return;
-  }
-
   protected void setSplitReaderCreatorIterator() throws IOException, ExecutionSetupException {
-    splitReaderCreatorIterator =
-        isCopyIntoSkip || isTriggerPipe
-            ? new CopyIntoSkipParquetSplitReaderCreatorIterator(
-                fec, context, props, functionConfig, false, false)
-            : new ParquetSplitReaderCreatorIterator(
-                fec, context, props, functionConfig, false, false);
+    if (isCopyIntoSkip || isTriggerPipe) {
+      splitReaderCreatorIterator =
+          new CopyIntoSkipParquetSplitReaderCreatorIterator(
+              fec, context, props, functionConfig, false, false);
+    } else if (isCopyIntoTransformations) {
+      splitReaderCreatorIterator =
+          new CopyIntoTransformationParquetSplitReaderCreatorIterator(
+              fec, context, props, functionConfig, false, false);
+    } else {
+      splitReaderCreatorIterator =
+          new ParquetSplitReaderCreatorIterator(fec, context, props, functionConfig, false, false);
+    }
   }
 
   @Override
@@ -207,6 +213,14 @@ public class ParquetScanTableFunction extends ScanTableFunction {
 
       // TRIGGER PIPE
       isTriggerPipe = copyIntoQueryProperties != null && copyIntoQueryProperties.isTriggerPipe();
+
+      // COPY INTO with transformations case
+      CopyIntoTransformationProperties copyIntoTransformationProperties =
+          copyIntoExtendedProperties.getProperty(
+              PropertyKey.COPY_INTO_TRANSFORMATION_PROPERTIES,
+              CopyIntoTransformationProperties.class);
+
+      isCopyIntoTransformations = copyIntoTransformationProperties != null;
     }
   }
 

@@ -22,9 +22,9 @@ const columnUIProps = Immutable.Map({
 
 function getColumnColor(code) {
   const hash = {
-    HIGHLIGHTED: "var(--color--brand--100)",
-    DELETED: "var(--color--orange--50)",
-    DELETION_MARKER: "var(--color--orange--50)",
+    HIGHLIGHTED: "var(--fill--primary--selected--hover)",
+    DELETED: "var(--fill--warning)",
+    DELETION_MARKER: "var(--fill--warning)",
   };
   return hash[code] || "none";
 }

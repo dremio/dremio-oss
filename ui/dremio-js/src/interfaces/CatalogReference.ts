@@ -13,23 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export type CatalogReferenceProperties = {
-  readonly id: string;
-  readonly path: string[];
-  readonly type:
-    | `DATASET_${"DIRECT" | "PROMOTED" | "VIRTUAL"}`
-    | "FILE"
-    | "FOLDER"
-    | "FUNCTION"
-    | "HOME"
-    | "SOURCE"
-    | "SPACE";
-};
 
-export type CatalogReferenceMethods = {
-  pathString(SEPARATOR?: string): string;
-  resolve(): any;
-};
+import type { catalogReferenceFromProperties } from "../community/catalog/catalogReferenceFromProperties.js";
 
-export type CatalogReference = CatalogReferenceProperties &
-  CatalogReferenceMethods;
+export type BaseCatalogReferenceProperties = {
+  id: string;
+  path: string[];
+};
+export type CatalogReference = ReturnType<
+  typeof catalogReferenceFromProperties
+>;

@@ -29,7 +29,7 @@ export const getTableData = () => {
           (prev, property) => {
             return { ...prev, [property.get("key")]: property.get("value") };
           },
-          { status }
+          { status },
         ),
       };
       return row;
@@ -41,7 +41,7 @@ export const getTableData = () => {
   const runningData = getRows("runningList", laDeprecated("Running"));
   const disconnectedData = getRows(
     "disconnectedList",
-    laDeprecated("Provisioning or Disconnected")
+    laDeprecated("Provisioning or Disconnected"),
   );
 
   return disconnectedData.concat(runningData);

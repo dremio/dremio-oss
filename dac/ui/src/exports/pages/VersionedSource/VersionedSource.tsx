@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-import { NotFound } from "@app/exports/components/ErrorViews/NotFound";
-import HomePage from "@app/pages/HomePage/HomePage";
-import { HomePageContent } from "@app/pages/NessieHomePage/NessieHomePage";
-import { getSortedSources } from "@app/selectors/home";
-import { getEndpointFromSource } from "@app/utils/nessieUtils";
+import { NotFound } from "#oss/exports/components/ErrorViews/NotFound";
+import HomePage from "#oss/pages/HomePage/HomePage";
+import { HomePageContent } from "#oss/pages/NessieHomePage/NessieHomePage";
+import { getSortedSources } from "#oss/selectors/home";
+import { getEndpointFromSource } from "#oss/utils/nessieUtils";
 import { useMemo } from "react";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
+import ViewStateWrapper from "#oss/components/ViewStateWrapper";
 import { fromJS } from "immutable";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
-import { NESSIE } from "@app/constants/sourceTypes";
+import { isVersionedSoftwareSource } from "@inject/constants/sourceTypes";
 import VersionedHomePage from "../VersionedHomePage/VersionedHomePage";
 
-import "@app/pages/NessieHomePage/components/NessieSourceHomePage/NessieSourceHomePage.less";
+import "#oss/pages/NessieHomePage/components/NessieSourceHomePage/NessieSourceHomePage.less";
 
 function VersionedSourceHomePage(props: any) {
   const sourceInfo = useMemo(() => {
@@ -51,10 +51,9 @@ function VersionedSourceHomePage(props: any) {
     projectId: getSonarContext().getSelectedProjectId?.(),
   };
 
-  const baseUrl =
-    sourceInfo?.type === NESSIE
-      ? commonPaths.nessieSource.link(pathProps)
-      : commonPaths.arcticSource.link(pathProps);
+  const baseUrl = isVersionedSoftwareSource(sourceInfo?.type)
+    ? commonPaths.nessieSource.link(pathProps)
+    : commonPaths.arcticSource.link(pathProps);
 
   return (
     // @ts-ignore

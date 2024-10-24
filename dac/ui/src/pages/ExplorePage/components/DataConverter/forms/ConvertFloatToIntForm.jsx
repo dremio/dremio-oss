@@ -19,7 +19,7 @@ import Radio from "components/Fields/Radio";
 
 import NewFieldSection from "components/Forms/NewFieldSection";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
-import { horizontalContentPadding } from "@app/uiTheme/less/layout.less";
+import { horizontalContentPadding } from "#oss/uiTheme/less/layout.less";
 import TransformForm, { formWrapperProps } from "../../forms/TransformForm";
 import {
   title,
@@ -52,7 +52,7 @@ export class ConvertFloatToIntForm extends Component {
           />
           <span className={description}>
             {laDeprecated(
-              "Returns the largest integer less than or equal to the value."
+              "Returns the largest integer less than or equal to the value.",
             )}
           </span>
           <Radio
@@ -63,7 +63,7 @@ export class ConvertFloatToIntForm extends Component {
           />
           <span className={description}>
             {laDeprecated(
-              "Returns the smallest integer greater than or equal to the value."
+              "Returns the smallest integer greater than or equal to the value.",
             )}
           </span>
           <Radio
@@ -102,5 +102,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(ConvertFloatToIntForm);

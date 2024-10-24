@@ -19,15 +19,15 @@ import { FormattedMessage } from "react-intl";
 // @ts-ignore
 import { IconButton } from "dremio-ui-lib";
 import { Avatar } from "dremio-ui-lib/components";
-import { Reference } from "@app/types/nessie";
-import { LogEntryV2 as LogEntry, Tag } from "@app/services/nessie/client/index";
-import { nameToInitials } from "@app/exports/utilities/nameToInitials";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import { Reference } from "#oss/types/nessie";
+import { LogEntryV2 as LogEntry, Tag } from "#oss/services/nessie/client/index";
+import { nameToInitials } from "#oss/exports/utilities/nameToInitials";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
 import { getLabeledTags } from "./utils";
-import NewTagDialog from "@app/pages/NessieHomePage/components/NewTagDialog/NewTagDialog";
-import { convertISOStringWithTooltip } from "@app/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
-import DeleteTagDialog from "@app/pages/NessieHomePage/components/DeleteTagDialog/DeleteTagDialog";
-import { CatalogPrivilegeSwitch } from "@app/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
+import NewTagDialog from "#oss/pages/NessieHomePage/components/NewTagDialog/NewTagDialog";
+import { convertISOStringWithTooltip } from "#oss/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
+import DeleteTagDialog from "#oss/pages/NessieHomePage/components/DeleteTagDialog/DeleteTagDialog";
+import { CatalogPrivilegeSwitch } from "#oss/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
 
 import * as classes from "./VersionedCommitDetailsBody.module.less";
 

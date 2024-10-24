@@ -92,6 +92,7 @@ import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -170,7 +171,11 @@ public class TestCatalogServiceHelper {
 
     catalog = mock(Catalog.class);
     sourceService = mock(SourceService.class);
-    namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
+    namespaceService =
+        new NamespaceServiceImpl(
+            kvStoreProvider,
+            new CatalogStatusEventsImpl(),
+            CatalogEventMessagePublisherProvider.NO_OP);
     mockNamespaceService = mock(NamespaceService.class);
     reflectionServiceHelper = mock(ReflectionServiceHelper.class);
     optionManager = mock(OptionManager.class);

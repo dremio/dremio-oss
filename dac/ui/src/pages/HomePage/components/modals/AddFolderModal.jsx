@@ -21,7 +21,7 @@ import Modal from "components/Modals/Modal";
 
 import ApiUtils from "utils/apiUtils/apiUtils";
 import { addNewFolderForSpace } from "actions/resources/spaceDetails";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 import AddFolderForm from "../forms/AddFolderForm";
 

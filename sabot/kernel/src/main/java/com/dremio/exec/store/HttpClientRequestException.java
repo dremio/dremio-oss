@@ -20,14 +20,6 @@ import com.google.errorprone.annotations.FormatMethod;
 public class HttpClientRequestException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 
-  public HttpClientRequestException() {
-    super();
-  }
-
-  public HttpClientRequestException(Throwable cause) {
-    super(cause);
-  }
-
   @FormatMethod
   public HttpClientRequestException(Throwable cause, String message, Object... args) {
     super(String.format(message, args), cause);

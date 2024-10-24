@@ -299,7 +299,7 @@ public final class AutocompleteProxy {
           catalogServiceHelper.getCatalogEntityByPath(
               catalogEntityKey,
               Collections.EMPTY_LIST,
-              Collections.EMPTY_LIST,
+              Collections.singletonList("children"),
               refType,
               refValue,
               null,

@@ -16,6 +16,7 @@
 package com.dremio.exec.maestro;
 
 import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
+import static com.dremio.telemetry.api.metrics.TimerUtils.timedOperation;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
@@ -51,6 +52,7 @@ import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.JobTelemetryServiceGrpc;
 import com.dremio.service.jobtelemetry.PutExecutorProfileRequest;
 import com.dremio.service.jobtelemetry.instrumentation.MetricLabel;
+import com.dremio.telemetry.api.metrics.SimpleTimer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
@@ -84,6 +86,11 @@ public class MaestroServiceImpl implements MaestroService {
   @VisibleForTesting
   public static final String INJECTOR_FINAL_EXECUTOR_PROFILE_ERROR =
       "finalExecutorProfileUpdateError";
+
+  public static final String UPDATE_FINAL_EXECUTOR_PROFILE_TIME_LABEL =
+      "update_final_executor_profile_time";
+  private static final SimpleTimer UPDATE_FINAL_EXECUTOR_PROFILE_TIMER =
+      SimpleTimer.of(UPDATE_FINAL_EXECUTOR_PROFILE_TIME_LABEL);
 
   private final Provider<ExecutorSetService> executorSetService;
   private final Provider<SabotContext> sabotContext;
@@ -181,7 +188,7 @@ public class MaestroServiceImpl implements MaestroService {
       commandPool
           .get()
           .submit(
-              CommandPool.Priority.MEDIUM,
+              CommandPool.Priority.HIGH,
               QueryIdHelper.getQueryId(queryId) + ":execution-planning",
               "execution-planning",
               (waitInMillis) -> {
@@ -293,11 +300,9 @@ public class MaestroServiceImpl implements MaestroService {
 
     @Override
     public void screenCompleted(NodeQueryScreenCompletion completion) throws RpcException {
-      if (logger.isDebugEnabled()) {
-        logger.debug(
-            "Screen complete message came in for id {}",
-            QueryIdHelper.getQueryId(completion.getId()));
-      }
+      logger.info(
+          "Screen complete message came in for id {}",
+          QueryIdHelper.getQueryId(completion.getId()));
       QueryTracker queryTracker = activeQueryMap.get(completion.getId());
 
       if (queryTracker != null) {
@@ -320,9 +325,7 @@ public class MaestroServiceImpl implements MaestroService {
     public void nodeQueryCompleted(NodeQueryCompletion completion) throws RpcException {
       Span currentSpan = Span.current();
       String queryId = QueryIdHelper.getQueryId(completion.getId());
-      if (logger.isDebugEnabled()) {
-        logger.debug("Node query complete message came in for id {}", queryId);
-      }
+      logger.info("Node query complete message came in for id {}", queryId);
       QueryTracker queryTracker = activeQueryMap.get(completion.getId());
 
       if (queryTracker != null) {
@@ -339,7 +342,9 @@ public class MaestroServiceImpl implements MaestroService {
               queryTracker.getExecutionControls(),
               INJECTOR_FINAL_EXECUTOR_PROFILE_ERROR,
               ExecutionSetupException.class);
-          updateFinalExecutorProfile(completion);
+          timedOperation(
+              UPDATE_FINAL_EXECUTOR_PROFILE_TIMER.start(),
+              () -> updateFinalExecutorProfile(completion));
         } catch (Throwable e) {
           currentSpan.setAttribute("jts.put_executor_profile_rpc_failed", true);
           logger.warn("Exception sending final Executor profile {}. ", queryId, e);
@@ -392,11 +397,9 @@ public class MaestroServiceImpl implements MaestroService {
 
     @Override
     public void nodeQueryMarkFirstError(NodeQueryFirstError error) throws RpcException {
-      if (logger.isDebugEnabled()) {
-        logger.debug(
-            "Node Query error came in for id {} ",
-            QueryIdHelper.getQueryId(error.getHandle().getQueryId()));
-      }
+      logger.info(
+          "Node Query error came in for id {} ",
+          QueryIdHelper.getQueryId(error.getHandle().getQueryId()));
       QueryTracker queryTracker = activeQueryMap.get(error.getHandle().getQueryId());
 
       if (queryTracker != null) {

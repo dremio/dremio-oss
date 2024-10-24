@@ -36,6 +36,14 @@ public interface FunctionErrorContext {
   void setId(int id);
 
   /**
+   * Associates a field ID of in the VectorContainer's schema that (fully or partially) takes the
+   * output for this function
+   *
+   * @param fieldId input column ID
+   */
+  void registerOutputFieldId(int fieldId);
+
+  /**
    * @return a builder for an exception carrying the error context
    */
   ExceptionBuilder error();

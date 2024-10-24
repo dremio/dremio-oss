@@ -53,13 +53,13 @@ describe("App-spec", () => {
       expect(instance._shouldIgnoreExternalStack()).to.be.false;
       expect(
         instance._shouldIgnoreExternalStack(
-          `aaa\n at a (${window.location.origin}/foo)`
-        )
+          `aaa\n at a (${window.location.origin}/foo)`,
+        ),
       ).to.be.false;
       expect(
         instance._shouldIgnoreExternalStack(
-          "aaa\n at a (http://test.example.com:4000/foo)"
-        )
+          "aaa\n at a (http://test.example.com:4000/foo)",
+        ),
       ).to.be.true;
     });
   });
@@ -75,16 +75,16 @@ describe("App-spec", () => {
       // Chrome
       expect(
         instance._getSourceOriginFromStack(
-          "aaa\n at a (http://test.example.com:4000/foo)"
-        )
+          "aaa\n at a (http://test.example.com:4000/foo)",
+        ),
       ).to.equal("http://test.example.com:4000");
 
       // Firefox
       expect(
         instance._getSourceOriginFromStack(
           "ColumnHeader/_this.handleFocus/</<@http://localhost:3005/bundle.js line 12292 > eval:211:15\n" +
-            "notify/</run@http://localhost:3005/bundle.js line 17434 > eval:87:22"
-        )
+            "notify/</run@http://localhost:3005/bundle.js line 17434 > eval:87:22",
+        ),
       ).to.equal("http://localhost:3005");
     });
   });

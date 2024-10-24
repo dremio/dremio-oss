@@ -32,37 +32,48 @@ const DEV_APP_TARGET = env
   .default("http://automaster.drem.io:9047")
   .asString();
 
-export const proxy = {
-  headers: { Connection: "keep-alive" },
-  "/api": {
+export const proxy = [
+  {
+    context: "/apiv2/socket",
     target: DEV_APP_TARGET,
     changeOrigin: true,
     ws: true,
   },
-  "/nessie-proxy/v2": {
+  {
+    context: ["/api"],
     target: DEV_APP_TARGET,
     changeOrigin: true,
   },
-  "/nessieV1": {
+  {
+    context: ["/nessie-proxy/v2"],
+    target: DEV_APP_TARGET,
+    changeOrigin: true,
+  },
+  {
+    context: ["/nessieV1"],
     target: DEV_NESSIE_TARGET,
     changeOrigin: true,
     pathRewrite: { "^/nessieV1/": DEV_NESSIE_TARGET_PREFIX ? "/v1/" : "/" },
   },
-  "/nessie": {
+  {
+    context: ["/nessie"],
     target: DEV_NESSIE_TARGET,
     changeOrigin: true,
     pathRewrite: { "^/nessie/": DEV_NESSIE_TARGET_PREFIX ? "/v2/" : "/" },
   },
-  "/support": {
+  {
+    context: ["/support"],
     target: DEV_DCS_TARGET.replace("app.", "support."),
     changeOrigin: true,
   },
-  "/ui": {
+  {
+    context: ["/ui"],
     target: DEV_DCS_TARGET,
     changeOrigin: true,
   },
-  "/v0": {
+  {
+    context: ["/v0"],
     target: DEV_DCS_TARGET.replace("app.", "api."),
     changeOrigin: true,
   },
-};
+];

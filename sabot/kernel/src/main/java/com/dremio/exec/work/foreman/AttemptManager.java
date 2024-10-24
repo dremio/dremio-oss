@@ -71,8 +71,10 @@ import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.instrumentation.MetricLabel;
+import com.dremio.telemetry.api.metrics.MeterProviders;
 import com.dremio.telemetry.api.metrics.SimpleCounter;
 import com.dremio.telemetry.api.metrics.SimpleDistributionSummary;
+import com.dremio.telemetry.api.metrics.SimpleUpdatableTimer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -84,6 +86,9 @@ import io.grpc.Context;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.netty.buffer.ByteBuf;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
@@ -110,7 +115,8 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
 
   private static final SimpleCounter SERVER_ERROR =
       SimpleCounter.of("jobs.server_error", "Number of jobs that resulted in a server error");
-  private static final SimpleCounter JOBS_TOTAL = SimpleCounter.of("jobs");
+  private static final MeterProvider<Counter> JOBS_TOTAL =
+      MeterProviders.newCounterProvider("jobs", "Number of jobs attempted,");
 
   private static final Set<UserBitShared.DremioPBError.ErrorType> CLIENT_ERRORS =
       ImmutableSet.of(
@@ -148,6 +154,26 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
   @VisibleForTesting
   public static final String INJECTOR_RESOURCE_ALLOCATION_EXCEPTION =
       "resource-allocation-exception";
+
+  public static final String EXECUTION_COMPLETE_TO_QUERY_COMPLETE_TIME_LABEL =
+      "execution_complete_to_query_complete_time";
+  public static final String LAST_NODE_COMPLETE_TO_QUERY_COMPLETE_TIME_LABEL =
+      "last_node_complete_to_query_complete_time";
+  public static final String SCREEN_COMPLETE_TO_LAST_NODE_COMPLETE_TIME_LABEL =
+      "screen_complete_to_last_node_complete_time";
+  public static final String EXEC_TO_COORD_SCREEN_COMPLETE_TIME_LABEL =
+      "exec_to_coord_screen_complete_time";
+  private static final SimpleUpdatableTimer EXECUTION_COMPLETE_TO_QUERY_COMPLETE_TIMER =
+      SimpleUpdatableTimer.of(EXECUTION_COMPLETE_TO_QUERY_COMPLETE_TIME_LABEL);
+
+  private static final SimpleUpdatableTimer LAST_NODE_COMPLETE_TO_QUERY_COMPLETE_TIMER =
+      SimpleUpdatableTimer.of(LAST_NODE_COMPLETE_TO_QUERY_COMPLETE_TIME_LABEL);
+
+  private static final SimpleUpdatableTimer SCREEN_COMPLETE_TO_LAST_NODE_COMPLETE_TIMER =
+      SimpleUpdatableTimer.of(SCREEN_COMPLETE_TO_LAST_NODE_COMPLETE_TIME_LABEL);
+
+  private static final SimpleUpdatableTimer EXEC_TO_COORD_SCREEN_COMPLETE_TIMER =
+      SimpleUpdatableTimer.of(EXEC_TO_COORD_SCREEN_COMPLETE_TIME_LABEL);
 
   private final AttemptId attemptId;
   private final AttemptReason attemptReason;
@@ -239,7 +265,13 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
             attemptObserver,
             jobTelemetryClient);
 
-    JOBS_TOTAL.increment();
+    JOBS_TOTAL
+        .withTags(
+            PlannerMetrics.WORKLOAD_TYPE_KEY,
+            queryContext.getWorkloadType().name(),
+            PlannerMetrics.USER_TYPE_KEY,
+            PlannerMetrics.getUserKindLabel(queryContext.getQueryUserName()))
+        .increment();
 
     jobsFailedCounter =
         newCounterProvider(
@@ -272,7 +304,17 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
   private class CompletionListenerImpl implements CompletionListener {
 
     @Override
-    public void succeeded() {
+    public void succeeded(
+        long screenOperatorCompletionTime,
+        long screenCompletionRpcReceivedAt,
+        long lastNodeCompletionRpcReceivedAt,
+        long lastNodeCompletionRpcStartedAt) {
+      getProfileTracker()
+          .markExecutionTime(
+              screenOperatorCompletionTime,
+              screenCompletionRpcReceivedAt,
+              lastNodeCompletionRpcReceivedAt,
+              lastNodeCompletionRpcStartedAt);
       addToEventQueue(QueryState.COMPLETED, null);
     }
 
@@ -389,7 +431,8 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
       boolean clientCancelled,
       String cancelContext,
       boolean isCancelledByHeapMonitor,
-      boolean runTimeExceeded) {
+      boolean runTimeExceeded,
+      boolean connectionClosed) {
     // Note this can be called from outside of run() on another thread, or after run() completes
     getProfileTracker().setCancelReason(reason);
     this.clientCancelled = clientCancelled;
@@ -421,39 +464,31 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
       addToEventQueue(QueryState.CANCELED, null);
     }
     try {
+      String cancelType = PlannerMetrics.CANCEL_UNCLASSIFIED;
       if (isCancelledByHeapMonitor) {
-        jobsFailedCounter
-            .withTags(
-                PlannerMetrics.ERROR_TYPE_KEY,
-                PlannerMetrics.COORDINATOR_CANCEL_HEAP_MONITOR,
-                PlannerMetrics.ERROR_ORIGIN_KEY,
-                ClusterCoordinator.Role.COORDINATOR.name())
-            .increment();
+        cancelType = PlannerMetrics.COORDINATOR_CANCEL_HEAP_MONITOR;
       } else if (runTimeExceeded) {
-        jobsFailedCounter
-            .withTags(
-                PlannerMetrics.ERROR_TYPE_KEY,
-                PlannerMetrics.CANCEL_EXECUTION_RUNTIME_EXCEEDED,
-                PlannerMetrics.ERROR_ORIGIN_KEY,
-                ClusterCoordinator.Role.COORDINATOR.name())
-            .increment();
+        cancelType = PlannerMetrics.CANCEL_EXECUTION_RUNTIME_EXCEEDED;
       } else if (clientCancelled) {
-        jobsFailedCounter
-            .withTags(
-                PlannerMetrics.ERROR_TYPE_KEY,
-                PlannerMetrics.CANCEL_USER_INITIATED,
-                PlannerMetrics.ERROR_ORIGIN_KEY,
-                ClusterCoordinator.Role.COORDINATOR.name())
-            .increment();
+        cancelType = PlannerMetrics.CANCEL_USER_INITIATED;
+      } else if (connectionClosed) {
+        cancelType = PlannerMetrics.CANCEL_CONNECTION_CLOSED;
       } else {
-        jobsFailedCounter
-            .withTags(
-                PlannerMetrics.ERROR_TYPE_KEY,
-                PlannerMetrics.CANCEL_UNCLASSIFIED,
-                PlannerMetrics.ERROR_ORIGIN_KEY,
-                ClusterCoordinator.Role.COORDINATOR.name())
-            .increment();
+        // Preserve cancelType - CANCEL_UNCLASSIFIED
+        logger.error(
+            "Query canceled with {} has reason {}", PlannerMetrics.CANCEL_UNCLASSIFIED, reason);
       }
+      jobsFailedCounter
+          .withTags(
+              PlannerMetrics.ERROR_TYPE_KEY,
+              cancelType,
+              PlannerMetrics.ERROR_ORIGIN_KEY,
+              ClusterCoordinator.Role.COORDINATOR.name(),
+              PlannerMetrics.WORKLOAD_TYPE_KEY,
+              queryContext.getWorkloadType().name(),
+              PlannerMetrics.USER_TYPE_KEY,
+              PlannerMetrics.getUserKindLabel(queryContext.getQueryUserName()))
+          .increment();
     } catch (Exception e) {
       logger.error("Error while incrementing the jobsFailedCounter", e);
     }
@@ -472,7 +507,11 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
             PlannerMetrics.ERROR_TYPE_KEY,
             PlannerMetrics.CANCEL_RESOURCE_UNAVAILABLE,
             PlannerMetrics.ERROR_ORIGIN_KEY,
-            ClusterCoordinator.Role.COORDINATOR.name())
+            ClusterCoordinator.Role.COORDINATOR.name(),
+            PlannerMetrics.WORKLOAD_TYPE_KEY,
+            queryContext.getWorkloadType().name(),
+            PlannerMetrics.USER_TYPE_KEY,
+            PlannerMetrics.getUserKindLabel(queryContext.getQueryUserName()))
         .increment();
   }
 
@@ -516,13 +555,20 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
 
         getObserver()
             .queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
-
-        maestroObserver.beginState(AttemptObserver.toEvent(AttemptEvent.State.PENDING));
+        // Attempt submission time for first attempt should be same as Job submission time
+        // For subsequent attempt submission time should be current time
+        long attemptSubmissionTime =
+            attemptId.getAttemptNum() == 0
+                ? queryRequest.getJobSubmissionTime()
+                : System.currentTimeMillis();
+        getProfileTracker().markStartTime(attemptSubmissionTime);
+        maestroObserver.beginState(
+            AttemptObserver.toEvent(AttemptEvent.State.PENDING, attemptSubmissionTime));
         try {
           // planning is done in the command pool
           commandPool
               .submit(
-                  CommandPool.Priority.LOW,
+                  CommandPool.Priority.MEDIUM,
                   attemptId.toString() + ":foreman-planning",
                   "foreman-planning",
                   (waitInMillis) -> {
@@ -588,6 +634,9 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
       } catch (Exception ignore) {
       }
       cancelLocal("Resource Unavailable, ", e); // ENQUEUED/STARTING -> CANCELED transition
+    } catch (ResourceAllocationException e) {
+      UserException ue = UserException.resourceError(e).message(e.getMessage()).build(logger);
+      moveToState(QueryState.FAILED, ue);
     } catch (final UserException | ForemanException e) {
       moveToState(QueryState.FAILED, e);
     } catch (final OutOfMemoryError e) {
@@ -830,7 +879,11 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
                     PlannerMetrics.ERROR_TYPE_KEY,
                     errorTypeStr,
                     PlannerMetrics.ERROR_ORIGIN_KEY,
-                    errorOrigin)
+                    errorOrigin,
+                    PlannerMetrics.WORKLOAD_TYPE_KEY,
+                    queryContext.getWorkloadType().name(),
+                    PlannerMetrics.USER_TYPE_KEY,
+                    PlannerMetrics.getUserKindLabel(queryContext.getQueryUserName()))
                 .increment();
           } else {
             jobsFailedCounter
@@ -838,7 +891,11 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
                     PlannerMetrics.ERROR_TYPE_KEY,
                     errorType.name(),
                     PlannerMetrics.ERROR_ORIGIN_KEY,
-                    errorOrigin)
+                    errorOrigin,
+                    PlannerMetrics.WORKLOAD_TYPE_KEY,
+                    queryContext.getWorkloadType().name(),
+                    PlannerMetrics.USER_TYPE_KEY,
+                    PlannerMetrics.getUserKindLabel(queryContext.getQueryUserName()))
                 .increment();
           }
           if (!CLIENT_ERRORS.contains(errorType)) {
@@ -850,7 +907,11 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
                   PlannerMetrics.ERROR_TYPE_KEY,
                   PlannerMetrics.UNKNOWN_ERROR_TYPE,
                   PlannerMetrics.ERROR_ORIGIN_KEY,
-                  UserException.UNCLASSIFIED_ERROR_ORIGIN)
+                  UserException.UNCLASSIFIED_ERROR_ORIGIN,
+                  PlannerMetrics.WORKLOAD_TYPE_KEY,
+                  queryContext.getWorkloadType().name(),
+                  PlannerMetrics.USER_TYPE_KEY,
+                  PlannerMetrics.getUserKindLabel(queryContext.getQueryUserName()))
               .increment();
           String exceptionDetails =
               String.format(
@@ -924,6 +985,7 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
     }
 
     @Override
+    @WithSpan("attempt-result-cleanup")
     public void close() {
       if (isClosed) {
         // This can happen if the AttemptManager closes the result first (on error), and later,
@@ -956,12 +1018,14 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
         }
 
         // to track how long the query takes
-        getProfileTracker().markEndTime();
+        long endTime = System.currentTimeMillis();
+        getProfileTracker().markEndTime(endTime);
 
         if (queryRequest.getDescription() != null) {
           SimpleDistributionSummary.of("jobs.long_running", queryRequest.getDescription())
               .recordAmount(getProfileTracker().getTime());
         }
+        sendFinalQueryTimeMetrics();
 
         logger.debug(queryIdString + ": cleaning up.");
         injector.injectPause(queryContext.getExecutionControls(), "foreman-cleanup", logger);
@@ -978,16 +1042,13 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
           recordNewState(resultState);
         }
         AttemptEvent.State terminalStage = convertTerminalToAttemptState(resultState);
-        getObserver().beginState(AttemptObserver.toEvent(terminalStage));
+        getObserver().beginState(AttemptObserver.toEvent(terminalStage, endTime));
         moveToNextStage(terminalStage);
 
         UserException uex;
         if (resultException != null) {
-          ResourceAllocationException ex =
-              ErrorHelper.findWrappedCause(resultException, ResourceAllocationException.class);
-          if (ex != null) {
-            uex = UserException.resourceError(ex).message(ex.getMessage()).build(logger);
-          } else {
+          uex = ErrorHelper.findWrappedCause(resultException, UserException.class);
+          if (uex == null) {
             uex =
                 UserException.systemError(resultException)
                     .addIdentity(queryContext.getCurrentEndpoint())
@@ -1103,16 +1164,21 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
    * @param exception if not null, the exception that drove this state transition (usually a
    *     failure)
    */
+  @WithSpan
   private void moveToState(final QueryState newState, final Exception exception) {
+    Span.current()
+        .setAttribute("dremio.attempt_manager.query_id", queryIdString)
+        .setAttribute("dremio.attempt_manager.current_query_state", state.toString())
+        .setAttribute("dremio.attempt_manager.requested_query_state", newState.toString());
     if (exception == null) {
-      logger.debug(
-          queryIdString + ": State change requested {} --> {}", state, newState, exception);
+      logger.debug(queryIdString + ": State change requested {} --> {}", state, newState);
     } else {
       logger.info(
           queryIdString + ": State change requested {} --> {}, Exception {}",
           state,
           newState,
           exception.toString());
+      Span.current().recordException(exception);
     }
     switch (state) {
       case ENQUEUED:
@@ -1166,6 +1232,12 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
               recordNewState(QueryState.CANCELED);
               try {
                 maestroService.cancelQuery(queryId);
+              } catch (Exception ex) {
+                logger.error(
+                    "Error observed calling maestroService.cancelQuery for query {}",
+                    queryIdString,
+                    ex);
+                Span.current().recordException(ex);
               } finally {
                 foremanResult.setCompleted(QueryState.CANCELED);
                 foremanResult.close();
@@ -1190,6 +1262,12 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
                 recordNewState(QueryState.CANCELED);
                 try {
                   maestroService.cancelQuery(queryId);
+                } catch (Exception ex) {
+                  logger.error(
+                      "Error observed calling maestroService.cancelQuery for query {}",
+                      queryIdString,
+                      ex);
+                  Span.current().recordException(ex);
                 } finally {
                   foremanResult.setCompleted(QueryState.CANCELED);
                 }
@@ -1214,6 +1292,10 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
                   // here.
                   Context.current().fork().run(() -> committer.ifPresent(Runnable::run));
                 } catch (ForemanException e) {
+                  logger.error(
+                      "Error running plan committer for query {}. Moving query state from RUNNING --> FAILED instead of RUNNING --> COMPLETED",
+                      queryIdString,
+                      e);
                   moveToState(QueryState.FAILED, e);
                   return;
                 }
@@ -1230,6 +1312,12 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
                 recordNewState(QueryState.FAILED);
                 try {
                   maestroService.cancelQuery(queryId);
+                } catch (Exception ex) {
+                  logger.error(
+                      "Error observed calling maestroService.cancelQuery for query {}",
+                      queryIdString,
+                      ex);
+                  Span.current().recordException(ex);
                 } finally {
                   foremanResult.setFailed(exception);
                   foremanResult.close();
@@ -1272,8 +1360,14 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
         return;
     }
 
-    throw new IllegalStateException(
-        String.format("Failure trying to change states: %s --> %s", state.name(), newState.name()));
+    IllegalStateException illegalStateException =
+        new IllegalStateException(
+            String.format(
+                "Failure trying to change states: %s --> %s", state.name(), newState.name()));
+
+    /* Set span status to ERROR to indicate query state transition has failed */
+    Span.current().recordException(illegalStateException).setStatus(StatusCode.ERROR);
+    throw illegalStateException;
   }
 
   private class StateSwitch extends EventProcessor<StateEvent> {
@@ -1292,8 +1386,13 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
     stateSwitch.addEvent(newState, exception);
   }
 
+  @WithSpan("record-query-state-transition")
   private void recordNewState(final QueryState newState) {
     state = newState;
+    Span.current()
+        .setAttribute("dremio.attempt_manager.query_id", queryIdString)
+        .setAttribute("dremio.attempt_manager.current_query_state", state.toString())
+        .setAttribute("dremio.attempt_manager.new_query_state", newState.toString());
   }
 
   private boolean isTerminalStage(AttemptEvent.State stage) {
@@ -1323,6 +1422,86 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
         return AttemptEvent.State.FAILED;
       default:
         return AttemptEvent.State.INVALID_STATE;
+    }
+  }
+
+  private void sendFinalQueryTimeMetrics() {
+    long endTime = getProfileTracker().getEndTime();
+    long screenOperatorCompletionTime = getProfileTracker().getScreenOperatorCompletionTime();
+    long screenCompletionRpcReceivedAt = getProfileTracker().getScreenCompletionRpcReceivedAt();
+    long lastNodeCompletionRpcStartedAt = getProfileTracker().getLastNodeCompletionRpcStartedAt();
+    long lastNodeCompletionRpcReceivedAt = getProfileTracker().getLastNodeCompletionRpcReceivedAt();
+    logger.debug("{} : endTime : {}", queryIdString, endTime);
+    logger.debug(
+        "{} : screenOperatorCompletionTime : {}", queryIdString, screenOperatorCompletionTime);
+    logger.debug(
+        "{} : screenCompletionRpcReceivedAt : {}", queryIdString, screenCompletionRpcReceivedAt);
+    logger.debug(
+        "{} : lastNodeCompletionRpcStartedAt : {}", queryIdString, lastNodeCompletionRpcStartedAt);
+    logger.debug(
+        "{} : lastNodeCompletionRpcReceivedAt : {}",
+        queryIdString,
+        lastNodeCompletionRpcReceivedAt);
+    try {
+      long executionCompleteToQueryCompleteTime =
+          screenOperatorCompletionTime == 0
+              ? endTime - lastNodeCompletionRpcStartedAt
+              : endTime - screenOperatorCompletionTime;
+      EXECUTION_COMPLETE_TO_QUERY_COMPLETE_TIMER.update(
+          executionCompleteToQueryCompleteTime, TimeUnit.MILLISECONDS);
+      logger.debug(
+          "{} : endTime - lastNodeCompletionRpcStartedAt : {}",
+          queryIdString,
+          endTime - lastNodeCompletionRpcStartedAt);
+      logger.debug(
+          "{} : endTime - screenOperatorCompletionTime : {}",
+          queryIdString,
+          endTime - screenOperatorCompletionTime);
+    } catch (Exception e) {
+      logger.warn("Failure updating {} metric", EXECUTION_COMPLETE_TO_QUERY_COMPLETE_TIMER, e);
+    }
+    try {
+      long lastNodeCompleteToQueryCompleteTime = endTime - lastNodeCompletionRpcReceivedAt;
+      logger.debug(
+          "{} : endTime - lastNodeCompletionRpcReceivedAt : {}",
+          queryIdString,
+          endTime - lastNodeCompletionRpcReceivedAt);
+      LAST_NODE_COMPLETE_TO_QUERY_COMPLETE_TIMER.update(
+          lastNodeCompleteToQueryCompleteTime, TimeUnit.MILLISECONDS);
+    } catch (Exception e) {
+      logger.warn("Failure updating {} metric", LAST_NODE_COMPLETE_TO_QUERY_COMPLETE_TIMER, e);
+    }
+    try {
+      long screenCompleteToLastNodeCompleteTime =
+          screenCompletionRpcReceivedAt == 0
+              ? 0
+              : lastNodeCompletionRpcReceivedAt - screenCompletionRpcReceivedAt;
+      SCREEN_COMPLETE_TO_LAST_NODE_COMPLETE_TIMER.update(
+          screenCompleteToLastNodeCompleteTime, TimeUnit.MILLISECONDS);
+      logger.debug(
+          "{} : lastNodeCompletionRpcReceivedAt - screenCompletionRpcReceivedAt : {}",
+          queryIdString,
+          lastNodeCompletionRpcReceivedAt - screenCompletionRpcReceivedAt);
+    } catch (Exception e) {
+      logger.warn("Failure updating {} metric", SCREEN_COMPLETE_TO_LAST_NODE_COMPLETE_TIMER, e);
+    }
+    try {
+      long execToCoordScreenCompleteTime =
+          screenOperatorCompletionTime == 0
+              ? lastNodeCompletionRpcReceivedAt - lastNodeCompletionRpcStartedAt
+              : screenCompletionRpcReceivedAt - screenOperatorCompletionTime;
+      EXEC_TO_COORD_SCREEN_COMPLETE_TIMER.update(
+          execToCoordScreenCompleteTime, TimeUnit.MILLISECONDS);
+      logger.debug(
+          "{} : lastNodeCompletionRpcReceivedAt - lastNodeCompletionRpcStartedAt : {}",
+          queryIdString,
+          lastNodeCompletionRpcReceivedAt - lastNodeCompletionRpcStartedAt);
+      logger.debug(
+          "{} : screenCompletionRpcReceivedAt - screenOperatorCompletionTime : {}",
+          queryIdString,
+          screenCompletionRpcReceivedAt - screenOperatorCompletionTime);
+    } catch (Exception e) {
+      logger.warn("Failure updating {} metric", EXEC_TO_COORD_SCREEN_COMPLETE_TIMER, e);
     }
   }
 }

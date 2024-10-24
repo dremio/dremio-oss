@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Spinner from "@app/components/Spinner";
-import { isReqLoading } from "@app/utils/smartPromise";
+import Spinner from "#oss/components/Spinner";
+import { isReqLoading } from "#oss/utils/smartPromise";
 import { useMemo } from "react";
 import { usePromise } from "react-smart-promise";
 import CommitDetails from "../CommitDetails/CommitDetails";
@@ -41,8 +41,8 @@ function CommitDetailsPage({ params }: { params: any }) {
                 ref: branchName,
                 filter: `commit.hash == "${commitHash}"`,
               }),
-      [branchName, commitHash, apiV2]
-    )
+      [branchName, commitHash, apiV2],
+    ),
   );
 
   const commit = useMemo(() => {

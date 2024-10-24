@@ -25,6 +25,10 @@
   opacity: 0;
   transform: scale(0.8);
 }
+.echarts-tooltip {
+  --dremio-tooltip--background: var(--fill--popover);
+  --dremio-tooltip--border: transparent;
+}
 
 .dremio-tooltip {
   --dremio-tooltip--background: var(--color--neutral--700);
@@ -40,7 +44,7 @@
   --dremio-tooltip--arrow--size: 8px;
 
   &-rich {
-    --dremio-tooltip--background: white;
+    --dremio-tooltip--background: var(--fill--popover);
     --dremio-tooltip--color: var(--text--primary);
   }
 

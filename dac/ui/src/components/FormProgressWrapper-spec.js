@@ -32,7 +32,7 @@ describe("FormProgressWrapper", () => {
     const wrapper = shallow(
       <FormProgressWrapper>
         <span>foo</span>
-      </FormProgressWrapper>
+      </FormProgressWrapper>,
     );
     expect(wrapper.find("span").first().text()).to.eql("foo");
   });
@@ -41,7 +41,7 @@ describe("FormProgressWrapper", () => {
     const wrapper = shallow(
       <FormProgressWrapper>
         <span>foo</span>
-      </FormProgressWrapper>
+      </FormProgressWrapper>,
     );
     expect(wrapper.find(".submitting-overlay")).to.have.length(0);
     wrapper.setProps({ submitting: true });

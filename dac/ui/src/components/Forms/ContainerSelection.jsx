@@ -22,13 +22,13 @@ import FormElement from "components/Forms/FormElement";
 import Radio from "components/Fields/Radio";
 import FieldWithError from "components/Fields/FieldWithError";
 
-import Select from "@app/components/Fields/Select";
+import Select from "#oss/components/Fields/Select";
 import {
   selectWrapper,
   selectBody,
   selectFieldWithError,
-} from "@app/components/Forms/Wrappers/FormWrappers.less";
-import { rowOfInputsSpacing, rowOfRadio } from "@app/uiTheme/less/forms.less";
+} from "#oss/components/Forms/Wrappers/FormWrappers.less";
+import { rowOfInputsSpacing, rowOfRadio } from "#oss/uiTheme/less/forms.less";
 import "./ContainerSelection.less";
 
 export default class ContainerSelection extends Component {
@@ -47,7 +47,7 @@ export default class ContainerSelection extends Component {
       rowOfRadio,
       rowOfInputsSpacing,
       "containerSelection",
-      { "--horizontal": layoutType === "row" }
+      { "--horizontal": layoutType === "row" },
     );
 
     return (
@@ -89,7 +89,7 @@ export default class ContainerSelection extends Component {
     const labelClass = classNames(
       selectFieldWithError,
       "full-width",
-      "gutter-bottom--full"
+      "gutter-bottom--full",
     );
 
     return (
@@ -124,7 +124,7 @@ export default class ContainerSelection extends Component {
     const { fields, elementConfig } = this.props;
     const radioField = FormUtils.getFieldByComplexPropName(
       fields,
-      elementConfig.getPropName()
+      elementConfig.getPropName(),
     );
 
     const { value, ...radioProps } = radioField;
@@ -133,7 +133,7 @@ export default class ContainerSelection extends Component {
     let selectedValue = value || firstValue;
     let selectedOptionObj = this.findSelectedOption(
       elementConfig,
-      selectedValue
+      selectedValue,
     );
 
     if (!selectedOptionObj) {

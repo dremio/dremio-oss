@@ -18,7 +18,6 @@ package com.dremio;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.proto.UserBitShared;
 import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
@@ -32,12 +31,11 @@ public class TestMergingReceiverSpooling extends BaseTestQuery {
 
   @Test
   public void tpch18() throws Exception {
-
     String query =
         "select l_orderkey from cp.\"tpch/lineitem.parquet\" group by l_orderkey having sum(l_quantity) > 300";
 
-    setSessionOption(ExecConstants.SLICE_TARGET, "10");
-    setSessionOption(PlannerSettings.HASHAGG, "false");
-    testRunAndPrint(UserBitShared.QueryType.SQL, query);
+    setSessionOption(ExecConstants.SLICE_TARGET_OPTION, 10);
+    setSessionOption(PlannerSettings.HASHAGG, false);
+    testSql(query);
   }
 }

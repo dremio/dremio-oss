@@ -18,6 +18,7 @@ package com.dremio.exec.store.parquet;
 import static com.dremio.sabot.RecordSet.r;
 import static com.dremio.sabot.RecordSet.rs;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.TableFunctionPOP;
@@ -139,7 +140,7 @@ public class TestParquetScanTableFunctionWithEqualityDeletes
 
   @AfterClass
   public static void closeTables() throws Exception {
-    table.close();
+    AutoCloseables.close(table);
   }
 
   @Test

@@ -296,6 +296,14 @@ public class OperatorStats {
     return operatorType;
   }
 
+  public long getAverageHeapAllocated() {
+    return avgAllocatedHeap / MB;
+  }
+
+  public long getPeakHeapAllocated() {
+    return peakAllocatedHeap / MB;
+  }
+
   private String assertionError(String msg) {
     return String.format(
         "Failure while %s for operator id %d. Currently have currentState:%s savedState:%s",
@@ -378,6 +386,7 @@ public class OperatorStats {
   // Use this method to account the processing time in OperatorStats
   public void startProcessing() {
     assert currentState == State.NONE : assertionError("starting processing");
+    startHeapAllocation = HeapAllocatedMXBeanWrapper.getCurrentThreadAllocatedBytes();
     startState(State.PROCESSING);
   }
 
@@ -393,6 +402,18 @@ public class OperatorStats {
 
   public void stopProcessing() {
     assert currentState == State.PROCESSING : assertionError("stopping processing");
+    if (startHeapAllocation >= 0) {
+      long currentHeapAllocation = HeapAllocatedMXBeanWrapper.getCurrentThreadAllocatedBytes();
+      final long lastAllocatedHeap = currentHeapAllocation - startHeapAllocation;
+      totalAllocatedHeap += lastAllocatedHeap;
+      operatorEvalHeapAllocatedTotal.withTags(operatorTags).increment(lastAllocatedHeap);
+      numProcessingLoop++;
+      double avg =
+          (double) avgAllocatedHeap
+              + ((double) (lastAllocatedHeap - avgAllocatedHeap) / (double) numProcessingLoop);
+      avgAllocatedHeap = Math.round(avg);
+      peakAllocatedHeap = Math.max(lastAllocatedHeap, peakAllocatedHeap);
+    }
     stopState();
   }
 
@@ -703,6 +724,7 @@ public class OperatorStats {
   }
 
   private static final int KB = 1024;
+  private static final int MB = 1024 * 1024;
   private static final String COL_DELIMITER = ",";
 
   public void fillLogBuffer(StringBuilder sb, String fragmentId, boolean dumpHeapUsage) {

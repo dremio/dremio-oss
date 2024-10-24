@@ -68,7 +68,7 @@ describe("AccelerationContent", () => {
 
   it("should render with minimal props without exploding", () => {
     expect(shallow(<AccelerationContent {...minimalProps} />)).to.have.length(
-      1
+      1,
     );
   });
 

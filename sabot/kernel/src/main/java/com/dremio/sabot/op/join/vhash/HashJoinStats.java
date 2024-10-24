@@ -36,9 +36,6 @@ public class HashJoinStats {
     RESIZING_TIME_NANOS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "RESIZING_TIME_NANOS"),
     PIVOT_TIME_NANOS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "PIVOT_TIME_NANOS"),
     INSERT_TIME_NANOS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "INSERT_TIME_NANOS"),
-    ACCUMULATE_TIME_NANOS(
-        DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "ACCUMULATE_TIME_NANOS"),
-    REVERSE_TIME_NANOS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "REVERSE_TIME_NANOS"),
     UNPIVOT_TIME_NANOS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "UNPIVOT_TIME_NANOS"),
     VECTORIZED,
     PROBE_PIVOT_NANOS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "PROBE_PIVOT_NANOS"),
@@ -110,7 +107,9 @@ public class HashJoinStats {
     OOB_DROP_NO_VICTIM, /* number of oob messages dropped because a victim partition wasn't found */
     OOB_DROP_LOCAL, /* number of self sent oob messages ignored */
     OOB_DROP_WRONG_STATE, /* number of oob messages dropped because it was not in build phase */
-    OOB_SPILL; /* number of spills performed */
+    OOB_SPILL, /* number of spills performed */
+    SPILL_NANOS,
+    SETUP_TIME;
 
     private final UserBitShared.MetricDef.DisplayType displayType;
     private final UserBitShared.MetricDef.AggregationType aggregationType;

@@ -92,12 +92,7 @@ export const TabPanel = (props: {
 }) => {
   const { children, className, ...rest } = props;
   return (
-    <div
-      role="tabpanel"
-      className={clsx("tabpanel", className)}
-      tabIndex={0}
-      {...rest}
-    >
+    <div role="tabpanel" className={clsx("tabpanel", className)} {...rest}>
       {rest.hidden ? null : children}
     </div>
   );

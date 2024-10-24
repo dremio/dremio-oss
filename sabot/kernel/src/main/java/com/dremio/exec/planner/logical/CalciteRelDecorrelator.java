@@ -192,8 +192,7 @@ public class CalciteRelDecorrelator implements ReflectiveVisitor {
    * @param rootRel Root node of the query
    * @param forceValueGenerator force value generator to be created when decorrelating filters
    * @param relBuilder Builder for relational expressions
-   * @return Equivalent query with all {@link org.apache.calcite.rel.core.Correlate} instances
-   *     removed
+   * @return Equivalent query with all {@link Correlate} instances removed
    */
   public static RelNode decorrelateQuery(
       RelNode rootRel, RelBuilder relBuilder, boolean forceValueGenerator) {
@@ -962,7 +961,7 @@ public class CalciteRelDecorrelator implements ReflectiveVisitor {
 
   /**
    * Finds a {@link RexInputRef} that is equivalent to a {@link CorRef}, and if found, throws a
-   * {@link org.apache.calcite.util.Util.FoundOne}.
+   * {@link Util.FoundOne}.
    */
   private void findCorrelationEquivalent(CorRef correlation, RexNode e) throws Util.FoundOne {
     switch (e.getKind()) {
@@ -2668,8 +2667,7 @@ public class CalciteRelDecorrelator implements ReflectiveVisitor {
   }
 
   /**
-   * A map of the locations of {@link org.apache.calcite.rel.core.Correlate} in a tree of {@link
-   * RelNode}s.
+   * A map of the locations of {@link Correlate} in a tree of {@link RelNode}s.
    *
    * <p>It is used to drive the decorrelation process. Treat it as immutable; rebuild if you modify
    * the tree.

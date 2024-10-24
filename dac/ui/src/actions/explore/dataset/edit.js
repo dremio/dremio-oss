@@ -30,7 +30,7 @@ export const loadExistingDataset =
     sessionId,
     willLoadTable,
     refType,
-    refValue
+    refValue,
   ) =>
   (dispatch) => {
     const jobId = dataset.get("jobId");
@@ -43,13 +43,13 @@ export const loadExistingDataset =
             sessionId,
             willLoadTable,
             refType,
-            refValue
+            refValue,
           );
     return dispatch(
       loadExploreEntities({
         href,
         viewId,
         schema: datasetWithoutData,
-      })
+      }),
     );
   };

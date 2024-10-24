@@ -16,10 +16,10 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
-import { SelectView } from "@app/components/Fields/SelectView";
+import { SelectView } from "#oss/components/Fields/SelectView";
 import Menu from "components/Menus/Menu";
 import MenuItem from "components/Menus/MenuItem";
-import { Tag } from "@app/pages/ExplorePage/components/TagsEditor/Tag";
+import { Tag } from "#oss/pages/ExplorePage/components/TagsEditor/Tag";
 
 import {
   tag as tagClass,

@@ -15,7 +15,7 @@
  */
 import { useState, useRef, useEffect } from "react";
 import PropTypes from "prop-types";
-import { Tooltip } from "@app/components/Tooltip";
+import { Tooltip } from "#oss/components/Tooltip";
 import { getIconByEntityType } from "utils/iconUtils";
 import DatasetSummaryOverlay from "components/Dataset/DatasetSummaryOverlay";
 import { checkTypeToShowOverlay } from "utils/datasetUtils";

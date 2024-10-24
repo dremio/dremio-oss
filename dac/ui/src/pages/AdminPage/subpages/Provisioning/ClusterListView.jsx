@@ -22,24 +22,24 @@ import { get } from "lodash/object";
 import clsx from "clsx";
 
 import { StoreSubscriber } from "./StoreSubscriber";
-import { getViewState } from "@app/selectors/resources";
+import { getViewState } from "#oss/selectors/resources";
 
 import { page, pageContent } from "uiTheme/radium/general";
 import ClusterListViewMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/ClusterListViewMixin";
-import EnginesFilter from "@app/pages/AdminPage/subpages/Provisioning/components/EnginesFilter";
+import EnginesFilter from "#oss/pages/AdminPage/subpages/Provisioning/components/EnginesFilter";
 import { getFilteredEngines } from "dyn-load/pages/AdminPage/subpages/Provisioning/EngineFilterHelper";
-import EngineStatus from "@app/pages/AdminPage/subpages/Provisioning/components/EngineStatus";
-import NumberFormatUtils from "@app/utils/numberFormatUtils";
+import EngineStatus from "#oss/pages/AdminPage/subpages/Provisioning/components/EngineStatus";
+import NumberFormatUtils from "#oss/utils/numberFormatUtils";
 import {
   getEntityName,
   getYarnSubProperty,
   isYarn,
-} from "@app/pages/AdminPage/subpages/Provisioning/provisioningUtils";
-import { CLUSTER_STATE } from "@app/constants/provisioningPage/provisioningConstants";
+} from "#oss/pages/AdminPage/subpages/Provisioning/provisioningUtils";
+import { CLUSTER_STATE } from "#oss/constants/provisioningPage/provisioningConstants";
 import { DEFAULT_ENGINE_FILTER_SELECTIONS } from "dyn-load/constants/provisioningPage/provisioningConstants";
 import { Table } from "leantable/react";
-import { getSortedTableData } from "@app/components/Table/TableUtils";
-import { withIsInstanceFamilyEnabled } from "@app/pages/AdminPage/subpages/Provisioning/withIsInstanceFamilyEnabled";
+import { getSortedTableData } from "#oss/components/Table/TableUtils";
+import { withIsInstanceFamilyEnabled } from "#oss/pages/AdminPage/subpages/Provisioning/withIsInstanceFamilyEnabled";
 
 export const VIEW_ID = "ClusterListView";
 export const STATUS_VIEW_ID = "ClusterListViewStatus";

@@ -16,7 +16,7 @@
 import { shallow } from "enzyme";
 import Immutable from "immutable";
 import { TreeNode } from "./TreeNode";
-import { starTabNames } from "@app/components/Tree/resourceTreeUtils";
+import { starTabNames } from "#oss/components/Tree/resourceTreeUtils";
 
 describe("TreeNode", () => {
   let commonProps;

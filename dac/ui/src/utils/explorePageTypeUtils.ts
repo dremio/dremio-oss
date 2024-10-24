@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
-import { isWikAvailable } from "@app/selectors/explore";
+import { PageTypes } from "#oss/pages/ExplorePage/pageTypes";
+import { isWikAvailable } from "#oss/selectors/explore";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import { useSelector } from "react-redux";
 import { browserHistory } from "react-router";
@@ -24,7 +24,7 @@ export const defaultPageTypeList = [PageTypes.default];
 
 export const useShowWiki = () => {
   return useSelector((state: any) =>
-    isWikAvailable(state, browserHistory.getCurrentLocation())
+    isWikAvailable(state, browserHistory.getCurrentLocation()),
   );
 };
 

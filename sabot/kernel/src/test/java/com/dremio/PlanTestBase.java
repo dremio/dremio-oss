@@ -41,7 +41,7 @@ public class PlanTestBase extends BaseTestQuery {
    * contained in the physical plan string.
    */
   public static void testPhysicalPlan(String sql, String... expectedSubstrs) throws Exception {
-    sql = "EXPLAIN PLAN for " + QueryTestUtil.normalizeQuery(sql);
+    sql = "EXPLAIN PLAN for " + sql;
 
     final String planStr = getPlanInString(sql, OPTIQ_FORMAT);
 
@@ -81,8 +81,7 @@ public class PlanTestBase extends BaseTestQuery {
    */
   public static String testPlanMatchingPatterns(
       String query, String[] expectedPatterns, String... excludedPatterns) throws Exception {
-    final String plan =
-        getPlanInString("EXPLAIN PLAN for " + QueryTestUtil.normalizeQuery(query), OPTIQ_FORMAT);
+    final String plan = getPlanInString("EXPLAIN PLAN for " + query, OPTIQ_FORMAT);
     testMatchingPatterns(plan, expectedPatterns, excludedPatterns);
     return plan;
   }
@@ -141,8 +140,7 @@ public class PlanTestBase extends BaseTestQuery {
    */
   public static void testPlanSubstrPatterns(
       String query, String[] expectedPatterns, String[] excludedPatterns) throws Exception {
-    final String plan =
-        getPlanInString("EXPLAIN PLAN for " + QueryTestUtil.normalizeQuery(query), OPTIQ_FORMAT);
+    final String plan = getPlanInString("EXPLAIN PLAN for " + query, OPTIQ_FORMAT);
 
     // Check and make sure all expected patterns are in the plan
     if (expectedPatterns != null) {
@@ -176,9 +174,7 @@ public class PlanTestBase extends BaseTestQuery {
   public static void testPlanWithAttributesMatchingPatterns(
       String query, String[] expectedPatterns, String[] excludedPatterns) throws Exception {
     final String plan =
-        getPlanInString(
-            "EXPLAIN PLAN INCLUDING ALL ATTRIBUTES for " + QueryTestUtil.normalizeQuery(query),
-            OPTIQ_FORMAT);
+        getPlanInString("EXPLAIN PLAN INCLUDING ALL ATTRIBUTES for " + query, OPTIQ_FORMAT);
     testPlanWithAttributesMatchingPatternsPlanInput(plan, expectedPatterns, excludedPatterns);
   }
 
@@ -227,8 +223,7 @@ public class PlanTestBase extends BaseTestQuery {
    */
   public static void testPlanSubstrPatternsInOrder(
       String query, String[] expectedPatterns, String[] excludedPatterns) throws Exception {
-    final String plan =
-        getPlanInString("EXPLAIN PLAN for " + QueryTestUtil.normalizeQuery(query), OPTIQ_FORMAT);
+    final String plan = getPlanInString("EXPLAIN PLAN for " + query, OPTIQ_FORMAT);
     testPlanSubstrPatternsInOrderPlanInput(plan, expectedPatterns, excludedPatterns);
   }
 
@@ -420,8 +415,7 @@ public class PlanTestBase extends BaseTestQuery {
         throw new UnsupportedOperationException();
     }
 
-    sql =
-        "EXPLAIN PLAN " + levelStr + " " + depthStr + "  for " + QueryTestUtil.normalizeQuery(sql);
+    sql = "EXPLAIN PLAN " + levelStr + " " + depthStr + "  for " + sql;
 
     return getPlanInString(sql, OPTIQ_FORMAT);
   }

@@ -18,23 +18,23 @@ import { IndexRoute, Redirect, Route } from "react-router";
 import {
   CheckUserAuthentication,
   UserIsAuthenticated,
-} from "@app/components/Auth/authWrappers";
+} from "#oss/components/Auth/authWrappers";
 
 import {
   explorePageExit,
   explorePageLocationChanged,
   startExplorePageListener,
-} from "@app/actions/explore/dataset/data";
+} from "#oss/actions/explore/dataset/data";
 // import Votes from '@inject/pages/AdminPage/subpages/Votes'; // To Be Removed
 import SSOLandingPage from "@inject/pages/AuthenticationPage/components/SSOLandingPage";
-import { resetModuleState } from "@app/actions/modulesState";
-import { exploreStateKey } from "@app/selectors/explore";
+import { resetModuleState } from "#oss/actions/modulesState";
+import { exploreStateKey } from "#oss/selectors/explore";
 import {
   LOGIN_PATH,
   SIGNUP_PATH,
   SSO_LANDING_PATH,
-} from "@app/sagas/loginLogout";
-import { lazy } from "@app/components/Lazy";
+} from "#oss/sagas/loginLogout";
+import { lazy } from "#oss/components/Lazy";
 import { AdminPageRouting, EulaRoute } from "@inject/RouteMixin";
 import SSOConsent from "@inject/pages/AuthenticationPage/components/SSOConsent";
 import AuthenticationPage from "@inject/pages/AuthenticationPage/AuthenticationPage";
@@ -49,7 +49,7 @@ import ReflectionJobsPage from "@inject/pages/JobPage/ReflectionJobsPage";
 import JobPage from "@inject/pages/QVJobPage/QVJobPage";
 import JobsPage from "./pages/JobsPage/JobsPage";
 import { ReflectionJobsPage as NewReflectionJobsPage } from "./pages/ReflectionJobsPage/ReflectionJobsPage";
-import SingleJobPage from "@app/pages/JobDetailsPageNew/JobDetailsPage";
+import SingleJobPage from "#oss/pages/JobDetailsPageNew/JobDetailsPage";
 import routeConfig from "@inject/routesConfig";
 import notFoundRoute from "@inject/NotFoundRoute";
 import config from "dyn-load/utils/config";
@@ -260,6 +260,10 @@ export default (dispatch) => {
                 />
                 <Route
                   path={commonPaths.nessie.fullRoute()}
+                  component={AllSources}
+                />
+                <Route
+                  path={commonPaths.lakehouse.fullRoute()}
                   component={AllSources}
                 />
                 {versionedAllSourcesRoute}

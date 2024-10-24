@@ -18,8 +18,8 @@ import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import exploreUtils from "utils/explore/exploreUtils";
-import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
-import { changePageTypeInUrl } from "@app/pages/ExplorePage/pageTypeUtils";
+import { PageTypes, pageTypesProp } from "#oss/pages/ExplorePage/pageTypes";
+import { changePageTypeInUrl } from "#oss/pages/ExplorePage/pageTypeUtils";
 import { collapseExploreSql } from "actions/explore/ui";
 import {
   getExploreState,
@@ -27,11 +27,11 @@ import {
   getApproximate,
   getExplorePageDataset,
   getColumnFilter,
-} from "@app/selectors/explore";
-import { setQueryFilter as setQueryFilterFunc } from "@app/actions/explore/view";
+} from "#oss/selectors/explore";
+import { setQueryFilter as setQueryFilterFunc } from "#oss/actions/explore/view";
 
 import { performTransform } from "actions/explore/dataset/transform";
-import { store } from "@app/store/store";
+import { store } from "#oss/store/store";
 
 import TableControlsView from "./TableControlsView";
 

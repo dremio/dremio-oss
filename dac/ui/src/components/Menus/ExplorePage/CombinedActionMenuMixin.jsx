@@ -18,7 +18,6 @@ import ExportMenu from "./ExportMenu";
 
 export function CombinedActionMenuMixin(input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     checkToRenderDownloadSection() {
       const datasetSql = this.props.dataset.get("sql");
       const { action, datasetColumns, updateDownloading } = this.props;

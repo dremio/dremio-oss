@@ -590,8 +590,7 @@ public class TestViewSupport extends TestBaseViewSupport {
 
   @Test // DRILL-2589
   public void createViewWithUniqueColsInFieldListDuplicateColsInQuery2() throws Exception {
-    try (AutoCloseable ac =
-        setSystemOptionWithAutoReset(HashJoinOperator.NUM_PARTITIONS.getOptionName(), "1")) {
+    try (AutoCloseable ignored = withSystemOption(HashJoinOperator.NUM_PARTITIONS, 1)) {
       testViewHelper(
           TEMP_SCHEMA,
           "(regionid1, regionid2)",

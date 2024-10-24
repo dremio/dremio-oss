@@ -15,7 +15,7 @@
  */
 package com.dremio.service.reflection.refresh;
 
-import static com.dremio.service.reflection.ReflectionUtils.removeUpdateColumn;
+import static com.dremio.exec.planner.acceleration.MaterializationExpander.removeUpdateColumn;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.logical.PlanProperties.Generator.ResultMode;

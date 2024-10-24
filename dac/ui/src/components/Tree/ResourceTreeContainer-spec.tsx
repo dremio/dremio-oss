@@ -21,7 +21,8 @@ import { render } from "rtlUtils";
 import sinon from "sinon";
 import { expect } from "chai";
 import { fireEvent } from "@testing-library/react";
-
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "#oss/queryClient";
 import {
   ResourceTreeContainer,
   ResourceTreeContainerProps,
@@ -89,13 +90,21 @@ describe("ResourceTreeContainer", () => {
   });
   it("changes the tab when invoked", () => {
     // ResourceTreeContainer
-    const { getByTestId } = render(<ResourceTreeContainer {...minimalProps} />);
+    const { getByTestId } = render(
+      <QueryClientProvider client={queryClient}>
+        <ResourceTreeContainer {...minimalProps} />
+      </QueryClientProvider>,
+    );
     expect(getByTestId("resourceTreeContainer")).to.exist;
   });
   describe("handleStarredTabChange", () => {
     it("changes the tab when invoked", () => {
       const props = { ...minimalProps, ...propsForChildren };
-      const { getByTestId } = render(<ResourceTreeContainer {...props} />);
+      const { getByTestId } = render(
+        <QueryClientProvider client={queryClient}>
+          <ResourceTreeContainer {...props} />
+        </QueryClientProvider>,
+      );
       expect(getByTestId('{"0":{"id":"Resource.Tree.All"}}subHeaderTab')).to
         .exist;
       expect(getByTestId('{"0":{"id":"Resource.Tree.Starred"}}subHeaderTab')).to

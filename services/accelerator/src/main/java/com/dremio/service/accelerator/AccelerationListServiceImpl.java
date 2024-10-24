@@ -221,9 +221,13 @@ public class AccelerationListServiceImpl
       final Optional<ReflectionGoal> reflectionGoal =
           reflectionAdministrationService.getGoal(new ReflectionId(request.getReflectionId()));
       if (!reflectionGoal.isPresent()) {
-        throw UserException.validationError(
-                new IllegalArgumentException(
-                    String.format("Reflection %s not exist.", request.getReflectionId())))
+        String errorMessage =
+            reflectionAdministrationService
+                    .getExternalReflectionById(request.getReflectionId())
+                    .isPresent()
+                ? "External reflections are not supported."
+                : String.format("Reflection %s does not exist.", request.getReflectionId());
+        throw UserException.validationError(new IllegalArgumentException(errorMessage))
             .buildSilently();
       }
       Iterator<ReflectionLineageInfo> reflectionLineageInfo =

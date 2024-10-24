@@ -86,13 +86,13 @@ export function getMeasuresForColumnType(columnType) {
     (option) =>
       !columnType ||
       !option.columnType ||
-      option.columnType.indexOf(columnType) !== -1
+      option.columnType.indexOf(columnType) !== -1,
   );
 }
 
 export function isMeasureValidForColumnType(measure, columnType) {
   const curMeasureOption = measuresOptions.find(
-    (measuresOption) => measuresOption.option === measure
+    (measuresOption) => measuresOption.option === measure,
   );
   return (
     !curMeasureOption ||

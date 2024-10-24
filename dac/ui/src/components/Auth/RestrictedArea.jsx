@@ -21,7 +21,7 @@ import {
   authInfoPropType,
   rulePropType,
   getAuthInfoSelector,
-} from "@app/utils/authUtils";
+} from "#oss/utils/authUtils";
 
 const mapStateToProps = (state) => ({
   authInfo: getAuthInfoSelector(state),

@@ -17,35 +17,94 @@ package com.dremio.exec.physical.config.copyinto;
 
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.physical.config.ExtendedProperty;
-import com.dremio.exec.record.BatchSchema;
+import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Represents properties for the Copy Into transformation process, implementing the {@link
+ * ExtendedProperty} interface. This class stores a list of transformation properties, each defined
+ * by a {@link Property} object.
+ */
 public class CopyIntoTransformationProperties implements ExtendedProperty {
 
-  private List<LogicalExpression> logicalExpressions;
-  private List<String> mappings;
-  private BatchSchema schema;
+  private final List<Property> properties = new ArrayList<>();
 
-  private CopyIntoTransformationProperties() {
-    // for serialization purposes
+  /** Default constructor for serialization purposes. */
+  public CopyIntoTransformationProperties() {}
+
+  /**
+   * Adds a new transformation property to the list.
+   *
+   * @param property The {@link Property} object to be added.
+   */
+  public void addProperty(Property property) {
+    this.properties.add(property);
   }
 
-  public CopyIntoTransformationProperties(
-      List<LogicalExpression> logicalExpressions, List<String> mappings, BatchSchema schema) {
-    this.logicalExpressions = logicalExpressions;
-    this.mappings = mappings;
-    this.schema = schema;
+  /**
+   * Returns the list of transformation properties.
+   *
+   * @return A list of {@link Property} objects.
+   */
+  public List<Property> getProperties() {
+    return properties;
   }
 
-  public List<LogicalExpression> getLogicalExpressions() {
-    return logicalExpressions;
-  }
+  /**
+   * Represents a single transformation property, including the transformation expression, source
+   * column names, and target column name.
+   */
+  public static class Property {
+    private LogicalExpression transformationExpression;
+    private List<String> sourceColNames;
+    private String targetColName;
 
-  public List<String> getMappings() {
-    return mappings;
-  }
+    /** Default constructor for serialization purposes. */
+    private Property() {}
 
-  public BatchSchema getSchema() {
-    return schema;
+    /**
+     * Constructs a new Property with the specified transformation expression, source column names,
+     * and target column name.
+     *
+     * @param transformationExpression The {@link LogicalExpression} representing the
+     *     transformation.
+     * @param sourceColNames The list of source column names involved in the transformation.
+     * @param targetColName The target column name for the transformation result.
+     */
+    public Property(
+        LogicalExpression transformationExpression,
+        List<String> sourceColNames,
+        String targetColName) {
+      this.transformationExpression = transformationExpression;
+      this.sourceColNames = sourceColNames;
+      this.targetColName = targetColName;
+    }
+
+    /**
+     * Returns the transformation expression for this property.
+     *
+     * @return The {@link LogicalExpression} representing the transformation.
+     */
+    public LogicalExpression getTransformationExpression() {
+      return transformationExpression;
+    }
+
+    /**
+     * Returns the list of source column names involved in the transformation.
+     *
+     * @return A list of source column names.
+     */
+    public List<String> getSourceColNames() {
+      return sourceColNames;
+    }
+
+    /**
+     * Returns the target column name for the transformation result.
+     *
+     * @return The target column name.
+     */
+    public String getTargetColName() {
+      return targetColName;
+    }
   }
 }

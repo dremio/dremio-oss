@@ -40,7 +40,7 @@ import {
 import {
   loadRecommendedJoin,
   setJoinReference,
-} from "@app/actions/explore/join";
+} from "#oss/actions/explore/join";
 
 import {
   getTableColumns,
@@ -52,7 +52,7 @@ import { getLocation } from "selectors/routing";
 import {
   RECOMMENDED_JOIN,
   CUSTOM_JOIN,
-} from "@app/constants/explorePage/joinTabs";
+} from "#oss/constants/explorePage/joinTabs";
 
 import { isEmptyValue } from "utils/validation";
 import { constructFullPath } from "utils/pathUtils";
@@ -113,7 +113,7 @@ export class JoinController extends Component {
 
   state = {};
 
-  recommendationsPromise = null; // eslint-disable-line react/sort-comp
+  recommendationsPromise = null;
 
   componentDidMount() {
     this.props.resetJoins();

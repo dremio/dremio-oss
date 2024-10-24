@@ -19,8 +19,6 @@ import static com.dremio.exec.planner.VacuumOutputSchema.getRowType;
 import static com.dremio.exec.store.SystemSchemas.FILE_PATH;
 import static com.dremio.exec.store.SystemSchemas.FILE_SIZE;
 import static com.dremio.exec.store.SystemSchemas.FILE_TYPE;
-import static com.dremio.exec.store.SystemSchemas.METADATA_FILE_PATH;
-import static com.dremio.exec.store.SystemSchemas.METADATA_PATH_SCAN_SCHEMA;
 import static com.dremio.exec.store.SystemSchemas.PATH;
 import static com.dremio.exec.store.SystemSchemas.PATH_SCHEMA;
 import static com.dremio.exec.store.SystemSchemas.RECORDS;
@@ -89,6 +87,7 @@ import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -203,8 +202,9 @@ public class VacuumTableRemoveOrphansPlanGenerator extends VacuumPlanGenerator {
     if (tableLocation != null && tableLocation.contains(UriSchemes.SCHEME_SEPARATOR)) {
       return Path.of(tableLocation).toURI().getScheme();
     } else if (createTableEntry != null) {
+      Configuration conf = createTableEntry.getPlugin().getFsConfCopy();
       FileSystem fs = IcebergUtils.createFS(createTableEntry);
-      return IcebergUtils.getDefaultPathScheme(fs.getScheme());
+      return IcebergUtils.getDefaultPathScheme(fs.getScheme(), conf);
     }
     return null;
   }
@@ -235,19 +235,6 @@ public class VacuumTableRemoveOrphansPlanGenerator extends VacuumPlanGenerator {
             SqlValidatorUtil.F_SUGGESTER);
     return ProjectPrel.create(
         input.getCluster(), input.getTraitSet(), input, projectExpressions, newRowType);
-  }
-
-  protected Prel createMetadataPathScanPlan() throws InvalidProtocolBufferException {
-    IcebergProtobuf.IcebergDatasetSplitXAttr splitXAttrs = getSplitXAttr();
-    ObjectNode tableMetadataEntry = OBJECT_MAPPER.createObjectNode();
-    tableMetadataEntry.put(METADATA_FILE_PATH, splitXAttrs.getPath());
-
-    return new ValuesPrel(
-        cluster,
-        traitSet,
-        VacuumOutputSchema.getRowType(METADATA_PATH_SCAN_SCHEMA, cluster.getTypeFactory()),
-        new JSONOptions(tableMetadataEntry),
-        icebergCostEstimates.getTablesCount());
   }
 
   private IcebergProtobuf.IcebergDatasetSplitXAttr getSplitXAttr()

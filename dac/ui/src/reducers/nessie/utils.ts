@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import * as NessieActions from "@app/actions/nessie/nessie";
+import * as NessieActions from "#oss/actions/nessie/nessie";
 import {
   ARCTIC_STATE_PREFIX,
   COMMIT_TYPE,
   NESSIE_REF_PREFIX,
-} from "@app/constants/nessie";
+} from "#oss/constants/nessie";
 import { cloneDeep } from "lodash";
 import { initialState } from "./nessie";
-import { NessieRootState } from "@app/types/nessie";
+import { NessieRootState } from "#oss/types/nessie";
 
 export function getNessieRequestActions() {
   return Object.keys(NessieActions)
@@ -35,7 +35,7 @@ export function initializeRefState(state: NessieRootState) {
     .filter(
       (key) =>
         !key.startsWith(NESSIE_REF_PREFIX) &&
-        !key.startsWith(ARCTIC_STATE_PREFIX) //State for Arctic UI
+        !key.startsWith(ARCTIC_STATE_PREFIX), //State for Arctic UI
     )
     .reduce((acc, cur) => {
       acc[`${NESSIE_REF_PREFIX}${cur}`] = cloneDeep(state[cur]);
@@ -47,7 +47,7 @@ export function initializeRefState(state: NessieRootState) {
 // Outputs NessieRootState with updated references (intitializes the nessie ref picker to dataset values)
 export function initializeDatasetRefs(
   state: NessieRootState,
-  references: NessieActions.DatasetReference
+  references: NessieActions.DatasetReference,
 ) {
   if (!references) return state;
 
@@ -72,6 +72,6 @@ export function initializeDatasetRefs(
             };
       return acc;
     },
-    { ...state }
+    { ...state },
   );
 }

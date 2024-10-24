@@ -182,7 +182,7 @@ public class LuceneSearchIndex implements AutoCloseable {
           continue;
         }
 
-        try (WarningTimer watch = new WarningTimer("LuceneSearchIndex commit", 5000)) {
+        try (WarningTimer watch = new WarningTimer("LuceneSearchIndex commit", 5000, logger)) {
           try {
             commit();
           } catch (Throwable e) {

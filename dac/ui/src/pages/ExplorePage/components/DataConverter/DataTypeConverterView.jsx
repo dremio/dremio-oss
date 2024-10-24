@@ -39,7 +39,7 @@ import {
   MAP,
   STRUCT,
   BOOLEAN,
-} from "@app/constants/DataTypes";
+} from "#oss/constants/DataTypes";
 import { Button } from "dremio-ui-lib/components";
 import {
   NoParamToBinary,
@@ -154,7 +154,7 @@ class DataTypeConverterView extends Component {
             itemRenderer={({ option, label }) => (
               <span className={classNames([typeElement, "font-icon"])}>
                 <dremio-icon
-                  class="mx-1"
+                  class="mx-1 icon-primary"
                   name={`data-types/${typeToIconType[option]}`}
                 ></dremio-icon>
                 {label}

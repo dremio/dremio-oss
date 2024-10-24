@@ -33,7 +33,7 @@ export const runTableTransform =
         nextTable,
         body: transformData,
         sessionId,
-      })
+      }),
     );
   };
 
@@ -41,7 +41,7 @@ export const TRANSFORM_HISTORY_CHECK = "TRANSFORM_HISTORY_CHECK";
 export const transformHistoryCheck = (
   dataset,
   continueCallback,
-  cancelCallback
+  cancelCallback,
 ) => ({
   type: TRANSFORM_HISTORY_CHECK,
   meta: { dataset, continueCallback, cancelCallback },

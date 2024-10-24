@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useMultiTabIsEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
+import { useMultiTabIsEnabled } from "#oss/components/SQLScripts/useMultiTabIsEnabled";
 
 export const SaveScriptAsMenuItem = {
   label: "NewQuery.SaveScriptAs",

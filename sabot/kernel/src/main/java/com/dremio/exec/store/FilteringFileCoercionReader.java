@@ -34,7 +34,7 @@ public abstract class FilteringFileCoercionReader extends AbstractRecordReader {
   protected final RecordReader inner;
   protected final OperatorContext context;
   protected final BatchSchema originalSchema;
-  private final CompositeReader compositeReader;
+  protected CompositeReader compositeReader;
   protected final ExpressionEvaluationOptions projectorOptions;
 
   protected int recordCount;
@@ -72,7 +72,8 @@ public abstract class FilteringFileCoercionReader extends AbstractRecordReader {
             typeCoercion,
             Stopwatch.createUnstarted(),
             Stopwatch.createUnstarted(),
-            originalSchema);
+            originalSchema,
+            0);
     this.projectorOutput = outgoing;
   }
 

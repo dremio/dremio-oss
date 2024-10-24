@@ -30,12 +30,15 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.common.concurrent.bulk.BulkRequest;
+import com.dremio.common.concurrent.bulk.BulkResponse;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.connector.impersonation.extensions.SupportsImpersonation;
@@ -56,6 +59,7 @@ import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.ImpersonationConf;
+import com.dremio.exec.store.dfs.MetadataIOPool;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceIdentity;
@@ -75,6 +79,7 @@ import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 import javax.inject.Provider;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -577,7 +582,7 @@ public class TestDatasetManager {
     } catch (UserException e) {
       assertThat(e.getMessage())
           .contains(
-              "Version context for table VersionedCatalog.\"Table\" must be specified using AT SQL syntax");
+              "Version context for entity VersionedCatalog.\"Table\" must be specified using AT SQL syntax");
       return;
     }
     fail("getTable should have thrown exception");
@@ -965,6 +970,46 @@ public class TestDatasetManager {
   }
 
   @Test
+  public void testGetTableWithNessieSourceAsKey() throws Exception {
+    final NamespaceKey sourceKey = new NamespaceKey("VersionedCatalog");
+    final VersionContext versionContext = VersionContext.ofBranch("testBranch");
+    final SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+
+    final MetadataRequestOptions metadataRequestOptions = mock(MetadataRequestOptions.class);
+    when(metadataRequestOptions.getSchemaConfig()).thenReturn(schemaConfig);
+
+    final DatasetConfig shallowDatasetConfig = new DatasetConfig();
+    shallowDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    shallowDatasetConfig.setFullPathList(ImmutableList.of("VersionedCatalog"));
+    NamespaceKey tableKey = new NamespaceKey(shallowDatasetConfig.getFullPathList());
+    when(metadataRequestOptions.getVersionForSource(sourceKey.getRoot(), tableKey))
+        .thenReturn(versionContext);
+    FakeVersionedPlugin sp = mock(FakeVersionedPlugin.class);
+
+    final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    when(managedStoragePlugin.getDefaultRetrievalOptions())
+        .thenReturn(DatasetRetrievalOptions.DEFAULT);
+    when(managedStoragePlugin.getPlugin()).thenReturn(sp);
+    when(managedStoragePlugin.getName()).thenReturn(sourceKey);
+    when(sp.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+
+    final PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(sourceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
+
+    final NamespaceService namespaceService = mock(NamespaceService.class);
+    final OptionManager optionManager = mock(OptionManager.class);
+
+    final DatasetManager datasetManager =
+        new DatasetManager(
+            pluginRetriever, namespaceService, optionManager, "username", null, null, null, null);
+
+    DremioTable returnedTable = datasetManager.getTable(sourceKey, metadataRequestOptions, true);
+    assertThat(returnedTable).isNull();
+  }
+
+  @Test
   public void testViewOwner() throws Exception {
     final NamespaceKey namespaceKey = new NamespaceKey("test");
 
@@ -1271,6 +1316,196 @@ public class TestDatasetManager {
     // Two calls were made when the first call threw.
     verify(saver, times(numExceptionsThrown == 0 ? 1 : 2))
         .save(any(), any(), any(), anyBoolean(), any(), anyString());
+  }
+
+  /**
+   * Tests bulk table retrieval when validity checks return false. This exercises the code path that
+   * invokes the metadata-io thread pool.
+   */
+  @Test
+  public void testBulkGetTables_ValidityChecksReturnFalse() throws Exception {
+    NamespaceKey namespaceKey1 = new NamespaceKey(ImmutableList.of("a", "b", "c"));
+    NamespaceKey namespaceKey2 = new NamespaceKey(ImmutableList.of("a", "b", "d"));
+    BulkRequest<NamespaceKey> req =
+        BulkRequest.<NamespaceKey>builder().add(namespaceKey1).add(namespaceKey2).build();
+
+    // Metadata request options.
+    SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+    MetadataRequestOptions metadataRequestOptions =
+        MetadataRequestOptions.newBuilder()
+            .setSchemaConfig(schemaConfig)
+            .setCheckValidity(true)
+            .build();
+
+    // Normal configs.
+    DatasetConfig datasetConfig1 =
+        new DatasetConfig()
+            .setType(DatasetType.PHYSICAL_DATASET)
+            .setId(new EntityId("test"))
+            .setFullPathList(namespaceKey1.getPathComponents())
+            .setReadDefinition(new ReadDefinition().setSplitVersion(0L))
+            .setTotalNumSplits(0);
+    DatasetConfig datasetConfig2 =
+        new DatasetConfig()
+            .setType(DatasetType.PHYSICAL_DATASET)
+            .setId(new EntityId("test"))
+            .setFullPathList(namespaceKey2.getPathComponents())
+            .setReadDefinition(new ReadDefinition().setSplitVersion(0L))
+            .setTotalNumSplits(0);
+
+    // Storage plugin mock.
+    ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    StoragePlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+    when(managedStoragePlugin.getPlugin()).thenReturn(fileSystemPlugin);
+    when(managedStoragePlugin.getDefaultRetrievalOptions())
+        .thenReturn(DatasetRetrievalOptions.newBuilder().setMaxNestedLevel(1).build());
+    when(managedStoragePlugin.getDatasetMetadataState(any()))
+        .thenReturn(DatasetMetadataState.builder().setIsComplete(true).setIsExpired(false).build());
+    DatasetHandle datasetHandle = mock(DatasetHandle.class);
+    when(managedStoragePlugin.getDatasetHandle(any(), any(), any()))
+        .thenReturn(Optional.of(datasetHandle));
+    when(datasetHandle.getDatasetPath())
+        .thenReturn(new EntityPath(datasetConfig1.getFullPathList()))
+        .thenReturn(new EntityPath(datasetConfig2.getFullPathList()));
+    when(managedStoragePlugin.getSaver()).thenReturn(mock(DatasetSaver.class));
+
+    // Validity checks should return false
+    when(managedStoragePlugin.bulkCheckValidity(any(), any()))
+        .thenAnswer(
+            invocation -> {
+              BulkRequest<NamespaceKey> keys = invocation.getArgument(0);
+              return keys.handleRequests(Boolean.FALSE);
+            });
+
+    PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(eq(namespaceKey1.getRoot()), eq(false)))
+        .thenReturn(managedStoragePlugin);
+    when(pluginRetriever.getPlugin(eq(namespaceKey2.getRoot()), eq(false)))
+        .thenReturn(managedStoragePlugin);
+
+    // Namespace service mock.
+    NamespaceService namespaceService = mock(NamespaceService.class);
+    when(namespaceService.getDataset(eq(namespaceKey1))).thenReturn(datasetConfig1);
+    when(namespaceService.getDataset(eq(namespaceKey2))).thenReturn(datasetConfig2);
+
+    DatasetManager datasetManager =
+        new DatasetManager(
+            pluginRetriever,
+            namespaceService,
+            mock(OptionManager.class),
+            "username",
+            null,
+            null,
+            null,
+            MetadataIOPool.Factory.INSTANCE.newPool(0));
+
+    BulkResponse<NamespaceKey, Optional<DremioTable>> res =
+        datasetManager.bulkGetTables(req, metadataRequestOptions, true);
+    Predicate<BulkResponse.Response<NamespaceKey, Optional<DremioTable>>> expected =
+        response -> {
+          NamespaceKey key = response.key();
+          DremioTable dremioTable = response.response().toCompletableFuture().join().get();
+          DatasetConfig datasetConfig = dremioTable.getDatasetConfig();
+          return (key.equals(namespaceKey1) && datasetConfig.equals(datasetConfig1))
+              || (key.equals(namespaceKey2) && datasetConfig.equals(datasetConfig2));
+        };
+    assertThat(res).matches(bulkResponse -> bulkResponse.responses().stream().allMatch(expected));
+  }
+
+  /**
+   * Tests bulk table retrieval when checkValidity=false. This test verifies we don't execute on
+   * metadata-io thread pool.
+   */
+  @Test
+  public void testBulkGetTables_CheckValidityFalse() throws Exception {
+    NamespaceKey namespaceKey1 = new NamespaceKey(ImmutableList.of("a", "b", "c"));
+    NamespaceKey namespaceKey2 = new NamespaceKey(ImmutableList.of("a", "b", "d"));
+    BulkRequest<NamespaceKey> req =
+        BulkRequest.<NamespaceKey>builder().add(namespaceKey1).add(namespaceKey2).build();
+
+    // Metadata request options.
+    SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+    MetadataRequestOptions metadataRequestOptions =
+        MetadataRequestOptions.newBuilder()
+            .setSchemaConfig(schemaConfig)
+            .setCheckValidity(false)
+            .build();
+
+    // Normal configs.
+    DatasetConfig datasetConfig1 =
+        new DatasetConfig()
+            .setType(DatasetType.PHYSICAL_DATASET)
+            .setId(new EntityId("test"))
+            .setFullPathList(namespaceKey1.getPathComponents())
+            .setReadDefinition(new ReadDefinition().setSplitVersion(0L))
+            .setTotalNumSplits(0);
+    DatasetConfig datasetConfig2 =
+        new DatasetConfig()
+            .setType(DatasetType.PHYSICAL_DATASET)
+            .setId(new EntityId("test"))
+            .setFullPathList(namespaceKey2.getPathComponents())
+            .setReadDefinition(new ReadDefinition().setSplitVersion(0L))
+            .setTotalNumSplits(0);
+
+    // Storage plugin mock.
+    ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    StoragePlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+    when(managedStoragePlugin.getPlugin()).thenReturn(fileSystemPlugin);
+    when(managedStoragePlugin.getDefaultRetrievalOptions())
+        .thenReturn(DatasetRetrievalOptions.newBuilder().setMaxNestedLevel(1).build());
+    when(managedStoragePlugin.getDatasetMetadataState(any()))
+        .thenReturn(DatasetMetadataState.builder().setIsComplete(true).setIsExpired(false).build());
+
+    // Simulate checkValidity=false. This means metadata always considered valid.
+    when(managedStoragePlugin.bulkCheckValidity(any(), any()))
+        .thenAnswer(
+            invocation -> {
+              BulkRequest<NamespaceKey> keys = invocation.getArgument(0);
+              return keys.handleRequests(Boolean.TRUE);
+            });
+
+    PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(eq(namespaceKey1.getRoot()), eq(false)))
+        .thenReturn(managedStoragePlugin);
+    when(pluginRetriever.getPlugin(eq(namespaceKey2.getRoot()), eq(false)))
+        .thenReturn(managedStoragePlugin);
+
+    // Namespace service mock.
+    NamespaceService namespaceService = mock(NamespaceService.class);
+    when(namespaceService.getDataset(eq(namespaceKey1))).thenReturn(datasetConfig1);
+    when(namespaceService.getDataset(eq(namespaceKey2))).thenReturn(datasetConfig2);
+
+    MetadataIOPool metadataIOPool = mock(MetadataIOPool.class);
+
+    DatasetManager datasetManager =
+        new DatasetManager(
+            pluginRetriever,
+            namespaceService,
+            mock(OptionManager.class),
+            "username",
+            null,
+            null,
+            null,
+            metadataIOPool);
+
+    // We shouldn't use the thread pool if checkValidity=false
+    verify(metadataIOPool, never()).execute(any());
+
+    BulkResponse<NamespaceKey, Optional<DremioTable>> res =
+        datasetManager.bulkGetTables(req, metadataRequestOptions, true);
+    Predicate<BulkResponse.Response<NamespaceKey, Optional<DremioTable>>> expected =
+        response -> {
+          NamespaceKey key = response.key();
+          DremioTable dremioTable = response.response().toCompletableFuture().join().get();
+          DatasetConfig datasetConfig = dremioTable.getDatasetConfig();
+          return (key.equals(namespaceKey1) && datasetConfig.equals(datasetConfig1))
+              || (key.equals(namespaceKey2) && datasetConfig.equals(datasetConfig2));
+        };
+    assertThat(res).matches(bulkResponse -> bulkResponse.responses().stream().allMatch(expected));
   }
 
   /** Fake Versioned Plugin interface for test */

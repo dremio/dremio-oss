@@ -34,7 +34,7 @@ describe("Tabs-spec", () => {
         <div tabId="activeTabId" className="tab">
           <span>Second tab content</span>
         </div>
-      </Tabs>
+      </Tabs>,
     );
     expect(wrapper.hasClass("tab-wrapper")).to.be.true;
   });
@@ -48,7 +48,7 @@ describe("Tabs-spec", () => {
         <div tabId="activeTabId" className="tab">
           <span>Second tab content</span>
         </div>
-      </Tabs>
+      </Tabs>,
     );
     expect(wrapper.find(".tab")).to.have.length.of(1);
     expect(wrapper.find(".tab").text()).to.equal("Second tab content");

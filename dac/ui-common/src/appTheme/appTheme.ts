@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
+import { useState } from "react";
 export enum Themes {
   LIGHT = "dremio-light",
   DARK = "dremio-dark",
-  HIGH_CONTRAST_LIGHT = "dremio-high-contrast-light",
   SYSTEM_AUTO = "dremio-auto-system",
 }
+
+export const getColorScheme = (): "light" | "dark" =>
+  //@ts-ignore
+  window.getComputedStyle(document.body)["color-scheme"];
 
 const THEME_STORAGE_KEY = "theme";
 
@@ -48,5 +52,28 @@ export const applyTheme = () => {
     rootEl.classList.remove(theme);
   });
 
-  rootEl.classList.add(getTheme());
+  if (getTheme() === Themes.SYSTEM_AUTO) {
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)",
+    ).matches;
+    prefersDark
+      ? rootEl.classList.add(Themes.DARK)
+      : rootEl.classList.add(Themes.LIGHT);
+  } else {
+    rootEl.classList.add(getTheme());
+  }
+};
+
+export const useColorScheme = () => {
+  const [colorScheme, setColorScheme] = useState<"light" | "dark">(
+    getColorScheme(),
+  );
+  window.addEventListener("color-scheme-change", () => {
+    if (getColorScheme() === "dark") {
+      setColorScheme("dark");
+    } else {
+      setColorScheme("light");
+    }
+  });
+  return colorScheme;
 };

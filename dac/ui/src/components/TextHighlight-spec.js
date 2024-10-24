@@ -41,9 +41,9 @@ describe("TextHighlight-spec", () => {
       wrapper
         .find(".TextHighlight")
         .html()
-        .replace(/<!--.*?-->/g, "")
+        .replace(/<!--.*?-->/g, ""),
     ).equal(
-      '<div class="TextHighlight" data-mui-internal-clone-element="true">Some text here</div>'
+      '<div class="TextHighlight" data-mui-internal-clone-element="true">Some text here</div>',
     );
   });
 
@@ -53,9 +53,9 @@ describe("TextHighlight-spec", () => {
       wrapper
         .find(".TextHighlight")
         .html()
-        .replace(/<!--.*?-->/g, "")
+        .replace(/<!--.*?-->/g, ""),
     ).equal(
-      '<div class="TextHighlight" data-mui-internal-clone-element="true">Some <b>text</b> here</div>'
+      '<div class="TextHighlight" data-mui-internal-clone-element="true">Some <b>text</b> here</div>',
     );
   });
 });

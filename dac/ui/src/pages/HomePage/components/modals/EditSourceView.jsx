@@ -41,12 +41,15 @@ import EditSourceViewMixin, {
   getFinalSubmit,
   ENABLE_USE_LEGACY_DIALECT_OPTION,
 } from "@inject/pages/HomePage/components/modals/EditSourceViewMixin";
-import { USE_LEGACY_DIALECT_PROPERTY_NAME } from "@app/constants/sourceTypes";
+import {
+  USE_LEGACY_DIALECT_PROPERTY_NAME,
+  isMetastoreSourceType,
+} from "#oss/constants/sourceTypes";
 
 import { viewStateWrapper } from "uiTheme/less/forms.less";
 import { trimObjectWhitespace } from "./utils";
 import { isVersionedReflectionsEnabled } from "./AddEditSourceUtils";
-import { isVersionedSource } from "@app/utils/sourceUtils";
+import { isVersionedSource } from "@inject/utils/sourceUtils";
 import { getJSONElementOverrides } from "@inject/utils/FormUtils/formOverrideUtils";
 import clsx from "clsx";
 import * as classes from "./EditSourceView.module.less";
@@ -113,7 +116,7 @@ export class EditSourceView extends PureComponent {
   }
 
   setStateWithSourceTypeConfigFromServer(typeCode) {
-    const { dispatchPassDataBetweenTabs } = this.props;
+    const { dispatchPassDataBetweenTabs, sourceType } = this.props;
     return ApiUtils.fetchJson(
       `source/type/${typeCode}`,
       async (json) => {
@@ -141,10 +144,8 @@ export class EditSourceView extends PureComponent {
         dispatchPassDataBetweenTabs({
           isFileSystemSource: isFileSystemSource.isFileSystemSource,
           isExternalQueryAllowed: json.externalQueryAllowed,
-          isHive:
-            combinedConfig.sourceType === "HIVE3" ||
-            combinedConfig.sourceType === "HIVE",
-          isGlue: combinedConfig.sourceType === "AWSGLUE",
+          isMetaStore: isMetastoreSourceType(combinedConfig.sourceType),
+          sourceType,
         });
       },
       () => {
@@ -290,7 +291,7 @@ export class EditSourceView extends PureComponent {
     if (didLoadFail || hasError) {
       vs = new Immutable.fromJS({
         isFailed: true,
-        // eslint-disable-next-line no-undef
+
         error: { message: hasError || errorMessage },
       });
     }

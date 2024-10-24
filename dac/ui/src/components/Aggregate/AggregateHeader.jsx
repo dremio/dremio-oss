@@ -23,7 +23,7 @@ import {
   left,
   center,
   right,
-} from "@app/uiTheme/less/Aggregate/AggregateHeader.less";
+} from "#oss/uiTheme/less/Aggregate/AggregateHeader.less";
 import EllipsedText from "components/EllipsedText";
 import { Button } from "dremio-ui-lib/components";
 import { ExploreInfoHeader } from "pages/ExplorePage/components/ExploreInfoHeader";

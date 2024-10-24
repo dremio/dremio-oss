@@ -84,7 +84,7 @@ describe("AccelerationAggregate", () => {
   describe("#mapSchemaToColumns", function () {
     it("should return columns", function () {
       const instance = shallow(
-        <AccelerationAggregate {...commonProps} />
+        <AccelerationAggregate {...commonProps} />,
       ).instance();
       const acceleration = Immutable.fromJS({
         // update
@@ -106,7 +106,7 @@ describe("AccelerationAggregate", () => {
             name: "c1",
             index: 0,
           },
-        ])
+        ]),
       );
     });
   });

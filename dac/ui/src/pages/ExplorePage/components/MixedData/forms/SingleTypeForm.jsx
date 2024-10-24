@@ -21,7 +21,7 @@ import { connectComplexForm } from "components/Forms/connectComplexForm";
 import NewFieldSection from "components/Forms/NewFieldSection";
 import { TextField, Select, Radio, Checkbox } from "components/Fields";
 import { applyValidators, isRequired } from "utils/validation";
-import { sectionMargin } from "@app/uiTheme/less/layout.less";
+import { sectionMargin } from "#oss/uiTheme/less/layout.less";
 
 import {
   radioStacked,
@@ -34,12 +34,12 @@ import {
   firstColumn,
   secondColumn,
   rowOfInputs,
-} from "@app/uiTheme/less/forms.less";
+} from "#oss/uiTheme/less/forms.less";
 import classNames from "clsx";
 import TransformForm, { formWrapperProps } from "./../../forms/TransformForm";
 import { transformProps } from "./../../forms/TransformationPropTypes";
 import NonMatchingValues from "./../NonMatchingValues";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 
 const SECTIONS = [NewFieldSection];
 
@@ -60,7 +60,7 @@ export class SingleTypeForm extends Component {
 
   static getDesiredTypeItems(singles, castWhenPossible) {
     const filteredSingles = singles.filter(
-      (single) => single.castWhenPossible === Boolean(castWhenPossible)
+      (single) => single.castWhenPossible === Boolean(castWhenPossible),
     );
 
     return filteredSingles.map((single) => ({
@@ -76,7 +76,7 @@ export class SingleTypeForm extends Component {
     return singles.find(
       (single) =>
         single.desiredType === desiredType &&
-        single.castWhenPossible === castWhenPossible
+        single.castWhenPossible === castWhenPossible,
     );
   }
 
@@ -135,7 +135,7 @@ export class SingleTypeForm extends Component {
     const { formatMessage } = intl;
     const desiredTypeItems = SingleTypeForm.getDesiredTypeItems(
       singles,
-      fields.castWhenPossible.value
+      fields.castWhenPossible.value,
     );
     const { nonMatchingCount, availableNonMatching } =
       this.getCurrentDesiredTypeItem() || {};
@@ -185,7 +185,7 @@ function mapStateToProps(props) {
   const { columnName } = props || {};
   const desiredTypeItem = SingleTypeForm.getDesiredTypeItems(
     props.singles,
-    false
+    false,
   )[0];
   return {
     initialValues: {
@@ -214,5 +214,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps,
-  null
+  null,
 )(SingleTypeForm);

@@ -48,6 +48,7 @@ import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.ass
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasCommitForTable;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasNamespace;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasTable;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.getSubPathFromNessieTableContent;
 import static com.dremio.test.UserExceptionAssert.assertThatThrownBy;
 
 import com.dremio.BaseTestQuery;
@@ -67,6 +68,8 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
     final List<String> tablePath = tablePathWithFolders(tableName);
     runSQL(createEmptyTableQuery(tablePath));
 
+    List<String> storageSubPath =
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this);
     // Act
     runSQL(dropTableQuery(tablePath));
     // TODO Check for correct message
@@ -76,7 +79,7 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
     assertNessieDoesNotHaveEntity(tablePath, DEFAULT_BRANCH_NAME, this);
     // TODO For now, we aren't doing filesystem cleanup, so this check is correct. Might change in
     // the future.
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(storageSubPath, this);
   }
 
   @Test
@@ -85,7 +88,8 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
     final String tableName = generateUniqueTableName();
     final List<String> tablePath = tablePathWithFolders(tableName);
     runSQL(createEmptyTableQuery(tablePath));
-
+    List<String> storageSubPath =
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this);
     // Act
     runSQL(dropTableQueryWithAt(tablePath, DEFAULT_BRANCH_NAME));
     // TODO Check for correct message
@@ -95,7 +99,7 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
     assertNessieDoesNotHaveEntity(tablePath, DEFAULT_BRANCH_NAME, this);
     // TODO For now, we aren't doing filesystem cleanup, so this check is correct. Might change in
     // the future.
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(storageSubPath, this);
   }
 
   @Test
@@ -108,7 +112,7 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
     runSQL(createBranchAtBranchQuery(devBranch, DEFAULT_BRANCH_NAME));
     runSQL(useBranchQuery(devBranch));
     runSQL(createEmptyTableQuery(tablePath));
-
+    List<String> storageSubPath = getSubPathFromNessieTableContent(tablePath, devBranch, this);
     // Act
     runSQL(dropTableQueryWithAt(tablePath, devBranch));
     // TODO Check for correct message
@@ -118,7 +122,7 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
     assertNessieDoesNotHaveEntity(tablePath, devBranch, this);
     // TODO For now, we aren't doing filesystem cleanup, so this check is correct. Might change in
     // the future.
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(storageSubPath, this);
   }
 
   @Test
@@ -166,16 +170,18 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
     final List<String> tablePath = tablePathWithFolders(tableName);
     runSQL(createEmptyTableQuery(tablePath));
     // Ensure contents
+    List<String> storageSubPath =
+        getSubPathFromNessieTableContent(tablePath, DEFAULT_BRANCH_NAME, this);
     assertNessieHasCommitForTable(tablePath, Operation.Put.class, DEFAULT_BRANCH_NAME, this);
     assertNessieHasTable(tablePath, DEFAULT_BRANCH_NAME, this);
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(storageSubPath, this);
 
     // First drop
     runSQL(dropTableQuery(tablePath));
     // Assert removal of key from Nessie
     assertNessieDoesNotHaveEntity(tablePath, DEFAULT_BRANCH_NAME, this);
     // Contents must still exist
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(storageSubPath, this);
 
     // Act
     // Try second drop
@@ -183,7 +189,7 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
 
     // Assert
     // Contents must still exist
-    assertIcebergTableExistsAtSubPath(tablePath);
+    assertIcebergTableExistsAtSubPath(storageSubPath, this);
   }
 
   @Test

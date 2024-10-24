@@ -59,6 +59,16 @@ public class IcebergGlueModel extends IcebergBaseModel {
   }
 
   @Override
+  protected IcebergCommand getIcebergCommand(
+      IcebergTableIdentifier tableIdentifier,
+      String tableLocation,
+      @Nullable IcebergCommitOrigin commitOrigin) {
+    TableOperations tableOperations =
+        plugin.createIcebergTableOperations(fileIO, queryUserName, tableIdentifier);
+    return new IcebergGlueCommand(configuration, tableLocation, tableOperations, currentQueryId());
+  }
+
+  @Override
   public IcebergTableIdentifier getTableIdentifier(String rootFolder) {
     return new IcebergGlueTableIdentifier(namespace, rootFolder, tableName);
   }

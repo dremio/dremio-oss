@@ -20,14 +20,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.api.FindByCondition;
@@ -51,11 +54,15 @@ import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.dremio.service.namespace.function.proto.FunctionBody;
 import com.dremio.service.namespace.function.proto.FunctionConfig;
+import com.dremio.service.namespace.function.proto.FunctionDefinition;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
+import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.dremio.services.pubsub.MessagePublisher;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -74,8 +81,8 @@ public class TestNamespaceServiceImpl extends DremioTest {
   private LegacyKVStoreProvider legacyKVStoreProvider;
   private NamespaceServiceImpl ns;
   private CatalogStatusEvents catalogStatusEvents;
+  private MessagePublisher<CatalogEventProto.CatalogEventMessage> messagePublisher;
   private TestDatasetDeletionSubscriber testDatasetDeletionSubscriber;
-  private NamespaceKey func1Key;
 
   @Before
   public void setup() throws Exception {
@@ -86,7 +93,8 @@ public class TestNamespaceServiceImpl extends DremioTest {
     catalogStatusEvents = new CatalogStatusEventsImpl();
     catalogStatusEvents.subscribe(
         DatasetDeletionCatalogStatusEvent.getEventTopic(), testDatasetDeletionSubscriber);
-    ns = new NamespaceServiceImpl(kvStoreProvider, catalogStatusEvents);
+    messagePublisher = mock(MessagePublisher.class);
+    ns = new NamespaceServiceImpl(kvStoreProvider, catalogStatusEvents, () -> messagePublisher);
   }
 
   @After
@@ -163,6 +171,103 @@ public class TestNamespaceServiceImpl extends DremioTest {
   }
 
   @Test
+  public void testCatalogEventMessagePublishing() throws NamespaceException {
+    // Create entities
+    NamespaceKey spaceKey = new NamespaceKey("space1");
+    ns.addOrUpdateSpace(spaceKey, newTestSpace("space1"));
+
+    NamespaceKey folder1Key = new NamespaceKey(asList("space1", "fld1"));
+    ns.addOrUpdateFolder(folder1Key, newTestFolder(spaceKey, "fld1"));
+
+    NamespaceKey dataset1Key = new NamespaceKey(asList("space1", "fld1", "ds1"));
+    DatasetConfig dataset1Config = newTestVirtualDataset(folder1Key, "ds1", null, null, null);
+    ns.addOrUpdateDataset(dataset1Key, dataset1Config);
+
+    NamespaceKey udfKey = new NamespaceKey(asList("space1", "func1"));
+    FunctionConfig udfConfig = newTestFunction(udfKey);
+    ns.addOrUpdateFunction(udfKey, udfConfig);
+
+    NamespaceKey homeKey = new NamespaceKey("@testUser");
+    ns.addOrUpdateHome(homeKey, newTestHome("testUser"));
+
+    NamespaceKey sourceKey = new NamespaceKey("source1");
+    SourceConfig sourceConfig = newTestSource("source1");
+    ns.addOrUpdateSource(sourceKey, sourceConfig);
+
+    NamespaceKey folder2Key = new NamespaceKey(asList("source1", "fld2"));
+    ns.addOrUpdateFolder(folder2Key, newTestFolder(sourceKey, "fld2"));
+
+    NamespaceKey dataset2Key = new NamespaceKey(asList("source1", "fld2", "ds2"));
+    DatasetConfig dataset2Config = newTestPhysicalDataset(folder2Key, "ds2");
+    ns.addOrUpdateDataset(dataset2Key, dataset2Config);
+
+    // Modify editable entities
+    ns.addOrUpdateDataset(dataset1Key, ProtostuffUtil.copy(dataset1Config).setOwner("testUser"));
+    ns.addOrUpdateFunction(
+        udfKey,
+        ProtostuffUtil.copy(udfConfig)
+            .setFunctionDefinitionsList(
+                List.of(
+                    FunctionDefinition.getDefaultInstance()
+                        .setFunctionBody(
+                            FunctionBody.getDefaultInstance().setRawBody("SELECT 1")))));
+    ns.addOrUpdateSource(
+        sourceKey, ProtostuffUtil.copy(sourceConfig).setDescription("Test description"));
+    ns.addOrUpdateDataset(dataset2Key, ProtostuffUtil.copy(dataset2Config).setTotalNumSplits(2));
+
+    // Delete everything
+    ns.deleteSource(sourceKey, null);
+    ns.deleteHome(homeKey, null);
+    ns.deleteSpace(spaceKey, null);
+
+    List<NamespaceKey> expectedCreate =
+        List.of(
+            spaceKey, folder1Key, dataset1Key, udfKey, homeKey, sourceKey, folder2Key, dataset2Key);
+    List<NamespaceKey> expectedUpdate = List.of(dataset1Key, udfKey, sourceKey, dataset2Key);
+    List<NamespaceKey> expectedDelete =
+        List.of(
+            dataset2Key, folder2Key, sourceKey, homeKey, dataset1Key, folder1Key, udfKey, spaceKey);
+
+    for (NamespaceKey key : expectedCreate) {
+      verify(messagePublisher)
+          .publish(
+              CatalogEventProto.CatalogEventMessage.newBuilder()
+                  .addEvents(
+                      CatalogEventProto.CatalogEventMessage.CatalogEvent.newBuilder()
+                          .setEventType(
+                              CatalogEventProto.CatalogEventMessage.CatalogEventType
+                                  .CATALOG_EVENT_TYPE_CREATED)
+                          .addAllPath(key.getPathComponents()))
+                  .build());
+    }
+    for (NamespaceKey key : expectedUpdate) {
+      verify(messagePublisher)
+          .publish(
+              CatalogEventProto.CatalogEventMessage.newBuilder()
+                  .addEvents(
+                      CatalogEventProto.CatalogEventMessage.CatalogEvent.newBuilder()
+                          .setEventType(
+                              CatalogEventProto.CatalogEventMessage.CatalogEventType
+                                  .CATALOG_EVENT_TYPE_UPDATED)
+                          .addAllPath(key.getPathComponents()))
+                  .build());
+    }
+    for (NamespaceKey key : expectedDelete) {
+      verify(messagePublisher)
+          .publish(
+              CatalogEventProto.CatalogEventMessage.newBuilder()
+                  .addEvents(
+                      CatalogEventProto.CatalogEventMessage.CatalogEvent.newBuilder()
+                          .setEventType(
+                              CatalogEventProto.CatalogEventMessage.CatalogEventType
+                                  .CATALOG_EVENT_TYPE_DELETED)
+                          .addAllPath(key.getPathComponents()))
+                  .build());
+    }
+    verifyNoMoreInteractions(messagePublisher);
+  }
+
+  @Test
   public void testChangeParentSource() throws NamespaceException {
     setUpViewsForAncestorChangeTest();
 
@@ -189,6 +294,22 @@ public class TestNamespaceServiceImpl extends DremioTest {
 
     DatasetConfig ds4 = ns.getDataset(new NamespaceKey(Lists.newArrayList("sp1", "view4")));
     assertNotEquals(true, ds4.getVirtualDataset().getSchemaOutdated());
+  }
+
+  @Test
+  public void testDeleteDatasetThrowsNamespaceNotFound() throws NamespaceException {
+    // Create entities
+    NamespaceKey spaceKey = new NamespaceKey("space1");
+    ns.addOrUpdateSpace(spaceKey, newTestSpace("space1"));
+
+    NamespaceKey datasetKey = new NamespaceKey(asList("space1", "ds1"));
+    DatasetConfig datasetConfig = newTestVirtualDataset(spaceKey, "ds1", null, null, null);
+    ns.addOrUpdateDataset(datasetKey, datasetConfig);
+
+    ns.deleteDataset(datasetKey, null);
+
+    // After it's been deleted, deleting again should throw NamespaceNotFoundException
+    assertThrows(NamespaceNotFoundException.class, () -> ns.deleteDataset(datasetKey, null));
   }
 
   @Test
@@ -287,12 +408,13 @@ public class TestNamespaceServiceImpl extends DremioTest {
 
   @Test
   public void testFind_keySort() {
-    // Mock IndexedStore to be able to check sort options.
+    // Mock NamespaceStore to be able to check sort options.
     IndexedStore<String, NameSpaceContainer> namespaceKvStore = mock(IndexedStore.class);
     NamespaceServiceImpl namespaceService =
         new NamespaceServiceImpl(
             new KVStoreProviderWithNamespace(namespaceKvStore, kvStoreProvider),
-            catalogStatusEvents);
+            catalogStatusEvents,
+            () -> messagePublisher);
 
     // Test find with sort.
     when(namespaceKvStore.find(any(FindByCondition.class), any())).thenReturn(ImmutableList.of());
@@ -345,6 +467,10 @@ public class TestNamespaceServiceImpl extends DremioTest {
 
   private SpaceConfig newTestSpace(String spaceName) {
     return new SpaceConfig().setName(spaceName);
+  }
+
+  private HomeConfig newTestHome(String owner) {
+    return new HomeConfig().setOwner(owner).setCtime(1000L);
   }
 
   private DatasetConfig newTestVirtualDataset(
@@ -495,7 +621,7 @@ public class TestNamespaceServiceImpl extends DremioTest {
     @Override
     public <K, V, T extends KVStore<K, V>> T getStore(
         Class<? extends StoreCreationFunction<K, V, T>> creator) {
-      return creator.equals(NamespaceServiceImpl.NamespaceStoreCreator.class)
+      return creator.equals(NamespaceStore.NamespaceStoreCreator.class)
           ? (T) namespaceStore
           : delegate.getStore(creator);
     }

@@ -58,14 +58,22 @@ public class UserRequest {
   /** if set to true, query is not going to be scheduled on a separate thread */
   private final boolean runInSameThread;
 
+  private final long jobSubmissionTime;
+
   public UserRequest(RpcType type, Object request) {
-    this(type, request, false);
+    this(type, request, false, System.currentTimeMillis());
   }
 
   public UserRequest(RpcType type, Object request, boolean runInSameThread) {
+    this(type, request, runInSameThread, System.currentTimeMillis());
+  }
+
+  public UserRequest(
+      RpcType type, Object request, boolean runInSameThread, long jobSubmissionTime) {
     this.type = Preconditions.checkNotNull(type);
     this.request = Preconditions.checkNotNull(request);
     this.runInSameThread = runInSameThread;
+    this.jobSubmissionTime = jobSubmissionTime;
   }
 
   public RpcType getType() {
@@ -74,6 +82,10 @@ public class UserRequest {
 
   public boolean runInSameThread() {
     return runInSameThread;
+  }
+
+  public long getJobSubmissionTime() {
+    return jobSubmissionTime;
   }
 
   public <X> X unwrap(Class<X> clazz) {

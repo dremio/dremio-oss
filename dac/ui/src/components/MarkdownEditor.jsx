@@ -20,8 +20,8 @@ import classNames from "clsx";
 import { debounce } from "lodash";
 import SimpleMDE from "simplemde";
 import "simplemde/dist/simplemde.min.css";
-import "@app/components/markedjsOverrides.js";
-import { withErrorBoundary } from "@app/components/OldErrorBoundary";
+import "#oss/components/markedjsOverrides.js";
+import { withErrorBoundary } from "#oss/components/OldErrorBoundary";
 import additionalWikiControls from "@inject/shared/AdditionalWikiControls";
 import { Spinner } from "dremio-ui-lib";
 import {

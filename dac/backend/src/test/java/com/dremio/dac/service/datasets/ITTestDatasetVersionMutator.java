@@ -50,7 +50,7 @@ public class ITTestDatasetVersionMutator extends BaseTestServer {
   @Test
   public void testDeleteDatasetVersion() {
     final InitialPreviewResponse showSchemasResponse =
-        createDatasetFromSQL("SHOW SCHEMAS", emptyList());
+        getHttpClient().getDatasetApi().createDatasetFromSQL("SHOW SCHEMAS", emptyList());
     final List<String> path = showSchemasResponse.getDataset().getFullPath();
     final String version = showSchemasResponse.getDataset().getDatasetVersion().getVersion();
     final DatasetPath datasetPath = new DatasetPath(path);
@@ -70,7 +70,7 @@ public class ITTestDatasetVersionMutator extends BaseTestServer {
   public void testDeleteDatasetVersion_deleteOtherSamePath_willNotChangeHistory()
       throws NamespaceException {
     final InitialPreviewResponse showSchemasResponse =
-        createDatasetFromSQL("SHOW SCHEMAS", emptyList());
+        getHttpClient().getDatasetApi().createDatasetFromSQL("SHOW SCHEMAS", emptyList());
     final List<String> path = showSchemasResponse.getDataset().getFullPath();
     final String version = showSchemasResponse.getDataset().getDatasetVersion().getVersion();
     final DatasetPath datasetPath = new DatasetPath(path);
@@ -93,7 +93,9 @@ public class ITTestDatasetVersionMutator extends BaseTestServer {
     setSpace();
     final DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.tEsTcAsE");
     final DatasetUI datasetUI =
-        createDatasetFromSQLAndSave(datasetPath, "SHOW SCHEMAS", emptyList());
+        getHttpClient()
+            .getDatasetApi()
+            .createDatasetFromSQLAndSave(datasetPath, "SHOW SCHEMAS", emptyList());
     final DatasetVersion datasetVersion = datasetUI.getDatasetVersion();
     final VirtualDatasetUI vds = service.getVersion(datasetPath, datasetVersion);
     assertNotNull("Dataset cannot be null after its creation", vds);

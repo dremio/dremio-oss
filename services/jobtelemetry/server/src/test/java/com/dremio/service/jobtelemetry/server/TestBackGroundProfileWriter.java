@@ -24,7 +24,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
+import com.dremio.service.jobtelemetry.server.store.LegacyLocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
 import io.opentracing.noop.NoopTracerFactory;
 import java.util.ArrayList;
@@ -56,7 +56,7 @@ public class TestBackGroundProfileWriter {
     final UserBitShared.QueryId queryId =
         UserBitShared.QueryId.newBuilder().setPart1(1050).setPart2(2000).build();
 
-    final ProfileStore profileStore = new LocalProfileStore(kvStoreProvider);
+    final ProfileStore profileStore = new LegacyLocalProfileStore(kvStoreProvider);
     profileStore.start();
 
     final BackgroundProfileWriter backgroundProfileWriter =
@@ -93,7 +93,7 @@ public class TestBackGroundProfileWriter {
 
     final CountDownLatch latch = new CountDownLatch(1);
     final ProfileStore profileStore =
-        new ProfileStoreWithLatch(new LocalProfileStore(kvStoreProvider), latch);
+        new ProfileStoreWithLatch(new LegacyLocalProfileStore(kvStoreProvider), latch);
     profileStore.start();
 
     final BackgroundProfileWriter backgroundProfileWriter =
@@ -126,7 +126,7 @@ public class TestBackGroundProfileWriter {
   public void testBacklog() throws Exception {
     final CountDownLatch latch = new CountDownLatch(1);
     final ProfileStore profileStore =
-        new ProfileStoreWithLatch(new LocalProfileStore(kvStoreProvider), latch);
+        new ProfileStoreWithLatch(new LegacyLocalProfileStore(kvStoreProvider), latch);
     final BackgroundProfileWriter backgroundProfileWriter =
         new BackgroundProfileWriter(profileStore, NoopTracerFactory.create());
 

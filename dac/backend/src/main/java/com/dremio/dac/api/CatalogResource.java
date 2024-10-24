@@ -92,7 +92,7 @@ public class CatalogResource {
 
     Optional<CatalogEntity> entity =
         catalogServiceHelper.getCatalogEntityById(
-            id, include, exclude, catalogPageToken, maxChildren);
+            id, include, exclude, catalogPageToken, maxChildren, true);
 
     if (entity.isEmpty()) {
       throw new NotFoundException(String.format("Could not find entity with id [%s]", id));
@@ -190,7 +190,14 @@ public class CatalogResource {
 
     final Optional<CatalogEntity> entity =
         catalogServiceHelper.getCatalogEntityByPath(
-            pathList, include, exclude, versionType, versionValue, catalogPageToken, maxChildren);
+            pathList,
+            include,
+            exclude,
+            versionType,
+            versionValue,
+            catalogPageToken,
+            maxChildren,
+            true);
 
     if (entity.isEmpty()) {
       throw new NotFoundException(String.format("Could not find entity with path [%s]", pathList));
@@ -238,7 +245,7 @@ public class CatalogResource {
           try {
             Optional<CatalogEntity> optionalEntity =
                 catalogServiceHelper.getCatalogEntityById(
-                    id, ImmutableList.of(), ImmutableList.of(), null, maxChildren);
+                    id, ImmutableList.of(), ImmutableList.of(), null, maxChildren, true);
             if (optionalEntity.isPresent()) {
               responseList.add(optionalEntity.get());
             } else {
@@ -296,7 +303,8 @@ public class CatalogResource {
                     versionType,
                     versionValue,
                     null,
-                    maxChildren);
+                    maxChildren,
+                    true);
             if (optionalEntity.isPresent()) {
               responseList.add(optionalEntity.get());
             } else {

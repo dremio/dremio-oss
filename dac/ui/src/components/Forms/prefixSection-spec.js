@@ -26,7 +26,7 @@ class FormSection extends Component {
   static validate(values) {
     return Object.keys(values).reduce(
       (errors, key) => ({ ...errors, [key]: "required" }),
-      {}
+      {},
     );
   }
 
@@ -57,7 +57,7 @@ describe("SectionPrefix", () => {
     const PrefixedSection = prefixSection("prefix")(FormSection);
 
     const wrapper = shallow(
-      <PrefixedSection fields={{ prefix: { foo: "foo" } }} />
+      <PrefixedSection fields={{ prefix: { foo: "foo" } }} />,
     );
     expect(wrapper.find("FormSection").props().fields).to.eql({ foo: "foo" });
   });

@@ -15,11 +15,9 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
-import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME;
-import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME;
-
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.common.util.Retryer;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.ops.QueryContext;
@@ -27,6 +25,7 @@ import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
 import com.dremio.exec.store.dfs.copyinto.CopyFileHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadata;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
 import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin;
 import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
 import com.dremio.exec.store.iceberg.IcebergUtils;
@@ -70,8 +69,13 @@ public final class SystemIcebergTableOpUtils {
     SystemIcebergTablesStoragePlugin systemPlugin =
         catalog.getSource(SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
 
-    List<String> jobHistoryTableSchemaPath = ImmutableList.of(COPY_JOB_HISTORY_TABLE_NAME);
-    List<String> fileHistoryTableSchemaPath = ImmutableList.of(COPY_FILE_HISTORY_TABLE_NAME);
+    List<String> jobHistoryTableSchemaPath =
+        ImmutableList.of(SupportedSystemIcebergTable.COPY_JOB_HISTORY.getTableName());
+    List<String> fileHistoryTableSchemaPath =
+        ImmutableList.of(SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName());
+
+    long schemaVersion =
+        ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION.getDefault().getNumVal();
 
     Table jobHistoryTable =
         Preconditions.checkNotNull(
@@ -127,7 +131,7 @@ public final class SystemIcebergTableOpUtils {
       runDeleteQuery(
           context,
           jobHistoryTableMetadata,
-          CopyJobHistoryTableSchemaProvider.getJobIdColName(),
+          new CopyJobHistoryTableSchemaProvider(schemaVersion).getJobIdColName(),
           jobId);
     }
     if (deleteFromFileHistoryTable) {
@@ -139,7 +143,7 @@ public final class SystemIcebergTableOpUtils {
       runDeleteQuery(
           context,
           fileHistoryTableMetadata,
-          CopyFileHistoryTableSchemaProvider.getJobIdColName(),
+          new CopyFileHistoryTableSchemaProvider(schemaVersion).getJobIdColName(),
           jobId);
     }
     return false;

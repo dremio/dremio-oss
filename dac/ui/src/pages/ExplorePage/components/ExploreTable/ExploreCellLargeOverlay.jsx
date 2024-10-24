@@ -27,17 +27,17 @@ import {
 } from "uiTheme/radium/flexStyle";
 import { fixedWidthSmall } from "uiTheme/radium/typography";
 import EllipsedText from "components/EllipsedText";
-import { MAP, TEXT, LIST, STRUCT } from "@app/constants/DataTypes";
+import { MAP, TEXT, LIST, STRUCT } from "#oss/constants/DataTypes";
 import exploreUtils from "utils/explore/exploreUtils";
 import dataFormatUtils from "utils/dataFormatUtils";
 import ViewStateWrapper from "components/ViewStateWrapper";
 import { withLocation } from "containers/dremioLocation";
-import { moduleStateHOC } from "@app/containers/ModuleStateContainer";
+import { moduleStateHOC } from "#oss/containers/ModuleStateContainer";
 import exploreFullCell, {
   moduleKey,
   getCell,
-} from "@app/reducers/modules/exploreFullCell";
-import { KeyChangeTrigger } from "@app/components/KeyChangeTrigger";
+} from "#oss/reducers/modules/exploreFullCell";
+import { KeyChangeTrigger } from "#oss/components/KeyChangeTrigger";
 
 import {
   loadFullCellValue,
@@ -333,12 +333,12 @@ const styles = {
     maxHeight: 450,
     width: 400,
     marginLeft: -15,
-    border: "1px solid #E9E9E9",
+    border: "1px solid var(--border--neutral)",
     boxShadow: "0px 0px 5px 0px rgba(0,0,0,0.05)",
     borderRadius: 2,
     position: "absolute",
     zIndex: 1000,
-    backgroundColor: "white",
+    backgroundColor: "var(--fill--primary)",
     ...FLEX_COL_START,
   },
   top: {
@@ -351,7 +351,7 @@ const styles = {
     display: "inline-block",
     flexGrow: 1,
     minWidth: 0,
-    color: "var(--color--brand--300)",
+    color: "var(--text--brand)",
   },
   header: {
     // todo: fix styling/element type for consistent UX
@@ -367,7 +367,7 @@ const styles = {
   content: {
     maxHeight: 250,
     ...fixedWidthSmall,
-    backgroundColor: "white",
+    backgroundColor: "var(--fill--primary)",
     padding: "10px 5px",
     overflowX: "auto",
   },

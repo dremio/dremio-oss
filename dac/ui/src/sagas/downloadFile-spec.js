@@ -35,7 +35,7 @@ describe("downloadFile saga", () => {
     it("should call fetch, getFileDownloadConfigFromResponse, and downloadFile", () => {
       next = gen.next();
       expect(next.value).to.eql(
-        put(updateViewState("viewId", { isInProgress: true }))
+        put(updateViewState("viewId", { isInProgress: true })),
       );
       next = gen.next();
       expect(next.value.CALL).to.not.be.undefined; // call fetch
@@ -45,7 +45,7 @@ describe("downloadFile saga", () => {
       expect(next.value.CALL).to.not.be.undefined; // call downloadFile
       next = gen.next();
       expect(next.value).to.eql(
-        put(updateViewState("viewId", { isInProgress: false }))
+        put(updateViewState("viewId", { isInProgress: false })),
       );
       next = gen.next();
       expect(next.done).to.be.true;
@@ -54,7 +54,7 @@ describe("downloadFile saga", () => {
     it("should put(addNotification) if download fails", () => {
       next = gen.next();
       expect(next.value).to.eql(
-        put(updateViewState("viewId", { isInProgress: true }))
+        put(updateViewState("viewId", { isInProgress: true })),
       );
       next = gen.next();
       expect(next.value.CALL).to.not.be.undefined; // call fetch
@@ -64,7 +64,7 @@ describe("downloadFile saga", () => {
       expect(next.value).to.eql(put(addNotification("someMessage", "error")));
       next = gen.next();
       expect(next.value).to.eql(
-        put(updateViewState("viewId", { isInProgress: false, isFailed: true }))
+        put(updateViewState("viewId", { isInProgress: false, isFailed: true })),
       );
       next = gen.next();
       expect(next.done).to.be.true;

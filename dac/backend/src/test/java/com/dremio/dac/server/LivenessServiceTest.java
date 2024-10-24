@@ -31,6 +31,6 @@ public class LivenessServiceTest extends BaseTestServer {
 
   @Test
   public void testMetricsEndpointIsUp() {
-    expectSuccess(getBuilder(getMetricsEndpoint()).buildGet());
+    expectSuccess(getBuilder(getHttpClient().getMetricsEndpoint()).buildGet());
   }
 }

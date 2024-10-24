@@ -17,7 +17,7 @@
 import { Component, ReactNode, ErrorInfo } from "react";
 //@ts-ignore
 import { ErrorDisplay } from "./ErrorDisplay";
-import sentryUtil from "@app/utils/sentryUtil";
+import sentryUtil from "#oss/utils/sentryUtil";
 
 type ErrorBoundaryProps = {
   className?: string;

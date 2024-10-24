@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { isProduction } from "@app/utils/config";
+import { isProduction } from "#oss/utils/config";
 
 import { createStore, applyMiddleware, compose } from "redux";
 import thunk from "redux-thunk";
-// import createLogger from "redux-logger";
 import { apiMiddleware } from "redux-api-middleware";
 import { browserHistory } from "react-router";
 import { routerMiddleware } from "react-router-redux";
@@ -49,14 +48,13 @@ const middleWares = [
   serverErrorMiddleware,
   serverStatusMiddleware,
   sagaMiddleware,
-  // isDev && createLogger({ collapsed: true }),
   routerMiddleware(browserHistory),
 ].filter(Boolean);
 
 const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
 const finalCreateStore = composeEnhancers(
-  ...[applyMiddleware(...middleWares)].filter(Boolean)
+  ...[applyMiddleware(...middleWares)].filter(Boolean),
 )(createStore);
 
 export default function configureStore(initialState) {

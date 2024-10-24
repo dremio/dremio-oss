@@ -18,15 +18,15 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { connect } from "react-redux";
 
-import { getHomeSourceUrl, getSortedSources } from "@app/selectors/home";
-import ApiUtils from "@app/utils/apiUtils/apiUtils";
-import { sourceTypesIncludeS3 } from "@app/utils/sourceUtils";
-import { loadSourceListData } from "@app/actions/resources/sources";
-import { getViewState } from "@app/selectors/resources";
-import { page } from "@app/uiTheme/radium/general";
+import { getHomeSourceUrl, getSortedSources } from "#oss/selectors/home";
+import ApiUtils from "#oss/utils/apiUtils/apiUtils";
+import { sourceTypesIncludeS3 } from "@inject/utils/sourceUtils";
+import { loadSourceListData } from "#oss/actions/resources/sources";
+import { getViewState } from "#oss/selectors/resources";
+import { page } from "#oss/uiTheme/radium/general";
 import ProjectActivationHOC from "@inject/containers/ProjectActivationHOC";
 import sessionStorageUtils from "@inject/utils/storageUtils/sessionStorageUtils";
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
+import { SonarSideNav } from "#oss/exports/components/SideNav/SonarSideNav";
 import {
   HomePageTop,
   showHomePageTop,
@@ -35,15 +35,18 @@ import NavCrumbs, {
   showNavCrumbs,
 } from "@inject/components/NavCrumbs/NavCrumbs";
 import QlikStateModal from "../ExplorePage/components/modals/QlikStateModal";
-import LeftTree from "./components/LeftTree";
+import LeftTree from "@inject/pages/HomePage/components/LeftTree";
 import "./HomePage.less";
 import HomePageActivating from "@inject/pages/HomePage/HomePageActivating";
-import { intl } from "@app/utils/intl";
-import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
+import { intl } from "#oss/utils/intl";
+import { ErrorBoundary } from "#oss/components/ErrorBoundary/ErrorBoundary";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import { compose } from "redux";
 import { withRouter } from "react-router";
 import { withCatalogARSFlag } from "@inject/utils/arsUtils";
+import { PageTop } from "dremio-ui-common/components/PageTop.js";
+import { SearchTriggerWrapper } from "#oss/exports/searchModal/SearchTriggerWrapper";
+import { withEntityProps } from "dyn-load/utils/entity-utils";
 
 class HomePage extends Component {
   static propTypes = {
@@ -150,7 +153,12 @@ class HomePage extends Component {
           {!isProjectInactive && (
             <div className={"homePageBody"}>
               <HomePageTop />
-              {showNavCrumbs && <NavCrumbs />}
+              {showNavCrumbs && (
+                <PageTop>
+                  <NavCrumbs />
+                  <SearchTriggerWrapper className="ml-auto" />
+                </PageTop>
+              )}
               <div
                 className={
                   "homePageLeftTreeDiv" +
@@ -211,6 +219,7 @@ function mapStateToProps(state, { isArsEnabled }) {
 export default compose(
   withRouter,
   withCatalogARSFlag,
+  withEntityProps,
   connect(mapStateToProps, {
     loadSourceListData,
   }),

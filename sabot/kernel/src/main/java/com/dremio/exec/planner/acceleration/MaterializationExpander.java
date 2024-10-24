@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE_COLUMN;
+
 import com.dremio.common.exceptions.UserException;
-import com.dremio.datastore.WarningTimer;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.acceleration.StrippingFactory.StripResult;
-import com.dremio.exec.planner.acceleration.descriptor.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.descriptor.UnexpandedMaterializationDescriptor;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.logical.RelDataTypeEqualityComparer;
@@ -38,20 +38,24 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
+import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Pair;
 
 /** Expander for materialization list. */
-public class MaterializationExpander {
+public final class MaterializationExpander {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(MaterializationExpander.class);
   private final SqlConverter parent;
@@ -63,100 +67,98 @@ public class MaterializationExpander {
   }
 
   public DremioMaterialization expand(UnexpandedMaterializationDescriptor descriptor) {
-    try (WarningTimer timer =
-        new WarningTimer(
-            String.format(
-                "Expand materialization descriptor %s/%s",
-                descriptor.getLayoutId(), descriptor.getMaterializationId()),
-            TimeUnit.SECONDS.toMillis(5))) {
+    RelNode queryRel = deserializePlan(descriptor.getPlan(), parent, catalogService);
 
-      RelNode queryRel = deserializePlan(descriptor.getPlan(), parent, catalogService);
+    final StrippingFactory factory =
+        new StrippingFactory(parent.getSettings().getOptions(), parent.getConfig());
+    StripResult stripResult =
+        factory.strip(
+            queryRel,
+            descriptor.getReflectionType(),
+            descriptor.getIncrementalUpdateSettings().isIncremental(),
+            descriptor.getStripVersion());
 
-      final StrippingFactory factory =
-          new StrippingFactory(parent.getSettings().getOptions(), parent.getConfig());
-      StripResult stripResult =
-          factory.strip(
-              queryRel,
-              descriptor.getReflectionType(),
-              descriptor.getIncrementalUpdateSettings().isIncremental(),
-              descriptor.getStripVersion());
+    // if this is an incremental update, we need to do some changes to support the incremental.
+    // These need to be applied after incremental update completes.
+    final RelTransformer postStripNormalizer =
+        MaterializationExpander.getPostStripNormalizer(descriptor.getIncrementalUpdateSettings());
+    stripResult = stripResult.transformNormalized(postStripNormalizer);
 
-      // if this is an incremental update, we need to do some changes to support the incremental.
-      // These need to be applied after incremental update completes.
-      final RelTransformer postStripNormalizer = getPostStripNormalizer(descriptor);
-      stripResult = stripResult.transformNormalized(postStripNormalizer);
+    logger.debug("Query rel:{}", RelOptUtil.toString(queryRel));
 
-      logger.debug("Query rel:{}", RelOptUtil.toString(queryRel));
+    RelNode tableRel = expandSchemaPath(descriptor.getPath());
 
-      RelNode tableRel = expandSchemaPath(descriptor.getPath());
-
-      BatchSchema schema = ((ScanCrel) tableRel).getBatchSchema();
-      final RelDataType strippedQueryRowType = stripResult.getNormalized().getRowType();
-      tableRel = tableRel.accept(new IncrementalUpdateUtils.RemoveDirColumn(strippedQueryRowType));
-      // Namespace table removes UPDATE_COLUMN from scans, but for incremental materializations, we
-      // need to add it back
-      // to the table scan
-      if (descriptor.getIncrementalUpdateSettings().isIncremental()
-          && !descriptor.getIncrementalUpdateSettings().isSnapshotBasedUpdate()) {
-        tableRel = tableRel.accept(IncrementalUpdateUtils.ADD_MOD_TIME_SHUTTLE);
-      }
-
-      // if the row types don't match, ignoring the nullability, fail immediately
-      if (!areRowTypesEqual(tableRel.getRowType(), strippedQueryRowType)) {
-        throw new ExpansionException(
-            String.format(
-                "Materialization %s have different row types for its table and query rels.%n"
-                    + "table row type %s%nquery row type %s",
-                descriptor.getMaterializationId(),
-                tableRel.getRowType().getFullTypeString(),
-                strippedQueryRowType.getFullTypeString()));
-      }
-
-      try {
-        // Check that the table rel row type matches that of the query rel,
-        // if so, cast the table rel row types to the query rel row types.
-        tableRel = MoreRelOptUtil.createCastRel(tableRel, strippedQueryRowType);
-      } catch (Exception | AssertionError e) {
-        throw UserException.planError(e)
-            .message(
-                "Failed to cast table rel row types to the query rel row types for materialization %s.%n"
-                    + "table schema %s%nquery schema %s",
-                descriptor.getMaterializationId(),
-                CalciteArrowHelper.fromCalciteRowType(tableRel.getRowType()),
-                CalciteArrowHelper.fromCalciteRowType(strippedQueryRowType))
-            .build(logger);
-      }
-
-      // Wiping out RelMetadataCache. It will be holding the RelNodes from the prior
-      // planning phases.
-      queryRel.getCluster().invalidateMetadataQuery();
-
-      return new DremioMaterialization(
-          tableRel,
-          queryRel,
-          descriptor.getIncrementalUpdateSettings(),
-          descriptor.getJoinDependencyProperties(),
-          descriptor.getLayoutInfo(),
-          descriptor.getMaterializationId(),
-          schema,
-          descriptor.getExpirationTimestamp(),
-          descriptor
-              .getStripVersion(), // Should use the strip version of the materialization we are
-          // expanding
-          postStripNormalizer);
+    BatchSchema schema = ((ScanCrel) tableRel).getBatchSchema();
+    final RelDataType strippedQueryRowType = stripResult.getNormalized().getRowType();
+    tableRel = tableRel.accept(new IncrementalUpdateUtils.RemoveDirColumn(strippedQueryRowType));
+    // Namespace table removes UPDATE_COLUMN from scans, but for incremental materializations, we
+    // need to add it back
+    // to the table scan
+    if (descriptor.getIncrementalUpdateSettings().isIncremental()
+        && !descriptor.getIncrementalUpdateSettings().isSnapshotBasedUpdate()) {
+      tableRel = tableRel.accept(IncrementalUpdateUtils.ADD_MOD_TIME_SHUTTLE);
     }
+
+    // if the row types don't match, ignoring the nullability, fail immediately
+    if (!areRowTypesEqual(tableRel.getRowType(), strippedQueryRowType)) {
+      throw new ExpansionException(
+          String.format(
+              "Materialization %s have different row types for its table and query rels.%n"
+                  + "table row type %s%nquery row type %s",
+              descriptor.getMaterializationId(),
+              tableRel.getRowType().getFullTypeString(),
+              strippedQueryRowType.getFullTypeString()));
+    }
+
+    try {
+      // Check that the table rel row type matches that of the query rel,
+      // if so, cast the table rel row types to the query rel row types.
+      tableRel = MoreRelOptUtil.createCastRel(tableRel, strippedQueryRowType);
+    } catch (Exception | AssertionError e) {
+      throw UserException.planError(e)
+          .message(
+              "Failed to cast table rel row types to the query rel row types for materialization %s.%n"
+                  + "table schema %s%nquery schema %s",
+              descriptor.getMaterializationId(),
+              CalciteArrowHelper.fromCalciteRowType(tableRel.getRowType()),
+              CalciteArrowHelper.fromCalciteRowType(strippedQueryRowType))
+          .build(logger);
+    }
+
+    final RelNode stripFragmentOnTableRel =
+        stripResult.applyStrippedNodes(removeUpdateColumn(tableRel));
+
+    // Wiping out RelMetadataCache. It will be holding the RelNodes from the prior
+    // planning phases.
+    queryRel.getCluster().invalidateMetadataQuery();
+
+    return new DremioMaterialization(
+        tableRel,
+        queryRel,
+        stripResult.getNormalized(),
+        stripFragmentOnTableRel,
+        descriptor.getIncrementalUpdateSettings(),
+        descriptor.getJoinDependencyProperties(),
+        descriptor.getLayoutInfo(),
+        descriptor.getMaterializationId(),
+        schema,
+        descriptor.getExpirationTimestamp(),
+        false,
+        descriptor.getStripVersion() // Should use the strip version of the materialization we are
+        // expanding
+        );
   }
 
-  private final com.dremio.exec.planner.sql.handlers.RelTransformer getPostStripNormalizer(
-      MaterializationDescriptor descriptor) {
+  public static com.dremio.exec.planner.sql.handlers.RelTransformer getPostStripNormalizer(
+      IncrementalUpdateSettings settings) {
     // for incremental update, we need to rewrite the queryRel so that it propagates the
     // UPDATE_COLUMN and
     // adds it as a grouping key in aggregates
-    if (!descriptor.getIncrementalUpdateSettings().isIncremental()) {
+    if (!settings.isIncremental()) {
       return com.dremio.exec.planner.sql.handlers.RelTransformer.NO_OP_TRANSFORMER;
     }
     final RelShuttle shuttle;
-    if (descriptor.getIncrementalUpdateSettings().isSnapshotBasedUpdate()) {
+    if (settings.isSnapshotBasedUpdate()) {
       // For snapshot based incremental update, there is no UPDATE_COLUMN in plan. A DUMMY_COLUMN
       // ($_dremio_$_dummy_$)
       // needs to be added as a grouping key in aggregates.
@@ -164,7 +166,7 @@ public class MaterializationExpander {
       shuttle = new IncrementalUpdateUtils.AddDummyGroupingFieldShuttle();
     } else {
       shuttle =
-          Optional.ofNullable(descriptor.getIncrementalUpdateSettings().getUpdateField())
+          Optional.ofNullable(settings.getUpdateField())
               .map(IncrementalUpdateUtils.SubstitutionShuttle::new)
               .orElse(IncrementalUpdateUtils.FILE_BASED_SUBSTITUTION_SHUTTLE);
     }
@@ -319,5 +321,36 @@ public class MaterializationExpander {
     public RebuildPlanException(String message, Throwable cause) {
       super(message, cause);
     }
+  }
+
+  /**
+   * Removes an update column from a persisted column. This means it won't be written and won't be
+   * used in matching.
+   *
+   * <p>If there is not initial update column, no changes will be made.
+   */
+  public static RelNode removeUpdateColumn(RelNode node) {
+    if (node.getTraitSet() == null) {
+      // for test purposes.
+      return node;
+    }
+    RelDataTypeField field = node.getRowType().getField(UPDATE_COLUMN, false, false);
+    if (field == null) {
+      return node;
+    }
+    final RexBuilder rexBuilder = node.getCluster().getRexBuilder();
+    final RelDataTypeFactory.FieldInfoBuilder rowTypeBuilder =
+        new RelDataTypeFactory.FieldInfoBuilder(node.getCluster().getTypeFactory());
+    final List<RexNode> projects =
+        node.getRowType().getFieldList().stream()
+            .filter(input -> !UPDATE_COLUMN.equals(input.getName()))
+            .map(
+                input -> {
+                  rowTypeBuilder.add(input);
+                  return rexBuilder.makeInputRef(input.getType(), input.getIndex());
+                })
+            .collect(Collectors.toList());
+    return new LogicalProject(
+        node.getCluster(), node.getTraitSet(), node, projects, rowTypeBuilder.build());
   }
 }

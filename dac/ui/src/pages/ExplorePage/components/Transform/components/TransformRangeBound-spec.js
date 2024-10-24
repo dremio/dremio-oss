@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from "enzyme";
-import { INTEGER } from "@app/constants/DataTypes";
+import { INTEGER } from "#oss/constants/DataTypes";
 import { TransformRangeBound } from "./TransformRangeBound";
 
 describe("TransformRangeBound", () => {
@@ -91,7 +91,7 @@ describe("TransformRangeBound", () => {
       const wrapper = shallow(<TransformRangeBound {...commonProps} />);
       wrapper.instance().handleRadioChange({ target: { value: "notnone" } });
       expect(commonProps.field.onChange).to.have.been.calledWith(
-        commonProps.defaultValue
+        commonProps.defaultValue,
       );
     });
   });

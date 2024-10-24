@@ -26,18 +26,18 @@ import ApiUtils from "utils/apiUtils/apiUtils";
 import NotificationSystem from "react-notification-system";
 import Message from "components/Message";
 import { isCME, isNotSoftware } from "dyn-load/utils/versionUtils";
-import { intl } from "@app/utils/intl";
-import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { intl } from "#oss/utils/intl";
+import { getSupportFlag } from "#oss/exports/endpoints/SupportFlags/getSupportFlag";
 import {
   LIVE_REFLECTION_ENABLED,
   REFLECTION_SCHEDULER_POLICY,
   SUBHOUR_ACCELERATION_POLICY,
-} from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { getMaxDistanceOfDays } from "@app/utils/scheduleRefreshUtils";
-import ReflectionRefresh from "@app/components/Acceleration/ReflectionRefresh";
+} from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getMaxDistanceOfDays } from "#oss/utils/scheduleRefreshUtils";
+import ReflectionRefresh from "#oss/components/Acceleration/ReflectionRefresh";
 import { isCommunity } from "dyn-load/utils/versionUtils";
-import { getSupportFlags } from "@app/selectors/supportFlags";
-import { fetchSupportFlags } from "@app/actions/supportFlags";
+import { getSupportFlags } from "#oss/selectors/supportFlags";
+import { fetchSupportFlags } from "#oss/actions/supportFlags";
 import { connect } from "react-redux";
 
 const DURATION_ONE_HOUR = 3600000;

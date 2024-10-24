@@ -55,7 +55,7 @@ describe("AddFileModal", () => {
       const instance = wrapper.instance();
       instance.UNSAFE_componentWillMount();
       expect(commonProps.resetViewState).to.have.been.calledWith(
-        PREVIEW_VIEW_ID
+        PREVIEW_VIEW_ID,
       );
     });
   });

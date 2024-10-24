@@ -16,14 +16,14 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import d3 from "d3";
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 
 import Checkbox from "components/Fields/Checkbox";
 import {
   isDateType,
   dateTypeToFormat,
   convertToUnix,
-} from "@app/constants/DataTypes";
+} from "#oss/constants/DataTypes";
 import { isEmptyValue } from "utils/validation";
 
 import TransformRangeBound from "./TransformRangeBound";
@@ -142,7 +142,7 @@ class TransformRange extends Component {
   updateValue(field, offset) {
     const scale = TransformRange.getXScale(
       this.props.chartWidth,
-      this.domain.length
+      this.domain.length,
     );
     const maxDiff = (scale(1) - scale(0)) / 2;
     const newValue = this.domain.find((v, i) => {
@@ -301,23 +301,23 @@ const styles = {
   },
   footer: {
     height: 30,
-    borderLeft: "1px solid rgba(0,0,0,0.10)",
-    borderRight: "1px solid rgba(0,0,0,0.10)",
-    borderBottom: "1px solid rgba(0,0,0,0.10)",
-    borderTop: "1px solid rgba(0,0,0,0.10)",
+    borderLeft: "1px solid var(--border--neutral)",
+    borderRight: "1px solid var(--border--neutral)",
+    borderBottom: "1px solid var(--border--neutral)",
+    borderTop: "1px solid var(--border--neutral)",
     marginBottom: 10,
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-start",
-    backgroundColor: "#fff",
+    backgroundColor: "var(--fill--primary)",
   },
   graph: {
     position: "relative",
     width: "calc(100% + 80px)",
-    borderTop: "1px solid #5ED7B9",
-    borderBottom: "1px solid #5ED7B9",
-    borderLeft: "1px solid #5ED7B9",
-    borderRight: "1px solid #5ED7B9",
+    borderTop: "1px solid var(--border--neutral)",
+    borderBottom: "1px solid var(--border--neutral)",
+    borderLeft: "1px solid var(--border--neutral)",
+    borderRight: "1px solid var(--border--neutral)",
   },
   body: {
     position: "relative",
@@ -329,16 +329,16 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    background: "#F3F3F3",
+    background: "var(--fill--secondary)",
     height: 30,
-    borderBottom: "1px solid rgba(0,0,0,0.10)",
+    borderBottom: "1px solid var(--border--neutral)",
   },
   distr: {
     width: "100%",
   },
   white: {
     height: 110,
-    backgroundColor: "#fff",
+    backgroundColor: "var(--fill--primary)",
     display: "flex",
     flexDirection: "column",
     justifyContent: "flex-start",
@@ -350,8 +350,8 @@ const styles = {
     alignItems: "center",
     width: 140,
     minWidth: 140,
-    borderLeft: "1px solid rgba(0,0,0,0.10)",
-    borderRight: "1px solid rgba(0,0,0,0.10)",
+    borderLeft: "1px solid var(--border--neutral)",
+    borderRight: "1px solid var(--border--neutral)",
   },
 };
 export default TransformRange;

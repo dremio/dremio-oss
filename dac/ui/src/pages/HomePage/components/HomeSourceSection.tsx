@@ -20,24 +20,24 @@ import { useIntl } from "react-intl";
 import { WithRouterProps, withRouter } from "react-router";
 import { compose } from "redux";
 import { orderBy } from "lodash";
-import FinderNav from "@app/components/FinderNav";
-import { getViewState } from "@app/selectors/resources";
+import FinderNav from "#oss/components/FinderNav";
+import { getViewState } from "#oss/selectors/resources";
 import {
   getHomeContents,
   getHomeSource,
   getSortedSources,
-} from "@app/selectors/home";
+} from "#oss/selectors/home";
 
 import { getAdminStatus } from "dyn-load/pages/HomePage/components/modals/SpaceModalMixin";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
-import { useSonarContents } from "@app/exports/providers/useSonarContents";
-import FinderNavItem from "@app/components/FinderNavItem";
+import { useSonarContents } from "#oss/exports/providers/useSonarContents";
+import FinderNavItem from "#oss/components/FinderNavItem";
 import SourceBranchPicker from "./SourceBranchPicker/SourceBranchPicker";
-import { ENTITY_TYPES } from "@app/constants/Constants";
-import { decorateFolder } from "@app/utils/decorators/resourceDecorators";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
+import { decorateFolder } from "#oss/utils/decorators/resourceDecorators";
 import { useMemo } from "react";
-import { getRefQueryParams } from "@app/utils/nessieUtils";
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import { getRefQueryParams } from "#oss/utils/nessieUtils";
+import LinkWithRef from "#oss/components/LinkWithRef/LinkWithRef";
 import { IconButton } from "dremio-ui-lib/components";
 import { SHOW_ADD_FOLDER } from "@inject/pages/HomePage/components/HeaderButtonConstants";
 

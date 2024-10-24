@@ -17,8 +17,8 @@
 import { useEffect, useRef } from "react";
 import { SmartResource } from "smart-resource";
 import { useResourceSnapshot, useResourceStatus } from "smart-resource/react";
-import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
-import { FetchOption } from "@app/services/nessie/client";
+import { useNessieContext } from "#oss/pages/NessieHomePage/utils/context";
+import { FetchOption } from "#oss/services/nessie/client";
 
 export const useVersionedPageTags = (searchFilter: string) => {
   const { apiV2 } = useNessieContext();

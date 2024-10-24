@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const getGrantsUrl = () =>
   new APIV2Call().projectScope(false).paths(`organizations/grants`).toString();

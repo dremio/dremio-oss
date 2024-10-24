@@ -15,12 +15,15 @@
  */
 package com.dremio.service.jobs;
 
+import static com.dremio.service.jobs.AbandonJobsHelper.setAbandonedJobsToFailedState;
 import static com.dremio.service.jobs.JobsServiceUtil.finalJobStates;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.dremio.common.logging.StructuredLogger;
@@ -36,6 +39,7 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobtelemetry.JobTelemetryServiceGrpc;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -70,6 +74,8 @@ public class TestLocalJobsServiceStartup {
   private static final NodeEndpoint currentEndpoint;
   private static final NodeEndpoint issuingEndpoint;
   private static final NodeEndpoint restartedIssuerEndpoint;
+  private JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub jobTelemetryServiceStub =
+      mock(JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub.class);
 
   static {
     currNodeEndpointBean.setAddress(currentAddress);
@@ -115,7 +121,8 @@ public class TestLocalJobsServiceStartup {
     when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
         .thenReturn(NodeStatusResponse.newBuilder().setStartTime(99).build());
 
-    LocalJobsService.setAbandonedJobsToFailedState(
+    setAbandonedJobsToFailedState(
+        jobTelemetryServiceStub,
         jobStore,
         availableCoords,
         jobResultLogger,
@@ -127,6 +134,7 @@ public class TestLocalJobsServiceStartup {
         "all job states must be final, or handled by the above method", allJobsCleanedUp(returns));
 
     validateReturns(returns);
+    verifyProfileDeletion(returns.size());
   }
 
   @Test
@@ -136,7 +144,8 @@ public class TestLocalJobsServiceStartup {
     when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
         .thenReturn(NodeStatusResponse.newBuilder().setStartTime(0).build());
 
-    LocalJobsService.setAbandonedJobsToFailedState(
+    setAbandonedJobsToFailedState(
+        jobTelemetryServiceStub,
         jobStore,
         availableCoords,
         jobResultLogger,
@@ -147,6 +156,7 @@ public class TestLocalJobsServiceStartup {
     assertTrue(
         "All job states are final and not issued by the current restarted coordinator",
         noJobsCleanedUp(returns));
+    verifyProfileDeletion(returns.size());
   }
 
   @Test
@@ -157,7 +167,8 @@ public class TestLocalJobsServiceStartup {
     when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
         .thenReturn(NodeStatusResponse.newBuilder().setStartTime(99).build());
 
-    LocalJobsService.setAbandonedJobsToFailedState(
+    setAbandonedJobsToFailedState(
+        jobTelemetryServiceStub,
         jobStore,
         availableCoords,
         jobResultLogger,
@@ -171,6 +182,7 @@ public class TestLocalJobsServiceStartup {
         allJobsCleanedUp(returns));
 
     validateReturns(returns);
+    verifyProfileDeletion(returns.size());
   }
 
   @Test
@@ -180,7 +192,8 @@ public class TestLocalJobsServiceStartup {
     when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
         .thenReturn(NodeStatusResponse.newBuilder().setStartTime(0).build());
 
-    LocalJobsService.setAbandonedJobsToFailedState(
+    setAbandonedJobsToFailedState(
+        jobTelemetryServiceStub,
         jobStore,
         availableCoords,
         jobResultLogger,
@@ -191,6 +204,7 @@ public class TestLocalJobsServiceStartup {
     assertTrue(
         "All job states must be final, and jobs issued by a present coordinator, ",
         noJobsCleanedUp(returns));
+    verifyProfileDeletion(returns.size());
   }
 
   @Test
@@ -200,7 +214,8 @@ public class TestLocalJobsServiceStartup {
     when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
         .thenThrow(new RuntimeException());
 
-    LocalJobsService.setAbandonedJobsToFailedState(
+    setAbandonedJobsToFailedState(
+        jobTelemetryServiceStub,
         jobStore,
         availableCoords,
         jobResultLogger,
@@ -213,6 +228,7 @@ public class TestLocalJobsServiceStartup {
         allJobsCleanedUp(returns));
 
     validateReturns(returns);
+    verifyProfileDeletion(returns.size());
   }
 
   @Test
@@ -223,7 +239,8 @@ public class TestLocalJobsServiceStartup {
     when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
         .thenReturn(NodeStatusResponse.newBuilder().setStartTime(0).build());
 
-    LocalJobsService.setAbandonedJobsToFailedState(
+    setAbandonedJobsToFailedState(
+        jobTelemetryServiceStub,
         jobStore,
         availableCoords,
         jobResultLogger,
@@ -234,6 +251,7 @@ public class TestLocalJobsServiceStartup {
     assertTrue(
         "All job states must be final, and jobs issued by a present coordinator, ",
         noJobsCleanedUp(returns));
+    verifyProfileDeletion(returns.size());
   }
 
   @Test
@@ -244,7 +262,8 @@ public class TestLocalJobsServiceStartup {
     when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
         .thenReturn(NodeStatusResponse.newBuilder().setStartTime(99).build());
 
-    LocalJobsService.setAbandonedJobsToFailedState(
+    setAbandonedJobsToFailedState(
+        jobTelemetryServiceStub,
         jobStore,
         availableCoords,
         jobResultLogger,
@@ -257,6 +276,7 @@ public class TestLocalJobsServiceStartup {
         allJobsCleanedUp(returns));
 
     validateReturns(returns);
+    verifyProfileDeletion(returns.size());
   }
 
   @Test
@@ -266,7 +286,8 @@ public class TestLocalJobsServiceStartup {
     when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
         .thenThrow(new RuntimeException());
 
-    LocalJobsService.setAbandonedJobsToFailedState(
+    setAbandonedJobsToFailedState(
+        jobTelemetryServiceStub,
         jobStore,
         availableCoords,
         jobResultLogger,
@@ -279,6 +300,7 @@ public class TestLocalJobsServiceStartup {
         allJobsCleanedUp(returns));
 
     validateReturns(returns);
+    verifyProfileDeletion(returns.size());
   }
 
   /** Return true if all jobs were cleaned up. */
@@ -321,6 +343,11 @@ public class TestLocalJobsServiceStartup {
               .getFailureInfo()
               .contains("Query failed as Dremio was restarted"));
     }
+  }
+
+  /** Verify profile deletion */
+  private void verifyProfileDeletion(int numOfInvocation) {
+    verify(jobTelemetryServiceStub, times(numOfInvocation)).deleteProfile(any());
   }
 
   private static Entry<JobId, JobResult> newJobResult(final JobState jobState) {

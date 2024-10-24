@@ -19,10 +19,9 @@ package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
+import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.MutableVarcharVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
-import org.apache.arrow.vector.holders.VarCharHolder;
 import org.apache.arrow.vector.util.Text;
 
 public final class VarcharArrayAggAccumulator extends ArrayAggAccumulator<Text> {
@@ -58,14 +57,7 @@ public final class VarcharArrayAggAccumulator extends ArrayAggAccumulator<Text> 
 
   @Override
   protected void writeItem(UnionListWriter writer, Text item) {
-    try (ArrowBuf buffer = getAllocator().buffer(item.getLength())) {
-      VarCharHolder holder = new VarCharHolder();
-      holder.start = 0;
-      holder.end = (int) item.getLength();
-      buffer.setBytes(0, item.getBytes());
-      holder.buffer = buffer;
-      writer.write(holder);
-    }
+    writer.writeVarChar(item);
   }
 
   @Override
@@ -78,9 +70,9 @@ public final class VarcharArrayAggAccumulator extends ArrayAggAccumulator<Text> 
   protected Text getElement(
       long offHeapMemoryAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer) {
     final int startOffset =
-        offsetBuffer.getInt((long) itemIndex * MutableVarcharVector.OFFSET_WIDTH);
+        offsetBuffer.getInt((long) itemIndex * BaseVariableWidthVector.OFFSET_WIDTH);
     final int endOffset =
-        offsetBuffer.getInt((long) (itemIndex + 1) * MutableVarcharVector.OFFSET_WIDTH);
+        offsetBuffer.getInt((long) (itemIndex + 1) * BaseVariableWidthVector.OFFSET_WIDTH);
     final int len = endOffset - startOffset;
     byte[] data = new byte[len];
     dataBuffer.getBytes(startOffset, data);

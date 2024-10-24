@@ -15,7 +15,6 @@
  */
 function ConfirmCancelFooterMixin(input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     checkCancelText(cancelText) {
       return cancelText;
     },

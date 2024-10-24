@@ -91,7 +91,8 @@ public class CopyIntoHistoryWriterCommitterPOP extends WriterCommitterPOP {
         isReadSignatureEnabled,
         sourceTablePluginId,
         tableFormatOptions,
-        storagePluginResolver);
+        storagePluginResolver,
+        null); // TODO:  Revisit if there are issues with Lakehouse Catalog and CopyInto
     this.systemIcebergTablesStoragePlugin =
         systemIcebergTablesStoragePluginId != null
             ? storagePluginResolver.getSource(systemIcebergTablesStoragePluginId)
@@ -126,7 +127,8 @@ public class CopyIntoHistoryWriterCommitterPOP extends WriterCommitterPOP {
         isPartialRefresh,
         isReadSignatureEnabled,
         tableFormatOptions,
-        sourceTablePluginId);
+        sourceTablePluginId,
+        null); // TODO:  Revisit if there are issues with Lakehouse Catalog and CopyInto
     this.systemIcebergTablesStoragePlugin = errorPlugin;
   }
 

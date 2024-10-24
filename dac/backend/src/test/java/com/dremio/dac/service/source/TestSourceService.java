@@ -39,6 +39,7 @@ import com.dremio.dac.explore.QueryExecutor;
 import com.dremio.dac.explore.model.Dataset;
 import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.homefiles.HomeFileConf;
+import com.dremio.dac.model.common.Function;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.FolderName;
 import com.dremio.dac.model.folder.SourceFolderPath;
@@ -291,7 +292,7 @@ public class TestSourceService {
 
     // Act
     NamespaceTree contents =
-        sourceResource.getSource(true, DEFAULT_REF_TYPE, DEFAULT_BRANCH_NAME).getContents();
+        sourceResource.getSource(true, false, DEFAULT_REF_TYPE, DEFAULT_BRANCH_NAME).getContents();
 
     // Assert
     assertMatchesDefaultEntries(contents);
@@ -310,7 +311,7 @@ public class TestSourceService {
     // Act
     NamespaceTree contents =
         sourceResource
-            .getFolder("folder", true, DEFAULT_REF_TYPE, DEFAULT_BRANCH_NAME)
+            .getFolder("folder", true, false, DEFAULT_REF_TYPE, DEFAULT_BRANCH_NAME)
             .getContents();
 
     // Assert
@@ -515,7 +516,7 @@ public class TestSourceService {
     assertThatThrownBy(
             () ->
                 getSourceService()
-                    .listSource(versionedSource, null, userName, "BRANCH", "main", null, 10))
+                    .listSource(versionedSource, null, userName, "BRANCH", "main", null, 10, false))
         .isInstanceOf(UserException.class)
         .hasMessageContaining("Cannot connect to");
   }
@@ -526,6 +527,7 @@ public class TestSourceService {
     List<PhysicalDataset> physicalDatasets = contents.getPhysicalDatasets();
     List<File> files = contents.getFiles();
     List<Dataset> virtualDatasets = contents.getDatasets();
+    List<Function> udfs = contents.getFunctions();
 
     assertThat(folders).hasSize(2);
     assertThat(folders.get(0).getName()).isEqualTo(FOLDER_NAME_1);
@@ -536,6 +538,7 @@ public class TestSourceService {
 
     assertThat(files).isEmpty();
     assertThat(virtualDatasets).isEmpty();
+    assertThat(udfs).isEmpty();
 
     assertThat(contents.totalCount()).isEqualTo(3);
   }

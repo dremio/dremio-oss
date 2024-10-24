@@ -16,7 +16,7 @@
 
 // @ts-ignore
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-import { APIV3Call } from "@app/core/APICall";
+import { APIV3Call } from "#oss/core/APICall";
 import { sortBy } from "lodash";
 
 export const queuesUrl = () =>
@@ -32,7 +32,7 @@ export const getQueues = async (): Promise<any> => {
           id: queue.name,
           label: queue.name,
         })),
-        "id"
-      )
+        "id",
+      ),
     );
 };

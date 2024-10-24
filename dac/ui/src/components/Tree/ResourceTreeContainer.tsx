@@ -17,12 +17,12 @@
 import { useContext, useState } from "react";
 import { connect } from "react-redux";
 
-import { loadResourceTree } from "@app/actions/resources/tree";
+import { loadResourceTree } from "#oss/actions/resources/tree";
 import {
   loadStarredResources,
   unstarItem,
   starItem,
-} from "@app/actions/resources/stars";
+} from "#oss/actions/resources/stars";
 import { loadSummaryDataset } from "actions/resources/dataset";
 import { LOADING_ITEMS, LOADING_ITEMS_MODAL } from "actions/resources";
 
@@ -32,11 +32,11 @@ import {
   getStarredResources,
   getResourceTreeModal,
 } from "selectors/tree";
-import { fetchScripts, setActiveScript } from "@app/actions/resources/scripts";
+import { fetchScripts, setActiveScript } from "#oss/actions/resources/scripts";
 
-import ResourceTreeController from "@app/components/Tree/ResourceTreeController";
+import ResourceTreeController from "#oss/components/Tree/ResourceTreeController";
 
-import { getRefQueryParams } from "@app/utils/nessieUtils";
+import { getRefQueryParams } from "#oss/utils/nessieUtils";
 
 import {
   starTabNames,
@@ -47,8 +47,8 @@ import {
   LOAD_STARRED_RESOURCE_LIST,
   getEntityTypeFromNode,
   constructSummaryFullPath,
-} from "@app/components/Tree/resourceTreeUtils";
-import { getViewState } from "@app/selectors/resources";
+} from "#oss/components/Tree/resourceTreeUtils";
+import { getViewState } from "#oss/selectors/resources";
 import clsx from "clsx";
 import { useIsArsEnabled, fetchArsFlag } from "@inject/utils/arsUtils";
 import { TreeConfigContext } from "./treeConfigContext";

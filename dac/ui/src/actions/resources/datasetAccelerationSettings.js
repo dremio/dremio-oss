@@ -18,7 +18,7 @@ import { RSAA } from "redux-api-middleware";
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import datasetAccelerationSettingsSchema from "schemas/datasetAccelerationSettings";
 import { constructFullPath } from "utils/pathUtils";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const LOAD_DATASET_ACCELERATION_SETTINGS_START =
   "LOAD_DATASET_ACCELERATION_SETTINGS_START";
@@ -30,7 +30,7 @@ export const LOAD_DATASET_ACCELERATION_SETTINGS_FAILURE =
 export function loadDatasetAccelerationSettings(
   fullPathList,
   viewId,
-  versionContext
+  versionContext,
 ) {
   const meta = { viewId };
 
@@ -57,7 +57,7 @@ export function loadDatasetAccelerationSettings(
           datasetAccelerationSettingsSchema,
           meta,
           "datasetResourcePath",
-          constructFullPath(fullPathList)
+          constructFullPath(fullPathList),
         ),
         { type: LOAD_DATASET_ACCELERATION_SETTINGS_FAILURE, meta },
       ],
@@ -77,7 +77,7 @@ export const UPDATE_DATASET_ACCELERATION_SETTINGS_FAILURE =
 export function updateDatasetAccelerationSettings(
   fullPathList,
   form,
-  versionContext
+  versionContext,
 ) {
   const params = versionContext
     ? {

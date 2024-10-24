@@ -15,7 +15,8 @@
  */
 
 .drop-shadow-lg {
-  filter: drop-shadow(1px 2px 3px hsl(220deg 0% 50% / 0.2))
-    drop-shadow(2px 4px 6px hsl(220deg 0% 50% / 0.1))
-    drop-shadow(4px 8px 12px hsl(220deg 0% 50% / 0.1));
+  box-shadow: var(--dremio--shadow--layer-1);
+  // filter: drop-shadow(1px 2px 3px hsl(220deg 0% 50% / 0.2))
+  // drop-shadow(2px 4px 6px hsl(220deg 0% 50% / 0.1))
+  // drop-shadow(4px 8px 12px hsl(220deg 0% 50% / 0.1));
 }

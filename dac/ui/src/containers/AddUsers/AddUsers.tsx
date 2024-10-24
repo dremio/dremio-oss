@@ -15,7 +15,7 @@
  */
 
 import { useDispatch, useSelector } from "react-redux";
-import { hideAddUsers } from "@app/actions/addUsers";
+import { hideAddUsers } from "#oss/actions/addUsers";
 import AddUserModal from "@inject/pages/SettingPage/subpages/Users/AddUserModal";
 import "./AddUsers.less";
 
@@ -23,7 +23,7 @@ function AddUsersContainer() {
   const dispatch = useDispatch();
 
   const isAddUsersOpen: boolean = useSelector(
-    (state: Record<string, any>) => state.addUsers.isOpen
+    (state: Record<string, any>) => state.addUsers.isOpen,
   );
 
   const closeModal = () => {

@@ -23,7 +23,7 @@ type SearchSourceProps = {
   sources: Immutable.Map<any, any>;
   updateSources: (
     filteredList: Immutable.Iterable<any, any>,
-    searchValue: string
+    searchValue: string,
   ) => void;
 };
 
@@ -51,7 +51,7 @@ const SearchSource = ({ sources, updateSources }: SearchSourceProps) => {
           <dremio-icon
             name="interface/search"
             alt={intl.formatMessage({ id: "Source.SearchSources" })}
-            class={classes["search-icon"]}
+            class={`${classes["search-icon"]} icon-primary`}
           />
         </Tooltip>
       </span>

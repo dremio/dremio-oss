@@ -22,12 +22,12 @@ import DocumentTitle from "react-document-title";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
-import { flexElementAuto } from "@app/uiTheme/less/layout.less";
-import { getClusterInfo } from "@app/utils/infoUtils";
-import { getSupport } from "@app/utils/supportUtils";
-import { usePrevious } from "@app/utils/jobsUtils";
-import { getExploreState } from "@app/selectors/explore";
-import { getAllJobDetails, getJobSummaries } from "@app/selectors/exploreJobs";
+import { flexElementAuto } from "#oss/uiTheme/less/layout.less";
+import { getClusterInfo } from "#oss/utils/infoUtils";
+import { getSupport } from "#oss/utils/supportUtils";
+import { usePrevious } from "#oss/utils/jobsUtils";
+import { getExploreState } from "#oss/selectors/explore";
+import { getAllJobDetails, getJobSummaries } from "#oss/selectors/exploreJobs";
 
 import { updateQueryState, setClusterType } from "actions/jobs/jobs";
 import {

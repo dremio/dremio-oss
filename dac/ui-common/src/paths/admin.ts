@@ -28,9 +28,10 @@ export const userId = users.extend((params: UserIdParam) => `${params.userId}`);
 export const advanced = admin.extend(() => "advanced");
 export const engines = admin.extend(
   (params: EngineIdParam) =>
-    `engines${params?.engineId
-      ? "?engineId=" + encodeURIComponent(params.engineId!)
-      : ""
+    `engines${
+      params?.engineId
+        ? "?engineId=" + encodeURIComponent(params.engineId!)
+        : ""
     }`,
 );
 export const activation = admin.extend(() => "activation");

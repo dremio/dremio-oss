@@ -24,7 +24,7 @@ describe("explore/recommended reducer", () => {
     const result = reducer(null, {});
     it("contains initial transform state", () => {
       expect(result.getIn(["transform", "default", "cards"])).to.eql(
-        Immutable.List()
+        Immutable.List(),
       );
     });
   });
@@ -60,7 +60,7 @@ describe("explore/recommended reducer", () => {
             "cards",
             meta.index,
             "isInProgress",
-          ])
+          ]),
         ).to.be.true;
         expect(
           result.getIn([
@@ -70,7 +70,7 @@ describe("explore/recommended reducer", () => {
             "cards",
             meta.index,
             "isFailed",
-          ])
+          ]),
         ).to.be.false;
       });
     });
@@ -107,7 +107,7 @@ describe("explore/recommended reducer", () => {
 
       it("makes sure cards is a list", () => {
         expect(
-          result.getIn(["transform", meta.transformType, meta.method, "cards"])
+          result.getIn(["transform", meta.transformType, meta.method, "cards"]),
         ).to.be.an.instanceof(Immutable.List);
       });
 

@@ -16,13 +16,13 @@
 
 import { useCallback, useMemo } from "react";
 import Immutable from "immutable";
-import { checkTypeToShowOverlay } from "@app/utils/datasetUtils";
-import { getIconByEntityType } from "@app/utils/iconUtils";
+import { checkTypeToShowOverlay } from "#oss/utils/datasetUtils";
+import { getIconByEntityType } from "#oss/utils/iconUtils";
 // @ts-ignore
 import VersionContext from "dremio-ui-common/components/VersionContext.js";
 import { Popover } from "dremio-ui-lib/components";
 import { Tooltip as DremioTooltip } from "dremio-ui-lib";
-import DatasetSummaryOverlay from "@app/components/Dataset/DatasetSummaryOverlay";
+import DatasetSummaryOverlay from "#oss/components/Dataset/DatasetSummaryOverlay";
 
 import * as classes from "./DatasetCell.module.less";
 

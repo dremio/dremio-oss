@@ -20,7 +20,6 @@ import { abilities } from "utils/datasetUtils";
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     renderMoveLink() {
       const { entity, location } = this.props;
       const moveLink = {

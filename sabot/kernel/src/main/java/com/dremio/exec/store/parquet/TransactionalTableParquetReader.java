@@ -32,7 +32,6 @@ import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -139,10 +138,8 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
               final Class<? extends ValueVector> clazz = TypeHelper.getValueVectorClass(field);
               output.addField(field, clazz);
             } else {
-              Optional<Field> field = ParquetTypeHelper.toField(parquetField, schemaHelper);
-              if (field.isPresent()) {
-                output.addField(field.get(), TypeHelper.getValueVectorClass(field.get()));
-              }
+              ParquetTypeHelper.toField(parquetField, schemaHelper, columnResolver)
+                  .ifPresent(f -> output.addField(f, TypeHelper.getValueVectorClass(f)));
             }
           }
           break;

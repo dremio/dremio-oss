@@ -102,7 +102,7 @@ describe("ReplaceRangeForm", () => {
           type: "ReplaceRange",
           ...fieldsMappers.getReplaceRange(
             values,
-            commonProps.transform.get("columnType")
+            commonProps.transform.get("columnType"),
           ),
         },
       });
@@ -115,7 +115,7 @@ describe("ReplaceRangeForm", () => {
         columnType: "INTEGER",
       });
       const wrapper = shallow(
-        <ReplaceRangeForm {...commonProps} transform={transform} />
+        <ReplaceRangeForm {...commonProps} transform={transform} />,
       );
       wrapper.instance().submit(values);
       expect(commonProps.submit.calledOnce).to.eql(true);
@@ -123,7 +123,7 @@ describe("ReplaceRangeForm", () => {
         ...filterMappers.getCommonFilterValues(values, transform),
         filter: filterMappers.mapFilterExcludeRange(
           values,
-          transform.get("columnType")
+          transform.get("columnType"),
         ),
       });
     });
@@ -144,14 +144,14 @@ describe("ReplaceRangeForm", () => {
       expect(resultBinLength / 2).to.equal(originalBinLength);
       expect(result[0].y).to.equal(chartData[0].y + chartData[1].y);
       expect(result[0].percent).to.equal(
-        chartData[0].percent + chartData[1].percent
+        chartData[0].percent + chartData[1].percent,
       );
       expect(result[0].x).to.equal(chartData[0].x);
       expect(result[0].range.lowerLimit).to.equal(
-        chartData[0].range.lowerLimit
+        chartData[0].range.lowerLimit,
       );
       expect(result[0].range.upperLimit).to.equal(
-        chartData[1].range.upperLimit
+        chartData[1].range.upperLimit,
       );
     });
   });

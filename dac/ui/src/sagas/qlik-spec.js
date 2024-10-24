@@ -16,12 +16,12 @@
 import { call, put } from "redux-saga/effects";
 import qsocks from "qsocks";
 
-import { API_URL_V2 } from "@app/constants/Api";
+import { API_URL_V2 } from "#oss/constants/Api";
 import * as Actions from "actions/explore/download";
 import { SHOW_CONFIRMATION_DIALOG } from "actions/confirmation";
 import * as QlikActions from "actions/qlik";
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
-import FileUtils from "@app/utils/FileUtils";
+import FileUtils from "#oss/utils/FileUtils";
 
 import {
   checkDsnList,
@@ -78,7 +78,7 @@ describe("qlik saga", () => {
       // "put({type: Actions.LOAD_QLIK_APP_START})" by prototype too.
       //So, when we use JSON.stringify, we cut prototypes
       expect(JSON.stringify(next.value)).to.eql(
-        JSON.stringify(put({ type: Actions.LOAD_QLIK_APP_START }))
+        JSON.stringify(put({ type: Actions.LOAD_QLIK_APP_START })),
       );
 
       next = gen.next();
@@ -93,8 +93,8 @@ describe("qlik saga", () => {
           call(fetch, `${API_URL_V2}/qlik/${path}`, {
             method: "GET",
             headers,
-          })
-        )
+          }),
+        ),
       );
 
       next = gen.next({
@@ -164,8 +164,8 @@ describe("qlik saga", () => {
       expect(next.value).to.eql(
         call(
           [qlikGlobal, qlikGlobal.createApp],
-          "Dremio " + dataset.get("displayFullPath").join(".")
-        )
+          "Dremio " + dataset.get("displayFullPath").join("."),
+        ),
       );
       next = gen.next(qlikApp); // createApp
       next = gen.next(qlikDoc); // openDoc
@@ -181,7 +181,7 @@ describe("qlik saga", () => {
             appId: "qAppId",
             appName: "Dremio myspace.foo",
           },
-        })
+        }),
       );
     });
 
@@ -199,7 +199,7 @@ describe("qlik saga", () => {
         next = gen.next(); // fetchQlikApp
         next = gen.throw("error");
         expect(next.value.PUT.action.payload.error.get("code")).to.eql(
-          "QLIK_GET_APP"
+          "QLIK_GET_APP",
         );
         next = gen.next();
         expect(next.done).to.be.true;
@@ -210,7 +210,7 @@ describe("qlik saga", () => {
         next = gen.next(); // qsocks.Connect
         next = gen.throw("error");
         expect(next.value.PUT.action.payload.error.get("code")).to.eql(
-          "QLIK_CONNECT_FAILED"
+          "QLIK_CONNECT_FAILED",
         );
         next = gen.next();
         expect(next.done).to.be.true;
@@ -222,7 +222,7 @@ describe("qlik saga", () => {
         next = gen.next(); // checkDsnList
         next = gen.next(false); // dsn not detected
         expect(next.value.PUT.action.payload.error.get("code")).to.eql(
-          "QLIK_DSN"
+          "QLIK_DSN",
         );
         next = gen.next();
         expect(next.done).to.be.true;
@@ -234,10 +234,10 @@ describe("qlik saga", () => {
         next = gen.next(); // dsn
         next = gen.throw({ message: "foo" });
         expect(next.value.PUT.action.payload.error.get("code")).to.eql(
-          "QLIK_CUSTOM_ERROR"
+          "QLIK_CUSTOM_ERROR",
         );
         expect(next.value.PUT.action.payload.error.get("moreInfo")).to.eql(
-          "foo"
+          "foo",
         );
         next = gen.next();
         expect(next.done).to.be.true;

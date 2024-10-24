@@ -16,7 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
-import { typeToIconType } from "@app/constants/DataTypes";
+import { typeToIconType } from "#oss/constants/DataTypes";
 import Select from "./Select";
 
 @injectIntl
@@ -32,6 +32,7 @@ export default class FieldSelect extends Component {
       label: (
         <div style={styles.wrap}>
           <dremio-icon
+            class="icon-primary"
             name={`data-types/${typeToIconType[item.type]}`}
             alt={this.props.intl.formatMessage({ id: "Common.ColumnType" })}
             style={styles.icon}

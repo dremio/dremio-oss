@@ -22,7 +22,7 @@ import result from "lodash/result";
 
 import JSONTree from "react-json-tree";
 import { FLEX_COL_START } from "uiTheme/radium/flexStyle";
-import { LIST, STRUCT } from "@app/constants/DataTypes";
+import { LIST, STRUCT } from "#oss/constants/DataTypes";
 import exploreUtils from "utils/explore/exploreUtils";
 import SelectedTextPopover from "./SelectedTextPopover";
 import getTheme from "./themeTreeMap";
@@ -122,7 +122,7 @@ class CellPopover extends PureComponent {
   handleMouseOver = (e, keyPath) => {
     if (this.props.onCurrentPathChange && !this.props.isDumbTable) {
       this.props.onCurrentPathChange(
-        keyPath && keyPath.slice().reverse().join(".")
+        keyPath && keyPath.slice().reverse().join("."),
       );
     }
   };
@@ -191,7 +191,7 @@ class CellPopover extends PureComponent {
         "overlay-object":
           (cellPopover.get("columnType") === cellPopover.get("columnType")) ===
           STRUCT,
-      }
+      },
     );
     return (
       <div className="cell-popover-wrap" ref={this.cellPopoverRef}>

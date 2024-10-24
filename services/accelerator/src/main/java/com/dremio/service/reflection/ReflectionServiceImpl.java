@@ -36,12 +36,15 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.DremioVersionInfo;
+import com.dremio.common.utils.SqlUtils;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.context.RequestContext;
+import com.dremio.datastore.WarningTimer;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.DremioTranslatableTable;
 import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.QueryContextCreator;
@@ -55,6 +58,7 @@ import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.plancache.CacheRefresher;
+import com.dremio.exec.planner.plancache.CacheRefresherService;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.record.BatchSchema;
@@ -143,6 +147,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -188,10 +193,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
    * {@link CacheRefresher}
    */
   interface DescriptorCache {
-
     void invalidate(Materialization m);
-
-    void update(Materialization m) throws CacheException, InterruptedException;
   }
 
   private MaterializationDescriptorProvider materializationDescriptorProvider;
@@ -244,6 +246,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   private ReflectionManager reflectionManager = null;
 
   private final Supplier<ReflectionManagerFactory> reflectionManagerFactorySupplier;
+  private final Provider<CacheRefresherService> cacheRefresherService;
 
   public ReflectionServiceImpl(
       final SabotConfig config,
@@ -257,7 +260,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       final boolean isMaster,
       final BufferAllocator allocator,
       final Provider<RequestContext> requestContextProvider,
-      final DatasetEventHub datasetEventHub) {
+      final DatasetEventHub datasetEventHub,
+      final Provider<CacheRefresherService> cacheRefresherService) {
     this.schedulerService =
         Preconditions.checkNotNull(schedulerService, "scheduler service required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobs service required");
@@ -337,7 +341,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
                       requestsStore,
                       dependenciesStore,
                       allocator,
-                      DescriptorCacheImpl::new);
+                      DescriptorCacheImpl::new,
+                      this::wakeupCacheRefresher);
               return config.getInstance(
                   ReflectionManagerFactory.REFLECTION_MANAGER_FACTORY,
                   ReflectionManagerFactory.class,
@@ -348,6 +353,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     this.reflectionSettingsSupplier =
         Suppliers.memoize(() -> reflectionManagerFactorySupplier.get().newReflectionSettings());
     this.datasetEventHub = datasetEventHub;
+    this.cacheRefresherService =
+        Preconditions.checkNotNull(cacheRefresherService, "cache refresher  service required");
   }
 
   @VisibleForTesting
@@ -421,7 +428,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         reflectionStatusService.get(),
         catalogService.get(),
         getOptionManager(),
-        materializationStore);
+        materializationStore,
+        internalStore);
   }
 
   /** Cleanup when we lose task leader status. May not be called if node is terminated. */
@@ -1033,6 +1041,10 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     return wakeupManager(reason, false);
   }
 
+  public void wakeupCacheRefresher(String reason) {
+    cacheRefresherService.get().wakeupCacheRefresher(reason);
+  }
+
   @Override
   public Provider<CacheViewer> getCacheViewerProvider() {
     return new Provider<CacheViewer>() {
@@ -1082,73 +1094,83 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   UnexpandedMaterializationDescriptor getDescriptor(
       Materialization materialization, Catalog catalog, ReflectionPlanGeneratorProvider provider)
       throws CacheException {
-    final ReflectionGoal goal = userStore.get(materialization.getReflectionId());
-    if (!ReflectionGoalChecker.checkGoal(goal, materialization)) {
-      Materialization update = materializationStore.get(materialization.getId());
-      update.setState(MaterializationState.FAILED);
-      update.setFailure(
-          new Failure()
-              .setMessage(
-                  "Reflection definition has changed and materialization is no longer valid."));
-      try {
-        materializationStore.save(update);
-      } catch (ConcurrentModificationException e2) {
-        // ignore in case another coordinator also tries to mark the materialization as failed
-      }
-      // reflection goal changed and corresponding materialization is no longer valid
-      throw new CacheException(
-          "Unable to expand materialization "
-              + materialization.getId().getId()
-              + " as it no longer matches its reflection goal");
-    }
 
-    final ReflectionEntry entry = internalStore.get(materialization.getReflectionId());
-
-    MaterializationMetrics metrics = materializationStore.getMetrics(materialization).left;
-
-    MaterializationPlan plan =
-        this.materializationPlanStore.getVersionedPlan(materialization.getId());
-    if (plan == null) {
-      try (ExpansionHelper helper = getExpansionHelper().apply(catalog)) {
-        ReflectionPlanGenerator generator =
-            provider.create(
-                helper,
-                catalogService.get(),
-                sabotContext.get().getConfig(),
-                goal,
-                entry,
-                materialization,
-                reflectionSettingsSupplier.get(),
-                materializationStore,
-                dependenciesStore,
-                false,
-                true);
-        generator.generateNormalizedPlan();
-        ByteString logicalPlanBytes = generator.getMatchingPlanBytes();
-        plan = new MaterializationPlan();
-        plan.setId(MaterializationPlanStore.createMaterializationPlanId(materialization.getId()));
-        plan.setMaterializationId(materialization.getId());
-        plan.setReflectionId(materialization.getReflectionId());
-        plan.setVersion(DremioVersionInfo.getVersion());
-        plan.setLogicalPlan(logicalPlanBytes);
-        materializationPlanStore.save(plan);
-        logger.info(
-            "Materialization plan upgrade: Successfully rebuilt plan for {}",
-            ReflectionUtils.getId(goal));
-      } catch (ConcurrentModificationException e) {
-        logger.warn(
-            "Materialization plan upgrade: Plan already rebuilt by another coordinator {}",
-            ReflectionUtils.getId(goal));
-      } catch (RuntimeException e) {
-        final String failureMsg =
+    try (WarningTimer timer =
+        new WarningTimer(
             String.format(
-                "Materialization plan upgrade: Unable to rebuild plan for %s. %s",
-                ReflectionUtils.getId(goal), e.getMessage());
-        throw new MaterializationExpander.RebuildPlanException(failureMsg, e);
+                "Get materialization descriptor %s/%s",
+                materialization.getReflectionId(), materialization.getId()),
+            TimeUnit.SECONDS.toMillis(5),
+            logger)) {
+
+      final ReflectionGoal goal = userStore.get(materialization.getReflectionId());
+      if (!ReflectionGoalChecker.checkGoal(goal, materialization)) {
+        Materialization update = materializationStore.get(materialization.getId());
+        update.setState(MaterializationState.FAILED);
+        update.setFailure(
+            new Failure()
+                .setMessage(
+                    "Reflection definition has changed and materialization is no longer valid."));
+        try {
+          materializationStore.save(update);
+        } catch (ConcurrentModificationException e2) {
+          // ignore in case another coordinator also tries to mark the materialization as failed
+        }
+        // reflection goal changed and corresponding materialization is no longer valid
+        throw new CacheException(
+            "Unable to expand materialization "
+                + materialization.getId().getId()
+                + " as it no longer matches its reflection goal");
       }
+
+      final ReflectionEntry entry = internalStore.get(materialization.getReflectionId());
+
+      MaterializationMetrics metrics = materializationStore.getMetrics(materialization).left;
+
+      MaterializationPlan plan =
+          this.materializationPlanStore.getVersionedPlan(materialization.getId());
+      if (plan == null) {
+        try (ExpansionHelper helper = getExpansionHelper().apply(catalog)) {
+          ReflectionPlanGenerator generator =
+              provider.create(
+                  helper,
+                  catalogService.get(),
+                  sabotContext.get().getConfig(),
+                  goal,
+                  entry,
+                  materialization,
+                  reflectionSettingsSupplier.get(),
+                  materializationStore,
+                  dependenciesStore,
+                  false,
+                  true);
+          generator.generateNormalizedPlan();
+          ByteString logicalPlanBytes = generator.getMatchingPlanBytes();
+          plan = new MaterializationPlan();
+          plan.setId(MaterializationPlanStore.createMaterializationPlanId(materialization.getId()));
+          plan.setMaterializationId(materialization.getId());
+          plan.setReflectionId(materialization.getReflectionId());
+          plan.setVersion(DremioVersionInfo.getVersion());
+          plan.setLogicalPlan(logicalPlanBytes);
+          materializationPlanStore.save(plan);
+          logger.info(
+              "Materialization plan upgrade: Successfully rebuilt plan for {}",
+              ReflectionUtils.getId(goal));
+        } catch (ConcurrentModificationException e) {
+          logger.warn(
+              "Materialization plan upgrade: Plan already rebuilt by another coordinator {}",
+              ReflectionUtils.getId(goal));
+        } catch (RuntimeException e) {
+          final String failureMsg =
+              String.format(
+                  "Materialization plan upgrade: Unable to rebuild plan for %s. %s",
+                  ReflectionUtils.getId(goal), e.getMessage());
+          throw new MaterializationExpander.RebuildPlanException(failureMsg, e);
+        }
+      }
+      return materializationDescriptorFactory.getMaterializationDescriptor(
+          goal, entry, materialization, plan, metrics.getOriginalCost(), catalogService.get());
     }
-    return materializationDescriptorFactory.getMaterializationDescriptor(
-        goal, entry, materialization, plan, metrics.getOriginalCost(), catalogService.get());
   }
 
   private final class MaterializationDescriptorProviderImpl
@@ -1412,7 +1434,14 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       // get a new converter for each materialization. This ensures that we
       // always index flattens from zero. This is a partial fix for flatten
       // matching. We should really do a better job in matching.
-      try (ExpansionHelper helper = getExpansionHelper().apply(catalog)) {
+      try (ExpansionHelper helper = getExpansionHelper().apply(catalog);
+          WarningTimer timer =
+              new WarningTimer(
+                  String.format(
+                      "Expand materialization descriptor %s/%s",
+                      descriptor.getLayoutId(), descriptor.getMaterializationId()),
+                  TimeUnit.SECONDS.toMillis(5),
+                  logger)) {
         return descriptor.getMaterializationFor(helper.getConverter());
       }
     }
@@ -1436,8 +1465,9 @@ public class ReflectionServiceImpl extends BaseReflectionService {
                     ReflectionGoal goal = getGoal(v.getKey()).get();
                     String datasetName =
                         Optional.ofNullable(catalog.getTable(goal.getDatasetId()))
-                            .map(DremioTable::getDatasetConfig)
-                            .map(DatasetConfig::getName)
+                            .map(DremioTranslatableTable::getPath)
+                            .map(NamespaceKey::getPathComponents)
+                            .map(SqlUtils::quotedCompound)
                             .orElse("Can't find dataset");
                     return new ReflectionLineageInfo(
                         v.getValue(), goal.getId().getId(), goal.getName(), datasetName);
@@ -1460,19 +1490,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       if (isCacheEnabled()) {
         logger.debug("Invalidating cache entry for {}", ReflectionUtils.getId(m));
         materializationCache.invalidate(m.getId());
-      }
-    }
-
-    /**
-     * This should be eventually deprecated as we want all materialization cache maintenance to be
-     * done handled by the background thread and not one off when RM and materialization cache
-     * happen to run on same coordinator.
-     */
-    @Override
-    public void update(Materialization m) throws CacheException, InterruptedException {
-      if (isCacheEnabled()) {
-        logger.debug("Updating cache entry for {}", ReflectionUtils.getId(m));
-        materializationCache.update(m);
       }
     }
   }

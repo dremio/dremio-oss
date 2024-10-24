@@ -22,41 +22,36 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.ReservedCharacters;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Class representing a generic catalog entity key */
 @JsonDeserialize(builder = CatalogEntityKey.Builder.class)
-public class CatalogEntityKey {
+public final class CatalogEntityKey {
   public static final String KEY_DELIMITER =
       ReservedCharacters.getInformationSeparatorOne(); // : separated key and version
   private static final Logger logger = LoggerFactory.getLogger(CatalogEntityKey.class);
   private final List<String> keyComponents;
-  private final TableVersionContext tableVersionContext;
+  private final @Nullable TableVersionContext tableVersionContext;
   private final String joinedKeyWithVersion; // see toString()
 
-  public CatalogEntityKey(String keyInStringFormat) {
-    this(newBuilder().deserialize(keyInStringFormat).build());
-  }
-
-  private CatalogEntityKey(Builder builder) {
-    this.keyComponents = builder.keyComponents;
-    this.tableVersionContext = builder.tableVersionContext;
-    this.joinedKeyWithVersion = builder.joinedKeyWithVersion;
-  }
-
-  private CatalogEntityKey(CatalogEntityKey catalogEntityKey) {
-    this.keyComponents = catalogEntityKey.keyComponents;
-    this.tableVersionContext = catalogEntityKey.tableVersionContext;
-    this.joinedKeyWithVersion = catalogEntityKey.joinedKeyWithVersion;
+  private CatalogEntityKey(
+      List<String> keyComponents, @Nullable TableVersionContext tableVersionContext) {
+    this.keyComponents = ImmutableList.copyOf(keyComponents);
+    this.tableVersionContext = tableVersionContext;
+    this.joinedKeyWithVersion = toString(this.keyComponents, this.tableVersionContext);
   }
 
   public static Builder newBuilder() {
@@ -71,7 +66,7 @@ public class CatalogEntityKey {
     return keyComponents;
   }
 
-  public TableVersionContext getTableVersionContext() {
+  public @Nullable TableVersionContext getTableVersionContext() {
     return tableVersionContext;
   }
 
@@ -81,11 +76,25 @@ public class CatalogEntityKey {
     return tableVersionContext != null;
   }
 
+  /**
+   * @return plain key without version context
+   */
+  public static CatalogEntityKey of(String... keyComponents) {
+    return of(Arrays.asList(keyComponents));
+  }
+
+  /**
+   * @return plain key without version context
+   */
+  public static CatalogEntityKey of(List<String> keyComponents) {
+    return CatalogEntityKey.newBuilder().keyComponents(keyComponents).build();
+  }
+
   public NamespaceKey toNamespaceKey() {
     return new NamespaceKey(keyComponents);
   }
 
-  public static CatalogEntityKey fromNamespaceKey(NamespaceKey namespaceKey) {
+  public static @Nullable CatalogEntityKey fromNamespaceKey(NamespaceKey namespaceKey) {
     if (namespaceKey == null) {
       return null;
     }
@@ -93,6 +102,48 @@ public class CatalogEntityKey {
         .keyComponents(namespaceKey.getPathComponents())
         .tableVersionContext(null)
         .build();
+  }
+
+  public static CatalogEntityKey fromNamespaceContainer(NameSpaceContainer nameSpaceContainer) {
+    return fromNamespaceKey(new NamespaceKey(nameSpaceContainer.getFullPathList()));
+  }
+
+  public static CatalogEntityKey fromString(String keyInStringFormat) {
+    List<String> keyParts = Arrays.asList(keyInStringFormat.split(KEY_DELIMITER));
+    List<String> keyPaths = PathUtils.parseFullPath(keyParts.get(0));
+    if (keyPaths.isEmpty() || keyParts.size() > 2) {
+      logger.debug("Invalid CatalogEntityKey format {}", keyInStringFormat);
+      throw UserException.validationError()
+          .message("Invalid CatalogEntityKey format %s", keyInStringFormat)
+          .build(logger);
+    }
+    TableVersionContext tVersionContext = null;
+    if (keyParts.size() == 2) {
+      String versionString = keyParts.get(1);
+      if (versionString != null) {
+        tVersionContext = TableVersionContext.deserialize(versionString);
+      }
+    }
+    return CatalogEntityKey.newBuilder()
+        .keyComponents(keyPaths)
+        .tableVersionContext(tVersionContext)
+        .build();
+  }
+
+  private static String toString(
+      List<String> keyComponents, TableVersionContext tableVersionContext) {
+    StringBuilder keyWithVersion = new StringBuilder();
+    String keyWithoutVersion = quotedCompound(keyComponents);
+    keyWithVersion.append(keyWithoutVersion);
+    if (tableVersionContext != null) {
+      keyWithVersion.append(KEY_DELIMITER);
+      keyWithVersion.append(tableVersionContext.serialize());
+    }
+    return keyWithVersion.toString();
+  }
+
+  public String toStringWithoutVersionContext() {
+    return quotedCompound(keyComponents);
   }
 
   @JsonIgnore
@@ -114,6 +165,9 @@ public class CatalogEntityKey {
 
   @JsonIgnore
   public boolean isKeyForImmutableEntity() {
+    if (tableVersionContext == null) {
+      return false;
+    }
     switch (tableVersionContext.getType()) {
       case SNAPSHOT_ID:
       case COMMIT:
@@ -161,7 +215,7 @@ public class CatalogEntityKey {
   public CatalogEntityKey getParent() {
     return CatalogEntityKey.newBuilder()
         .keyComponents((keyComponents.subList(0, keyComponents.size() - 1)))
-        .tableVersionContext(this.getTableVersionContext())
+        .tableVersionContext(tableVersionContext)
         .build();
   }
 
@@ -173,7 +227,7 @@ public class CatalogEntityKey {
     StringBuilder keyWithVersion = new StringBuilder();
     keyWithVersion.append(quotedCompound(keyComponents));
 
-    if (hasTableVersionContext()) {
+    if (tableVersionContext != null) {
       keyWithVersion.append(" AT ");
       keyWithVersion.append(tableVersionContext.toSql());
     }
@@ -185,12 +239,16 @@ public class CatalogEntityKey {
   public static class Builder {
     private List<String> keyComponents;
     private TableVersionContext tableVersionContext;
-    private String joinedKeyWithVersion; // see toString()
 
     public Builder() {}
 
+    public Builder keyComponents(String... keyComponents) {
+      return keyComponents(Arrays.asList(keyComponents));
+    }
+
+    @JsonSetter
     public Builder keyComponents(List<String> key) {
-      keyComponents = key;
+      keyComponents = Preconditions.checkNotNull(key);
       return this;
     }
 
@@ -207,49 +265,11 @@ public class CatalogEntityKey {
             .message("Invalid CatalogEntityKey format %s", keyComponents)
             .build(logger);
       }
-      this.joinedKeyWithVersion = serialize();
-      return new CatalogEntityKey(this);
-    }
-
-    private String serialize() {
-      StringBuilder keyWithVersion = new StringBuilder();
-      String keyWithoutVersion = quotedCompound(keyComponents);
-      String versionString = tableVersionContext == null ? null : tableVersionContext.serialize();
-      keyWithVersion.append(keyWithoutVersion);
-      if (tableVersionContext != null) {
-        keyWithVersion.append(KEY_DELIMITER);
-        keyWithVersion.append(versionString);
-      }
-      return keyWithVersion.toString();
-    }
-
-    @JsonIgnore
-    public Builder deserialize(String keyInStringFormat) {
-      List<String> keyParts = Arrays.asList(keyInStringFormat.split(KEY_DELIMITER));
-      TableVersionContext tVersionContext = null;
-      List<String> keyPaths = PathUtils.parseFullPath(keyParts.get(0));
-      if (keyPaths.isEmpty() || keyParts.size() > 2) {
-        logger.debug("Invalid CatalogEntityKey format {}", keyInStringFormat);
-        throw UserException.validationError()
-            .message("Invalid CatalogEntityKey format %s", keyInStringFormat)
-            .build(logger);
-      }
-      if (keyParts.size() == 2) {
-        String versionString = keyParts.get(1);
-        tVersionContext =
-            versionString == null ? null : TableVersionContext.deserialize(versionString);
-      }
-      return CatalogEntityKey.newBuilder()
-          .keyComponents(keyPaths)
-          .tableVersionContext(tVersionContext);
+      return new CatalogEntityKey(keyComponents, tableVersionContext);
     }
   }
 
   public static CatalogEntityKey fromVersionedDatasetId(VersionedDatasetId versionedDatasetId) {
-    if (versionedDatasetId == null) {
-      return null;
-    }
-
     return CatalogEntityKey.newBuilder()
         .keyComponents(versionedDatasetId.getTableKey())
         .tableVersionContext(versionedDatasetId.getVersionContext())

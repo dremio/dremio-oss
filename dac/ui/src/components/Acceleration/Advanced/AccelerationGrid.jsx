@@ -37,31 +37,31 @@ import Message from "components/Message";
 import {
   getAggregationRecommendation,
   getRawRecommendation,
-} from "@app/selectors/reflectionRecommendations";
+} from "#oss/selectors/reflectionRecommendations";
 import AccelerationGridMixin from "@inject/components/Acceleration/Advanced/AccelerationGridMixin";
-import EllipsedText from "@app/components/EllipsedText";
+import EllipsedText from "#oss/components/EllipsedText";
 
-import { typeToIconType } from "@app/constants/DataTypes";
+import { typeToIconType } from "#oss/constants/DataTypes";
 import { PartitionTransformations } from "dremio-ui-common/sonar/reflections/ReflectionDataTypes.js";
-import { ColumnTypeIcons } from "@app/exports/components/PartitionTransformation/PartitionTransformationUtils";
-import { getSupportFlags } from "@app/selectors/supportFlags";
+import { ColumnTypeIcons } from "#oss/exports/components/PartitionTransformation/PartitionTransformationUtils";
+import { getSupportFlags } from "#oss/selectors/supportFlags";
 import {
   ALLOW_REFLECTION_PARTITION_TRANFORMS,
   ALLOW_REFLECTION_REFRESH,
-} from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { refreshReflection } from "@app/exports/endpoints/ReflectionSummary/refreshReflection";
+} from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import { refreshReflection } from "#oss/exports/endpoints/ReflectionSummary/refreshReflection";
 
-import "@app/uiTheme/less/commonModifiers.less";
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
-import "@app/uiTheme/less/Acceleration/AccelerationGrid.less";
+import "#oss/uiTheme/less/commonModifiers.less";
+import "#oss/uiTheme/less/Acceleration/Acceleration.less";
+import "#oss/uiTheme/less/Acceleration/AccelerationGrid.less";
 import LayoutInfo from "../LayoutInfo";
 
 import "fixed-data-table-2/dist/fixed-data-table.css";
-import { getFeatureFlag } from "@app/selectors/featureFlagsSelector";
+import { getFeatureFlag } from "#oss/selectors/featureFlagsSelector";
 import { REFLECTION_REFRESH_ENABLED } from "@inject/featureFlags/flags/REFLECTION_REFRESH_ENABLED";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
-import { addNotification } from "@app/actions/notification";
-import { getReflectionUiStatus } from "@app/utils/accelerationUtils";
+import { addNotification } from "#oss/actions/notification";
+import { getReflectionUiStatus } from "#oss/utils/accelerationUtils";
 
 const HEADER_HEIGHT = 100;
 const REC_HEADER_HEIGHT = 104;
@@ -709,6 +709,7 @@ export class AccelerationGrid extends Component {
       >
         <div className={"AccelerationGrid__column"}>
           <dremio-icon
+            class="icon-primary"
             name={`data-types/${typeToIconType[columns.getIn([rowIndex, "type", "name"])]}`}
           ></dremio-icon>
           <EllipsedText
@@ -762,11 +763,6 @@ export class AccelerationGrid extends Component {
     return (
       <div
         className="AccelerationGrid grid-acceleration"
-        style={{
-          maxHeight: isRecommendation
-            ? "calc(80vh - 184px)"
-            : "calc(100vh - 376px)",
-        }}
         ref={(wrap) => (this.gridWrapper = wrap)}
       >
         <AutoSizer>

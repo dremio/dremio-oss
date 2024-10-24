@@ -19,6 +19,7 @@ import static java.util.Collections.emptyList;
 
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogpubsub.CatalogEventMessagePublisherProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 
 /**
@@ -58,7 +59,10 @@ public class DeleteSnowflakeCommunitySource extends UpgradeTask {
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     NamespaceServiceImpl namespaceService =
-        new NamespaceServiceImpl(context.getKvStoreProvider(), new CatalogStatusEventsImpl());
+        new NamespaceServiceImpl(
+            context.getKvStoreProvider(),
+            new CatalogStatusEventsImpl(),
+            CatalogEventMessagePublisherProvider.NO_OP);
 
     // Will detect incompatible Snowflake sources created with the community connector by catching
     // ProtobufException when attempting to read source configuration. Then we delete such

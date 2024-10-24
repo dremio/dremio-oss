@@ -75,6 +75,10 @@ public class EndpointsIndex {
             new MinorFragmentEndpoint(k.getMinorFragmentId(), endpoints.get(k.getEndpointIndex())));
   }
 
+  public List<NodeEndpoint> getEndpoints() {
+    return endpoints;
+  }
+
   public List<MinorFragmentEndpoint> getFragmentEndpoints(List<MinorFragmentIndexEndpoint> eps) {
     return eps.stream().map(x -> getFragmentEndpoint(x)).collect(Collectors.toList());
   }

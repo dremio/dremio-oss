@@ -15,23 +15,26 @@
  */
 import { Err, Ok } from "ts-results-es";
 import type {
-  CommunityScript,
-  CommunityScriptProperties,
+  Script as ScriptInterface,
+  ScriptProperties,
 } from "../../interfaces/Script.js";
 import { Query } from "../../common/Query.js";
 import type { SonarV3Config } from "../../_internal/types/Config.js";
+import { HttpError } from "../../common/HttpError.js";
+import { isProblem } from "../../interfaces/Problem.js";
+import { duplicateScriptNameError } from "./ScriptErrors.js";
 
-export class Script implements CommunityScript {
-  readonly createdAt: Date;
+export class Script implements ScriptInterface {
+  readonly createdAt: ScriptProperties["createdAt"];
   readonly createdBy: string;
   readonly id: string;
-  readonly modifiedAt: Date;
+  readonly modifiedAt: ScriptProperties["modifiedAt"];
   readonly modifiedBy: Date;
   readonly name: string;
   readonly query: Query;
   #config: SonarV3Config;
 
-  constructor(properties: CommunityScriptProperties, config: SonarV3Config) {
+  constructor(properties: ScriptProperties, config: SonarV3Config) {
     this.createdAt = properties.createdAt;
     this.createdBy = properties.createdBy;
     this.id = properties.id;
@@ -53,8 +56,8 @@ export class Script implements CommunityScript {
   }
 
   async save(properties: {
-    name?: CommunityScriptProperties["name"];
-    query?: CommunityScriptProperties["query"];
+    name?: ScriptProperties["name"];
+    query?: ScriptProperties["query"];
   }) {
     const patchedFields = {} as any;
     if (properties.name) {
@@ -76,16 +79,27 @@ export class Script implements CommunityScript {
       })
       .then((res) => res.json())
       .then((properties) => Ok(Script.fromResource(properties, this.#config)))
-      .catch((e) => Err(e));
+      .catch((e) => {
+        if (e instanceof HttpError) {
+          if (isProblem(e.body)) {
+            if (e.body.detail?.includes("Cannot reuse the same script name")) {
+              return Err(duplicateScriptNameError(patchedFields.name));
+            }
+            return Err(e.body);
+          }
+        }
+
+        return Err(e);
+      });
   }
 
   static fromResource(properties: any, config: SonarV3Config) {
     return new Script(
       {
-        createdAt: new Date(properties.createdAt),
+        createdAt: Temporal.Instant.from(properties.createdAt),
         createdBy: properties.createdBy,
         id: properties.id,
-        modifiedAt: new Date(properties.modifiedAt),
+        modifiedAt: Temporal.Instant.from(properties.modifiedAt),
         modifiedBy: properties.modifiedBy,
         name: properties.name,
         query: new Query(properties.content, properties.context),

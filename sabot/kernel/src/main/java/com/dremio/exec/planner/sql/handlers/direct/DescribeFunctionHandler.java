@@ -17,29 +17,33 @@
 package com.dremio.exec.planner.sql.handlers.direct;
 
 import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.udf.UserDefinedFunctionCatalog;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.parser.SqlDescribeFunction;
+import com.dremio.exec.planner.sql.parser.SqlTableVersionSpec;
 import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.UserNotFoundException;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.security.AccessControlException;
 import java.sql.Timestamp;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.RelConversionException;
+import org.apache.commons.lang3.StringUtils;
 
 public class DescribeFunctionHandler
-    implements SqlDirectHandler<DescribeFunctionHandler.DescribeResult> {
+    implements SqlDirectHandler<DescribeFunctionHandler.DescribeResult>, DirectHandlerValidator {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(DescribeFunctionHandler.class);
 
@@ -55,35 +59,43 @@ public class DescribeFunctionHandler
       throws RelConversionException, ForemanSetupException {
     final SqlDescribeFunction node = SqlNodeUtil.unwrap(sqlNode, SqlDescribeFunction.class);
     try {
-      UserDefinedFunctionCatalog userDefinedFunctionCatalog =
-          context.getUserDefinedFunctionCatalog();
-      final SqlIdentifier functionId = node.getFunction();
-      final NamespaceKey namespaceKey = new NamespaceKey(functionId.names);
-      CatalogEntityKey catalogEntityKey =
-          CatalogEntityKeyUtil.buildCatalogEntityKey(
-              namespaceKey,
-              node.getSqlTableVersionSpec(),
-              context.getSession().getSessionVersionForSource(namespaceKey.getRoot()));
-      final UserDefinedFunction function = userDefinedFunctionCatalog.getFunction(catalogEntityKey);
-      if (function == null) {
-        throw UserException.validationError()
-            .message("Unknown function [%s]", catalogEntityKey.toSql())
-            .buildSilently();
+      Catalog catalog = context.getCatalog();
+      final SqlIdentifier functionSqlIdentifier = node.getFunction();
+
+      CatalogEntityKey catalogEntityKey = null;
+      UserDefinedFunction userDefinedFunction = null;
+      // If there's a default schema, use it to try to retrieve the function. Ignore all errors.
+      if (StringUtils.isNotBlank(context.getSession().getDefaultSchemaName())) {
+        catalogEntityKey =
+            buildCatalogEntityKey(
+                catalog
+                    .resolveToDefault(new NamespaceKey(functionSqlIdentifier.names))
+                    .getPathComponents(),
+                node.getSqlTableVersionSpec());
+        userDefinedFunction = getUserDefinedFunction(catalogEntityKey, true);
       }
 
+      // Try without the default schema applied if the function was not found.
+      if (userDefinedFunction == null) {
+        catalogEntityKey =
+            buildCatalogEntityKey(functionSqlIdentifier.names, node.getSqlTableVersionSpec());
+        userDefinedFunction = getUserDefinedFunction(catalogEntityKey, false);
+      }
+
+      //noinspection ConstantConditions
       DescribeResult describeResult =
           new DescribeResult(
-              (function.getName() != null) ? function.getName() : "",
-              (function.getFunctionArgsList() != null)
-                  ? function.getFunctionArgsList().toString()
+              (userDefinedFunction.getName() != null) ? userDefinedFunction.getName() : "",
+              (userDefinedFunction.getFunctionArgsList() != null)
+                  ? userDefinedFunction.getFunctionArgsList().toString()
                   : null,
-              function.getReturnType().toString(),
-              function.getFunctionSql(),
-              function.getCreatedAt(),
-              function.getModifiedAt(),
+              userDefinedFunction.getReturnType().toString(),
+              userDefinedFunction.getFunctionSql(),
+              userDefinedFunction.getCreatedAt(),
+              userDefinedFunction.getModifiedAt(),
               getOwner(catalogEntityKey));
 
-      return Arrays.asList(describeResult);
+      return ImmutableList.of(describeResult);
     } catch (AccessControlException e) {
       throw UserException.permissionError(e)
           .message("Not authorized to describe Function.")
@@ -92,6 +104,30 @@ public class DescribeFunctionHandler
       throw UserException.planError(ex)
           .message("Error while rewriting DESCRIBE query: %s", ex.getMessage())
           .buildSilently();
+    }
+  }
+
+  private CatalogEntityKey buildCatalogEntityKey(
+      List<String> path, SqlTableVersionSpec sqlTableVersionSpec) {
+    return CatalogEntityKeyUtil.buildCatalogEntityKey(
+        path, sqlTableVersionSpec, context.getSession().getSessionVersionForSource(path.get(0)));
+  }
+
+  private UserDefinedFunction getUserDefinedFunction(
+      CatalogEntityKey catalogEntityKey, boolean nullOnUserException) {
+    validate(
+        catalogEntityKey.toNamespaceKey(),
+        Objects.requireNonNullElse(
+                catalogEntityKey.getTableVersionContext(), TableVersionContext.NOT_SPECIFIED)
+            .asVersionContext());
+
+    try {
+      return context.getUserDefinedFunctionCatalog().getFunction(catalogEntityKey);
+    } catch (UserException e) {
+      if (nullOnUserException) {
+        return null;
+      }
+      throw e;
     }
   }
 

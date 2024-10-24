@@ -16,13 +16,13 @@
 package com.dremio.exec.planner.sql.handlers.query;
 
 import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
-import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.planner.sql.parser.SqlUpdateTable;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.TableProperties;
@@ -46,10 +46,10 @@ public class UpdateHandler extends DmlHandler {
   }
 
   @Override
-  protected void validatePrivileges(Catalog catalog, CatalogEntityKey key, SqlNode sqlNode) {
+  protected void validatePrivileges(
+      Catalog catalog, CatalogEntityKey key, SqlNode sqlNode, VersionContext versionContext) {
     NamespaceKey namespaceKey = key.toNamespaceKey();
-    catalog.validatePrivilege(namespaceKey, Privilege.UPDATE);
-    catalog.validatePrivilege(namespaceKey, Privilege.SELECT);
+    validate(namespaceKey, versionContext);
   }
 
   @Override

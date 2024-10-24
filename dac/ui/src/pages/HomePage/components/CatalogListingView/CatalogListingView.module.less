@@ -48,6 +48,10 @@
       flex: 1;
       overflow: hidden;
       min-width: 80px;
+      flex-direction: row;
+      align-items: center;
+      gap: 4px;
+      display: flex;
     }
 
     &-right {
@@ -150,18 +154,15 @@
       padding: var(--dremio--spacing--05);
       transition: color 125ms ease-in-out;
       background-color: transparent;
-
-      .button {
-        color: var(--text--faded);
-      }
+      color: var(--text--faded);
 
       dremio-icon {
         height: 24px;
         width: 24px;
       }
 
-      .button:hover,
-      .button:focus-visible {
+      &:hover,
+      &:focus-visible {
         color: var(--icon--hover);
       }
     }

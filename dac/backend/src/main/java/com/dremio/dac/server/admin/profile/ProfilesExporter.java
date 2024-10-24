@@ -41,7 +41,7 @@ import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.jobs.JobIndexKeys;
 import com.dremio.service.jobs.JobsStoreCreator;
-import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
+import com.dremio.service.jobtelemetry.server.store.LocalProfileKVStoreCreator;
 import com.dremio.services.configuration.ConfigurationStore;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
 import io.protostuff.ProtostuffIOUtil;
@@ -160,7 +160,7 @@ public final class ProfilesExporter {
   private ExportProfilesStats exportJSON(FileSystem fs, LegacyKVStoreProvider provider)
       throws IOException {
     final LegacyKVStore<AttemptId, UserBitShared.QueryProfile> profilesStore =
-        provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
+        provider.getStore(LocalProfileKVStoreCreator.KVProfileStoreCreator.class);
     final LegacyIndexedStore<JobId, JobResult> jobsStore =
         provider.getStore(JobsStoreCreator.class);
 
@@ -213,7 +213,7 @@ public final class ProfilesExporter {
   private ExportProfilesStats exportChunk(FileSystem fs, LegacyKVStoreProvider provider)
       throws IOException {
     final LegacyKVStore<AttemptId, UserBitShared.QueryProfile> profilesStore =
-        provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
+        provider.getStore(LocalProfileKVStoreCreator.KVProfileStoreCreator.class);
     final LegacyIndexedStore<JobId, JobResult> jobsStore =
         provider.getStore(JobsStoreCreator.class);
 

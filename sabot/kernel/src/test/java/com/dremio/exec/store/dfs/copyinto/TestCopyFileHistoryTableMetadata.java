@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.store.dfs.copyinto;
 
-import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadata;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
@@ -56,12 +56,17 @@ public class TestCopyFileHistoryTableMetadata {
   public void setup() {
     tableMetadata =
         new CopyFileHistoryTableMetadata(
-            schemaVersion, 4, PLUGIN_NAME, PLUGIN_PATH, COPY_FILE_HISTORY_TABLE_NAME);
+            schemaVersion,
+            4,
+            PLUGIN_NAME,
+            PLUGIN_PATH,
+            SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName());
   }
 
   @Test
   public void testGetTableName() {
-    assertThat(tableMetadata.getTableName()).isEqualTo(COPY_FILE_HISTORY_TABLE_NAME);
+    assertThat(tableMetadata.getTableName())
+        .isEqualTo(SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName());
   }
 
   @Test
@@ -97,7 +102,9 @@ public class TestCopyFileHistoryTableMetadata {
   @Test
   public void testGetTableLocation() {
     assertThat(tableMetadata.getTableLocation())
-        .isEqualTo("/path/to/plugin/testPlugin/" + COPY_FILE_HISTORY_TABLE_NAME);
+        .isEqualTo(
+            "/path/to/plugin/testPlugin/"
+                + SupportedSystemIcebergTable.COPY_FILE_HISTORY.getTableName());
   }
 
   @Test

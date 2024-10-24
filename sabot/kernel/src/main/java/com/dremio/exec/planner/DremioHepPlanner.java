@@ -30,6 +30,7 @@ import com.dremio.exec.testing.ExecutionControls;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptCostFactory;
@@ -40,6 +41,7 @@ import org.apache.calcite.plan.hep.HepPlanner;
 import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepRuleCall;
 import org.apache.calcite.plan.hep.HepRuleCallNoOpDetector;
+import org.apache.calcite.plan.hep.HepRuleCallRelDataTypeChecker;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
@@ -149,5 +151,17 @@ public class DremioHepPlanner extends HepPlanner {
   protected void fireRule(RelOptRuleCall ruleCall) {
     super.fireRule(ruleCall);
     assert !HepRuleCallNoOpDetector.hasNoOpTransformations((HepRuleCall) ruleCall);
+    assert HepRuleCallRelDataTypeChecker.getMismatches((HepRuleCall) ruleCall).isEmpty()
+        : String.format(
+            "RelOptRule '%s' has RelDataType mismatch errors:\n%s",
+            ruleCall.getRule().getClass(),
+            HepRuleCallRelDataTypeChecker.getMismatches((HepRuleCall) ruleCall).stream()
+                .map(
+                    mismatch ->
+                        String.format(
+                            "Original: %s\nTransformed: %s",
+                            mismatch.getOriginalRelDataType(),
+                            mismatch.getTransformedRelDataType()))
+                .collect(Collectors.joining("\n----\n")));
   }
 }

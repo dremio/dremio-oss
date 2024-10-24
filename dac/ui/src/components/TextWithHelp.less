@@ -36,14 +36,13 @@
       word-wrap: break-word;
 
       &.--light {
-        background-color: var(--fill--brand) !important;
-        color: inherit !important;
-        border: 1px solid var(--color--brand--300);
+        background-color: var(--color--neutral--700) !important;
+        color: white !important;
       }
 
       &.--white {
-        background-color: white !important;
-        color: inherit !important;
+        background-color: var(--fill--popover) !important;
+        color: var(--text--primary) !important;
       }
     }
 
@@ -60,17 +59,19 @@
 
       &.--light {
         &.--top {
-          border-color: var(--color--brand--300) transparent transparent
+          border-color: var(--color--neutral--700) transparent transparent
             transparent !important;
           &:after {
-            border-color: var(--fill--brand) transparent transparent transparent;
+            border-color: var(--color--neutral--700) transparent transparent
+              transparent;
           }
         }
         &.--bottom {
-          border-color: transparent transparent var(--color--brand--300)
+          border-color: transparent transparent var(--color--neutral--700)
             transparent !important;
           &:after {
-            border-color: transparent transparent var(--fill--brand) transparent;
+            border-color: transparent transparent var(--color--neutral--700)
+              transparent;
           }
         }
         &:after {

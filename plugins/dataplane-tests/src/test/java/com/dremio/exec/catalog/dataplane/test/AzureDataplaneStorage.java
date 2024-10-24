@@ -41,9 +41,9 @@ import org.apache.iceberg.io.FileIO;
 
 public class AzureDataplaneStorage implements DataplaneStorage {
 
-  private static final String AZURE_STORAGE_DATAPLANE_ACCOUNT_NAME =
+  protected static final String AZURE_STORAGE_DATAPLANE_ACCOUNT_NAME =
       Preconditions.checkNotNull(System.getenv("AZURE_STORAGE_DATAPLANE_ACCOUNT_NAME"));
-  private static final String AZURE_STORAGE_DATAPLANE_ACCOUNT_KEY =
+  protected static final String AZURE_STORAGE_DATAPLANE_ACCOUNT_KEY =
       Preconditions.checkNotNull(System.getenv("AZURE_STORAGE_DATAPLANE_ACCOUNT_KEY"));
 
   private final String primaryBucketName = "testdataplanebucket" + DataplaneTestDefines.uniqueInt();
@@ -135,7 +135,7 @@ public class AzureDataplaneStorage implements DataplaneStorage {
   }
 
   @Override
-  public NessiePluginConfig preparePluginConfig(
+  public NessiePluginConfig prepareNessiePluginConfig(
       BucketSelection bucketSelection, String nessieEndpoint) {
     NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
     nessiePluginConfig.nessieEndpoint = nessieEndpoint;

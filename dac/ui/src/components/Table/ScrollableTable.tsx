@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* eslint-disable no-shadow */
+
 /*
 **** Scrollable Table Component ****
 
@@ -46,7 +46,7 @@ import { List } from "immutable";
 import clsx from "clsx";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import {
   findDeepestChild,
   getSortedTableData,
@@ -177,7 +177,6 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
     setResizedTableWidth(width);
   };
 
-  // eslint-disable-next-line no-shadow
   const resizeColumn = (dataKey: any, deltaX: number) => {
     let oldColumnWidth = 0;
     let currentColumnWidth = 0;

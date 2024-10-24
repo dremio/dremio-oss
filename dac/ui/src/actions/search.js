@@ -17,7 +17,7 @@ import { RSAA } from "redux-api-middleware";
 import searchSchema from "schemas/dataset";
 import { arrayOf } from "normalizr";
 import schemaUtils from "utils/apiUtils/schemaUtils";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const SEARCH_STARTED = "SEARCH_STARTED";
 export const SEARCH_SUCCESS = "SEARCH_SUCCESS";
@@ -42,7 +42,7 @@ function fetchSearchData(text) {
         schemaUtils.getSuccessActionTypeWithSchema(
           SEARCH_SUCCESS,
           { datasets: arrayOf(searchSchema) },
-          meta
+          meta,
         ),
         { type: SEARCH_FAILURE, meta },
       ],

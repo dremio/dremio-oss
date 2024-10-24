@@ -19,17 +19,17 @@ import { FormattedMessage, useIntl } from "react-intl";
 import {
   constructVersionedEntityUrl,
   useVersionedPageContext,
-} from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
+} from "#oss/exports/pages/VersionedHomePage/versioned-page-utils";
 import {
   Button,
   ModalContainer,
   DialogContent,
 } from "dremio-ui-lib/components";
 import { useDispatch } from "react-redux";
-import { setReference } from "@app/actions/nessie/nessie";
-import { Reference } from "@app/types/nessie";
+import { setReference } from "#oss/actions/nessie/nessie";
+import { Reference } from "#oss/types/nessie";
 import { useNessieContext } from "../../utils/context";
-import { ReferenceType } from "@app/services/nessie/client";
+import { ReferenceType } from "#oss/services/nessie/client";
 
 import "./DeleteBranchDialog.less";
 

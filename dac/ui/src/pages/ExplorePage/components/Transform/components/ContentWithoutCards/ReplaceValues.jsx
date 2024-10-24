@@ -139,7 +139,7 @@ class ReplaceValues extends PureComponent {
     );
     const footerStyle = {
       width: styles.valuesWrap.width,
-      backgroundColor: "var(--fill--brand)",
+      backgroundColor: "var(--fill--secondary)",
     };
     return (
       <div style={styles.base}>
@@ -194,7 +194,7 @@ const styles = {
     flexDirection: "column",
     height: 160,
     background: "var(--fill--primary)",
-    border: "1px solid rgba(0,0,0,0.1)",
+    border: "1px solid var(--border--neutral)",
 
     padding: "5px 10px",
     width: 600,
@@ -210,7 +210,7 @@ const styles = {
   numSelected: {
     flex: 1,
     textAlign: "right",
-    color: "#333",
+    color: "var(--text--primary)",
   },
 };
 export default ReplaceValues;

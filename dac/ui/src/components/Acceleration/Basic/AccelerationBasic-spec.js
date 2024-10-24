@@ -68,7 +68,7 @@ describe("AccelerationBasic", () => {
     it("none", () => {
       const instance = shallow(
         <AccelerationBasic {...commonProps} />,
-        context
+        context,
       ).instance();
       expect(instance.getHighlightedSection()).to.be.equal(null);
     });
@@ -79,7 +79,7 @@ describe("AccelerationBasic", () => {
           {...commonProps}
           location={{ state: { layoutId: "a" } }}
         />,
-        context
+        context,
       ).instance();
       expect(instance.getHighlightedSection()).to.be.equal("AGGREGATION");
     });
@@ -90,7 +90,7 @@ describe("AccelerationBasic", () => {
           {...commonProps}
           location={{ state: { layoutId: "b" } }}
         />,
-        context
+        context,
       ).instance();
       expect(instance.getHighlightedSection()).to.be.equal("RAW");
     });
@@ -101,7 +101,7 @@ describe("AccelerationBasic", () => {
           {...commonProps}
           location={{ state: { layoutId: "n/a" } }}
         />,
-        context
+        context,
       ).instance();
       expect(instance.getHighlightedSection()).to.be.equal(undefined);
     });

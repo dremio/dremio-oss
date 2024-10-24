@@ -35,13 +35,13 @@ describe("#FileUtils", () => {
 
     it("should return mb when size less then 1 gb", function () {
       expect(FileUtils.convertFileSize(1024 * 1024 * 1023)).to.be.equal(
-        "1023.0MB"
+        "1023.0MB",
       );
     });
 
     it("should return gb when size more then 1 gb", function () {
       expect(FileUtils.convertFileSize(1025 * 1024 * 1024)).to.be.equal(
-        "1.0GB"
+        "1.0GB",
       );
     });
   });

@@ -82,3 +82,9 @@
     color: var(--text--primary);
   }
 }
+
+mark {
+  background: var(--fill--mark);
+  border-radius: 2px;
+  color: inherit;
+}

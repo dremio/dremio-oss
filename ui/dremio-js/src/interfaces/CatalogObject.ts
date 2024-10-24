@@ -21,14 +21,21 @@ import type { CommunitySource } from "./Source.js";
 import type { Home } from "../community/catalog/Home.js";
 import type { VersionedDataset } from "../community/catalog/VersionedDataset.js";
 import type { Space } from "../community/catalog/Space.js";
+import type { CatalogReference } from "./CatalogReference.js";
+import type { CatalogFunction } from "../community/catalog/CatalogFunction.js";
 
 export type CatalogObjectMethods = {
   get name(): string;
   get path(): string[];
   pathString(SEPARATOR?: string): string;
+  referenceType: string;
+  children?: () => {
+    data(): AsyncGenerator<CatalogReference, void, undefined>;
+  };
 };
 
 export type CatalogObject =
+  | CatalogFunction
   | CommunityDataset
   | File
   | Folder

@@ -113,7 +113,7 @@ export function connectComplexForm(
   reduxFormParams = {},
   sections = [],
   mapStateToProps,
-  mapDispatchToProps
+  mapDispatchToProps,
 ) {
   const reduxFormDefaults = {
     // prevents validation call after losing focus on field
@@ -131,11 +131,11 @@ export function connectComplexForm(
     mutateSubmitValues,
   } = mergeFormSections(
     { formMapStateToProps: mapStateToProps, ...formParams },
-    ...sections
+    ...sections,
   );
 
   const fields = (formParams.fields ? formParams.fields : []).concat(
-    getFields()
+    getFields(),
   );
 
   const initialValues = merge({}, formParams.initialValues, getInitialValues());
@@ -165,14 +165,14 @@ export function connectComplexForm(
         initialValues,
       },
       mapStateToPropsForDirtyWatcher,
-      mapDispatchToProps
+      mapDispatchToProps,
     )(wrapSubmitValueMutator(mutateSubmitValues, component));
   };
 
   return (component) => {
     const conflictDetectionComponent = ConflictDetectionWatcher(component);
     const dirtyWatchedComponent = FormDirtyStateWatcher(
-      conflictDetectionComponent
+      conflictDetectionComponent,
     );
     return hoistNonReactStatic(complexForm(dirtyWatchedComponent), component);
   };
@@ -190,20 +190,20 @@ export const mergeFormSections = (...sections) => {
     [].concat(
       flatten(
         sections.map((section) =>
-          section.getFields ? section.getFields() : []
-        )
-      )
+          section.getFields ? section.getFields() : [],
+        ),
+      ),
     );
 
   const getInitialValues = mergeFormSectionFunc(sections, "getInitialValues");
   const validate = mergeFormSectionFunc(sections, "validate");
   const formMapStateToProps = mergeFormSectionFunc(
     sections,
-    "formMapStateToProps"
+    "formMapStateToProps",
   );
   const mutateSubmitValues = mergeFormSectionFunc(
     sections,
-    "mutateSubmitValues"
+    "mutateSubmitValues",
   );
   return {
     getFields,
@@ -269,8 +269,8 @@ export const sectionsContainer =
     const formSection = extractFormSectionInterface(targetComponent);
     return Object.assign(
       targetComponent,
-      mergeFormSections(formSection, ...childSections)
-    ); // eslint-disable-line no-restricted-properties
+      mergeFormSections(formSection, ...childSections),
+    );
   };
 
 const styles = {

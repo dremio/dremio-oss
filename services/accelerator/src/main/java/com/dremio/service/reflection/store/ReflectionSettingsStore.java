@@ -85,7 +85,7 @@ public class ReflectionSettingsStore {
               Format.wrapped(
                   CatalogEntityKey.class,
                   CatalogEntityKey::toString,
-                  CatalogEntityKey::new,
+                  CatalogEntityKey::fromString,
                   Format.ofString()))
           .valueFormat(Format.ofProtostuff(AccelerationSettings.class))
           .versionExtractor(AccelerationSettingsVersionExtractor.class)

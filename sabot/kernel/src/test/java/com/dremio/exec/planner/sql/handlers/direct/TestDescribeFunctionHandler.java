@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.udf.UserDefinedFunctionCatalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.parser.SqlDescribeFunction;
@@ -46,6 +47,7 @@ public class TestDescribeFunctionHandler {
   @Mock private UserDefinedFunctionCatalog userDefinedFunctionCatalog;
   @Mock private QueryContext queryContext;
   @Mock private UserSession userSession;
+  @Mock private Catalog catalog;
 
   private UserDefinedFunction udf1 =
       new UserDefinedFunction(
@@ -65,6 +67,7 @@ public class TestDescribeFunctionHandler {
     when(queryContext.getSession()).thenReturn(userSession);
     when(userSession.getSessionVersionForSource(any())).thenReturn(null);
     when(userDefinedFunctionCatalog.getFunction(any())).thenReturn(udf1);
+    when(queryContext.getCatalog()).thenReturn(catalog);
   }
 
   @Test

@@ -20,7 +20,7 @@ import tableMockedDataExpected from "./mocks/gridMapper/expected.json";
 describe("Test grid mappers", () => {
   it("test simple data map", () => {
     expect(gridTableMapper.mapJson({}, tableMockedData, 1, true)).to.eql(
-      tableMockedDataExpected
+      tableMockedDataExpected,
     );
   });
 

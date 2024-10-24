@@ -50,6 +50,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import org.apache.arrow.memory.BufferAllocator;
@@ -138,6 +139,7 @@ public class DremioTestWrapper {
   private int expectedNumBatches;
 
   private TestResult latestResult;
+  private static boolean ignoreColumnTypes;
 
   public DremioTestWrapper(
       TestBuilder testBuilder,
@@ -166,6 +168,7 @@ public class DremioTestWrapper {
     this.expectedNumBatches = expectedNumBatches;
     this.baselineValuesForTDigestMap = baselineValuesForTDigestMap;
     this.baselineValuesForItemsSketchMap = baselineValuesForItemsSketchMap;
+    ignoreColumnTypes = testBuilder.isIgnoreColumnTypes();
   }
 
   public TestResult run() throws Exception {
@@ -893,6 +896,64 @@ public class DremioTestWrapper {
       // hard to test for values with differing number of digits in the input file.
       return ((BigDecimal) actual).compareTo((BigDecimal) expected) == 0;
     }
+    if (actual instanceof Map && expected instanceof Map) {
+      if (((Map<?, ?>) expected).size() != ((Map<?, ?>) actual).size()) {
+        return false;
+      }
+      for (Entry<?, ?> actualEntry : ((Map<?, ?>) actual).entrySet()) {
+        if (((Map<?, ?>) expected).containsKey(actualEntry.getKey())) {
+          boolean compareResult =
+              compareValues(
+                  ((Map<?, ?>) expected).get(actualEntry.getKey()),
+                  actualEntry.getValue(),
+                  counter,
+                  column);
+          if (!compareResult) {
+            return false;
+          }
+        } else {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (actual instanceof List && expected instanceof List) {
+      if (((List<?>) expected).size() != ((List<?>) actual).size()) {
+        return false;
+      }
+      for (int i = 0; i < ((List<?>) expected).size(); i++) {
+        boolean compareResult =
+            compareValues(((List<?>) expected).get(i), ((List<?>) actual).get(i), counter, column);
+        if (!compareResult) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    if (ignoreColumnTypes) {
+      if (actual instanceof Number && expected instanceof Number) {
+        if (actual instanceof Integer) {
+          return (Integer) actual == ((Number) expected).intValue();
+        }
+        if (actual instanceof Long) {
+          return (Long) actual == ((Number) expected).longValue();
+        }
+        if (actual instanceof Double) {
+          return (Double) actual == ((Number) expected).doubleValue();
+        }
+        if (actual instanceof Float) {
+          return (Float) actual == ((Number) expected).floatValue();
+        }
+        if (actual instanceof Short) {
+          return (Short) actual == ((Number) expected).shortValue();
+        }
+        if (actual instanceof Byte) {
+          return (Byte) actual == ((Number) expected).byteValue();
+        }
+      }
+    }
+
     if (!expected.equals(actual)) {
       return false;
     } else {

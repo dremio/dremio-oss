@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 import { RSAA } from "redux-api-middleware";
-import { getRefQueryParamsFromPath } from "@app/utils/nessieUtils";
-import { store } from "@app/store/store";
-import { APIV2Call } from "@app/core/APICall";
+import { getRefQueryParamsFromPath } from "#oss/utils/nessieUtils";
+import { store } from "#oss/store/store";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const LOAD_RESOURCE_TREE_START = "LOAD_RESOURCE_TREE_START";
 export const LOAD_RESOURCE_TREE_SUCCESS = "LOAD_RESOURCE_TREE_SUCCESS";
@@ -53,7 +53,7 @@ const fetchResourceTree = (
   },
   nodeExpanded,
   currNode,
-  fromModal
+  fromModal,
 ) => {
   const meta = {
     viewId,
@@ -118,6 +118,6 @@ export const loadResourceTree =
         params,
         nodeExpanded,
         currNode,
-        fromModal
-      )
+        fromModal,
+      ),
     );

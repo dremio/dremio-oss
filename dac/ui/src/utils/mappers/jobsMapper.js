@@ -68,7 +68,7 @@ class JobsMapper {
     // @TODO move jobs to normalize
     if (json) {
       json.tableDatasetList = this.mapTableDatasetProfiles(
-        json.tableDatasetProfiles
+        json.tableDatasetProfiles,
       );
       return json;
     }

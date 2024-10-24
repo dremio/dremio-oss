@@ -117,27 +117,6 @@ public class DremioReturnTypes {
   public static final SqlReturnTypeInference NULLABLE_ROUND =
       ReturnTypes.chain(DECIMAL_ROUND_NULLABLE, ARG0_NULLABLE);
 
-  /**
-   * Returns an ARRAY type based on the type of the only argument
-   *
-   * <p>This can be removed once we adopt the one from calcite.
-   *
-   * <p>For example, given <code>INTEGER</code>, returns <code>INTEGER ARRAY</code>.
-   */
-  public static final SqlReturnTypeInference TO_ARRAY =
-      new SqlReturnTypeInference() {
-        @Override
-        public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-          if (opBinding.getOperandCount() != 1) {
-            throw new UnsupportedOperationException("Expected to have exactly 1 arg type.");
-          }
-
-          RelDataType arrayItemType = opBinding.getOperandType(0);
-          RelDataType arrayType = opBinding.getTypeFactory().createArrayType(arrayItemType, -1);
-          return arrayType;
-        }
-      };
-
   public static final SqlReturnTypeInference TO_MAP =
       new SqlReturnTypeInference() {
         @Override

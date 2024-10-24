@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import { Button } from "dremio-ui-lib/components";
-import Radio from "@app/components/Fields/Radio";
-import FieldWithError from "@app/components/Fields/FieldWithError";
-import DurationField from "@app/components/Fields/DurationField";
-import { ScheduleRefresh } from "@app/components/Forms/ScheduleRefresh";
-import Checkbox from "@app/components/Fields/Checkbox";
+import Radio from "#oss/components/Fields/Radio";
+import FieldWithError from "#oss/components/Fields/FieldWithError";
+import DurationField from "#oss/components/Fields/DurationField";
+import { ScheduleRefresh } from "#oss/components/Forms/ScheduleRefresh";
+import Checkbox from "#oss/components/Fields/Checkbox";
 import { formDefault } from "uiTheme/radium/typography";
-import { SCHEDULE_POLICIES } from "@app/components/Forms/DataFreshnessSection";
-import { withFormContext } from "@app/pages/HomePage/components/modals/formContext";
+import { SCHEDULE_POLICIES } from "#oss/components/Forms/DataFreshnessSection";
+import { withFormContext } from "#oss/pages/HomePage/components/modals/formContext";
 import { isIcebergSource } from "@inject/utils/sourceUtils";
 import Immutable from "immutable";
 

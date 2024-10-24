@@ -29,7 +29,7 @@ public class VersionedHandlerUtils {
       if (defaultSchemaPath == null) {
         throw UserException.validationError()
             .message(
-                "Unable to choose a source. \"[ IN sourceName ]\" was not specified and current context was not found.")
+                "A context is required. You must specify \"[ IN sourceName ]\" or select a context.")
             .buildSilently();
       }
       return defaultSchemaPath;

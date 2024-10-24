@@ -17,7 +17,7 @@ import DocumentTitle from "react-document-title";
 import { injectIntl } from "react-intl";
 import PropTypes from "prop-types";
 
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
+import { SonarSideNav } from "#oss/exports/components/SideNav/SonarSideNav";
 import "./JobPageNew.less";
 
 const JobsPage = (props) => {

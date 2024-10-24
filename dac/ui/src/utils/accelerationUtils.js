@@ -21,8 +21,8 @@ import { getUniqueName } from "utils/pathUtils";
 import {
   allMeasureTypes,
   cellTypesWithNoSum,
-} from "@app/constants/AccelerationConstants";
-import { ANY } from "@app/constants/DataTypes";
+} from "#oss/constants/AccelerationConstants";
+import { ANY } from "#oss/constants/DataTypes";
 
 export const createReflectionFormValues = (opts, siblingNames = []) => {
   const reflection = {

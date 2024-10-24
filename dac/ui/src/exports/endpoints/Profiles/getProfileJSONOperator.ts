@@ -16,7 +16,7 @@
 
 // @ts-ignore
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 type GetProfileJSONOperatorParams = {
   profileJsonFileURL: string;
@@ -35,7 +35,7 @@ export const profileJSONOperatorUrl = (params: GetProfileJSONOperatorParams) =>
     .toString();
 
 export const getProfileJSONOperator = async (
-  params: GetProfileJSONOperatorParams
+  params: GetProfileJSONOperatorParams,
 ): Promise<any> => {
   return getApiContext()
     .fetch(profileJSONOperatorUrl(params))

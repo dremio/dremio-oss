@@ -21,17 +21,17 @@ import {
   IconButton,
   CopyButton,
 } from "dremio-ui-lib/components";
-import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+import { nameToInitials } from "#oss/exports/utilities/nameToInitials";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 import { SortableHeaderCell } from "dremio-ui-common/components/TableCells/SortableHeaderCell.js";
-import { convertISOStringWithTooltip } from "@app/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
-import { LogEntry } from "@app/services/nessie/client";
+import { convertISOStringWithTooltip } from "#oss/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
+import { LogEntry } from "#oss/services/nessie/client";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
-import VersionedGitActionsMenu from "@app/exports/pages/VersionedHomePage/components/VersionedGitActionsMenu/VersionedGitActionsMenu";
-import { getShortHash } from "@app/utils/nessieUtils";
+import VersionedGitActionsMenu from "#oss/exports/pages/VersionedHomePage/components/VersionedGitActionsMenu/VersionedGitActionsMenu";
+import { getShortHash } from "#oss/utils/nessieUtils";
 import { Link } from "react-router";
-import { intl } from "@app/utils/intl";
-import SettingsPopover from "@app/components/Buttons/SettingsPopover";
+import { intl } from "#oss/utils/intl";
+import SettingsPopover from "#oss/components/Buttons/SettingsPopover";
 
 export enum COMMITS_COLUMNS {
   author = "author",

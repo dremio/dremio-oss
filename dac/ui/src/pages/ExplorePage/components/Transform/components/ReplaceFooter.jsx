@@ -32,7 +32,7 @@ import {
   isRequiredIfAnotherPropertyEqual,
 } from "utils/validation";
 import { formLabel } from "uiTheme/radium/typography";
-import { isDateType, BOOLEAN } from "@app/constants/DataTypes";
+import { isDateType, BOOLEAN } from "#oss/constants/DataTypes";
 import BooleanSelect from "./BooleanSelect";
 import {
   base,

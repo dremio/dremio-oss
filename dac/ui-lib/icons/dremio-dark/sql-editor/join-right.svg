@@ -1,0 +1,10 @@
+<svg id="sql-editor/join-right" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" fill-rule="evenodd">
+    <path d="M0 0h24v24H0z"/>
+    <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0h0Z"/>
+      <path d="M20 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0h0Z"/>
+    </g>
+    <path fill="currentColor" fill-opacity=".25" d="M20 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z"/>
+  </g>
+</svg>

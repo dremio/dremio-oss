@@ -40,7 +40,7 @@ describe("TextFieldList", () => {
       { value: "2", readOnly: true },
     ];
     const wrapper = mount(
-      <TextFieldList {...minimalProps} arrayField={arrayField} />
+      <TextFieldList {...minimalProps} arrayField={arrayField} />,
     );
     expect(wrapper.find("TextField")).to.have.length(2);
   });
@@ -54,11 +54,11 @@ describe("TextFieldList", () => {
         {...minimalProps}
         arrayField={arrayField}
         fieldKey={"some.nested"}
-      />
+      />,
     );
     expect(wrapper.find("TextField").props()).to.have.property(
       "value",
-      "fieldValue"
+      "fieldValue",
     );
   });
 

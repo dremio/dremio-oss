@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { sortByName } from "@app/components/Tree/resourceTreeUtils";
+import { sortByName } from "#oss/components/Tree/resourceTreeUtils";
 import { createContext, useContext, RefObject } from "react";
 import Immutable from "immutable";
 
@@ -24,6 +24,7 @@ type TreeConfigContextType = {
   restrictSelection: boolean;
   resourceTreeControllerRef: RefObject<any> | null;
   handleDatasetDetails?: (dataset: Immutable.Map<any, any>) => void;
+  addToEditor?: (path: string | string[]) => void;
 };
 
 export const defaultConfigContext: TreeConfigContextType = {

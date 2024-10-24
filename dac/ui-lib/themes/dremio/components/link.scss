@@ -16,7 +16,7 @@
 .dremio-light .dremio-tooltip:not(.dremio-tooltip-rich) {
   a,
   .link {
-    color: #80dfe3;
+    color: var(--text--link);
   }
 }
 

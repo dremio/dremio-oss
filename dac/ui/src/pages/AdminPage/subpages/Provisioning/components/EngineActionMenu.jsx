@@ -16,9 +16,9 @@
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import Menu from "@app/components/Menus/Menu";
-import MenuItem from "@app/components/Menus/MenuItem";
-import { getIsInReadOnlyState } from "@app/pages/AdminPage/subpages/Provisioning/provisioningUtils";
+import Menu from "#oss/components/Menus/Menu";
+import MenuItem from "#oss/components/Menus/MenuItem";
+import { getIsInReadOnlyState } from "#oss/pages/AdminPage/subpages/Provisioning/provisioningUtils";
 
 export class EngineActionMenu extends PureComponent {
   static propTypes = {

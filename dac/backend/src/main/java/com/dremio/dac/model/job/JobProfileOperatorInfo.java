@@ -16,7 +16,6 @@
 package com.dremio.dac.model.job;
 
 import static com.dremio.exec.ops.OperatorMetricRegistry.getMetricById;
-import static java.lang.String.format;
 
 import com.dremio.dac.model.job.diagnostics.ProfileObservationUtil;
 import com.dremio.dac.util.Filters;
@@ -78,78 +77,81 @@ public class JobProfileOperatorInfo {
 
   @WithSpan
   public JobProfileOperatorInfo(UserBitShared.QueryProfile profile, int phaseId, int operatorId) {
-
-    if (!profile.getFragmentProfileList().isEmpty()) {
-      List<ThreadData> threadLevelMetricsList = new ArrayList<>();
-      BaseMetrics baseMetrics = new BaseMetrics();
-      UserBitShared.MajorFragmentProfile majorFragmentProfile =
-          ProfileObservationUtil.getPhaseDetails(profile, phaseId);
-      int operatorType = getOperatorTypeHelper(operatorId, majorFragmentProfile);
-      OperatorSpecificDetails opsDetails = new OperatorSpecificDetails();
-      JobProfileOperatorHealth jpOperatorHealth = new JobProfileOperatorHealth();
-      Map<String, JobProfileMetricDetails> metricsDetailsMap = new HashMap<>();
-      Map<String, String> operatorMetricMap =
-          getOperatorMetricMap(
-              profile.getOperatorTypeMetricsMap(),
-              operatorId,
-              majorFragmentProfile,
-              operatorType,
-              opsDetails,
-              metricsDetailsMap); // get OperatorMetricsMap
-      String operatorName = String.valueOf(UserBitShared.CoreOperatorType.forNumber(operatorType));
-      long batchesProcessed = getBatchSize(majorFragmentProfile, operatorId);
-
-      long bytesProcessed =
-          operatorMetricMap.entrySet().stream()
-              .filter(name -> name.getKey().toUpperCase().contains("BYTES_"))
-              .map(Map.Entry::getValue)
-              .collect(Collectors.summarizingLong(Long::parseLong))
-              .getMax();
-
-      bytesProcessed = (bytesProcessed > -1) ? bytesProcessed : -1;
-
-      // Below Function with build ThreadLevel Metrics of required fields
-      QueryProfileUtil.buildTheadLevelMetrics(majorFragmentProfile, threadLevelMetricsList);
-
-      // below function build the BaseMetrics information.
-      threadLevelMetricsList.stream()
-          .filter(operator -> Integer.parseInt(operator.getOperatorId()) == operatorId)
-          .collect(Collectors.groupingBy(thread -> thread.getOperatorId(), Collectors.toList()))
-          .forEach(
-              (opId, threadLevelMetrics) -> {
-                QueryProfileUtil.buildBaseMetrics(threadLevelMetrics, baseMetrics);
-                QueryProfileUtil.getJobProfileOperatorHealth(
-                    threadLevelMetrics, jpOperatorHealth, baseMetrics);
-              });
-      this.phaseId = QueryProfileUtil.getStringIds(phaseId);
-      this.operatorId = QueryProfileUtil.getStringIds(operatorId);
-      this.operatorName = operatorName;
-      this.operatorType = operatorType;
-      this.setupTime = baseMetrics.getSetupTime();
-      this.waitTime = baseMetrics.getIoWaitTime();
-      this.waitTimeSkew = getTotalBlockedOrWaitTimeSkew(majorFragmentProfile);
-      this.peakMemory = baseMetrics.getPeakMemory();
-      this.processTime = baseMetrics.getProcessingTime();
-      this.wallClockTimeSkew = getWallClockTimeSkewFromAllMinorFragments(majorFragmentProfile);
-      this.bytesProcessed = bytesProcessed;
-      this.batchesProcessed = batchesProcessed;
-      this.batchesProcessedSkew =
-          getBatchSizesFromAllMinorFragments(majorFragmentProfile, operatorId);
-      this.recordsProcessed = baseMetrics.getRecordsProcessed();
-      this.operatorMetricsMap = operatorMetricMap;
-      this.operatorSpecificDetails = opsDetails;
-      this.numberOfThreads = majorFragmentProfile.getMinorFragmentProfileCount();
-      this.outputRecords = baseMetrics.getOutputRecords();
-      this.outputBytes = baseMetrics.getOutputBytes();
-      this.jpOperatorHealth = jpOperatorHealth;
-      this.metricsDetailsMap = metricsDetailsMap;
-      this.attributes = QueryProfileUtil.getOperatorAttributes(profile, phaseId, operatorId);
-      this.sleepingDuration = getMaxBlockedTime(majorFragmentProfile);
-      this.cpuWaitTime = getCPUWaitTime(majorFragmentProfile, operatorId);
-
-    } else {
-      throw new NotFoundException(format("Profile Fragment is not available"));
+    if (profile == null) {
+      throw new NotFoundException("Profile is not available");
     }
+    if (profile.getFragmentProfileList().isEmpty()) {
+      throw new NotFoundException("Profile Fragment is not available");
+    }
+    List<ThreadData> threadLevelMetricsList = new ArrayList<>();
+    BaseMetrics baseMetrics = new BaseMetrics();
+    UserBitShared.MajorFragmentProfile majorFragmentProfile =
+        ProfileObservationUtil.getPhaseDetails(profile, phaseId);
+    if (majorFragmentProfile == null) {
+      throw new NotFoundException("Major Profile Fragment is not available");
+    }
+    int operatorType = getOperatorTypeHelper(operatorId, majorFragmentProfile);
+    OperatorSpecificDetails opsDetails = new OperatorSpecificDetails();
+    JobProfileOperatorHealth jpOperatorHealth = new JobProfileOperatorHealth();
+    Map<String, JobProfileMetricDetails> metricsDetailsMap = new HashMap<>();
+    Map<String, String> operatorMetricMap =
+        getOperatorMetricMap(
+            profile.getOperatorTypeMetricsMap(),
+            operatorId,
+            majorFragmentProfile,
+            operatorType,
+            opsDetails,
+            metricsDetailsMap); // get OperatorMetricsMap
+    String operatorName = String.valueOf(UserBitShared.CoreOperatorType.forNumber(operatorType));
+    long batchesProcessed = getBatchSize(majorFragmentProfile, operatorId);
+
+    long bytesProcessed =
+        operatorMetricMap.entrySet().stream()
+            .filter(name -> name.getKey().toUpperCase().contains("BYTES_"))
+            .map(Map.Entry::getValue)
+            .collect(Collectors.summarizingLong(Long::parseLong))
+            .getMax();
+
+    bytesProcessed = (bytesProcessed > -1) ? bytesProcessed : -1;
+
+    // Below Function with build ThreadLevel Metrics of required fields
+    QueryProfileUtil.buildTheadLevelMetrics(majorFragmentProfile, threadLevelMetricsList);
+
+    // below function build the BaseMetrics information.
+    threadLevelMetricsList.stream()
+        .filter(operator -> Integer.parseInt(operator.getOperatorId()) == operatorId)
+        .collect(Collectors.groupingBy(thread -> thread.getOperatorId(), Collectors.toList()))
+        .forEach(
+            (opId, threadLevelMetrics) -> {
+              QueryProfileUtil.buildBaseMetrics(threadLevelMetrics, baseMetrics);
+              QueryProfileUtil.getJobProfileOperatorHealth(
+                  threadLevelMetrics, jpOperatorHealth, baseMetrics);
+            });
+    this.phaseId = QueryProfileUtil.getStringIds(phaseId);
+    this.operatorId = QueryProfileUtil.getStringIds(operatorId);
+    this.operatorName = operatorName;
+    this.operatorType = operatorType;
+    this.setupTime = baseMetrics.getSetupTime();
+    this.waitTime = baseMetrics.getIoWaitTime();
+    this.waitTimeSkew = getTotalBlockedOrWaitTimeSkew(majorFragmentProfile);
+    this.peakMemory = baseMetrics.getPeakMemory();
+    this.processTime = baseMetrics.getProcessingTime();
+    this.wallClockTimeSkew = getWallClockTimeSkewFromAllMinorFragments(majorFragmentProfile);
+    this.bytesProcessed = bytesProcessed;
+    this.batchesProcessed = batchesProcessed;
+    this.batchesProcessedSkew =
+        getBatchSizesFromAllMinorFragments(majorFragmentProfile, operatorId);
+    this.recordsProcessed = baseMetrics.getRecordsProcessed();
+    this.operatorMetricsMap = operatorMetricMap;
+    this.operatorSpecificDetails = opsDetails;
+    this.numberOfThreads = majorFragmentProfile.getMinorFragmentProfileCount();
+    this.outputRecords = baseMetrics.getOutputRecords();
+    this.outputBytes = baseMetrics.getOutputBytes();
+    this.jpOperatorHealth = jpOperatorHealth;
+    this.metricsDetailsMap = metricsDetailsMap;
+    this.attributes = QueryProfileUtil.getOperatorAttributes(profile, phaseId, operatorId);
+    this.sleepingDuration = getMaxBlockedTime(majorFragmentProfile);
+    this.cpuWaitTime = getCPUWaitTime(majorFragmentProfile, operatorId);
   }
 
   public String getPhaseId() {
@@ -251,16 +253,20 @@ public class JobProfileOperatorInfo {
   /** This Method Will return operator Type for given Operator ID */
   private int getOperatorTypeHelper(int nodeId, UserBitShared.MajorFragmentProfile major) {
     int operatorType = -1;
-    UserBitShared.MinorFragmentProfile minor = major.getMinorFragmentProfile(0);
-    for (int operatorIndex = 0; operatorIndex < minor.getOperatorProfileCount(); operatorIndex++) {
-      if (nodeId == minor.getOperatorProfile(operatorIndex).getOperatorId()) {
-        UserBitShared.OperatorProfile operatorProfile = minor.getOperatorProfile(operatorIndex);
-        operatorType = operatorProfile.getOperatorType();
+    if (!major.getMinorFragmentProfileList().isEmpty()) {
+      UserBitShared.MinorFragmentProfile minor = major.getMinorFragmentProfile(0);
+      for (int operatorIndex = 0;
+          operatorIndex < minor.getOperatorProfileCount();
+          operatorIndex++) {
+        if (nodeId == minor.getOperatorProfile(operatorIndex).getOperatorId()) {
+          UserBitShared.OperatorProfile operatorProfile = minor.getOperatorProfile(operatorIndex);
+          operatorType = operatorProfile.getOperatorType();
+        }
       }
     }
     if (operatorType == -1) {
       throw new IllegalArgumentException(
-          "OperatorId : " + nodeId + "not exists in Phase " + major.getMajorFragmentId());
+          "OperatorId : " + nodeId + " not exists in Phase " + major.getMajorFragmentId());
     }
     return operatorType;
   }

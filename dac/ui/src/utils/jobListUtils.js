@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { JobState } from "@app/utils/jobsUtils";
+import { JobState } from "#oss/utils/jobsUtils";
 
 export const getNumberOfRunningJobs = (jobs) => {
   if (jobs) {
     return jobs.filter(
       (item) =>
         item.get("currentState") &&
-        item.get("currentState").toLowerCase() === JobState.RUNNING
+        item.get("currentState").toLowerCase() === JobState.RUNNING,
     ).size;
   }
   return 0;

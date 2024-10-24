@@ -24,7 +24,7 @@ import {
 } from "redux-saga/effects";
 import invariant from "invariant";
 import { cloneDeep } from "lodash";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import {
   newUntitledSql,
   newUntitledSqlAndRun,
@@ -34,8 +34,8 @@ import {
   runTableTransform,
 } from "actions/explore/dataset/transform";
 import { resetViewState } from "actions/resources";
-import { initializeExploreJobProgress } from "@app/actions/explore/dataset/data";
-import { addNotification } from "@app/actions/notification";
+import { initializeExploreJobProgress } from "#oss/actions/explore/dataset/data";
+import { addNotification } from "#oss/actions/notification";
 import {
   PERFORM_TRANSFORM_AND_RUN,
   runDataset,
@@ -49,12 +49,12 @@ import {
   loadTableData,
   cancelDataLoad,
   loadDataset,
-} from "@app/sagas/performLoadDataset";
-import { listenToJobProgress } from "@app/sagas/performLoadDatasetNew";
+} from "#oss/sagas/performLoadDataset";
+import { listenToJobProgress } from "#oss/sagas/performLoadDatasetNew";
 import { transformHistoryCheck } from "sagas/transformHistoryCheck";
 import { getExploreState, getExplorePageDataset } from "selectors/explore";
 import { getExploreViewState } from "selectors/resources";
-import { getLocation } from "@app/selectors/routing";
+import { getLocation } from "#oss/selectors/routing";
 import { updateTransformData } from "@inject/actions/explore/dataset/updateLocation";
 import {
   setQuerySelections,
@@ -65,24 +65,24 @@ import {
   setPreviousAndCurrentSql,
   setActionState,
   setEditorContents,
-} from "@app/actions/explore/view";
+} from "#oss/actions/explore/view";
 
 import apiUtils from "utils/apiUtils/apiUtils";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
 import {
   getActiveScriptId,
   getTabForActions,
   needsTransform,
-} from "@app/sagas/utils";
+} from "#oss/sagas/utils";
 import {
   extractSelections,
   extractStatements,
-} from "@app/utils/statements/statementParser";
+} from "#oss/utils/statements/statementParser";
 import { showConfirmationDialog } from "actions/confirmation";
 
-import { getReferenceListForTransform } from "@app/utils/nessieUtils";
-import { hasReferencesChanged } from "@app/utils/datasetUtils";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import { getReferenceListForTransform } from "#oss/utils/nessieUtils";
+import { hasReferencesChanged } from "#oss/utils/datasetUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 import {
   transformThenNavigate,
   TransformFailedError,
@@ -90,29 +90,29 @@ import {
   TransformCanceledByLocationChangeError,
 } from "./transformWatcher";
 import { getNessieReferences } from "./nessie";
-import { extractSql, toQueryRange } from "@app/utils/statements/statement";
+import { extractSql, toQueryRange } from "#oss/utils/statements/statement";
 import {
   handlePostNewQueryJobSuccess,
   newPerformTransformSingle,
 } from "./performTransformNew";
-import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
-import { SQL_DARK_THEME, SQL_LIGHT_THEME } from "@app/utils/sql-editor";
+import { PHYSICAL_DATASET_TYPES } from "#oss/constants/datasetTypes";
+import { SQL_DARK_THEME, SQL_LIGHT_THEME } from "#oss/utils/sql-editor";
 import Immutable from "immutable";
 import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
-import { EXPLORE_VIEW_ID } from "@app/reducers/explore/view";
+import { EXPLORE_VIEW_ID } from "#oss/reducers/explore/view";
 import {
   clearExploreJobs,
   fetchJobDetails,
   fetchJobSummary,
   removeExploreJob,
-} from "@app/actions/explore/exploreJobs";
+} from "#oss/actions/explore/exploreJobs";
 import { replaceScript } from "dremio-ui-common/sonar/scripts/endpoints/replaceScript.js";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
-import { selectActiveScript } from "@app/components/SQLScripts/sqlScriptsUtils";
+import { selectActiveScript } from "#oss/components/SQLScripts/sqlScriptsUtils";
 import {
   deleteQuerySelectionsFromStorage,
   setQuerySelectionsInStorage,
-} from "@app/sagas/utils/querySelections";
+} from "#oss/sagas/utils/querySelections";
 import { SqlViewer } from "../exports/components/MonacoWrappers/SqlViewer";
 
 const logger = getLoggingContext().createLogger(
@@ -129,7 +129,6 @@ export default function* watchPerformTransform() {
 
 function* processRunDatasetSql() {
   while (true) {
-    // eslint-disable-line no-constant-condition
     const action = yield take(RUN_DATASET_SQL);
     yield call(handleRunDatasetSql, action);
   }
@@ -509,7 +508,7 @@ export function* performTransform(payload) {
         );
         break;
       }
-      // eslint-disable-next-line require-atomic-updates
+
       queryStatuses = mostRecentStatuses;
     }
   } catch (e) {
@@ -1000,7 +999,6 @@ export function* proceedWithDataLoad(dataset, queryContext, currentSql) {
 
 export function* showFailedJobDialog(i, sql, errorMessage) {
   let action;
-  const isContrast = localStorageUtils.getSqlThemeContrast();
 
   const mainMessage = errorMessage ? (
     <>
@@ -1033,7 +1031,6 @@ export function* showFailedJobDialog(i, sql, errorMessage) {
           <div className="failedJobDialog__editor">
             <SqlViewer
               fitHeightToContent
-              theme={isContrast ? SQL_DARK_THEME : SQL_LIGHT_THEME}
               style={{ maxHeight: 190 }}
               value={sql.trim()}
             />
@@ -1088,11 +1085,11 @@ export function* doJobFetch({
   sessionId = "",
 }) {
   try {
-    let newDataset = undefined;
-    let datasetPath = ["tmp", "UNTITLED"];
-    let datasetVersion = queryStatus.version;
-    let jobId = queryStatus.jobId;
-    let paginationUrl = queryStatus.paginationUrl ?? `job/${jobId}/data`;
+    const newDataset = undefined;
+    const datasetPath = ["tmp", "UNTITLED"];
+    const datasetVersion = queryStatus.version;
+    const jobId = queryStatus.jobId;
+    const paginationUrl = queryStatus.paginationUrl ?? `job/${jobId}/data`;
 
     yield put(
       setIsMultiQueryRunning({

@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-import { SingleEngineNodes } from "@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineNodes";
+import { SingleEngineNodes } from "#oss/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineNodes";
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     selectTab() {},
 
     renderTabBar() {},

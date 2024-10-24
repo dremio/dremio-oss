@@ -43,7 +43,7 @@ import com.dremio.service.jobtelemetry.JobTelemetryServiceGrpc;
 import com.dremio.service.jobtelemetry.PutExecutorProfileRequest;
 import com.dremio.service.jobtelemetry.PutPlanningProfileRequest;
 import com.dremio.service.jobtelemetry.PutTailProfileRequest;
-import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
+import com.dremio.service.jobtelemetry.server.store.LegacyLocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
 import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.dremio.telemetry.utils.TracerFacade;
@@ -86,7 +86,7 @@ public class TestProfiles {
 
     // start in-memory profile store
     kvStoreProvider = TempLegacyKVStoreProviderCreator.create();
-    profileStore = new LocalProfileStore(kvStoreProvider);
+    profileStore = new LegacyLocalProfileStore(kvStoreProvider);
     profileStore.start();
 
     final String serverName = InProcessServerBuilder.generateName();

@@ -15,19 +15,12 @@
  */
 package com.dremio.exec.planner.plancache;
 
-import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS;
-import static java.time.Instant.ofEpochMilli;
 import static org.slf4j.LoggerFactory.getLogger;
 
-import com.dremio.context.RequestContext;
-import com.dremio.options.OptionResolver;
 import com.dremio.service.reflection.ReflectionServiceImpl;
-import com.dremio.service.scheduler.Schedule;
-import com.dremio.service.scheduler.SchedulerService;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.time.Duration;
 import java.time.Instant;
-import javax.inject.Provider;
 import org.slf4j.Logger;
 
 public final class CacheRefresher implements Runnable {
@@ -35,52 +28,16 @@ public final class CacheRefresher implements Runnable {
 
   private final ReflectionServiceImpl reflectionService;
   private final PlanCacheSynchronizer planCacheSynchronizer;
-  private final OptionResolver optionResolver;
-  private final SchedulerService schedulerService;
-  private final Provider<RequestContext> requestContextProvider;
-  private boolean isClosed = false;
 
   public CacheRefresher(
-      ReflectionServiceImpl reflectionService,
-      PlanCacheSynchronizer planCacheSynchronizer,
-      OptionResolver optionResolver,
-      SchedulerService schedulerService,
-      Provider<RequestContext> requestContextProvider) {
+      ReflectionServiceImpl reflectionService, PlanCacheSynchronizer planCacheSynchronizer) {
     this.reflectionService = reflectionService;
     this.planCacheSynchronizer = planCacheSynchronizer;
-    this.optionResolver = optionResolver;
-    this.schedulerService = schedulerService;
-    this.requestContextProvider = requestContextProvider;
   }
 
   @Override
   public void run() {
-    try {
-      if (requestContextProvider != null) {
-        requestContextProvider.get().run(this::refreshMaterializationAndPlanCaches);
-      } else {
-        refreshMaterializationAndPlanCaches();
-      }
-    } finally {
-      long cacheUpdateDelay;
-      try {
-        cacheUpdateDelay = optionResolver.getOption(MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS);
-      } catch (Exception e) {
-        LOGGER.warn("Failed to retrieve materialization cache refresh delay", e);
-        cacheUpdateDelay = MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS.getDefault().getNumVal();
-      }
-      scheduleNextCacheRefresh(cacheUpdateDelay);
-    }
-  }
-
-  public void scheduleNextCacheRefresh(long cacheUpdateDelay) {
-    if (isClosed) {
-      return;
-    }
-    schedulerService.schedule(
-        Schedule.SingleShotBuilder.at(ofEpochMilli(System.currentTimeMillis() + cacheUpdateDelay))
-            .build(),
-        this);
+    refreshMaterializationAndPlanCaches();
   }
 
   @WithSpan
@@ -96,9 +53,5 @@ public final class CacheRefresher implements Runnable {
         "Materialization cache sync took {} ms.  Plan cache sync took {} ms.",
         refreshMaterializationCacheDuration,
         planCacheSyncDuration);
-  }
-
-  public void close() {
-    isClosed = true;
   }
 }

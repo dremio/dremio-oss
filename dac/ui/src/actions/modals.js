@@ -23,7 +23,7 @@ export function hideModal() {
         replace({
           ...location,
           state: {},
-        })
+        }),
       );
     }
   };

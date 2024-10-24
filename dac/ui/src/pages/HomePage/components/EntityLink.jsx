@@ -17,7 +17,7 @@ import { PureComponent, Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { Link } from "react-router";
-import { getRootEntityLinkUrl } from "@app/selectors/home";
+import { getRootEntityLinkUrl } from "#oss/selectors/home";
 import { link } from "uiTheme/radium/allSpacesAndAllSources";
 
 const mapStateToProps = (state, { entityId, linkTo }) => {

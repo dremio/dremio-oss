@@ -288,7 +288,7 @@ public class QueryTrackerImpl implements QueryTracker {
 
   @Override
   public void screenCompleted(NodeQueryScreenCompletion completion) {
-    fragmentTracker.screenCompleted();
+    fragmentTracker.screenCompleted(completion.getScreenOperatorCompletionTime());
   }
 
   @Override

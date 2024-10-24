@@ -18,7 +18,7 @@ import { RSAA } from "redux-api-middleware";
 
 import transformModelMapper from "utils/mappers/ExplorePage/Transform/transformModelMapper";
 
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import * as Actions from "./recommended";
 
 describe("recommended actions", () => {

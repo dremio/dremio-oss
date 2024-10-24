@@ -27,6 +27,6 @@ export const addParameterToUrl = (url, paramName, value) => {
   invariant(paramName, "paramName must be defined");
   invariant(value, "value must be defined");
   return `${url}${url.includes("?") ? "&" : "?"}${encodeURIComponent(
-    paramName
+    paramName,
   )}=${encodeURIComponent(value)}`;
 };

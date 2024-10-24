@@ -371,13 +371,18 @@ public class ProjectOperator implements SingleInputOperator {
   }
 
   public static EvalMode getEvalMode(
-      VectorAccessible incoming, LogicalExpression expr, IntHashSet transferFieldIds) {
+      VectorAccessible incoming,
+      LogicalExpression expr,
+      IntHashSet transferFieldIds,
+      boolean canTransfer) {
     // add value vector to transfer if direct reference and this is allowed, otherwise, add to
     // evaluation stack.
     final boolean canDirectTransfer =
+        // direct transfer is switched off
+        canTransfer
 
-        // the expression is a direct read.
-        expr instanceof ValueVectorReadExpression
+            // the expression is a direct read.
+            && expr instanceof ValueVectorReadExpression
 
             // we aren't dealing with a selection vector.
             && incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE
@@ -488,7 +493,11 @@ public class ProjectOperator implements SingleInputOperator {
           context
               .getClassProducer()
               .materializeAndAllowComplex(namedExpression.getExpr(), incoming, true);
-      switch (ProjectOperator.getEvalMode(incoming, materializedExp, transferFieldIds)) {
+      switch (ProjectOperator.getEvalMode(
+          incoming,
+          materializedExp,
+          transferFieldIds,
+          options == null || options.canDirectTransfer())) {
         case COMPLEX:
           {
             outgoing.addOrGet(materializedExp.getCompleteType().toField(namedExpression.getRef()));

@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { FunctionSignature, ModelFunction } from "@app/types/sqlFunctions";
+import { FunctionSignature, ModelFunction } from "#oss/types/sqlFunctions";
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import { cloneDeep } from "lodash";
 // @ts-ignore
 import { getDocsLink } from "@inject/utils/versionUtils";
-import { FunctionCategoryLabels } from "@app/utils/sqlFunctionUtils";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
+import { FunctionCategoryLabels } from "#oss/utils/sqlFunctionUtils";
+import apiUtils from "#oss/utils/apiUtils/apiUtils";
 import { constructLabel, isLetter } from "./utils";
 
 export type ModifiedSQLFunction = ModelFunction & {

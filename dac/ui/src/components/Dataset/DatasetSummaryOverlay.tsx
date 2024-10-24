@@ -20,7 +20,7 @@ import { withRouter, WithRouterProps } from "react-router";
 import { loadSummaryDataset } from "actions/resources/dataset";
 import { getSummaryDataset } from "selectors/datasets";
 import { getViewState } from "selectors/resources";
-import { constructFullPath } from "@app/utils/pathUtils";
+import { constructFullPath } from "#oss/utils/pathUtils";
 import DatasetSummary from "../DatasetSummary/DatasetSummary";
 import DatasetSummaryError from "../DatasetSummary/DatasetSummaryError/DatasetSummaryError";
 import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";

@@ -15,11 +15,17 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.iceberg.logging.VacuumLogProto.ErrorType.VACUUM_EXCEPTION;
+import static com.dremio.exec.store.iceberg.logging.VacuumLoggingUtil.createTableSkipLog;
+import static com.dremio.exec.store.iceberg.logging.VacuumLoggingUtil.getVacuumLogger;
+import static org.apache.iceberg.DremioTableProperties.NESSIE_GC_ENABLED;
 import static org.apache.iceberg.TableProperties.MAX_SNAPSHOT_AGE_MS;
 import static org.apache.iceberg.TableProperties.MIN_SNAPSHOTS_TO_KEEP;
 import static org.apache.iceberg.hadoop.Util.VERSION_HINT_FILENAME;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.common.logging.StructuredLogger;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.catalog.VacuumOptions;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.store.dfs.IcebergTableProps;
@@ -39,6 +45,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.DremioRemoveSnapshots;
 import org.apache.iceberg.ExpireSnapshots;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
@@ -53,6 +61,7 @@ import org.slf4j.LoggerFactory;
 /** Performs iceberg expiry operations. */
 public class IcebergExpiryAction {
   private static final Logger LOGGER = LoggerFactory.getLogger(IcebergExpiryAction.class);
+  private static final StructuredLogger vacuumLogger = getVacuumLogger();
   private static final String METADATA_FOLDER_NAME = "metadata";
 
   protected final VacuumOptions vacuumOptions;
@@ -73,6 +82,7 @@ public class IcebergExpiryAction {
   private final String schemeVariate;
   private final Configuration conf;
   private final String fsScheme;
+  private final String queryId;
 
   public IcebergExpiryAction(
       SupportsIcebergMutablePlugin icebergMutablePlugin,
@@ -99,12 +109,14 @@ public class IcebergExpiryAction {
     this.schemeVariate = schemeVariate;
     this.conf = icebergMutablePlugin.getFsConfCopy();
     this.fsScheme = fsScheme;
+    this.queryId = QueryIdHelper.getQueryId(context.getFragmentHandle().getQueryId());
 
     Stopwatch stopwatchIceberg = Stopwatch.createStarted();
     try {
+      IcebergTableProps tableProps = getTableProps();
       IcebergModel icebergModel =
           icebergMutablePlugin.getIcebergModel(
-              getTableProps(), props.getUserName(), this.context, fileIO);
+              tableProps, props.getUserName(), this.context, fileIO, null);
       IcebergTableIdentifier tableId = getTableIdentifier(icebergModel);
       this.allSnapshots = ImmutableList.copyOf(tableMetadata.snapshots());
       if (!commitExpiry) {
@@ -148,16 +160,36 @@ public class IcebergExpiryAction {
             vacuumOptions.isExpireSnapshots(), "Should be ExpireSnapshots status");
         if (allSnapshots.size() <= vacuumOptions.getRetainLast()) {
           // nothing to expire
-          LOGGER.info(
-              "Skipping {} because snapshot count <= {}", tableId, vacuumOptions.getRetainLast());
+          String message =
+              String.format(
+                  "Skipping %s because snapshot count %s <= %s",
+                  tableProps, allSnapshots.size(), vacuumOptions.getRetainLast());
+          LOGGER.info(message);
+          vacuumLogger.info(
+              createTableSkipLog(
+                  queryId, tableId.toString(), VACUUM_EXCEPTION, message, vacuumOptions),
+              "");
           this.liveSnapshots =
               allSnapshots.stream()
                   .map(s -> buildSnapshotEntry(tableMetadata.metadataFileLocation(), s))
                   .collect(Collectors.toList());
         } else {
-          this.liveSnapshots =
-              icebergModel.expireSnapshots(
-                  tableId, vacuumOptions.getOlderThanInMillis(), vacuumOptions.getRetainLast());
+          if (!Boolean.valueOf(
+              tableProps
+                  .getTableProperties()
+                  .getOrDefault(NESSIE_GC_ENABLED, Boolean.TRUE.toString()))) {
+            vacuumLogger.info(
+                createTableSkipLog(
+                    queryId,
+                    tableId.toString(),
+                    VACUUM_EXCEPTION,
+                    String.format(
+                        "Skipping expiry on %s because %s is set to 'false'",
+                        tableId, NESSIE_GC_ENABLED),
+                    vacuumOptions),
+                "");
+          }
+          this.liveSnapshots = expireTableSnapshots(icebergModel, tableId);
           List<String> newMetadataLocation =
               liveSnapshots.stream()
                   .map(SnapshotEntry::getMetadataJsonPath)
@@ -179,6 +211,12 @@ public class IcebergExpiryAction {
     } finally {
       this.timeElapsedForExpiry = stopwatchIceberg.elapsed(TimeUnit.MILLISECONDS);
     }
+  }
+
+  protected List<SnapshotEntry> expireTableSnapshots(
+      IcebergModel icebergModel, IcebergTableIdentifier tableId) {
+    return icebergModel.expireSnapshots(
+        tableId, vacuumOptions.getOlderThanInMillis(), vacuumOptions.getRetainLast());
   }
 
   protected List<String> computeMetadataPathsToRetain(Set<Long> liveSnapshotIds) {
@@ -245,8 +283,7 @@ public class IcebergExpiryAction {
     olderThanInMillis =
         getOlderThanInMillisWithTableProperties(table.properties(), olderThanInMillis);
     retainLast = getRetainLastWithTableProperties(table.properties(), retainLast);
-    return table
-        .expireSnapshots()
+    return new DremioRemoveSnapshots(((BaseTable) table).operations())
         .expireOlderThan(olderThanInMillis)
         .retainLast(retainLast)
         .cleanExpiredFiles(false);

@@ -15,11 +15,10 @@
  */
 package com.dremio.dac.service.catalog;
 
+import com.dremio.service.Service;
+
 /**
  * Implementation listens to catalog events and submits changes to search index for the respective
  * catalog objects.
  */
-public interface CatalogSearchPublisher {
-  /** Starts listening to catalog events. */
-  void start();
-}
+public interface CatalogSearchPublisher extends Service {}

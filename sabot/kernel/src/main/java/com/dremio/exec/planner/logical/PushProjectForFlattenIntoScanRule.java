@@ -35,12 +35,16 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 
 public class PushProjectForFlattenIntoScanRule extends RelOptRule {
-  public static final RelOptRule INSTANCE = new PushProjectForFlattenIntoScanRule();
+  public static final RelOptRule INSTANCE = new PushProjectForFlattenIntoScanRule(true);
+  public static final RelOptRule PUSH_ONLY_FIELD_ACCESS_INSTANCE =
+      new PushProjectForFlattenIntoScanRule(false);
+  private final boolean pushItemOperator;
 
-  private PushProjectForFlattenIntoScanRule() {
+  private PushProjectForFlattenIntoScanRule(boolean pushItemOperator) {
     super(
         RelOptHelper.some(ProjectForFlattenRel.class, RelOptHelper.any(ScanRelBase.class)),
         "NewPushProjectForFlattenIntoScanRule");
+    this.pushItemOperator = pushItemOperator;
   }
 
   @Override
@@ -59,7 +63,8 @@ public class PushProjectForFlattenIntoScanRule extends RelOptRule {
                   proj.getStructuredColumnExprs().stream(),
                   getPartitionColumns(scan, call.builder().getRexBuilder()).stream())
               .collect(ImmutableList.toImmutableList());
-      final ProjectPushInfo columnInfoItemsExprs = PrelUtil.getColumns(scan.getRowType(), projects);
+      final ProjectPushInfo columnInfoItemsExprs =
+          PrelUtil.getColumns(scan.getRowType(), projects, pushItemOperator);
       if (columnInfoItemsExprs == null || columnInfoItemsExprs.isStarQuery()) {
         return;
       }

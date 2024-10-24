@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 
-import { TEXT, BOOLEAN } from "@app/constants/DataTypes";
+import { TEXT, BOOLEAN } from "#oss/constants/DataTypes";
 
 import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
 import filterMappers from "utils/mappers/ExplorePage/Transform/filterMappers";
@@ -96,7 +96,7 @@ describe("ReplaceValuesForm", () => {
         columnType: TEXT,
       });
       const wrapper = shallow(
-        <ReplaceValuesForm {...commonProps} transform={transform} />
+        <ReplaceValuesForm {...commonProps} transform={transform} />,
       );
       expect(wrapper.instance().submit(values)).to.eql("submitResponse");
       expect(commonProps.submit.calledOnce).to.eql(true);
@@ -104,7 +104,7 @@ describe("ReplaceValuesForm", () => {
         ...filterMappers.getCommonFilterValues(newValues, transform),
         filter: filterMappers.mapFilterExcludeValues(
           newValues,
-          transform.get("columnType")
+          transform.get("columnType"),
         ),
       });
     });
@@ -130,7 +130,7 @@ describe("ReplaceValuesForm", () => {
           {...commonProps}
           columnType={BOOLEAN}
           transform={transform}
-        />
+        />,
       );
       wrapper.instance().submit(booleanValues);
       expect(commonProps.submit.calledOnce).to.eql(true);
@@ -151,14 +151,14 @@ describe("ReplaceValuesForm", () => {
         <ReplaceValuesForm
           {...commonProps}
           loadTransformValuesPreview={sinon.spy()}
-        />
+        />,
       ).instance();
     });
 
     it("should run loadTransformValuesPreview when replaceValues were changed", () => {
       instance.onValuesChange(
         { replaceValues: { data: "1" } },
-        { replaceValues: { data: "2" } }
+        { replaceValues: { data: "2" } },
       );
       expect(instance.props.loadTransformValuesPreview.calledOnce).to.be.true;
     });
@@ -166,7 +166,7 @@ describe("ReplaceValuesForm", () => {
     it("should do nothing when replaceValues were not changed", () => {
       instance.onValuesChange(
         { replaceValues: { data: "1" } },
-        { replaceValues: { data: "1" } }
+        { replaceValues: { data: "1" } },
       );
       expect(instance.props.loadTransformValuesPreview.called).to.be.false;
     });

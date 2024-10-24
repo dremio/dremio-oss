@@ -18,7 +18,7 @@ import Immutable from "immutable";
 import { connect } from "react-redux";
 import { replace } from "react-router-redux";
 import urlParse from "url-parse";
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 
 import PropTypes from "prop-types";
 
@@ -26,7 +26,7 @@ import LoginTitle from "pages/AuthenticationPage/components/LoginTitle";
 import { Button } from "dremio-ui-lib/components";
 import { getViewState } from "selectors/resources";
 
-import { SERVER_STATUS_OK } from "@app/constants/serverStatus";
+import { SERVER_STATUS_OK } from "#oss/constants/serverStatus";
 
 import {
   scheduleCheckServerStatus,
@@ -137,23 +137,24 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "var(--color--navy--700)",
+    backgroundColor: "var(--fill--login)",
     width: "100vw",
     height: "100vh",
     overflow: "hidden",
   },
   content: {
     position: "relative",
-    backgroundColor: "#344253",
+    backgroundColor: "var(--fill--login--foreground)",
     minWidth: 775,
     minHeight: 430,
     maxWidth: 775,
     maxHeight: 430,
     overflow: "hidden",
     padding: 40,
+    borderRadius: "8px",
   },
   subtitle: {
-    color: "var(--color--brand--300)",
+    color: "var(--text--brand)",
     fontSize: 27,
   },
   mainTitle: {
@@ -167,7 +168,7 @@ const styles = {
     },
   },
   checking: {
-    color: "var(--color--neutral--75)",
+    color: "var(--text--primary)",
     marginTop: 10,
   },
 };

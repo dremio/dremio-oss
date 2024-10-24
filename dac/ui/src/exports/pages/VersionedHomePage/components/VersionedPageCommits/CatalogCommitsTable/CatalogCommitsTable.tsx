@@ -23,8 +23,8 @@ import {
   useExternalStoreState,
 } from "leantable/react";
 import clsx from "clsx";
-import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
-import { intl } from "@app/utils/intl";
+import EmptyStateContainer from "#oss/pages/HomePage/components/EmptyStateContainer";
+import { intl } from "#oss/utils/intl";
 
 import * as classes from "./CatalogCommitsTable.module.less";
 

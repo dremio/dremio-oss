@@ -51,7 +51,7 @@ export class BaseAPI {
 
   protected async request(
     context: RequestOpts,
-    initOverrides?: RequestInit
+    initOverrides?: RequestInit,
   ): Promise<Response> {
     const { url, init } = this.createFetchParams(context, initOverrides);
     const response = await this.fetchApi(url, init);
@@ -82,7 +82,7 @@ export class BaseAPI {
     const headers = Object.assign(
       {},
       this.configuration.headers,
-      context.headers
+      context.headers,
     );
     const init = {
       method: context.method,
@@ -107,7 +107,7 @@ export class BaseAPI {
     }
     let response = await (this.configuration.fetchApi || fetch)(
       fetchParams.url,
-      fetchParams.init
+      fetchParams.init,
     );
     for (const middleware of this.middleware) {
       if (middleware.post) {
@@ -137,7 +137,10 @@ export class BaseAPI {
 
 export class RequiredError extends Error {
   name: "RequiredError" = "RequiredError";
-  constructor(public field: string, msg?: string) {
+  constructor(
+    public field: string,
+    msg?: string,
+  ) {
     super(msg);
   }
 }
@@ -282,14 +285,14 @@ export function querystring(params: HTTPQuery, prefix: string = ""): string {
       }
       if (value instanceof Date) {
         return `${encodeURIComponent(fullKey)}=${encodeURIComponent(
-          value.toISOString()
+          value.toISOString(),
         )}`;
       }
       if (value instanceof Object) {
         return querystring(value as HTTPQuery, fullKey);
       }
       return `${encodeURIComponent(fullKey)}=${encodeURIComponent(
-        String(value)
+        String(value),
       )}`;
     })
     .filter((part) => part.length > 0)
@@ -299,7 +302,7 @@ export function querystring(params: HTTPQuery, prefix: string = ""): string {
 export function mapValues(data: any, fn: (item: any) => any) {
   return Object.keys(data).reduce(
     (acc, key) => ({ ...acc, [key]: fn(data[key]) }),
-    {}
+    {},
   );
 }
 
@@ -346,7 +349,7 @@ export interface ResponseTransformer<T> {
 export class JSONApiResponse<T> {
   constructor(
     public raw: Response,
-    private transformer: ResponseTransformer<T> = (jsonValue: any) => jsonValue
+    private transformer: ResponseTransformer<T> = (jsonValue: any) => jsonValue,
   ) {}
 
   async value(): Promise<T> {

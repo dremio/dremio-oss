@@ -17,8 +17,8 @@
 import { projectBase } from "dremio-ui-common/paths/common.js";
 import { SqlRunnerTabs } from "dremio-ui-common/sonar/SqlRunnerSession/components/SqlRunnerTabs.js";
 import { Button } from "dremio-ui-lib/components";
-import SearchItem from "@app/components/HeaderItemsTypes/SearchItem";
-import { renderRoute } from "@app/utils/renderRoute";
+import SearchItem from "#oss/components/HeaderItemsTypes/SearchItem";
+import { renderRoute } from "#oss/utils/renderRoute";
 import { SqlEditor } from "../../components/MonacoWrappers/SqlEditor";
 
 export const queryPage = projectBase.extend(() => "query");

@@ -16,14 +16,14 @@
 import { withRouter } from "react-router";
 import { isEqual } from "lodash";
 import { useIntl } from "react-intl";
-import BranchPicker from "@app/pages/HomePage/components/BranchPicker/BranchPicker";
+import BranchPicker from "#oss/pages/HomePage/components/BranchPicker/BranchPicker";
 import { useNessieContext } from "../../utils/context";
-import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
+import { isDefaultReferenceLoading } from "#oss/selectors/nessie/nessie";
 import {
   constructVersionedEntityUrl,
   useVersionedPageContext,
-} from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
-import VersionedPageBreadcrumb from "@app/exports/pages/VersionedHomePage/components/VersionedPageBreadcrumb/VersionedPageBreadcrumb";
+} from "#oss/exports/pages/VersionedHomePage/versioned-page-utils";
+import VersionedPageBreadcrumb from "#oss/exports/pages/VersionedHomePage/components/VersionedPageBreadcrumb/VersionedPageBreadcrumb";
 import { CopyButton } from "dremio-ui-lib/components";
 
 import "./PageBreadcrumbHeader.less";

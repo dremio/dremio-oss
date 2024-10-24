@@ -25,6 +25,7 @@ import com.dremio.exec.planner.sql.SqlFunctionImpl;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.options.OptionChangeListener;
 import com.dremio.options.OptionManager;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -199,5 +200,10 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
       functions.addAll(disabledArmFunctionsRef.get());
     }
     return functions;
+  }
+
+  @VisibleForTesting
+  protected Map<String, List<AbstractFunctionHolder>> getSupportedFunctions() {
+    return supportedFunctions;
   }
 }

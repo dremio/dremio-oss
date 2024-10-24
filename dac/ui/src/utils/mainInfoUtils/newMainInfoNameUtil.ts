@@ -20,7 +20,7 @@ import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 
 export function newGetHref(
   entity: Immutable.Map<string, any>,
-  context: Record<string, any>
+  context: Record<string, any>,
 ) {
   const fileType = entity.get("fileType");
   const newFullPath = JSON.stringify(entity.get("fullPathList").toJS());
@@ -33,7 +33,7 @@ export function newGetHref(
         href: {
           pathname: sqlPaths.sqlEditor.link(),
           search: `?context="${encodeURIComponent(
-            resourceId
+            resourceId,
           )}"&queryPath=${encodeURIComponent(newFullPath)}`,
         },
       };
@@ -63,7 +63,7 @@ export function newGetHref(
         href: {
           pathname: sqlPaths.sqlEditor.link(),
           search: `?context="${encodeURIComponent(
-            resourceId
+            resourceId,
           )}"&queryPath=${encodeURIComponent(newFullPath)}`,
         },
       };
@@ -77,7 +77,7 @@ export function newGetHref(
     href: {
       pathname: sqlPaths.sqlEditor.link(),
       search: `?context="${encodeURIComponent(
-        resourceId
+        resourceId,
       )}"&queryPath=${encodeURIComponent(newFullPath)}`,
     },
   };

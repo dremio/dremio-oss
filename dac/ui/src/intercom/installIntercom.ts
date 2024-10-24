@@ -18,7 +18,7 @@
 
 export function installIntercom(
   APP_ID: string,
-  intercomSettings: Record<string, any>
+  intercomSettings: Record<string, any>,
 ) {
   (function () {
     var w = window;

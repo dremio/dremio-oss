@@ -15,8 +15,8 @@
  */
 
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
-import { log } from "@app/utils/logger";
-import APICall from "@app/core/APICall";
+import { log } from "#oss/utils/logger";
+import APICall from "#oss/core/APICall";
 
 export const getClusterInfo = async () => {
   const apiCall = new APICall().path("info");

@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/pages/ExplorePage/components/Wiki/Wiki.variables.less";
+@import "~#oss/pages/ExplorePage/components/Wiki/Wiki.variables.less";
 
 .section {
-  composes: clear-fix from "~@app/uiTheme/less/layout.less";
-  composes: row-of-inputs-spacing from "~@app/uiTheme/less/forms.less";
+  composes: clear-fix from "~#oss/uiTheme/less/layout.less";
+  composes: row-of-inputs-spacing from "~#oss/uiTheme/less/forms.less";
   border-bottom: 1px solid var(--border--neutral);
   display: flex;
   align-items: center;
@@ -25,13 +25,13 @@
 }
 
 .title {
-  composes: h2 from "~@app/uiTheme/css/typography.css";
+  composes: h2 from "~#oss/uiTheme/css/typography.css";
   color: #666666; // taken from design sketch file
   flex: 1;
 }
 
 .button-container {
-  composes: row-of-inputs-spacing from "~@app/uiTheme/less/forms.less";
+  composes: row-of-inputs-spacing from "~#oss/uiTheme/less/forms.less";
   display: flex;
   align-items: center;
 }

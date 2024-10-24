@@ -324,8 +324,8 @@ public final class GoldenFileTestBuilder<I, O, I_W> {
     return new GoldenFileTestBuilder<>(executeTestFunction, i -> i);
   }
 
-  public static <I, O> GoldenFileTestBuilder<I, O, I> create(
-      ThrowingFunction<I, O> executeTestFunction, Function<I, I> inputSerializer) {
+  public static <I, O, I_W> GoldenFileTestBuilder<I, O, I_W> create(
+      ThrowingFunction<I, O> executeTestFunction, Function<I, I_W> inputSerializer) {
     return new GoldenFileTestBuilder<>(executeTestFunction, inputSerializer);
   }
 

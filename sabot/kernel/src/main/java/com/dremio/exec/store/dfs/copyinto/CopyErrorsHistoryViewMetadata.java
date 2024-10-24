@@ -15,10 +15,11 @@
  */
 package com.dremio.exec.store.dfs.copyinto;
 
-import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.SupportedSystemIcebergTable;
 import com.dremio.exec.store.dfs.system.SystemIcebergViewMetadata;
-import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.iceberg.Schema;
 
 /**
@@ -33,8 +34,8 @@ public class CopyErrorsHistoryViewMetadata extends SystemIcebergViewMetadata {
 
   @Override
   public List<String> getViewTables() {
-    return ImmutableList.of(
-        SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME,
-        SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME);
+    return Arrays.stream(SupportedSystemIcebergTable.values())
+        .map(SupportedSystemIcebergTable::getTableName)
+        .collect(Collectors.toList());
   }
 }

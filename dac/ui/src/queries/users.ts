@@ -15,7 +15,7 @@
  */
 
 import { queryOptions } from "@tanstack/react-query";
-import { dremio } from "@app/dremio";
+import { dremio } from "#oss/dremio";
 
 export const userByUsername = (username: string) =>
   queryOptions({

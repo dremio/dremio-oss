@@ -34,14 +34,12 @@ public class ITDelete extends ITDmlQueryBase {
 
   @BeforeClass
   public static void setUp() throws Exception {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER, true);
   }
 
   @AfterClass
   public static void close() throws Exception {
-    setSystemOption(
-        ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER,
-        ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER.getDefault().getBoolVal().toString());
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER);
   }
 
   private static final DmlRowwiseOperationWriteMode dmlWriteMode =

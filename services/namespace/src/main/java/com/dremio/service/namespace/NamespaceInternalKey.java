@@ -173,7 +173,7 @@ class NamespaceInternalKey {
 
   /**
    * Processes the provided NamespaceKey's path components. Converts each path component to lower
-   * case if {@param normalize} is true. Returns a list of path components.
+   * case. Returns a list of path components.
    *
    * @param path the NamespaceKey to process.
    * @return a list of path components.

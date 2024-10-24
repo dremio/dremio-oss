@@ -16,7 +16,7 @@
 import { formDescription } from "uiTheme/radium/typography";
 
 export const borderDottedGreen = "1px dotted #92E2D0";
-export const greenBackground = "#F5FCFF";
+export const greenBackground = "var(--fill--brand)";
 export const fieldAreaWidth = "240px";
 
 export const areaWrap = {

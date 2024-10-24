@@ -24,7 +24,6 @@ export const getSortItems = () => [
 
 export default function (input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     prepareQueuesFilter() {},
   });
 }

@@ -16,7 +16,7 @@
 import { RSAA } from "redux-api-middleware";
 import { CALL_MOCK_API } from "mockApi";
 import Immutable from "immutable";
-import APICall from "@app/core/APICall";
+import APICall from "#oss/core/APICall";
 
 const COMMON = { headers: { "Content-Type": "application/json" } };
 

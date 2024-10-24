@@ -20,7 +20,7 @@ import PropTypes from "prop-types";
 import { loadSummaryDataset } from "actions/resources/dataset";
 import { getViewState } from "selectors/resources";
 import { getSummaryDataset } from "selectors/datasets";
-import { stopPropagation } from "@app/utils/reactEventUtils";
+import { stopPropagation } from "#oss/utils/reactEventUtils";
 
 import ViewStateWrapper from "components/ViewStateWrapper";
 import ColumnMenuItem from "components/DragComponents/ColumnMenuItem";
@@ -122,7 +122,14 @@ export class DatasetOverlayContent extends PureComponent {
         onMouseLeave={onMouseLeave}
         onClick={stopPropagation}
       >
-        <ViewStateWrapper viewState={viewState} onDismissError={onClose}>
+        <ViewStateWrapper
+          viewState={viewState}
+          onDismissError={onClose}
+          overlayStyle={{
+            opacity: "0.7",
+            backgroundColor: "var(--fill--popover)",
+          }}
+        >
           {summaryDataset.size > 0 && <div>{this.renderColumn()}</div>}
         </ViewStateWrapper>
       </div>
@@ -151,9 +158,9 @@ const styles = {
     padding: 5,
     height: 45,
     width: 210,
-    borderRight: "1px solid #E9E9E9",
-    borderTop: "1px solid #E9E9E9",
-    borderLeft: "1px solid #E9E9E9",
+    borderRight: "1px solid var(--border--neutral)",
+    borderTop: "1px solid var(--border--neutral)",
+    borderLeft: "1px solid var(--border--neutral)",
     borderRadius: "2px 2px 0 0",
     backgroundColor: "var(--fill--tertiary)",
     ...FLEX_NOWRAP_ROW_BETWEEN_CENTER,
@@ -167,9 +174,9 @@ const styles = {
     maxHeight: 400,
     overflowY: "auto",
     borderRadius: "0 0 2px 2px",
-    borderRight: "1px solid #E9E9E9",
-    borderBottom: "1px solid #E9E9E9",
-    borderLeft: "1px solid #E9E9E9",
+    borderRight: "1px solid var(--border--neutral)",
+    borderBottom: "1px solid var(--border--neutral)",
+    borderLeft: "1px solid var(--border--neutral)",
     boxShadow: "0 0 5px 0 rgba(0, 0, 0, 0.05)",
     ...FLEX_COL_START,
   },

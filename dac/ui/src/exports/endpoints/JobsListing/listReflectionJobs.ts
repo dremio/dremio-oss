@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 // @ts-ignore
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 
@@ -44,7 +44,7 @@ export const listReflectionJobsUrl = ({
 };
 
 export const listReflectionJobs = async (
-  params: ListReflectionJobsParams
+  params: ListReflectionJobsParams,
 ): Promise<any> => {
   return getApiContext()
     .fetch(listReflectionJobsUrl(params))

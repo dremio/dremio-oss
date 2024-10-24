@@ -49,7 +49,7 @@ describe("ConflictDetectionWatcher", () => {
       <TestComponent
         {...minimalProps}
         showConflictConfirmationDialog={sinon.spy()}
-      />
+      />,
     );
     wrapper.setProps({ values: {} });
     expect(wrapper.props().showConflictConfirmationDialog).to.be.not.called;

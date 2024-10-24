@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { APIV3Call } from "@app/core/APICall";
+import { APIV3Call } from "#oss/core/APICall";
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 
 type RefreshReflectionParams = { reflectionId: string };

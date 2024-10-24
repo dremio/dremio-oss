@@ -865,6 +865,10 @@ class SQLGenerator {
           return function("STDDEV", operand);
         case Standard_Deviation_Population:
           return function("STDDEV_POP", operand);
+        case Variance:
+          return function("VAR_SAMP", operand);
+        case Variance_Population:
+          return function("VAR_POP", operand);
         case Sum:
           return function("SUM", operand);
         default:

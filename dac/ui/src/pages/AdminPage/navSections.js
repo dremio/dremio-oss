@@ -43,7 +43,7 @@ export default function () {
         title: "Admin.UserManagement.Users",
         url: adminPaths.users.link(),
       },
-    ].filter(Boolean)
+    ].filter(Boolean),
   );
 }
 

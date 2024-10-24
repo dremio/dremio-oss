@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.handlers.query;
 
 import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -46,7 +47,8 @@ public class MergeHandler extends DmlHandler {
   }
 
   @Override
-  protected void validatePrivileges(Catalog catalog, CatalogEntityKey key, SqlNode sqlNode)
+  protected void validatePrivileges(
+      Catalog catalog, CatalogEntityKey key, SqlNode sqlNode, VersionContext versionContext)
       throws Exception {
     // Validate sub queries privileges
     SqlMergeIntoTable mergeTable = SqlNodeUtil.unwrap(sqlNode, SqlMergeIntoTable.class);

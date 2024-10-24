@@ -93,7 +93,7 @@ describe("ReplacePatternForm", () => {
         transformType: "keeponly",
       });
       const wrapper = shallow(
-        <ReplacePatternForm {...commonProps} transform={transform} />
+        <ReplacePatternForm {...commonProps} transform={transform} />,
       );
       expect(wrapper.instance().submit(values)).to.eql("submitResponse");
 

@@ -17,7 +17,6 @@ package com.dremio.service.tokens;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /** Details of a token. */
@@ -47,7 +46,7 @@ public final class TokenDetails {
   }
 
   public List<String> getScopes() {
-    return new ArrayList<>(scopes);
+    return scopes != null ? List.copyOf(scopes) : List.of();
   }
 
   public static TokenDetails of(String token, String username, long expiresAt) {

@@ -17,7 +17,7 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { FormattedMessage, injectIntl } from "react-intl";
-import { getIconPath } from "@app/utils/getIconPath";
+import { getIconPath } from "#oss/utils/getIconPath";
 import jobsUtils from "utils/jobsUtils";
 import ReflectionList from "./ReflectionList";
 

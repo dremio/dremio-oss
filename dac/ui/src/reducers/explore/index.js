@@ -15,8 +15,8 @@
  */
 import { combineReducers } from "redux";
 
-import { EXPLORE_PAGE_LOCATION_CHANGED } from "@app/actions/explore/dataset/data";
-import { extractValue } from "@app/reducers/reducerFactories";
+import { EXPLORE_PAGE_LOCATION_CHANGED } from "#oss/actions/explore/dataset/data";
+import { extractValue } from "#oss/reducers/reducerFactories";
 import graph from "dyn-load/reducers/explore/graph";
 
 import sqlActions from "./sqlActions";
@@ -27,10 +27,10 @@ import view from "./view";
 import { tabViewReducer } from "./tabViewReducer";
 import exploreJobs from "./exploreJobs";
 import { tabExploreJobsReducer } from "./tabExploreJobs";
-import { SET_TAB_VIEW } from "@app/actions/resources/scripts";
+import { SET_TAB_VIEW } from "#oss/actions/resources/scripts";
 import { cloneDeep } from "lodash";
-import { RESET_QUERY_STATE } from "@app/actions/explore/view";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import { RESET_QUERY_STATE } from "#oss/actions/explore/view";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 
 // export for testing
 export const currentRouteState = extractValue(

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { RSAA } from "redux-api-middleware";
-import { API_URL_V2 } from "@app/constants/Api";
+import { API_URL_V2 } from "#oss/constants/Api";
 
 import * as Actions from "./run";
 
@@ -38,7 +38,7 @@ describe("dataset/run", () => {
         `${API_URL_V2}${dataset.getIn([
           "apiLinks",
           "self",
-        ])}/run/?tipVersion=tip123`
+        ])}/run/?tipVersion=tip123`,
       );
     });
   });
@@ -50,7 +50,7 @@ describe("dataset/run", () => {
       const result = Actions.transformAndRunDataset(
         dataset,
         transformData,
-        viewId
+        viewId,
       )((obj) => obj)[RSAA];
       expect(result.types[0].meta).to.eql({ entity: dataset, viewId });
       expect(result.method).to.eql("POST");
@@ -59,7 +59,7 @@ describe("dataset/run", () => {
         `${API_URL_V2}${dataset.getIn([
           "apiLinks",
           "self",
-        ])}/transformAndRun/?newVersion=`
+        ])}/transformAndRun/?newVersion=`,
       );
     });
   });

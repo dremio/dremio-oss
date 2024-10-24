@@ -67,7 +67,7 @@ describe("MainInfoView", () => {
       instance.getFolderActionButtons(folder);
 
       expect(instance.getSettingsBtnByType).to.have.been.calledWith(
-        <DatasetMenu entity={folder} entityType="folder" />
+        <DatasetMenu entity={folder} entityType="folder" />,
       );
     });
 
@@ -83,7 +83,7 @@ describe("MainInfoView", () => {
       instance.getFolderActionButtons(folder);
 
       expect(instance.getSettingsBtnByType).to.have.been.calledWith(
-        <DatasetMenu entity={folder} entityType="folder" />
+        <DatasetMenu entity={folder} entityType="folder" />,
       );
     });
 
@@ -99,7 +99,7 @@ describe("MainInfoView", () => {
       instance.getFolderActionButtons(folder);
 
       expect(instance.getSettingsBtnByType).to.have.been.calledWith(
-        <FolderMenu folder={folder} />
+        <FolderMenu folder={folder} />,
       );
     });
   });

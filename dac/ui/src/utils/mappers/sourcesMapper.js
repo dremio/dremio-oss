@@ -38,7 +38,7 @@ class SourcesMapper {
     }
     if (info.config.authenticationTimeoutMillis) {
       info.config.authenticationTimeoutMillis = Number(
-        info.config.authenticationTimeoutMillis
+        info.config.authenticationTimeoutMillis,
       );
     }
     if (info.config.subpartitionSize) {

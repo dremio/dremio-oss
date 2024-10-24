@@ -24,9 +24,6 @@ import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.store.dfs.WorkspaceConfig;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.users.SystemUser;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.Maps;
 import com.google.common.io.Resources;
@@ -75,11 +72,6 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
       return;
     }
 
-    SourceConfig config =
-        getSabotContext()
-            .getNamespaceService(SystemUser.SYSTEM_USERNAME)
-            .getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
-    getCatalogService().getSystemUserCatalog().deleteSource(config);
     stopMiniDfsCluster();
   }
 

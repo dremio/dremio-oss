@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.common</groupId>
     <artifactId>dremio-common-parent</artifactId>
-    <version>25.1.1-202409260159070462-716c0676</version>
+    <version>${revision}</version>
   </parent>
 
   <artifactId>dremio-common-core</artifactId>
@@ -41,6 +41,12 @@
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>${protobuf.version}</version>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 </project>

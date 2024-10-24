@@ -106,7 +106,7 @@ import com.dremio.service.jobs.cleanup.ExternalCleaner;
 import com.dremio.service.jobs.cleanup.JobsAndDependenciesCleanerImpl;
 import com.dremio.service.jobs.cleanup.OnlineProfileCleaner;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
-import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
+import com.dremio.service.jobtelemetry.server.store.LocalProfileKVStoreCreator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
@@ -214,7 +214,7 @@ public class TestJobService extends BaseTestServer {
 
     NotificationResponse response =
         expectSuccess(
-            getBuilder(getAPIv2().path("job").path(jobId.getId()).path("cancel"))
+            getBuilder(getHttpClient().getAPIv2().path("job").path(jobId.getId()).path("cancel"))
                 .buildPost(entity(null, JSON)),
             NotificationResponse.class);
     completionListener.await();
@@ -245,7 +245,8 @@ public class TestJobService extends BaseTestServer {
     // verify SQL is truncated in Jobs Search API
     Object searchRsp =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs-listing").path("v1.0")).buildGet(), Object.class);
+            getBuilder(getHttpClient().getAPIv2().path("jobs-listing").path("v1.0")).buildGet(),
+            Object.class);
     assertTrue(searchRsp.toString().contains("queryText=SELEC, "));
     assertTrue(searchRsp.toString().contains("description=SELEC, "));
 
@@ -253,7 +254,8 @@ public class TestJobService extends BaseTestServer {
     Object detailRsp =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("jobs-listing")
                         .path("v1.0")
                         .path(jobId.getId())
@@ -266,20 +268,22 @@ public class TestJobService extends BaseTestServer {
 
     // verify SQL is truncated in old Jobs Search API
     Object oldSearchRsp =
-        expectSuccess(getBuilder(getAPIv2().path("jobs")).buildGet(), Object.class);
+        expectSuccess(getBuilder(getHttpClient().getAPIv2().path("jobs")).buildGet(), Object.class);
     assertTrue(oldSearchRsp.toString().contains("description=SELEC, "));
 
     // verify SQL is not truncated in old Job summary API
     Object summaryRsp =
         expectSuccess(
-            getBuilder(getAPIv2().path("job").path(jobId.getId()).path("summary")).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("job").path(jobId.getId()).path("summary"))
+                .buildGet(),
             Object.class);
     assertTrue(summaryRsp.toString().contains("description=SELECT 1, "));
 
     // verify SQL is not truncated in old Job Details API
     Object oldDetailRsp =
         expectSuccess(
-            getBuilder(getAPIv2().path("job").path(jobId.getId()).path("details")).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("job").path(jobId.getId()).path("details"))
+                .buildGet(),
             Object.class);
     assertTrue(oldDetailRsp.toString().contains("sql=SELECT 1, "));
     assertTrue(oldDetailRsp.toString().contains("description=SELECT 1, "));
@@ -306,7 +310,8 @@ public class TestJobService extends BaseTestServer {
     // to 0
     Object response =
         expectSuccess(
-            getBuilder(getAPIv2().path("jobs-listing").path("v1.0")).buildGet(), Object.class);
+            getBuilder(getHttpClient().getAPIv2().path("jobs-listing").path("v1.0")).buildGet(),
+            Object.class);
     assertTrue(response.toString().contains("queryText=SELECT 1, "));
     assertTrue(response.toString().contains("description=SELECT 1, "));
   }
@@ -337,7 +342,7 @@ public class TestJobService extends BaseTestServer {
     sleepUntilQueryState(jobId, AttemptEvent.State.COMPLETED);
 
     final Invocation invocation =
-        getBuilder(getAPIv2().path("job").path(jobId.getId()).path("cancel"))
+        getBuilder(getHttpClient().getAPIv2().path("job").path(jobId.getId()).path("cancel"))
             .buildPost(entity(null, JSON));
     final Response response = invocation.invoke();
     final GenericErrorMessage message = response.readEntity(GenericErrorMessage.class);
@@ -2112,7 +2117,7 @@ public class TestJobService extends BaseTestServer {
     assertEquals(expectedReport, report);
 
     LegacyKVStore<AttemptId, UserBitShared.QueryProfile> profileStore =
-        provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
+        provider.getStore(LocalProfileKVStoreCreator.KVProfileStoreCreator.class);
     UserBitShared.QueryProfile queryProfile =
         profileStore.get(
             AttemptIdUtils.fromString(JobsProtoUtil.getLastAttempt(jobDetails1).getAttemptId()));
@@ -2529,7 +2534,7 @@ public class TestJobService extends BaseTestServer {
   @Test
   public void testJobSubmitFailure() throws Exception {
     // Submit 4 queries.
-    setSystemOption(MAX_FOREMEN_PER_COORDINATOR.getOptionName(), "4");
+    setSystemOption(MAX_FOREMEN_PER_COORDINATOR, 4);
     String controls =
         Controls.newBuilder()
             .addPause(DremioVolcanoPlanner.class, INJECTOR_DURING_PLANNING_PAUSE)
@@ -2581,7 +2586,8 @@ public class TestJobService extends BaseTestServer {
     Object summaryRsp =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("job")
                         .path(jobId.getId())
                         .path("summary")
@@ -2592,7 +2598,8 @@ public class TestJobService extends BaseTestServer {
     summaryRsp =
         expectSuccess(
             getBuilder(
-                    getAPIv2()
+                    getHttpClient()
+                        .getAPIv2()
                         .path("job")
                         .path(jobId.getId())
                         .path("summary")
@@ -2617,7 +2624,8 @@ public class TestJobService extends BaseTestServer {
     completionListener.await();
     Object summaryRsp =
         expectSuccess(
-            getBuilder(getAPIv2().path("job").path(jobId.getId()).path("summary")).buildGet(),
+            getBuilder(getHttpClient().getAPIv2().path("job").path(jobId.getId()).path("summary"))
+                .buildGet(),
             Object.class);
     System.out.println(summaryRsp.toString());
     assertTrue(summaryRsp.toString().contains("description=SELECT 1234567890, "));

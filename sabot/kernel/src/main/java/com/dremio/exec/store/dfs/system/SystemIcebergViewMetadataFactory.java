@@ -19,7 +19,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.copyinto.CopyErrorsHistoryViewMetadata;
 import com.dremio.exec.store.dfs.copyinto.CopyErrorsHistoryViewSchemaProvider;
 import com.dremio.options.OptionManager;
-import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.iceberg.Schema;
 
@@ -29,11 +29,19 @@ import org.apache.iceberg.Schema;
  */
 public final class SystemIcebergViewMetadataFactory {
 
-  /** The name of the "copy errors history" system Iceberg view. */
-  public static final String COPY_ERRORS_HISTORY_VIEW_NAME = "copy_errors_history";
+  public enum SupportedSystemIcebergView {
+    COPY_ERRORS_HISTORY("copy_errors_history");
 
-  private static final List<String> SUPPORTED_VIEWS =
-      ImmutableList.of(COPY_ERRORS_HISTORY_VIEW_NAME);
+    private final String viewName;
+
+    SupportedSystemIcebergView(String viewName) {
+      this.viewName = viewName;
+    }
+
+    public String getViewName() {
+      return viewName;
+    }
+  }
 
   /**
    * Constructs a new instance of the factory class. (Private constructor to prevent instantiation)
@@ -53,10 +61,13 @@ public final class SystemIcebergViewMetadataFactory {
       OptionManager optionManager, List<String> viewSchemaPath) {
     long schemaVersion =
         optionManager.getOption(ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION);
-    if (viewSchemaPath.stream().anyMatch(COPY_ERRORS_HISTORY_VIEW_NAME::equalsIgnoreCase)) {
-      Schema schema = CopyErrorsHistoryViewSchemaProvider.getSchema(schemaVersion);
+    if (viewSchemaPath.stream()
+        .anyMatch(
+            p ->
+                p.equalsIgnoreCase(SupportedSystemIcebergView.COPY_ERRORS_HISTORY.getViewName()))) {
+      Schema schema = new CopyErrorsHistoryViewSchemaProvider(schemaVersion).getSchema();
       return new CopyErrorsHistoryViewMetadata(
-          schema, schemaVersion, COPY_ERRORS_HISTORY_VIEW_NAME);
+          schema, schemaVersion, SupportedSystemIcebergView.COPY_ERRORS_HISTORY.getViewName());
     }
     throw new IllegalArgumentException("Invalid system Iceberg view: " + viewSchemaPath);
   }
@@ -68,7 +79,7 @@ public final class SystemIcebergViewMetadataFactory {
    * @return {@code true} if the view is supported; otherwise, {@code false}.
    */
   public static boolean isSupportedViewPath(List<String> viewSchemaPath) {
-    return SUPPORTED_VIEWS.stream()
-        .anyMatch(v -> viewSchemaPath.stream().anyMatch(v::equalsIgnoreCase));
+    return Arrays.stream(SupportedSystemIcebergView.values())
+        .anyMatch(v -> viewSchemaPath.stream().anyMatch(p -> p.equalsIgnoreCase(v.getViewName())));
   }
 }

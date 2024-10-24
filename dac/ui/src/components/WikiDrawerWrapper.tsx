@@ -16,8 +16,8 @@
 import React, { useEffect } from "react";
 import Immutable from "immutable";
 import { DialogContent, Drawer } from "dremio-ui-lib/components";
-import WikiDrawerTitle from "@app/components/WikiDrawerTitle";
-import WikiLanding from "@app/pages/ExplorePage/components/Wiki/WikiLanding";
+import WikiDrawerTitle from "#oss/components/WikiDrawerTitle";
+import WikiLanding from "#oss/pages/ExplorePage/components/Wiki/WikiLanding";
 
 interface WikiDrawerWrapperProps {
   datasetDetails: Immutable.Map<string, any> | undefined;

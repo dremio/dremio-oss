@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import invariant from "invariant";
-import sentryUtil from "@app/utils/sentryUtil";
+import sentryUtil from "#oss/utils/sentryUtil";
 
 export const SHOW_PROD_ERROR = "SHOW_PROD_ERROR";
 export const HIDE_PROD_ERROR = "HIDE_PROD_ERROR";
@@ -31,7 +31,7 @@ const getError = (e) => {
     (e._error && e._error.message && e._error.message.get("errorMessage"));
   if (message) {
     return new Error(
-      message + "\n\n" + (e.stack || "no stack") + "\n\n(non-Error instance)"
+      message + "\n\n" + (e.stack || "no stack") + "\n\n(non-Error instance)",
     );
   }
   return new Error(e); // error components expect objects

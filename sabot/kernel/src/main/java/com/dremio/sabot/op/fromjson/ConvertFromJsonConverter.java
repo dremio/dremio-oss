@@ -61,9 +61,19 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexCorrelVariable;
+import org.apache.calcite.rex.RexDynamicParam;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexOver;
+import org.apache.calcite.rex.RexPatternFieldRef;
+import org.apache.calcite.rex.RexRangeRef;
+import org.apache.calcite.rex.RexSubQuery;
+import org.apache.calcite.rex.RexTableInputRef;
+import org.apache.calcite.rex.RexVisitor;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 
 public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, RuntimeException> {
@@ -71,7 +81,7 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(ConvertFromJsonConverter.class);
   public static final String FAILURE_MSG =
-      "Using CONVERT_FROM(*, 'JSON') is only supported against string literals and direct table references of types VARCHAR and VARBINARY.";
+      "Using CONVERT_FROM(*, 'JSON') is only supported against string literals and field references of types VARCHAR and VARBINARY.";
 
   private final RelMetadataQuery query;
   private final QueryContext context;
@@ -91,10 +101,10 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
     final List<ConversionColumn> conversions = new ArrayList<>();
     final List<RexNode> bottomExprs = new ArrayList<>();
 
-    /**
-     * Since we already rewrote so that json convert from was an edge expression, we can just check
-     * if any of the epxressions are RexCall with the correct name.
-     */
+    /*
+     Since we already rewrote so that json convert from was an edge expression, we can just check
+     if any of the expressions are RexCall with the correct name.
+    */
     for (int fieldId = 0; fieldId < expressions.size(); fieldId++) {
       final RexNode n = expressions.get(fieldId);
       if (n instanceof RexCall) {
@@ -102,50 +112,12 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
         if (call.getOperator().getName().equalsIgnoreCase("convert_fromjson")) {
           List<RexNode> args = call.getOperands();
           Preconditions.checkArgument(args.size() == 1);
-          final RexNode input = args.get(0);
-          if (input instanceof RexLiteral) {
-            RexLiteral literal = (RexLiteral) input;
-            SqlTypeFamily family = literal.getTypeName().getFamily();
-            final byte[] value;
-            if (family.equals(SqlTypeFamily.CHARACTER)) {
-              value = ((String) literal.getValue2()).getBytes(StandardCharsets.UTF_8);
-            } else if (family.equals(SqlTypeFamily.BINARY)) {
-              value = ((byte[]) literal.getValue2());
-            } else {
-              throw failed();
-            }
-            final String inputField = topRel.getRowType().getFieldNames().get(fieldId);
-            conversions.add(
-                new ConversionColumn(
-                    OriginType.LITERAL, null, null, inputField, getLiteralSchema(context, value)));
-            bottomExprs.add(literal);
-            continue;
-          } else if (input instanceof RexInputRef) {
-            RexInputRef inputRef = (RexInputRef) input;
-            Set<RelColumnOrigin> origins = query.getColumnOrigins(inputRel, inputRef.getIndex());
-            if (origins == null || origins.size() != 1 || origins.iterator().next().isDerived()) {
-              throw failed();
-            }
-            final RelColumnOrigin origin = origins.iterator().next();
-            final RelOptTable originTable = origin.getOriginTable();
-            final List<String> tableSchemaPath = originTable.getQualifiedName();
-            final String tableFieldname =
-                originTable.getRowType().getFieldNames().get(origin.getOriginColumnOrdinal());
-            // we are using topRel to construct the newBottomProject rowType, make sure
-            // ConvertFromJson refers to that
-            final String inputFieldname = topRel.getRowType().getFieldNames().get(fieldId);
-            conversions.add(
-                new ConversionColumn(
-                    OriginType.RAW,
-                    tableSchemaPath,
-                    tableFieldname,
-                    inputFieldname,
-                    getRawSchema(context, tableSchemaPath, tableFieldname)));
-            bottomExprs.add(inputRef);
-            continue;
-          } else {
-            throw failed();
-          }
+          RexNode input = args.get(0);
+          String inputFieldName = topRel.getRowType().getFieldNames().get(fieldId);
+          InputFieldVisitor visitor = new InputFieldVisitor(input, inputRel, inputFieldName);
+          conversions.add(input.accept(visitor));
+          bottomExprs.add(input);
+          continue;
         }
       }
       bottomExprs.add(n);
@@ -228,10 +200,16 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
           Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
       final int maxLeafLimit =
           Math.toIntExact(context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
+      final int rowSizeLimit =
+          Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_ROW_SIZE_BYTES));
+      final boolean rowSizeLimitEnabled =
+          context.getOptions().getOption(ExecConstants.ENABLE_ROW_SIZE_LIMIT_ENFORCEMENT);
       JsonReader jsonReader =
           new JsonReader(
               bufferManager.getManagedBuffer(),
               sizeLimit,
+              rowSizeLimitEnabled,
+              rowSizeLimit,
               maxLeafLimit,
               context.getOptions().getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR),
               false,
@@ -254,6 +232,124 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
       throw UserException.validationError(ex)
           .message("Failure while trying to parse JSON literal.")
           .build(logger);
+    }
+  }
+
+  private class InputFieldVisitor implements RexVisitor<ConversionColumn> {
+
+    private final RexNode rexRoot;
+    private final RelNode inputRel;
+    private final String inputFieldName;
+
+    public InputFieldVisitor(RexNode rexRoot, RelNode inputRel, String inputFieldName) {
+      this.rexRoot = rexRoot;
+      this.inputRel = inputRel;
+      this.inputFieldName = inputFieldName;
+    }
+
+    @Override
+    public ConversionColumn visitInputRef(RexInputRef rexInputRef) {
+      Set<RelColumnOrigin> origins = query.getColumnOrigins(inputRel, rexInputRef.getIndex());
+      if (origins == null || origins.size() != 1 || origins.iterator().next().isDerived()) {
+        throw failed();
+      }
+
+      RelColumnOrigin origin = origins.iterator().next();
+      RelOptTable originTable = origin.getOriginTable();
+
+      List<String> tablePath = originTable.getQualifiedName();
+      String fieldName =
+          originTable.getRowType().getFieldNames().get(origin.getOriginColumnOrdinal());
+      // only retrieve the discovered type info if the node we're visiting is the root of the
+      // expression
+      CompleteType type =
+          rexInputRef == rexRoot ? getRawSchema(context, tablePath, fieldName) : null;
+      return new ConversionColumn(OriginType.RAW, tablePath, fieldName, inputFieldName, type);
+    }
+
+    @Override
+    public ConversionColumn visitFieldAccess(RexFieldAccess rexFieldAccess) {
+      RexNode refExpr = rexFieldAccess.getReferenceExpr();
+      if (!((refExpr instanceof RexFieldAccess) || (refExpr instanceof RexInputRef))) {
+        throw failed();
+      }
+
+      ConversionColumn conversionColumn = refExpr.accept(this);
+      String fieldName =
+          conversionColumn.getOriginField() + "." + rexFieldAccess.getField().getName();
+      // only retrieve the discovered type info if the node we're visiting is the root of the
+      // expression
+      CompleteType type =
+          rexFieldAccess == rexRoot
+              ? getRawSchema(context, conversionColumn.getOriginTable(), fieldName)
+              : null;
+      return new ConversionColumn(
+          OriginType.RAW,
+          conversionColumn.getOriginTable(),
+          fieldName,
+          conversionColumn.getInputField(),
+          type);
+    }
+
+    @Override
+    public ConversionColumn visitLocalRef(RexLocalRef rexLocalRef) {
+      throw failed();
+    }
+
+    @Override
+    public ConversionColumn visitLiteral(RexLiteral rexLiteral) {
+      byte[] literalValue;
+      SqlTypeFamily family = rexLiteral.getTypeName().getFamily();
+      if (family.equals(SqlTypeFamily.CHARACTER)) {
+        literalValue = ((String) rexLiteral.getValue2()).getBytes(StandardCharsets.UTF_8);
+      } else if (family.equals(SqlTypeFamily.BINARY)) {
+        literalValue = ((byte[]) rexLiteral.getValue2());
+      } else {
+        throw failed();
+      }
+
+      return new ConversionColumn(
+          OriginType.LITERAL, null, null, inputFieldName, getLiteralSchema(context, literalValue));
+    }
+
+    @Override
+    public ConversionColumn visitCall(RexCall rexCall) {
+      throw failed();
+    }
+
+    @Override
+    public ConversionColumn visitOver(RexOver rexOver) {
+      throw failed();
+    }
+
+    @Override
+    public ConversionColumn visitCorrelVariable(RexCorrelVariable rexCorrelVariable) {
+      throw failed();
+    }
+
+    @Override
+    public ConversionColumn visitDynamicParam(RexDynamicParam rexDynamicParam) {
+      throw failed();
+    }
+
+    @Override
+    public ConversionColumn visitRangeRef(RexRangeRef rexRangeRef) {
+      throw failed();
+    }
+
+    @Override
+    public ConversionColumn visitSubQuery(RexSubQuery rexSubQuery) {
+      throw failed();
+    }
+
+    @Override
+    public ConversionColumn visitTableInputRef(RexTableInputRef rexTableInputRef) {
+      throw failed();
+    }
+
+    @Override
+    public ConversionColumn visitPatternFieldRef(RexPatternFieldRef rexPatternFieldRef) {
+      throw failed();
     }
   }
 }

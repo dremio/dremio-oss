@@ -164,6 +164,12 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
       return Collections.EMPTY_MAP;
     }
 
+    // We may repurpose it but for now, if we use sort order as clustering columns, we won't show
+    // the sort order priority to avoid confusion
+    if (IcebergUtils.hasClusteringColumns(table)) {
+      return Collections.EMPTY_MAP;
+    }
+
     String sortOrder = icebergMetadata.getSortOrder();
 
     Schema icebergSchema = SchemaConverter.getBuilder().build().toIcebergSchema(table.getSchema());

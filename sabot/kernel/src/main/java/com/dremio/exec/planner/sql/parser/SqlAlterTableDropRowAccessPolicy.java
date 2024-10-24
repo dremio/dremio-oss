@@ -15,14 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -35,8 +29,7 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /** ALTER { TABLE | VIEW } <table_name> DROP ROW ACCESS POLICY <function_name> */
-public class SqlAlterTableDropRowAccessPolicy extends SqlAlterTable
-    implements SimpleDirectHandler.Creator {
+public class SqlAlterTableDropRowAccessPolicy extends SqlAlterTable {
 
   public static final SqlSpecialOperator OPERATOR =
       new SqlSpecialOperator("UNSET_ROW_POLICY", SqlKind.OTHER) {
@@ -81,29 +74,5 @@ public class SqlAlterTableDropRowAccessPolicy extends SqlAlterTable
     writer.keyword("ACCESS");
     writer.keyword("POLICY");
     policy.unparse(writer, leftPrec, rightPrec);
-  }
-
-  @Override
-  public SimpleDirectHandler toDirectHandler(QueryContext context) {
-    if (!context.getOptions().getOption(ExecConstants.ENABLE_NATIVE_ROW_COLUMN_POLICIES)) {
-      throw new UnsupportedOperationException("Native row/column policies are not supported.");
-    }
-
-    try {
-      final Class<?> cl =
-          Class.forName(
-              "com.dremio.exec.planner.sql.handlers.EnterpriseAlterTableDropRowAccessPolicy");
-      final Constructor<?> ctor = cl.getConstructor(QueryContext.class);
-      return (SimpleDirectHandler) ctor.newInstance(context);
-    } catch (InstantiationException
-        | IllegalAccessException
-        | ClassNotFoundException
-        | NoSuchMethodException
-        | InvocationTargetException e) {
-      final UserException.Builder exceptionBuilder =
-          UserException.unsupportedError()
-              .message("This command is not supported in this edition of Dremio.");
-      throw exceptionBuilder.buildSilently();
-    }
   }
 }

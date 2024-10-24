@@ -18,7 +18,7 @@ const initialState = false;
 
 export const showAddPatModal = (
   state = initialState,
-  action: { type: string; payload: boolean }
+  action: { type: string; payload: boolean },
 ) => {
   if (action.type === "SHOW_PAT_MODAL") {
     return action.payload;
@@ -26,9 +26,9 @@ export const showAddPatModal = (
   return state;
 };
 
-export const showAccountSettingsModal  = (
+export const showAccountSettingsModal = (
   state = initialState,
-  action: { type: string; payload: boolean }
+  action: { type: string; payload: boolean },
 ) => {
   if (action.type === "SHOW_ACCOUNT_SETTINGS_MODAL") {
     return action.payload;

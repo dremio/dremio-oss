@@ -15,7 +15,7 @@
  */
 import { RSAA } from "redux-api-middleware";
 import { push } from "react-router-redux";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 import { saveAsDataset } from "actions/explore/dataset/save";
 
 import {
@@ -23,7 +23,7 @@ import {
   showConfirmationDialog,
 } from "actions/confirmation";
 
-import FileUtils from "@app/utils/FileUtils";
+import FileUtils from "#oss/utils/FileUtils";
 import config from "@inject/utils/config";
 import jobsUtils from "utils/jobsUtils";
 
@@ -90,7 +90,7 @@ export const showDownloadModal = (jobId, confirm) => (dispatch) => {
         </span>,
         currentJobLink,
       ],
-    })
+    }),
   );
 };
 
@@ -139,7 +139,7 @@ const fetchDownloadTableau = ({ href }) => {
           meta: {
             notification: {
               message: laDeprecated(
-                "There was an error preparing for Tableau."
+                "There was an error preparing for Tableau.",
               ),
               level: "error",
             },
@@ -190,7 +190,7 @@ const fetchDownloadPowerBI = ({ href }) => {
           meta: {
             notification: {
               message: laDeprecated(
-                "There was an error preparing for Power BI."
+                "There was an error preparing for Power BI.",
               ),
               level: "error",
             },

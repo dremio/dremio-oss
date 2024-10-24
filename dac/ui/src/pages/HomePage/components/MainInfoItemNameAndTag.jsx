@@ -20,7 +20,7 @@ import { injectIntl } from "react-intl";
 import { connect } from "react-redux";
 import { startSearch as startSearchAction } from "actions/search";
 import CopyButton from "components/Buttons/CopyButton";
-import { TagList } from "@app/pages/HomePage/components/TagList";
+import { TagList } from "#oss/pages/HomePage/components/TagList";
 import { constructFullPath, getFullPathListFromEntity } from "utils/pathUtils";
 import MainInfoItemName from "./MainInfoItemName";
 

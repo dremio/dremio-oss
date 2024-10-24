@@ -51,7 +51,7 @@ public class TestOrphanageServiceForMultiCoordinators extends BaseTestServer {
     BaseTestServer.init();
     BaseTestServer.getPopulator().populateTestUsers();
 
-    setSystemOption(ExecConstants.ORPHANAGE_ENTRY_CLEAN_PERIOD_MINUTES, "1000");
+    setSystemOption(ExecConstants.ORPHANAGE_ENTRY_CLEAN_PERIOD_MINUTES, 1000);
 
     masterOrphanService = lMaster(OrphanageCleanerService.class);
     slaveOrphanService = l(OrphanageCleanerService.class);
@@ -62,9 +62,7 @@ public class TestOrphanageServiceForMultiCoordinators extends BaseTestServer {
 
   @AfterClass
   public static void reset() throws IOException {
-    setSystemOption(
-        ExecConstants.ORPHANAGE_ENTRY_CLEAN_PERIOD_MINUTES.getOptionName(),
-        ExecConstants.ORPHANAGE_ENTRY_CLEAN_PERIOD_MINUTES.getDefault().getNumVal().toString());
+    resetSystemOption(ExecConstants.ORPHANAGE_ENTRY_CLEAN_PERIOD_MINUTES);
     FileUtils.deleteDirectory(new File(temporaryFolder.getRoot().toString()));
   }
 

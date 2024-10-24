@@ -37,6 +37,25 @@ public abstract class AbstractTestProfileStore {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(AbstractTestProfileStore.class);
 
+  private static final CoordinationProtos.NodeEndpoint E1 =
+      CoordinationProtos.NodeEndpoint.newBuilder()
+          .setAddress("10.10.20.20")
+          .setFabricPort(45678)
+          .build();
+  private static final CoordinationProtos.NodeEndpoint E2 =
+      CoordinationProtos.NodeEndpoint.newBuilder()
+          .setAddress("10.10.20.21")
+          .setFabricPort(45678)
+          .build();
+
+  private static final UserBitShared.QueryProfile QUERY_PROFILE =
+      UserBitShared.QueryProfile.newBuilder()
+          .setPlan("PLAN_VALUE")
+          .setQuery("Select * from plan")
+          .setCancelReason("Cancel plan")
+          .setState(UserBitShared.QueryResult.QueryState.COMPLETED)
+          .build();
+
   private ProfileStore profileStore;
 
   @Before
@@ -57,13 +76,7 @@ public abstract class AbstractTestProfileStore {
     final UserBitShared.QueryId queryId =
         UserBitShared.QueryId.newBuilder().setPart1(1020).setPart2(2000).build();
 
-    UserBitShared.QueryProfile planningProfile =
-        UserBitShared.QueryProfile.newBuilder()
-            .setPlan("PLAN_VALUE")
-            .setQuery("Select * from plan")
-            .setCancelReason("Cancel plan")
-            .setState(UserBitShared.QueryResult.QueryState.COMPLETED)
-            .build();
+    UserBitShared.QueryProfile planningProfile = QUERY_PROFILE;
 
     profileStore.putPlanningProfile(queryId, planningProfile);
     assertEquals(planningProfile, profileStore.getPlanningProfile(queryId).get());
@@ -120,13 +133,7 @@ public abstract class AbstractTestProfileStore {
     final UserBitShared.QueryId queryId =
         UserBitShared.QueryId.newBuilder().setPart1(1020).setPart2(2020).build();
 
-    UserBitShared.QueryProfile fullProfile =
-        UserBitShared.QueryProfile.newBuilder()
-            .setPlan("PLAN_VALUE")
-            .setQuery("Select * from plan")
-            .setCancelReason("Cancel plan")
-            .setState(UserBitShared.QueryResult.QueryState.COMPLETED)
-            .build();
+    UserBitShared.QueryProfile fullProfile = QUERY_PROFILE;
 
     profileStore.putFullProfile(queryId, fullProfile);
     assertEquals(fullProfile, profileStore.getFullProfile(queryId).get());
@@ -149,36 +156,38 @@ public abstract class AbstractTestProfileStore {
   public void testExecutorProfile() {
     final UserBitShared.QueryId queryId =
         UserBitShared.QueryId.newBuilder().setPart1(1020).setPart2(2030).build();
-    final CoordinationProtos.NodeEndpoint e1 =
-        CoordinationProtos.NodeEndpoint.newBuilder().setAddress("10.10.20.20").build();
-    final CoordinationProtos.NodeEndpoint e2 =
-        CoordinationProtos.NodeEndpoint.newBuilder().setAddress("10.10.20.21").build();
-
     CoordExecRPC.ExecutorQueryProfile executorQueryProfile1 =
-        CoordExecRPC.ExecutorQueryProfile.newBuilder().build();
+        CoordExecRPC.ExecutorQueryProfile.newBuilder().setEndpoint(E1).build();
 
     CoordExecRPC.ExecutorQueryProfile executorQueryProfile2 =
-        CoordExecRPC.ExecutorQueryProfile.newBuilder().build();
+        CoordExecRPC.ExecutorQueryProfile.newBuilder().setEndpoint(E2).build();
 
     // should be empty initially.
     assertEquals(0, profileStore.getAllExecutorProfiles(queryId).count());
 
+    profileStore.putPlanningProfile(queryId, QUERY_PROFILE);
     // add one executor profile, should return 1 profile.
-    profileStore.putExecutorProfile(queryId, e1, executorQueryProfile1, false);
+    profileStore.putExecutorProfile(queryId, E1, executorQueryProfile1, false);
     assertTrue(
         compareUnordered(
             Stream.of(executorQueryProfile1), profileStore.getAllExecutorProfiles(queryId)));
 
     // add second executor profile, should return 2 profiles.
-    profileStore.putExecutorProfile(queryId, e2, executorQueryProfile2, false);
+    profileStore.putExecutorProfile(queryId, E2, executorQueryProfile2, false);
     assertTrue(
         compareUnordered(
             Stream.of(executorQueryProfile1, executorQueryProfile2),
             profileStore.getAllExecutorProfiles(queryId)));
 
     // overwrite second executor profile, should still return 2 profiles.
-    executorQueryProfile2 = CoordExecRPC.ExecutorQueryProfile.newBuilder().build();
-    profileStore.putExecutorProfile(queryId, e2, executorQueryProfile2, false);
+    executorQueryProfile2 =
+        executorQueryProfile2.toBuilder()
+            .setNodeStatus(
+                CoordExecRPC.NodeQueryStatus.newBuilder()
+                    .setMaxMemoryUsed(666666)
+                    .setTimeEnqueuedBeforeSubmitMs(2))
+            .build();
+    profileStore.putExecutorProfile(queryId, E2, executorQueryProfile2, false);
     assertTrue(
         compareUnordered(
             Stream.of(executorQueryProfile1, executorQueryProfile2),
@@ -197,13 +206,7 @@ public abstract class AbstractTestProfileStore {
         UserBitShared.QueryId.newBuilder().setPart1(1020).setPart2(2050).build();
 
     // write planning profile
-    UserBitShared.QueryProfile planningProfile =
-        UserBitShared.QueryProfile.newBuilder()
-            .setPlan("PLAN_VALUE")
-            .setQuery("Select * from plan")
-            .setCancelReason("Cancel plan")
-            .setState(UserBitShared.QueryResult.QueryState.COMPLETED)
-            .build();
+    UserBitShared.QueryProfile planningProfile = QUERY_PROFILE;
     profileStore.putPlanningProfile(queryId, planningProfile);
     assertEquals(planningProfile, profileStore.getPlanningProfile(queryId).get());
 
@@ -218,16 +221,12 @@ public abstract class AbstractTestProfileStore {
     assertEquals(fullProfile, profileStore.getFullProfile(queryId).get());
 
     // write executor profiles.
-    final CoordinationProtos.NodeEndpoint e1 =
-        CoordinationProtos.NodeEndpoint.newBuilder().setAddress("10.10.20.20").build();
-    final CoordinationProtos.NodeEndpoint e2 =
-        CoordinationProtos.NodeEndpoint.newBuilder().setAddress("10.10.20.21").build();
 
     // write two executor profiles.
     CoordExecRPC.ExecutorQueryProfile executorQueryProfile =
         CoordExecRPC.ExecutorQueryProfile.newBuilder().build();
-    profileStore.putExecutorProfile(queryId, e1, executorQueryProfile, false);
-    profileStore.putExecutorProfile(queryId, e2, executorQueryProfile, false);
+    profileStore.putExecutorProfile(queryId, E1, executorQueryProfile, false);
+    profileStore.putExecutorProfile(queryId, E2, executorQueryProfile, false);
 
     // delete and verify.
     profileStore.deleteSubProfiles(queryId);

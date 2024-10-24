@@ -27,13 +27,13 @@ import {
   TextField,
 } from "@mui/material";
 
-import { setReference as setReferenceAction } from "@app/actions/nessie/nessie";
-import { Reference } from "@app/types/nessie";
+import { setReference as setReferenceAction } from "#oss/actions/nessie/nessie";
+import { Reference } from "#oss/types/nessie";
 import { CustomDialogTitle } from "../NewBranchDialog/utils";
 import { useNessieContext } from "../../utils/context";
 
 import "./RenameBranchDialog.less";
-import { ReferenceType } from "@app/services/nessie/client";
+import { ReferenceType } from "#oss/services/nessie/client";
 
 type RenameBranchDialogProps = {
   open: boolean;
@@ -105,15 +105,15 @@ function RenameBranchDialog({
     } catch (error: any) {
       if (error.status === 400) {
         setErrorText(
-          <FormattedMessage id="RepoView.Dialog.CreateBranch.Error.InvalidName" />
+          <FormattedMessage id="RepoView.Dialog.CreateBranch.Error.InvalidName" />,
         );
       } else if (error.status === 409) {
         setErrorText(
-          <FormattedMessage id="RepoView.Dialog.CreateBranch.Error.Conflict" />
+          <FormattedMessage id="RepoView.Dialog.CreateBranch.Error.Conflict" />,
         );
       } else {
         setErrorText(
-          <FormattedMessage id="RepoView.Dialog.DeleteBranch.Error" />
+          <FormattedMessage id="RepoView.Dialog.DeleteBranch.Error" />,
         );
       }
 

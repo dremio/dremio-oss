@@ -13,6 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import allBitmaps from "@app/art/bitmap.pattern";
+import allBitmaps from "#oss/art/bitmap.pattern";
 
 export { allBitmaps };

@@ -35,10 +35,10 @@ describe("Message", () => {
     expect(wrapper.find(".message")).to.have.length(1);
     expect(wrapper.find("dremio-icon")).to.have.length(2);
     expect(wrapper.find("dremio-icon").first().prop("alt")).to.be.equal(
-      "Warning"
+      "Warning",
     );
     expect(wrapper.find(".message-content").text()).to.equal(
-      commonProps.message.get("message") + "."
+      commonProps.message.get("message") + ".",
     );
   });
 
@@ -48,7 +48,7 @@ describe("Message", () => {
       <Message
         {...commonProps}
         message={`Message with link ${firstAllowedUrl}`}
-      />
+      />,
     );
     expect(wrapper.find("a")).to.have.length(1);
   });
@@ -56,14 +56,14 @@ describe("Message", () => {
   it("should note add in hyperlink element for non-allowed web link found in the message", () => {
     const link = "https://www.dremio.com/random_url";
     const wrapper = mount(
-      <Message {...commonProps} message={`Message with link ${link}`} />
+      <Message {...commonProps} message={`Message with link ${link}`} />,
     );
     expect(wrapper.find("a")).to.have.length(0);
   });
 
   it("should not add in hyperlink if the message does not contain any web link", () => {
     const wrapper = mount(
-      <Message {...commonProps} message={"simple message"} />
+      <Message {...commonProps} message={"simple message"} />,
     );
     expect(wrapper.find("a")).to.have.length(0);
   });
@@ -80,7 +80,7 @@ describe("Message", () => {
   it("hides when dismiss is clicked and shows again when it receives a new message", () => {
     const wrapper = shallow(<Message {...commonProps} />);
     expect(wrapper.find("dremio-icon").at(1).prop("onClick")).to.equal(
-      wrapper.instance().onDismiss
+      wrapper.instance().onDismiss,
     );
     wrapper.instance().onDismiss();
     expect(wrapper.state("dismissed")).to.be.true;
@@ -94,7 +94,7 @@ describe("Message", () => {
 
   it("does not hide when dismiss is clicked and props.onDismiss returns false", () => {
     const wrapper = shallow(
-      <Message {...commonProps} onDismiss={() => false} />
+      <Message {...commonProps} onDismiss={() => false} />,
     );
     wrapper.instance().onDismiss();
     expect(wrapper.state("dismissed")).to.be.false;
@@ -102,21 +102,21 @@ describe("Message", () => {
 
   it("throws on unknown messageType", () => {
     expect(() =>
-      shallow(<Message {...commonProps} messageType="foo" />)
+      shallow(<Message {...commonProps} messageType="foo" />),
     ).to.throw();
   });
 
   it("should render close icon by default", () => {
     expect(
-      shallow(<Message {...commonProps} />).find('dremio-icon[alt="Dismiss"]')
+      shallow(<Message {...commonProps} />).find('dremio-icon[alt="Dismiss"]'),
     ).to.have.length(1);
   });
 
   it("should not render close icon when message is not dissmisable", () => {
     expect(
       shallow(<Message isDismissable={false} />).find(
-        'dremio-icon[alt="Dismiss"]'
-      )
+        'dremio-icon[alt="Dismiss"]',
+      ),
     ).to.have.length(0);
   });
 
@@ -148,7 +148,7 @@ describe("Message", () => {
   describe("#renderErrorMessageText", function () {
     it("should return message from string", function () {
       const instance = shallow(
-        <Message {...commonProps} message="bar" />
+        <Message {...commonProps} message="bar" />,
       ).instance();
       expect(instance.renderErrorMessageText()).to.eql("bar");
     });
@@ -161,7 +161,7 @@ describe("Message", () => {
         <Message
           {...commonProps}
           message={Immutable.Map({ errorMessage: "foo" })}
-        />
+        />,
       ).instance();
       expect(instance.renderErrorMessageText()).to.eql("foo.");
     });
@@ -171,12 +171,12 @@ describe("Message", () => {
         <Message
           {...commonProps}
           message={Immutable.Map({ message: "foo", code: "PIPELINE_FAILURE" })}
-        />
+        />,
       ).instance();
       expect(instance.renderErrorMessageText()).to.eql(
         <span>
           {laDeprecated("There was an error in the Reflection pipeline.")}
-        </span>
+        </span>,
       );
     });
   });
@@ -184,7 +184,7 @@ describe("Message", () => {
   describe("#renderDetails", function () {
     it("should not render with string", function () {
       const instance = shallow(
-        <Message {...commonProps} message="foo" />
+        <Message {...commonProps} message="foo" />,
       ).instance();
       expect(instance.renderDetails()).to.be.undefined;
     });
@@ -197,7 +197,7 @@ describe("Message", () => {
         <Message
           {...commonProps}
           message={Immutable.Map({ message: "foo", stackTrace: ["a", "b"] })}
-        />
+        />,
       ).instance();
       expect(shallow(instance.renderDetails()).text()).to.eql("a\nb");
     });
@@ -206,7 +206,7 @@ describe("Message", () => {
         <Message
           {...commonProps}
           message={Immutable.Map({ message: "foo", stackTrace: "foo" })}
-        />
+        />,
       ).instance();
       expect(shallow(instance.renderDetails()).text()).to.eql("foo");
     });
@@ -215,7 +215,7 @@ describe("Message", () => {
         <Message
           {...commonProps}
           message={Immutable.Map({ message: "foo", moreInfo: "bar" })}
-        />
+        />,
       ).instance();
       expect(shallow(instance.renderDetails()).text()).to.eql("bar");
     });
@@ -233,7 +233,7 @@ describe("Message", () => {
               materializationId: "materialization",
             },
           })}
-        />
+        />,
       ).instance();
       expect(instance.renderDetails()).to.be.undefined;
     });
@@ -249,7 +249,7 @@ describe("Message", () => {
           message={Immutable.fromJS({
             message: "foo",
           })}
-        />
+        />,
       ).instance();
       expect(instance.renderDetailsForCode()).to.be.undefined;
     });
@@ -267,7 +267,7 @@ describe("Message", () => {
               materializationId: "materialization",
             },
           })}
-        />
+        />,
       ).instance();
       expect(instance.renderDetailsForCode()).to.eql(RENDER_NO_DETAILS);
     });
@@ -281,7 +281,7 @@ describe("Message", () => {
           message={Immutable.fromJS({
             message: "foo",
           })}
-        />
+        />,
       ).instance();
       expect(instance.renderMessageForCode()).to.be.undefined;
     });
@@ -294,10 +294,10 @@ describe("Message", () => {
             code: "PIPELINE_FAILURE",
             message: "foo",
           })}
-        />
+        />,
       ).instance();
       expect(mount(instance.renderMessageForCode()).text()).to.eql(
-        "There was an error in the Reflection pipeline."
+        "There was an error in the Reflection pipeline.",
       );
     });
 
@@ -314,10 +314,10 @@ describe("Message", () => {
               materializationId: "materialization",
             },
           })}
-        />
+        />,
       ).instance();
       expect(mount(instance.renderMessageForCode()).text()).to.eql(
-        "There was an error building a Reflection (show job)."
+        "There was an error building a Reflection (show job).",
       );
     });
 
@@ -329,10 +329,10 @@ describe("Message", () => {
             code: "DROP_FAILURE",
             message: "foo",
           })}
-        />
+        />,
       ).instance();
       expect(mount(instance.renderMessageForCode()).text()).to.eql(
-        "There was an error dropping a Reflection."
+        "There was an error dropping a Reflection.",
       );
     });
   });

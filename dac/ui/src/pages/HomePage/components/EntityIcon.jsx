@@ -22,12 +22,12 @@ import {
   getSourceStatusIcon,
   getIconByEntityType,
 } from "utils/iconUtils";
-import { ENTITY_TYPES } from "@app/constants/Constants";
-import { getEntity } from "@app/selectors/resources";
-import { getRootEntityTypeByIdV3 } from "@app/selectors/home";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
+import { getEntity } from "#oss/selectors/resources";
+import { getRootEntityTypeByIdV3 } from "#oss/selectors/home";
 import { Tooltip } from "dremio-ui-lib/components";
-
-import { isVersionedSource } from "@app/utils/sourceUtils";
+import { isVersionedSource } from "@inject/utils/sourceUtils";
+import { withEntityProps } from "dyn-load/utils/entity-utils";
 
 const mapStateToPropsForEntityIcon = (state, { entityId }) => {
   const type = getRootEntityTypeByIdV3(state, entityId);
@@ -65,15 +65,18 @@ export class EntityIcon extends PureComponent {
     //connected
     sourceStatus: PropTypes.string, // available only for sources
     sourceType: PropTypes.string, // available only for sources
+    isManageAccessEnabled: PropTypes.string,
   };
 
   render() {
-    const { entityType, sourceStatus, sourceType } = this.props;
+    const { entityType, sourceStatus, sourceType, isManageAccessEnabled } =
+      this.props;
     return (
       <PureEntityIcon
         entityType={entityType}
         sourceStatus={sourceStatus}
         sourceType={sourceType}
+        isManageAccessEnabled={isManageAccessEnabled}
       />
     );
   }
@@ -85,6 +88,7 @@ export class PureEntityIcon extends PureComponent {
     sourceStatus: PropTypes.string,
     sourceType: PropTypes.string,
     style: PropTypes.object,
+    isManageAccessEnabled: PropTypes.string,
     enableTooltip: PropTypes.bool,
     tooltipPortal: PropTypes.bool,
   };
@@ -95,13 +99,18 @@ export class PureEntityIcon extends PureComponent {
       sourceStatus,
       sourceType,
       style,
+      isManageAccessEnabled,
       enableTooltip = true,
       tooltipPortal,
     } = this.props;
     const isSource = entityType?.toLowerCase() === "source";
     const iconType = isSource
       ? getSourceStatusIcon(sourceStatus, sourceType)
-      : getIconByEntityType(entityType, isVersionedSource(sourceType)); //TODO Need to replace all of these to use dremio-icon
+      : getIconByEntityType(
+          entityType,
+          isVersionedSource(sourceType),
+          isManageAccessEnabled,
+        ); //TODO Need to replace all of these to use dremio-icon
     const iconAltText =
       (isSource
         ? getIconAltTextBySourceType(sourceType)
@@ -134,3 +143,5 @@ export class PureEntityIcon extends PureComponent {
     }
   }
 }
+
+export default withEntityProps(EntityIcon);

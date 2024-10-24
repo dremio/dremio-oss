@@ -36,6 +36,7 @@ export default class FormTab extends Component {
       formConfig,
       tabConfig,
       showTabTitle = false,
+      showIcon = true,
       disabled,
     } = this.props;
     const tabConfigJson = tabConfig.getConfig();
@@ -75,6 +76,7 @@ export default class FormTab extends Component {
               key={index}
               sectionConfig={section}
               tabTitleText={showTabTitle ? null : tabTitleText}
+              showIcon={showIcon}
               disabled={isSectionDisabled(section, fields, disabled)}
               isFirstSection={index === 0}
             />

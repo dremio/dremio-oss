@@ -24,7 +24,7 @@ import { EntityLinkProviderView } from "./EntityLink";
  */
 export const getRenderEntityLinkContent = (
   wrapper,
-  linkUrlToInject = "test/url"
+  linkUrlToInject = "test/url",
 ) => wrapper.prop("children")(linkUrlToInject);
 
 it("EntityLinkProvider renders a result of render props function", () => {
@@ -35,12 +35,12 @@ it("EntityLinkProvider renders a result of render props function", () => {
   const wrapper = shallow(
     <EntityLinkProviderView linkTo={urlToInject}>
       {renderProps}
-    </EntityLinkProviderView>
+    </EntityLinkProviderView>,
   );
 
   expect(renderProps).to.be.calledWith(urlToInject);
   expect(wrapper.find(".test-selector")).to.have.length(
     1,
-    "result which is returned by children function should be rendered"
+    "result which is returned by children function should be rendered",
   );
 });

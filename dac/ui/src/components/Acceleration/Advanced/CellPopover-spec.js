@@ -58,7 +58,7 @@ describe("CellPopover", () => {
     it("should set appropriate drag field list to state", () => {
       const sortFields = [{ name: { value: "name" } }];
       const w = shallow(
-        <CellPopover {...commonProps} sortFields={sortFields} />
+        <CellPopover {...commonProps} sortFields={sortFields} />,
       );
       expect(w.state().dragColumns.sortFields).to.be.eql([{ name: "name" }]);
     });
@@ -78,7 +78,7 @@ describe("CellPopover", () => {
       const newFields = [{ name: { value: "name2" } }];
       instance.receiveProps(
         { sortFields: newFields },
-        { sortFields: oldFields }
+        { sortFields: oldFields },
       );
       expect(wrapper.state().dragColumns.sortFields).to.be.eql([
         { name: "name2" },
@@ -93,7 +93,7 @@ describe("CellPopover", () => {
       expect(instance.props.sortFields.removeField).to.be.calledWith(0);
       expect(instance.props.sortFields.addField).to.be.calledWith(
         { name: "name" },
-        1
+        1,
       );
       expect(wrapper.state("dragIndex")).to.equal(-1);
       expect(wrapper.state("hoverIndex")).to.equal(-1);
@@ -105,7 +105,7 @@ describe("CellPopover", () => {
       expect(instance.props.sortFields.removeField).to.be.calledWith(3);
       expect(instance.props.sortFields.addField).to.be.calledWith(
         { name: "name" },
-        1
+        1,
       );
       expect(wrapper.state("dragIndex")).to.equal(-1);
       expect(wrapper.state("hoverIndex")).to.equal(-1);

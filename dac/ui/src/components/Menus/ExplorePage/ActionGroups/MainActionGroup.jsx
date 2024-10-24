@@ -17,12 +17,12 @@ import { PureComponent } from "react";
 
 import PropTypes from "prop-types";
 
-import { MIXED } from "@app/constants/DataTypes";
+import { MIXED } from "#oss/constants/DataTypes";
 import {
   ALL_TYPES,
   CONVERTIBLE_TYPES,
   NOT_LIST_AND_MAP_TYPES,
-} from "@app/constants/columnTypeGroups";
+} from "#oss/constants/columnTypeGroups";
 import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
 
 class MainActionGroup extends PureComponent {

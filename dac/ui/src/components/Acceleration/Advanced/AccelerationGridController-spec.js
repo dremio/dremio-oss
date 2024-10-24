@@ -85,7 +85,7 @@ describe("AccelerationGridController", () => {
       const currentColumn = { name: "columnA" };
       instance.setState({ currentCell: { columnIndex: 0 } });
       expect(
-        instance.findCurrentIndexInFieldsList(currentColumn, "partitionFields")
+        instance.findCurrentIndexInFieldsList(currentColumn, "partitionFields"),
       ).to.equal(1);
     });
 
@@ -93,7 +93,7 @@ describe("AccelerationGridController", () => {
       const currentColumn = { name: "columnA" };
       instance.setState({ currentCell: { columnIndex: 0 } });
       expect(
-        instance.findCurrentIndexInFieldsList(currentColumn, "sortFields")
+        instance.findCurrentIndexInFieldsList(currentColumn, "sortFields"),
       ).to.equal(-1);
     });
 
@@ -126,8 +126,8 @@ describe("AccelerationGridController", () => {
         instance.findCurrentIndexInFieldsList(
           currentColumn,
           "partitionFields",
-          1
-        )
+          1,
+        ),
       ).to.eql(0);
     });
   });
@@ -135,7 +135,7 @@ describe("AccelerationGridController", () => {
   describe("findCurrentColumnInLayouts", () => {
     it("should return current column in field list", () => {
       expect(
-        instance.findCurrentColumnInLayouts("partitionFields", 1, 0)
+        instance.findCurrentColumnInLayouts("partitionFields", 1, 0),
       ).to.eql({
         name: { value: "columnB" },
       });
@@ -143,7 +143,7 @@ describe("AccelerationGridController", () => {
 
     it("should return undefined if field have not current column", () => {
       expect(
-        instance.findCurrentColumnInLayouts("dimensionFields", 0, 1)
+        instance.findCurrentColumnInLayouts("dimensionFields", 0, 1),
       ).to.eql(undefined);
     });
   });
@@ -180,7 +180,7 @@ describe("AccelerationGridController", () => {
       instance.removeFieldByIndex(0, "measureFields", 0);
       expect(instance.findCurrentIndexInFieldsList).to.have.been.called;
       expect(
-        instance.props.layoutFields[0].measureFields.removeField
+        instance.props.layoutFields[0].measureFields.removeField,
       ).to.have.been.calledWith(1);
     });
 
@@ -208,7 +208,7 @@ describe("AccelerationGridController", () => {
       instance.addFieldByIndex({ name: "col_name" }, "measureFields", 0);
       expect(instance.findCurrentIndexInFieldsList).to.have.been.called;
       expect(
-        instance.props.layoutFields[0].measureFields.addField
+        instance.props.layoutFields[0].measureFields.addField,
       ).to.have.been.calledWith({ name: "col_name" });
     });
 
@@ -239,7 +239,7 @@ describe("AccelerationGridController", () => {
       expect(instance.removeFieldByIndex).to.have.been.calledWith(
         { name: "columnA" },
         "measureFields",
-        0
+        0,
       );
     });
 
@@ -247,7 +247,7 @@ describe("AccelerationGridController", () => {
       sinon.stub(instance, "findCurrentColumnInLayouts").returns(undefined);
       instance.toggleField("measureFields", 0, 0);
       expect(
-        instance.props.layoutFields[0].measureFields.addField
+        instance.props.layoutFields[0].measureFields.addField,
       ).to.be.calledWith({ name: "columnA" });
     });
   });
@@ -275,7 +275,7 @@ describe("AccelerationGridController", () => {
       expect(instance.removeFieldByIndex).to.have.been.calledWith(
         { name: "columnA" },
         "sortFields",
-        0
+        0,
       );
     });
 
@@ -283,7 +283,7 @@ describe("AccelerationGridController", () => {
       sinon.stub(instance, "findCurrentColumnInLayouts").returns(undefined);
       instance.toggleSortField("sortFields", 0, 0);
       expect(
-        instance.props.layoutFields[0].sortFields.addField
+        instance.props.layoutFields[0].sortFields.addField,
       ).to.be.calledWith({ name: "columnA" });
     });
 
@@ -307,7 +307,7 @@ describe("AccelerationGridController", () => {
       expect(instance.applyRawConstraints).to.have.been.calledWith(
         "measureFields",
         0,
-        0
+        0,
       );
     });
 
@@ -317,7 +317,7 @@ describe("AccelerationGridController", () => {
       expect(instance.applyAggregationConstraints).to.have.been.calledWith(
         "measureFields",
         0,
-        0
+        0,
       );
     });
   });
@@ -341,7 +341,7 @@ describe("AccelerationGridController", () => {
       expect(instance.toggleSortField).to.have.been.calledWith(
         "sortFields",
         0,
-        0
+        0,
       );
     });
     it("should call applyConstraintsNext", () => {
@@ -349,7 +349,7 @@ describe("AccelerationGridController", () => {
       expect(instance.applyConstraintsNext).to.have.been.calledWith(
         "sortFields",
         0,
-        0
+        0,
       );
     });
     it("should call handleRequestClose", () => {
@@ -369,7 +369,7 @@ describe("AccelerationGridController", () => {
       expect(instance.toggleField).to.have.been.calledWith(
         "dimensionFields",
         0,
-        1
+        1,
       );
     });
     it("should call applyConstraintsNext", () => {
@@ -377,7 +377,7 @@ describe("AccelerationGridController", () => {
       expect(instance.applyConstraintsNext).to.have.been.calledWith(
         "dimensionFields",
         0,
-        1
+        1,
       );
     });
   });
@@ -405,17 +405,17 @@ describe("AccelerationGridController", () => {
       expect(instance.removeFieldByIndex).to.have.been.calledWith(
         currentRow,
         "sortFields",
-        0
+        0,
       );
       expect(instance.removeFieldByIndex).to.have.been.calledWith(
         currentRow,
         "partitionFields",
-        0
+        0,
       );
       expect(instance.removeFieldByIndex).to.have.been.calledWith(
         currentRow,
         "distributionFields",
-        0
+        0,
       );
     });
 
@@ -431,7 +431,7 @@ describe("AccelerationGridController", () => {
       expect(instance.removeFieldByIndex).to.have.been.calledWith(
         currentRow,
         "sortFields",
-        0
+        0,
       );
     });
 
@@ -449,12 +449,12 @@ describe("AccelerationGridController", () => {
       expect(instance.removeFieldByIndex).to.not.have.been.calledWith(
         currentRow,
         "measureFields",
-        0
+        0,
       );
       expect(instance.addFieldByIndex).to.have.been.calledWith(
         currentRow,
         "dimensionFields",
-        0
+        0,
       );
     });
 
@@ -471,12 +471,12 @@ describe("AccelerationGridController", () => {
         expect(instance.addFieldByIndex).to.have.been.calledWith(
           currentRow,
           "dimensionFields",
-          0
+          0,
         );
         expect(instance.removeFieldByIndex).to.not.have.been.calledWith(
           currentRow,
           "measureFields",
-          0
+          0,
         );
       };
 
@@ -513,12 +513,12 @@ describe("AccelerationGridController", () => {
       expect(instance.removeFieldByIndex).to.not.have.been.calledWith(
         currentRow,
         "dimensionFields",
-        0
+        0,
       );
       expect(instance.removeFieldByIndex).to.not.have.been.calledWith(
         currentRow,
         "sortFields",
-        0
+        0,
       );
     });
 
@@ -533,7 +533,7 @@ describe("AccelerationGridController", () => {
       expect(instance.removeFieldByIndex).to.not.have.been.calledWith(
         currentRow,
         "measureFields",
-        0
+        0,
       );
     });
   });
@@ -563,19 +563,19 @@ describe("AccelerationGridController", () => {
         expect(instance.removeFieldByIndex).to.have.been.calledWith(
           currentRow,
           "sortFields",
-          0
+          0,
         );
         expect(instance.removeFieldByIndex).to.have.been.calledWith(
           currentRow,
           "partitionFields",
-          0
+          0,
         );
         expect(instance.removeFieldByIndex).to.have.been.calledWith(
           currentRow,
           "distributionFields",
-          0
+          0,
         );
-      }
+      },
     );
 
     it("should add displayFields when sortFields, partitionFields or distributionFields selected", () => {
@@ -583,7 +583,7 @@ describe("AccelerationGridController", () => {
       instance.applyRawConstraints("sortFields", 0, 0);
 
       expect(
-        instance.props.layoutFields[0].displayFields.addField
+        instance.props.layoutFields[0].displayFields.addField,
       ).to.have.been.calledWith(currentRow);
     });
   });

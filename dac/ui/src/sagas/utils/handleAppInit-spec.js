@@ -15,15 +15,15 @@
  */
 import { call, put, select } from "redux-saga/effects";
 import { replace } from "react-router-redux";
-import { getLocation } from "@app/selectors/routing";
+import { getLocation } from "#oss/selectors/routing";
 import {
   LOGIN_PATH,
   SIGNUP_PATH,
   SSO_LANDING_PATH,
-} from "@app/sagas/loginLogout";
+} from "#oss/sagas/loginLogout";
 import { expect } from "chai";
-import handleAppInit from "@app/sagas/utils/handleAppInit";
-import socket from "@app/utils/socket";
+import handleAppInit from "#oss/sagas/utils/handleAppInit";
+import socket from "#oss/utils/socket";
 
 describe("handleAppInit", () => {
   let gen;
@@ -40,7 +40,7 @@ describe("handleAppInit", () => {
       gen.next({
         pathname: fromUrl,
         query: { redirect: redirectUrl },
-      }).value
+      }).value,
     ).to.be.eql(put(replace(redirectUrl)));
 
     expect(gen.next().done).to.be.true;
@@ -68,7 +68,7 @@ describe("handleAppInit", () => {
       gen.next({
         pathname: "/home",
         query: { redirect: redirectUrl },
-      }).done
+      }).done,
     ).to.be.true;
   });
 });

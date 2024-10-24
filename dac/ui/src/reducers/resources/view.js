@@ -15,7 +15,7 @@
  */
 import Immutable from "immutable";
 import { get } from "lodash";
-import { intl } from "@app/utils/intl";
+import { intl } from "#oss/utils/intl";
 import { v4 as uuidv4 } from "uuid";
 
 import {
@@ -28,8 +28,8 @@ import {
 import { CANCEL_TRANSFORM } from "actions/explore/dataset/transform";
 import { RESET_NEW_QUERY } from "actions/explore/view";
 import { CLEAR_ENTITIES } from "actions/resources/entities";
-import { ApiMiddlewareErrors } from "@app/utils/apiUtils/apiUtils";
-import { getNodeBranchId } from "@app/components/Tree/resourceTreeUtils";
+import { ApiMiddlewareErrors } from "#oss/utils/apiUtils/apiUtils";
+import { getNodeBranchId } from "#oss/components/Tree/resourceTreeUtils";
 
 export const NO_INTERNET_MESSAGE = intl.formatMessage({
   id: "Message.Code.WS_CLOSED.Message",
@@ -102,8 +102,8 @@ function invalidateViewIds(state, action) {
     viewIds.reduce(
       (previous, current) =>
         previous.set(current, Immutable.Map({ invalidated: true })),
-      Immutable.Map()
-    )
+      Immutable.Map(),
+    ),
   );
 }
 

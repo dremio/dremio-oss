@@ -77,8 +77,9 @@ public final class DremioPruneEmptyRules {
             }
           } else {
             builder.union(union.all, nonEmptyInputs);
-            builder.convert(union.getRowType(), true);
           }
+
+          builder.convert(union.getRowType(), true);
           call.transformTo(builder.build());
         }
       };
@@ -115,8 +116,8 @@ public final class DremioPruneEmptyRules {
             }
           } else {
             builder.minus(minus.all, nonEmptyInputs);
-            builder.convert(minus.getRowType(), true);
           }
+          builder.convert(minus.getRowType(), true);
           call.transformTo(builder.build());
         }
       };

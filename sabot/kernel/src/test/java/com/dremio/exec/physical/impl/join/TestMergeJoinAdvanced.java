@@ -99,10 +99,10 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
   @Test
   @Ignore // TODO file JIRA to fix this
   public void testFix2967() throws Exception {
-    setSessionOption(PlannerSettings.BROADCAST.getOptionName(), "false");
-    setSessionOption(PlannerSettings.HASHJOIN.getOptionName(), "false");
-    setSessionOption(ExecConstants.SLICE_TARGET, "1");
-    setSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, "23");
+    setSessionOption(PlannerSettings.BROADCAST, false);
+    setSessionOption(PlannerSettings.HASHJOIN, false);
+    setSessionOption(ExecConstants.SLICE_TARGET_OPTION, 1);
+    setSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE, 23);
 
     final String testResPath = TestTools.getWorkingPath() + "/src/test/resources";
 
@@ -111,15 +111,10 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
           "select * from dfs.\"%s/join/j1\" j1 left outer join dfs.\"%s/join/j2\" j2 on (j1.c_varchar = j2.c_varchar)",
           testResPath, testResPath);
     } finally {
-      setSessionOption(
-          PlannerSettings.BROADCAST.getOptionName(),
-          String.valueOf(PlannerSettings.BROADCAST.getDefault().getBoolVal()));
-      setSessionOption(
-          PlannerSettings.HASHJOIN.getOptionName(),
-          String.valueOf(PlannerSettings.HASHJOIN.getDefault().getBoolVal()));
-      setSessionOption(
-          ExecConstants.SLICE_TARGET, String.valueOf(ExecConstants.SLICE_TARGET_DEFAULT));
-      resetSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY);
+      resetSessionOption(PlannerSettings.BROADCAST);
+      resetSessionOption(PlannerSettings.HASHJOIN);
+      resetSessionOption(ExecConstants.SLICE_TARGET_OPTION);
+      resetSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE);
     }
   }
 

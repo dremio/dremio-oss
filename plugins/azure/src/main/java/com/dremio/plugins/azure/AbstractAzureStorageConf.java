@@ -54,13 +54,13 @@ public abstract class AbstractAzureStorageConf
   public abstract String getAccessKeyUri();
 
   /**
-   * @return secret type for Azure Active Directory authentication
+   * @return secret type for Azure Active Directory / Microsoft Entra ID authentication
    */
   @Deprecated
   public abstract AzureActiveDirectorySecretType getAzureADSecretType();
 
   /**
-   * @return Azure Key Vault/VaultURI for Azure Active Directory authentication
+   * @return Azure Key Vault/VaultURI for Azure Active Directory / Microsoft Entra ID authentication
    */
   @Deprecated
   public abstract String getClientSecretUri();

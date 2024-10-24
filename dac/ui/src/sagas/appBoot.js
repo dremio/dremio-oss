@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 import { takeEvery } from "redux-saga/effects";
-import { APP_INIT } from "@app/actions/app";
-import { checkAppState } from "@app/sagas/loginLogout";
+import { APP_INIT } from "#oss/actions/app";
+import { checkAppState } from "#oss/sagas/loginLogout";
 
 export function* afterAppInit() {
   yield takeEvery(APP_INIT, checkAppState);

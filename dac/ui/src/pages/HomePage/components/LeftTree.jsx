@@ -26,43 +26,42 @@ import PropTypes from "prop-types";
 import FinderNav from "components/FinderNav";
 import FinderNavItem from "components/FinderNavItem";
 import ViewStateWrapper from "components/ViewStateWrapper";
-import SpacesSection from "@app/pages/HomePage/components/SpacesSection";
+import SpacesSection from "#oss/pages/HomePage/components/SpacesSection";
 import EmptyStateContainer from "./EmptyStateContainer";
 import { Button, IconButton } from "dremio-ui-lib/components";
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import LinkWithRef from "#oss/components/LinkWithRef/LinkWithRef";
+import { fetchSupportFlags } from "#oss/actions/supportFlags";
 
 import {
   isDatabaseType,
   isDataPlaneSourceType,
-  isMetastoreSourceType,
   isObjectStorageSourceType,
-} from "@app/constants/sourceTypes";
+  isLakehouseSourceType,
+} from "@inject/constants/sourceTypes";
 
 import ApiUtils from "utils/apiUtils/apiUtils";
 import { createSampleSource } from "actions/resources/sources";
 import {
-  toggleDataplaneSourcesExpanded,
   toggleExternalSourcesExpanded,
-  toggleMetastoreSourcesExpanded,
   toggleObjectStorageSourcesExpanded,
   toggleDatasetsExpanded,
-} from "actions/ui/ui";
+  toggleLakehouseSourcesExpanded,
+} from "#oss/actions/ui/ui";
 import { sonarEvents } from "dremio-ui-common/sonar/sonarEvents.js";
-import { spacesSourcesListSpinnerStyleFinderNav } from "@app/pages/HomePage/HomePageConstants";
+import { spacesSourcesListSpinnerStyleFinderNav } from "#oss/pages/HomePage/HomePageConstants";
 import DataPlaneSection from "./DataPlaneSection/DataPlaneSection";
 import { getAdminStatus } from "dyn-load/pages/HomePage/components/modals/SpaceModalMixin";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
-import { withErrorBoundary } from "@app/components/ErrorBoundary/withErrorBoundary";
-import { intl } from "@app/utils/intl";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
+import { withErrorBoundary } from "#oss/components/ErrorBoundary/withErrorBoundary";
+import { intl } from "#oss/utils/intl";
 import {
   rmProjectBase,
   addProjectBase as wrapBackendLink,
 } from "dremio-ui-common/utilities/projectBase.js";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
+import additionalLeftTreeControls from "@inject/shared/AdditionalLeftTreeControls";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
-import { withCatalogARSFlag, ARSFeatureSwitch } from "@inject/utils/arsUtils";
-import { getHomeSource } from "@app/selectors/home";
-import HomeSourceSection from "./HomeSourceSection";
+import { ALLOW_LAKEHOUSE_CATALOG_DELETE } from "@inject/endpoints/SupportFlags/supportFlagConstants";
 
 import "./LeftTree.less";
 @injectIntl
@@ -103,11 +102,17 @@ export class LeftTree extends Component {
     isAdmin: PropTypes.bool,
     canCreateSource: PropTypes.bool,
     homeSourceUrl: PropTypes.string,
+    fetchSupportFlags: PropTypes.func,
 
     // HOC
-    isArsLoading: PropTypes.bool,
-    isArsEnabled: PropTypes.bool,
+    location: PropTypes.any,
   };
+
+  componentDidMount() {
+    if (ALLOW_LAKEHOUSE_CATALOG_DELETE) {
+      this.props.fetchSupportFlags(ALLOW_LAKEHOUSE_CATALOG_DELETE);
+    }
+  }
 
   addSampleSource = () => {
     sonarEvents.sourceAddComplete();
@@ -181,16 +186,11 @@ export class LeftTree extends Component {
       toggleDatasetsExpanded,
       toggleExternalSourcesExpanded,
       toggleObjectStorageSourcesExpanded,
-      toggleMetastoreSourcesExpanded,
-      toggleDataplaneSourcesExpanded,
+      toggleLakehouseSourcesExpanded,
       datasetsExpanded,
-      dataplaneSourcesExpanded,
+      lakehouseSourcesExpanded,
       externalSourcesExpanded,
-      metastoreSourcesExpanded,
       objectStorageSourcesExpanded,
-      homeSourceUrl,
-      isArsLoading,
-      isArsEnabled,
     } = this.props;
     const { location } = this.context;
     const { formatMessage } = intl;
@@ -200,8 +200,8 @@ export class LeftTree extends Component {
     const classes = classNames("left-tree", "left-tree-holder", className);
     const homeItem = this.getHomeObject();
 
-    const metastoreSource = sources.filter((source) =>
-      isMetastoreSourceType(source.get("type")),
+    const lakehouseSource = sources.filter((source) =>
+      isLakehouseSourceType(source.get("type")),
     );
 
     const objectStorageSource = sources.filter((source) =>
@@ -214,15 +214,10 @@ export class LeftTree extends Component {
         !isDataPlaneSourceType(source.get("type")),
     );
 
-    const dataPlaneSources = sources.filter((source) => {
-      const isVersioned = isDataPlaneSourceType(source.get("type"));
-      if (isArsLoading || !isArsEnabled) {
-        return isVersioned;
-      } else {
-        const homeSource = getHomeSource(sources);
-        return isVersioned && source !== homeSource;
-      }
-    });
+    const showEmptySourceContainer =
+      lakehouseSource.size < 1 &&
+      objectStorageSource.size < 1 &&
+      databases.size < 1;
 
     return (
       <div className={classes}>
@@ -240,35 +235,23 @@ export class LeftTree extends Component {
               </span>
             </Tooltip>
           ) : (
-            currentProject ?? <FormattedMessage id="Dataset.Datasets" />
+            (currentProject ?? <FormattedMessage id="Dataset.Datasets" />)
           )}
         </h3>
         <div className="scrolling-container" onScroll={(e) => this.onScroll(e)}>
-          <ARSFeatureSwitch
-            renderEnabled={() => (
-              <>
-                {homeSourceUrl && (
-                  <HomeSourceSection
-                    homeSourceUrl={homeSourceUrl}
-                    isCollapsed={datasetsExpanded}
-                    isCollapsible
-                    onToggle={toggleDatasetsExpanded}
-                  />
-                )}
-              </>
-            )}
-            renderDisabled={() => (
-              <>
-                <ul className="home-wrapper">
-                  <FinderNavItem item={homeItem} isHomeActive={isHomeActive} />
-                </ul>
-                <SpacesSection
-                  isCollapsed={datasetsExpanded}
-                  isCollapsible
-                  onToggle={toggleDatasetsExpanded}
-                />
-              </>
-            )}
+          <ul className="home-wrapper">
+            <FinderNavItem item={homeItem} isHomeActive={isHomeActive} />
+          </ul>
+          {additionalLeftTreeControls?.()?.renderAdditionalSection({
+            viewState: sourcesViewState,
+            sources: sources,
+            location: this.context.location,
+            canAddSource: this.getCanAddSource(),
+          })}
+          <SpacesSection
+            isCollapsed={datasetsExpanded}
+            isCollapsible
+            onToggle={toggleDatasetsExpanded}
           />
           <div className="sources-title">
             {formatMessage({ id: "Source.Sources" })}
@@ -288,7 +271,7 @@ export class LeftTree extends Component {
             )}
           </div>
           {!sourcesViewState.get("isInProgress") &&
-            sources.size < (isArsEnabled ? 2 : 1) && (
+            showEmptySourceContainer && (
               <EmptyStateContainer
                 title="Sources.noSources"
                 icon="interface/empty-add-data"
@@ -303,33 +286,14 @@ export class LeftTree extends Component {
                 }
               />
             )}
-          {dataPlaneSources.size > 0 && (
+          {lakehouseSource.size > 0 && (
             <DataPlaneSection
-              isCollapsed={dataplaneSourcesExpanded}
+              isCollapsed={lakehouseSourcesExpanded}
               isCollapsible
-              onToggle={toggleDataplaneSourcesExpanded}
-              dataPlaneSources={dataPlaneSources}
+              onToggle={toggleLakehouseSourcesExpanded}
+              dataPlaneSources={lakehouseSource}
               sourcesViewState={sourcesViewState}
             />
-          )}
-          {metastoreSource.size > 0 && (
-            <div className="left-tree-wrap">
-              <ViewStateWrapper
-                viewState={sourcesViewState}
-                spinnerStyle={spacesSourcesListSpinnerStyleFinderNav}
-              >
-                <FinderNav
-                  isCollapsed={metastoreSourcesExpanded}
-                  isCollapsible
-                  onToggle={toggleMetastoreSourcesExpanded}
-                  navItems={metastoreSource}
-                  title={formatMessage({ id: "Source.Metastores" })}
-                  addTooltip={formatMessage({ id: "Source.Add.Metastore" })}
-                  isInProgress={sourcesViewState.get("isInProgress")}
-                  listHref={commonPaths.metastore.link({ projectId })}
-                />
-              </ViewStateWrapper>
-            </div>
           )}
           {objectStorageSource.size > 0 && (
             <div className="left-tree-wrap">
@@ -399,10 +363,9 @@ export class LeftTree extends Component {
 function mapStateToProps(state) {
   return {
     externalSourcesExpanded: state.ui.get("externalSourcesExpanded"),
-    metastoreSourcesExpanded: state.ui.get("metastoreSourcesExpanded"),
     objectStorageSourcesExpanded: state.ui.get("objectStorageSourcesExpanded"),
-    dataplaneSourcesExpanded: state.ui.get("dataplaneSourcesExpanded"),
     datasetsExpanded: state.ui.get("datasetsExpanded"),
+    lakehouseSourcesExpanded: state.ui.get("lakehouseSourcesExpanded"),
     isAdmin: getAdminStatus(state),
     canCreateSource: state.privileges?.project?.canCreateSource,
   };
@@ -419,13 +382,12 @@ export default compose(
       },
     ),
   }),
-  withCatalogARSFlag,
   connect(mapStateToProps, {
     createSampleSource,
-    toggleDataplaneSourcesExpanded,
+    fetchSupportFlags,
     toggleExternalSourcesExpanded,
     toggleObjectStorageSourcesExpanded,
-    toggleMetastoreSourcesExpanded,
     toggleDatasetsExpanded,
+    toggleLakehouseSourcesExpanded,
   }),
 )(LeftTree);

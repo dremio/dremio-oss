@@ -25,6 +25,8 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 
@@ -56,6 +58,17 @@ public class TestTools {
 
   public static String getWorkingPath() {
     return WORKING_PATH;
+  }
+
+  public static String replaceWorkingPathPlaceholders(String input) {
+    if (input.contains("${WORKING_PATH}")) {
+      return input.replaceAll(
+          Pattern.quote("${WORKING_PATH}"), Matcher.quoteReplacement(WORKING_PATH));
+    } else if (input.contains("[WORKING_PATH]")) {
+      return input.replaceAll(
+          Pattern.quote("[WORKING_PATH]"), Matcher.quoteReplacement(WORKING_PATH));
+    }
+    return input;
   }
 
   private static final String PATH_SEPARATOR = System.getProperty("file.separator");

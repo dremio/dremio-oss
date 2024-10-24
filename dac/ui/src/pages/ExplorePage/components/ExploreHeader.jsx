@@ -23,9 +23,9 @@ import { injectIntl } from "react-intl";
 import { withRouter } from "react-router";
 import { Tooltip } from "dremio-ui-lib";
 
-import CopyButton from "@app/components/Buttons/CopyButton";
+import CopyButton from "#oss/components/Buttons/CopyButton";
 
-import DropdownMenu from "@app/components/Menus/DropdownMenu";
+import DropdownMenu from "#oss/components/Menus/DropdownMenu";
 import EllipsedText from "components/EllipsedText";
 import modelUtils from "utils/modelUtils";
 import {
@@ -35,9 +35,9 @@ import {
 import { formatMessage } from "utils/locale";
 import { needsTransform, isSqlChanged } from "sagas/utils";
 
-import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
+import { PHYSICAL_DATASET_TYPES } from "#oss/constants/datasetTypes";
 import explorePageInfoHeaderConfig from "@inject/pages/ExplorePage/components/explorePageInfoHeaderConfig";
-import SQLScriptDeletedDialog from "@app/components/SQLScripts/components/SQLScriptDeletedDialog/SQLScriptDeletedDialog";
+import SQLScriptDeletedDialog from "#oss/components/SQLScripts/components/SQLScriptDeletedDialog/SQLScriptDeletedDialog";
 //actions
 import { saveDataset, saveAsDataset } from "actions/explore/dataset/save";
 import {
@@ -50,17 +50,17 @@ import {
   previewDatasetSql,
 } from "actions/explore/dataset/run";
 import { showConfirmationDialog } from "actions/confirmation";
-import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
-import { withDatasetChanges } from "@app/pages/ExplorePage/DatasetChanges";
+import { PageTypes, pageTypesProp } from "#oss/pages/ExplorePage/pageTypes";
+import { withDatasetChanges } from "#oss/pages/ExplorePage/DatasetChanges";
 
 import { startDownloadDataset } from "actions/explore/download";
 import { performNextAction, NEXT_ACTIONS } from "actions/explore/nextAction";
 
-import ExploreHeaderMixin from "@app/pages/ExplorePage/components/ExploreHeaderMixin";
+import ExploreHeaderMixin from "#oss/pages/ExplorePage/components/ExploreHeaderMixin";
 import config from "dyn-load/utils/config";
-import { getAnalyzeToolsConfig } from "@app/utils/config";
-import exploreUtils from "@app/utils/explore/exploreUtils";
-import { VIEW_ID as SCRIPTS_VIEW_ID } from "@app/components/SQLScripts/SQLScripts";
+import { getAnalyzeToolsConfig } from "#oss/utils/config";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
+import { VIEW_ID as SCRIPTS_VIEW_ID } from "#oss/components/SQLScripts/SQLScripts";
 import {
   closeTab,
   newTab,
@@ -70,7 +70,7 @@ import SaveMenu, {
 } from "components/Menus/ExplorePage/SaveMenu";
 import BreadCrumbs, { formatFullPath } from "components/BreadCrumbs";
 import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
-import { getIconPath } from "@app/utils/getIconPath";
+import { getIconPath } from "#oss/utils/getIconPath";
 import { Button } from "dremio-ui-lib/components";
 import { showQuerySpinner } from "@inject/pages/ExplorePage/utils";
 import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
@@ -83,16 +83,16 @@ import {
   getExploreState,
   isWikAvailable,
 } from "selectors/explore";
-import { getScriptsSyncPending } from "@app/selectors/scriptsSyncPending";
-import { getExploreJobId } from "@app/selectors/exploreJobs";
+import { getScriptsSyncPending } from "#oss/selectors/scriptsSyncPending";
+import { getExploreJobId } from "#oss/selectors/exploreJobs";
 import {
   getActiveScript,
   getActiveScriptPermissions,
   getNumberOfMineScripts,
 } from "selectors/scripts";
 import { HANDLE_THROUGH_API } from "@inject/pages/HomePage/components/HeaderButtonConstants";
-import { cancelJobAndShowNotification } from "@app/actions/jobs/jobs";
-import SQLScriptDialog from "@app/components/SQLScripts/components/SQLScriptDialog/SQLScriptDialog";
+import { cancelJobAndShowNotification } from "#oss/actions/jobs/jobs";
+import SQLScriptDialog from "#oss/components/SQLScripts/components/SQLScriptDialog/SQLScriptDialog";
 import {
   setQueryStatuses,
   setActionState,
@@ -110,21 +110,21 @@ import {
   handleOpenTabScript,
   MAX_MINE_SCRIPTS_ALLOWANCE,
   openPrivilegesModalForScript,
-} from "@app/components/SQLScripts/sqlScriptsUtils";
+} from "#oss/components/SQLScripts/sqlScriptsUtils";
 import {
   DisabledEngineActions,
   ExploreHeaderActions,
-} from "@app/pages/ExplorePage/components/ExploreHeaderUtils";
-import { addNotification } from "@app/actions/notification";
+} from "#oss/pages/ExplorePage/components/ExploreHeaderUtils";
+import { addNotification } from "#oss/actions/notification";
 import { ExploreActions } from "./ExploreActions";
 import ExploreTableJobStatusSpinner from "./ExploreTable/ExploreTableJobStatusSpinner";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import { hideForNonDefaultBranch } from "dremio-ui-common/utilities/versionContext.js";
-import { withIsMultiTabEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
-import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
-import sentryUtil from "@app/utils/sentryUtil";
+import { withIsMultiTabEnabled } from "#oss/components/SQLScripts/useMultiTabIsEnabled";
+import { isTabbableUrl } from "#oss/utils/explorePageTypeUtils";
+import sentryUtil from "#oss/utils/sentryUtil";
 import { newPopulatedTab } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
 
@@ -1300,7 +1300,7 @@ const style = {
     maxWidth: 300,
     display: "flex",
     alignItems: "center",
-    color: "#333",
+    color: "var(--text--primary)",
     fontWeight: 500,
   },
   pullout: {

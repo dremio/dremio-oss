@@ -17,9 +17,9 @@ import { Component } from "react";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
 
-import { page } from "@app/uiTheme/radium/general";
-import Message from "@app/components/Message";
-import { SingleEngineInfoBar } from "@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineInfoBar";
+import { page } from "#oss/uiTheme/radium/general";
+import Message from "#oss/components/Message";
+import { SingleEngineInfoBar } from "#oss/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineInfoBar";
 import SingleEngineViewMixin from "@inject/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineViewMixin";
 import { SINGLE_VIEW_TABS } from "@inject/constants/provisioningPage/provisioningConstants";
 

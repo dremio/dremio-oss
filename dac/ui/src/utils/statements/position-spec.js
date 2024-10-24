@@ -30,7 +30,7 @@ describe("advance position", () => {
         line: 1,
         column: 7,
         index: 7,
-      })
+      }),
     );
   });
 
@@ -42,13 +42,13 @@ describe("advance position", () => {
     };
 
     expect(
-      advancePosition("0123456789\n0123456789", initialPosition, 2)
+      advancePosition("0123456789\n0123456789", initialPosition, 2),
     ).to.deep.equal(
       value({
         line: 1,
         column: 10,
         index: 10,
-      })
+      }),
     );
   });
 
@@ -60,13 +60,13 @@ describe("advance position", () => {
     };
 
     expect(
-      advancePosition("0123456789\n0123456789", initialPosition, 4)
+      advancePosition("0123456789\n0123456789", initialPosition, 4),
     ).to.deep.equal(
       value({
         line: 2,
         column: 2,
         index: 12,
-      })
+      }),
     );
   });
 
@@ -82,7 +82,7 @@ describe("advance position", () => {
         line: 1,
         column: 10,
         index: 9,
-      })
+      }),
     );
   });
 });

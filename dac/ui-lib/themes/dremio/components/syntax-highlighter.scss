@@ -17,26 +17,26 @@
 @use "../../utilities/index";
 
 .language-sql {
-  color: #313131;
+  color: var(--text--faded);
 
   .hljs {
     &-keyword {
-      color: #124db4;
+      color: var(--sql--syntax--keywords);
     }
     &-string {
-      color: #0a6932;
+      color: var(--sql--syntax--string);
     }
     &-number {
-      color: #c700b5;
+      color: var(--sql--syntax--number);
     }
     &-built_in {
-      color: #a02e02;
+      color: var(--sql--syntax--function);
     }
     &-type {
-      color: #5117f5;
+      color: var(--sql--syntax--datatype);
     }
     &-comment {
-      color: #906200;
+      color: var(--sql--syntax--comment);
     }
   }
 }

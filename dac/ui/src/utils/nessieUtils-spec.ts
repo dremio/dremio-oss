@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { COMMIT_TYPE } from "@app/constants/nessie";
+import { COMMIT_TYPE } from "#oss/constants/nessie";
 import { expect } from "chai";
 import {
   getNessieReferencePayload,
@@ -29,7 +29,7 @@ import {
   noRef,
   nullStates,
 } from "./nessieUtils-spec/getNessieReferencePayload";
-import { setStore } from "@app/store/store";
+import { setStore } from "#oss/store/store";
 
 describe("nessieUtils", () => {
   describe("encode source name correctly", () => {

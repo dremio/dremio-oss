@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 import { PageTypes as ExplorePageTypes } from "pages/ExplorePage/pageTypes";
-import { changePageTypeInUrl } from "@app/pages/ExplorePage/pageTypeUtils";
-import { ENTITY_TYPES } from "@app/constants/Constants";
+import { changePageTypeInUrl } from "#oss/pages/ExplorePage/pageTypeUtils";
+import { ENTITY_TYPES } from "#oss/constants/Constants";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 //This is a bit hacky, but it won't be necessary after server and client urls match

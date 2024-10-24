@@ -19,27 +19,27 @@ import { connect } from "react-redux";
 import Immutable from "immutable";
 import { createSelector } from "reselect";
 
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
-import { constructFullPath } from "@app/utils/pathUtils";
-import { getEntity, getViewState } from "@app/selectors/resources";
-import { updateViewState } from "@app/actions/resources";
+import ViewStateWrapper from "#oss/components/ViewStateWrapper";
+import { constructFullPath } from "#oss/utils/pathUtils";
+import { getEntity, getViewState } from "#oss/selectors/resources";
+import { updateViewState } from "#oss/actions/resources";
 import {
   clearDataSetAccelerationSettings,
   loadDatasetAccelerationSettings,
   updateDatasetAccelerationSettings,
-} from "@app/actions/resources/datasetAccelerationSettings";
-import ApiUtils from "@app/utils/apiUtils/apiUtils";
-import { formatMessage } from "@app/utils/locale";
-import { INCREMENTAL_TYPES } from "@app/constants/columnTypeGroups";
-import { getCurrentFormatUrl } from "@app/selectors/home";
-import { loadFileFormat } from "@app/actions/modals/addFileModal";
+} from "#oss/actions/resources/datasetAccelerationSettings";
+import ApiUtils from "#oss/utils/apiUtils/apiUtils";
+import { formatMessage } from "#oss/utils/locale";
+import { INCREMENTAL_TYPES } from "#oss/constants/columnTypeGroups";
+import { getCurrentFormatUrl } from "#oss/selectors/home";
+import { loadFileFormat } from "#oss/actions/modals/addFileModal";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import AccelerationUpdatesForm from "./AccelerationUpdatesForm";
 import {
   LIVE_REFLECTION_ENABLED,
   REFLECTION_SCHEDULER_POLICY,
-} from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { getSupportFlags } from "@app/selectors/supportFlags";
+} from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getSupportFlags } from "#oss/selectors/supportFlags";
 
 const VIEW_ID = "AccelerationUpdatesController";
 const updateViewStateWrapper = (viewState) =>

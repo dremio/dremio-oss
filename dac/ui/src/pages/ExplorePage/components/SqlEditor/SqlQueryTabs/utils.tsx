@@ -15,8 +15,8 @@
  */
 
 import { Tab } from "@mui/material";
-import { renderJobStatus } from "@app/utils/jobsUtils";
-import { intl } from "@app/utils/intl";
+import { renderJobStatus } from "#oss/utils/jobsUtils";
+import { intl } from "#oss/utils/intl";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 

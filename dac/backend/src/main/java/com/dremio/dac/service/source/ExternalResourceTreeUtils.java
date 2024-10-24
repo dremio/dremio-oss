@@ -32,7 +32,10 @@ public final class ExternalResourceTreeUtils {
   private ExternalResourceTreeUtils() {}
 
   public static ResourceTreeListResponse generateResourceTreeEntityList(
-      NamespaceKey path, ExternalListResponse response, ResourceType rootType) {
+      NamespaceKey path,
+      ExternalListResponse response,
+      ResourceType rootType,
+      boolean showFunctions) {
     Objects.requireNonNull(path);
 
     final String sourceName = path.getRoot();
@@ -59,10 +62,21 @@ public final class ExternalResourceTreeUtils {
 
           switch (entry.getType()) {
             case UNKNOWN:
+              break; // Unknown types are ignored
             case UDF:
-              // TODO(DX-92549): To list functions in a nessie source(sub-folders), we need to
-              // implement for UDF.
-              break; // Unknown types or UDF are ignored
+              if (showFunctions) {
+                resources.add(
+                    new ResourceTreeEntity(
+                        ResourceType.FUNCTION,
+                        name,
+                        fullPathList,
+                        null,
+                        null,
+                        versionedDatasetId,
+                        rootType,
+                        false));
+              }
+              break;
             case FOLDER:
               final String url = "/resourcetree/" + path.toUrlEncodedString();
               resources.add(
@@ -73,7 +87,8 @@ public final class ExternalResourceTreeUtils {
                       url,
                       null,
                       versionedDatasetId,
-                      rootType));
+                      rootType,
+                      false));
               break;
             case ICEBERG_TABLE:
               resources.add(
@@ -84,7 +99,8 @@ public final class ExternalResourceTreeUtils {
                       null,
                       null,
                       versionedDatasetId,
-                      rootType));
+                      rootType,
+                      false));
               break;
             case ICEBERG_VIEW:
               resources.add(
@@ -95,7 +111,8 @@ public final class ExternalResourceTreeUtils {
                       null,
                       null,
                       versionedDatasetId,
-                      rootType));
+                      rootType,
+                      false));
               break;
             default:
               throw new IllegalStateException("Unexpected value: " + entry.getType());

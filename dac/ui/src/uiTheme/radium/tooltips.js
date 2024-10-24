@@ -19,7 +19,7 @@ export const arrowWidth = "5px";
 
 const typeToColor = {
   error: "var(--fill--danger)",
-  info: "var(--dremio--color--pale--navy)",
+  info: "var(--fill--popover)",
   status: "var(--color--navy--700)",
   custom: "var(--color--brand--300)",
 };

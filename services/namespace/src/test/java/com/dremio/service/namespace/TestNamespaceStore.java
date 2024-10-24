@@ -23,16 +23,21 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.dremio.datastore.api.IndexedStore;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import java.util.ConcurrentModificationException;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 public class TestNamespaceStore {
   @Test
   public void testPut_propagatesConcurrentModificationException() {
+    KVStoreProvider kvStoreProvider = mock(KVStoreProvider.class);
     IndexedStore<String, NameSpaceContainer> kvStore = mock(IndexedStore.class);
-    NamespaceStore namespaceStore = new NamespaceStore(kvStore);
+    when(kvStoreProvider.getStore(any(Class.class))).thenReturn(kvStore);
+    List<NamespaceDmlCallback> callbacks = List.of();
+    NamespaceStore namespaceStore = new NamespaceStore(() -> kvStoreProvider);
 
     String key = "key";
     NameSpaceContainer value =

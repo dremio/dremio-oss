@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Wiki } from "@app/pages/ExplorePage/components/Wiki/Wiki";
+import { Wiki } from "#oss/pages/ExplorePage/components/Wiki/Wiki";
 
 const WikiLanding = ({ datasetDetails }: any) => {
   const isWikiEditAllowed =

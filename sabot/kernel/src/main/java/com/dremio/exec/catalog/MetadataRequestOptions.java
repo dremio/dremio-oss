@@ -212,7 +212,7 @@ public abstract class MetadataRequestOptions {
         throw UserException.validationError()
             .message(
                 String.format(
-                    "Version context for table %s must be specified using AT SQL syntax",
+                    "Version context for entity %s must be specified using AT SQL syntax",
                     key.toString()))
             .build();
       }

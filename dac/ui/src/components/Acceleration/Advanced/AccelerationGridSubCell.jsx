@@ -15,10 +15,10 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import EllipsedText from "@app/components/EllipsedText";
-import PartitionTransformationMenu from "@app/exports/components/PartitionTransformation/components/PartitionTransformationMenu/PartitionTransformationMenu";
+import EllipsedText from "#oss/components/EllipsedText";
+import PartitionTransformationMenu from "#oss/exports/components/PartitionTransformation/components/PartitionTransformationMenu/PartitionTransformationMenu";
 import { injectIntl } from "react-intl";
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import "#oss/uiTheme/less/Acceleration/Acceleration.less";
 
 class AccelerationGridSubCell extends Component {
   static propTypes = {

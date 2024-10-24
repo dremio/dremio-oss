@@ -24,7 +24,7 @@ describe("apiUtils", () => {
         Promise.resolve({
           error: true,
           payload: new ApiError(500, "statusText"),
-        })
+        }),
       );
       return expect(promise).to.be.rejectedWith({ _error: "statusText" });
     });
@@ -39,7 +39,7 @@ describe("apiUtils", () => {
               statusText: "statusText",
             },
           },
-        })
+        }),
       );
       return expect(promise).to.be.rejected;
     });
@@ -55,7 +55,7 @@ describe("apiUtils", () => {
               },
             },
           }),
-        })
+        }),
       );
 
       return expect(promise).to.be.rejected.and.to.eventually.eql({

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import ICON_COLOR from "@app/constants/iconColors";
+import ICON_COLOR from "#oss/constants/iconColors";
 
 export const hashCode = (str) => {
   //Cast to a string in case of number input
@@ -22,9 +22,8 @@ export const hashCode = (str) => {
     .split("")
     .reduce(
       (prevHash, currVal) =>
-        // eslint-disable-next-line no-bitwise
         ((prevHash << 5) - prevHash + currVal.charCodeAt(0)) | 0,
-      0
+      0,
     );
 };
 

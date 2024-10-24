@@ -27,6 +27,30 @@
     .link:focus {
       text-decoration: none !important;
     }
+
+    .skipToContent {
+      border: 0;
+      height: 0;
+      margin: -1px;
+      overflow: hidden;
+      padding: 0;
+      position: absolute;
+      width: 0;
+      opacity: 0;
+
+      &:focus-visible {
+        z-index: 10000;
+        height: auto;
+        margin: 0;
+        overflow: visible;
+        padding: 4px 8px;
+        position: absolute;
+        width: auto;
+        opacity: 1;
+        background-color: var(--fill--primary);
+        border-radius: 4px;
+      }
+    }
   }
 
   .sideNav-item {
@@ -124,6 +148,12 @@
     width: inherit;
     align-items: start;
     flex: 1;
+
+    .sideNav-item:nth-child(2) {
+      a:focus-visible .sideNav-item__link {
+        outline: -webkit-focus-ring-color auto 1px !important;
+      }
+    }
   }
 
   .sideNav__bottomSection {

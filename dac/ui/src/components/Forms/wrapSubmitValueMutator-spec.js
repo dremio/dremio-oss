@@ -49,7 +49,7 @@ describe("wrapSubmitValueMutator", () => {
     const wrapper = shallow(<TestComponent {...commonProps} />);
     expect(wrapper.props().randomProp).to.be.equal("foo");
     expect(wrapper.props().handleSubmit).to.be.equal(
-      wrapper.instance().handleSubmit
+      wrapper.instance().handleSubmit,
     );
   });
 

@@ -19,19 +19,19 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import ImmutablePropTypes from "react-immutable-proptypes";
 
-import { getViewState } from "@app/selectors/resources";
-import { getExploreState } from "@app/selectors/explore";
+import { getViewState } from "#oss/selectors/resources";
+import { getExploreState } from "#oss/selectors/explore";
 
-import dataStoreUtils from "@app/utils/dataStoreUtils";
-import exploreUtils from "@app/utils/explore/exploreUtils";
+import dataStoreUtils from "#oss/utils/dataStoreUtils";
+import exploreUtils from "#oss/utils/explore/exploreUtils";
 
 import {
   loadTransformCards,
   loadTransformCardPreview,
   loadTransformValuesPreview,
   LOAD_TRANSFORM_CARDS_VIEW_ID,
-} from "@app/actions/explore/recommended";
-import { resetViewState } from "@app/actions/resources";
+} from "#oss/actions/explore/recommended";
+import { resetViewState } from "#oss/actions/resources";
 import { loadTransformCardsWrapper, transformTypeURLMapper } from "./utils";
 
 import TransformView from "./TransformView";
@@ -81,7 +81,7 @@ export class Transform extends PureComponent {
       const { transform, location } = this.props;
       if (transform.get("method") === "Values" && action.payload.values) {
         const allUnique = action.payload.values.availableValues.every(
-          (item) => item.count === 1
+          (item) => item.count === 1,
         );
         if (allUnique) {
           this.context.router.replace({
@@ -120,7 +120,7 @@ export class Transform extends PureComponent {
       transform,
       this.props.dataset,
       actionType,
-      index
+      index,
     );
   }
 
@@ -141,7 +141,7 @@ export class Transform extends PureComponent {
       data,
       transform,
       this.props.dataset,
-      transformType
+      transformType,
     );
   }
 

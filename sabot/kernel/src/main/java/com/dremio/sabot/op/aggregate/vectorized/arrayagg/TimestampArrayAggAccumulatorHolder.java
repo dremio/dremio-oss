@@ -44,6 +44,7 @@ public final class TimestampArrayAggAccumulatorHolder extends ArrayAggAccumulato
   @Override
   public void addItemToVector(Long data, int index) {
     vector.set(index, data);
+    vector.setValueCount(vector.getValueCount() + 1);
   }
 
   @Override
@@ -59,7 +60,7 @@ public final class TimestampArrayAggAccumulatorHolder extends ArrayAggAccumulato
   @Override
   public void reAllocIfNeeded(Long data) {
     super.reAllocIfNeeded(data);
-    if (numItems + 1 >= vector.getValueCapacity()) {
+    if (getValueCount() + 1 >= vector.getValueCapacity()) {
       vector.reAlloc();
     }
   }

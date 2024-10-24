@@ -15,12 +15,12 @@
  */
 import { Route, IndexRedirect } from "react-router";
 import RepoView from "./components/RepoView/RepoView";
-import VersionedSourceWithNessie from "@app/exports/pages/VersionedSource/VersionedSource";
-import VersionedPageCommits from "@app/exports/pages/VersionedHomePage/components/VersionedPageCommits/VersionedPageCommits";
-import VersionedPageTags from "@app/exports/pages/VersionedHomePage/components/VersionedPageTags/VersionedPageTags";
-import VersionedPageCommitDetails from "@app/exports/pages/VersionedHomePage/components/VersionedPageCommitDetails/VersionedPageCommitDetails";
+import VersionedSourceWithNessie from "#oss/exports/pages/VersionedSource/VersionedSource";
+import VersionedPageCommits from "#oss/exports/pages/VersionedHomePage/components/VersionedPageCommits/VersionedPageCommits";
+import VersionedPageTags from "#oss/exports/pages/VersionedHomePage/components/VersionedPageTags/VersionedPageTags";
+import VersionedPageCommitDetails from "#oss/exports/pages/VersionedHomePage/components/VersionedPageCommitDetails/VersionedPageCommitDetails";
 
-import * as PATHS from "@app/exports/paths";
+import * as PATHS from "#oss/exports/paths";
 
 export const NessieHistorySourceRoutes = [
   <Route

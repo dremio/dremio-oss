@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import moment from "@app/utils/dayjs";
+import moment from "#oss/utils/dayjs";
 import { useRef, useEffect } from "react";
 import { Link } from "react-router";
 
 import config from "@inject/utils/config";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
-import OverView from "@app/pages/JobDetailsPageNew/components/OverView/OverView";
-import SQLTab from "@app/pages/JobDetailsPageNew/components/SQLTab/SQLTab";
-import JobStateIcon from "@app/pages/JobPage/components/JobStateIcon";
-import Profile from "@app/pages/JobDetailsPageNew/components/Profile/Profile";
+import localStorageUtils from "#oss/utils/storageUtils/localStorageUtils";
+import OverView from "#oss/pages/JobDetailsPageNew/components/OverView/OverView";
+import SQLTab from "#oss/pages/JobDetailsPageNew/components/SQLTab/SQLTab";
+import JobStateIcon from "#oss/pages/JobPage/components/JobStateIcon";
+import Profile from "#oss/pages/JobDetailsPageNew/components/Profile/Profile";
 import timeUtils from "./timeUtils";
 import * as jobPaths from "dremio-ui-common/paths/jobs.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
@@ -102,8 +102,6 @@ export function renderContent(contentPage, renderProps) {
   const {
     jobDetails,
     downloadJobFile,
-    isContrast,
-    setIsContrast,
     jobDetailsFromStore,
     showJobIdProfile,
     jobId,
@@ -116,8 +114,6 @@ export function renderContent(contentPage, renderProps) {
           sql={jobDetails.get("queryText")}
           jobDetails={jobDetails}
           downloadJobFile={downloadJobFile}
-          isContrast={isContrast}
-          onClick={setIsContrast}
           status={
             jobDetailsFromStore
               ? jobDetailsFromStore.get("state")
@@ -130,10 +126,8 @@ export function renderContent(contentPage, renderProps) {
       return (
         <SQLTab
           algebraicMatch={jobDetails.get("algebraicReflectionsDataset")}
-          isContrast={isContrast}
           jobId={jobId}
           isComplete={jobDetails.get("isComplete")}
-          onClick={setIsContrast}
           submittedSql={jobDetails.get("queryText")}
         />
       );

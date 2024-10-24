@@ -15,8 +15,8 @@
  */
 import { useContext, useCallback, useMemo, memo, forwardRef } from "react";
 import { orderBy } from "lodash";
-import { FieldWithError } from "@app/components/Fields";
-import { ElementConfig } from "@app/types/Sources/SourceFormTypes";
+import { FieldWithError } from "#oss/components/Fields";
+import { ElementConfig } from "#oss/types/Sources/SourceFormTypes";
 import { FieldProp } from "redux-form";
 import { Select, SelectItem } from "@mantine/core";
 import {
@@ -29,14 +29,14 @@ import {
 import { fieldWithError } from "../../../FormWrappers.less";
 import { ArcticCatalog } from "@inject/arctic/endpoints/ArcticCatalogs/ArcticCatalog.type";
 import { NewArcticCatalogDialog } from "@inject/arctic/components/NewArcticCatalogDialog/NewArcticCatalogDialog";
-import { intl } from "@app/utils/intl";
-import { FormContext } from "@app/pages/HomePage/components/modals/formContext";
-import sentryUtil from "@app/utils/sentryUtil";
-import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
+import { intl } from "#oss/utils/intl";
+import { FormContext } from "#oss/pages/HomePage/components/modals/formContext";
+import sentryUtil from "#oss/utils/sentryUtil";
+import { useFeatureFlag } from "#oss/exports/providers/useFeatureFlag";
 import { useArcticCatalogs } from "@inject/arctic/providers/useArcticCatalogs";
 import { useSelector } from "react-redux";
-import { getSortedSources } from "@app/selectors/home";
-import { ARCTIC } from "@app/constants/sourceTypes";
+import { getSortedSources } from "#oss/selectors/home";
+import { ARCTIC } from "#oss/constants/sourceTypes";
 
 type ArcticCatalogSelectWrapperProps = {
   elementConfig: ElementConfig;
@@ -73,7 +73,6 @@ const Skeletons = new Array(5)
   .map((v, i) => ({ label: LOADING_ITEM, value: `${LOADING_ITEM}-${i}` }));
 
 const ArcticCatalogSelectItem = forwardRef<HTMLDivElement, ItemProps>(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ({ label, value, ...others }: ItemProps, ref) => {
     function getContent() {
       if (label === LOADING_ITEM) {

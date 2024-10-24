@@ -15,7 +15,7 @@
  */
 
 import { forwardRef } from "react";
-import { type MonacoShortcut } from "@app/pages/ExplorePage/components/SqlEditor/utils/keyboardShortcuts";
+import { type MonacoShortcut } from "#oss/pages/ExplorePage/components/SqlEditor/utils/keyboardShortcuts";
 
 export const withExtraSQLEditorContent = <T,>(
   WrappedComponent: React.ComponentClass,
@@ -41,7 +41,7 @@ export const getExtraKeyboardShortcuts = ({
 export const renderExtraSQLToolbarIcons = ({
   renderIconButton,
   toggleExtraSQLPanel,
-  isContrast,
+  isDarkMode,
 }: any) => {
   return null;
 };

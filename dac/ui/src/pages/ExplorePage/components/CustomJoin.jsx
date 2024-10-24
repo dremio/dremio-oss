@@ -18,8 +18,8 @@ import Immutable from "immutable";
 
 import PropTypes from "prop-types";
 
-import { CONTAINER_ENTITY_TYPES } from "@app/constants/Constants";
-import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
+import { CONTAINER_ENTITY_TYPES } from "#oss/constants/Constants";
+import { PHYSICAL_DATASET_TYPES } from "#oss/constants/datasetTypes";
 import ExistingForm from "components/formsForAddData/ExistingForm";
 import { constructFullPath, splitFullPath } from "utils/pathUtils";
 import InnerJoinController from "./JoinTypes/InnerJoinController";
@@ -63,7 +63,7 @@ class CustomJoin extends Component {
     }
 
     this.props.fields.activeDataset.onChange(
-      fullPath && splitFullPath(fullPath)
+      fullPath && splitFullPath(fullPath),
     );
   }
 

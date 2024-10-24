@@ -36,16 +36,16 @@ import { transformPeek } from "actions/explore/dataset/peek";
 import { getExploreState, getImmutableTable } from "selectors/explore";
 import { getViewState } from "selectors/resources";
 
-import { CUSTOM_JOIN } from "@app/constants/explorePage/joinTabs";
-import { getActiveScript } from "@app/selectors/scripts";
+import { CUSTOM_JOIN } from "#oss/constants/explorePage/joinTabs";
+import { getActiveScript } from "#oss/selectors/scripts";
 import apiUtils from "utils/apiUtils/apiUtils";
 import {
   setQuerySelections,
   setQueryStatuses,
   setPreviousAndCurrentSql,
-} from "@app/actions/explore/view";
-import { removeExploreJob } from "@app/actions/explore/exploreJobs";
-import { extractSelections } from "@app/utils/statements/statementParser";
+} from "#oss/actions/explore/view";
+import { removeExploreJob } from "#oss/actions/explore/exploreJobs";
+import { extractSelections } from "#oss/utils/statements/statementParser";
 import CalculatedFieldContent from "./DetailsWizard/CalculatedFieldContent";
 import TransformContent from "./DetailsWizard/TransformContent";
 import ConvertTrimContent from "./DetailsWizard/ConvertTrimContent";

@@ -16,7 +16,7 @@
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import { withRouter } from "react-router";
-import { getCanTagsBeSkipped } from "@app/selectors/home";
+import { getCanTagsBeSkipped } from "#oss/selectors/home";
 import { Tooltip } from "dremio-ui-lib";
 import * as classes from "./TagsAlert.module.less";
 

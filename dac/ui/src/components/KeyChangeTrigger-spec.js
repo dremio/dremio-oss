@@ -24,14 +24,14 @@ describe("KeyChangeTrigger", () => {
     it(`${
       isOnChangeCalled ? "calls" : "does not call"
     } onChange if value changed from ${parameterToString(
-      oldValue
+      oldValue,
     )} to ${parameterToString(newValue)}`, () => {
       stub = sinon.stub();
       wrapper = shallow(
         <KeyChangeTrigger keyValue={oldValue} onChange={stub} />,
         {
           disableLifecycleMethods: false,
-        }
+        },
       );
       stub.resetHistory();
       wrapper.setProps({

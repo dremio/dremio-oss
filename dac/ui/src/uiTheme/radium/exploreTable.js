@@ -17,7 +17,7 @@ export const headerCell = {
   width: "100%",
   height: 25,
   opacity: 1,
-  backgroundColor: "#f3f3f3",
+  backgroundColor: "var(--fill--secondary)",
 };
 
 export const headerCellText = {};

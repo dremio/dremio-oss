@@ -284,14 +284,15 @@ public class RefreshDatasetValidator {
 
       case Date:
         {
-          return PartitionValue.of(name, DateTimes.toJavaTimeMillisFromJdbcDate(value));
+          return PartitionValue.of(name, DateTimes.isoFormattedLocalDateToJavaTimeMillis(value));
         }
 
       case Timestamp:
         {
           final TimeUnit timeUnit = ((ArrowType.Timestamp) arrowType).getUnit();
           if (timeUnit == TimeUnit.MILLISECOND) {
-            return PartitionValue.of(name, DateTimes.toJavaTimeMillisFromJdbcTimestamp(value));
+            return PartitionValue.of(
+                name, DateTimes.isoFormattedLocalTimestampToJavaTimeMillis(value));
           } else {
             throw new RuntimeException(
                 String.format("Time unit must be in milliseconds but was %s", timeUnit));

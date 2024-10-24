@@ -49,14 +49,14 @@ public class ITDataplanePluginSourceConfig extends ITDataplanePluginTestSetup {
   public void testInvalidPortInURLDuringSourceSetup() {
     assertThatThrownBy(() -> createDataplanePluginWithNessieEndpoint("http://localhost"))
         .isInstanceOf(UserException.class)
-        .hasMessageContaining("Make sure that Nessie endpoint URL is valid");
+        .hasMessageContaining("Make sure that Nessie endpoint URL [http://localhost] is valid");
   }
 
   @Test
   public void testInvalidHostInURLDuringSourceSetup() {
     assertThatThrownBy(() -> createDataplanePluginWithNessieEndpoint("http://:19120"))
         .isInstanceOf(UserException.class)
-        .hasMessageContaining("Make sure that Nessie endpoint URL is valid");
+        .hasMessageContaining("Make sure that Nessie endpoint URL [http://:19120] is valid");
   }
 
   public static void createDataplanePluginWithNessieEndpoint(String nessieEndpoint) {

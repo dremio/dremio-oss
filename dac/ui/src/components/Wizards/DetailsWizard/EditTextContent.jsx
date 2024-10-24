@@ -25,7 +25,7 @@ import TransformForm, {
   formWrapperProps,
 } from "pages/ExplorePage/components/forms/TransformForm";
 import { transformProps } from "pages/ExplorePage/components/forms/TransformationPropTypes";
-import { sectionMargin } from "@app/uiTheme/less/layout.less";
+import { sectionMargin } from "#oss/uiTheme/less/layout.less";
 
 const SECTIONS = [NewFieldSection, ConvertCaseOptions, TrimWhiteSpaceOptions];
 
@@ -99,5 +99,5 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapToFormState,
-  null
+  null,
 )(EditTextContent);

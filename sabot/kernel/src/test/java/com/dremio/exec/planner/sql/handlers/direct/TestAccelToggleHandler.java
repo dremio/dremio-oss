@@ -144,12 +144,7 @@ public class TestAccelToggleHandler {
             .keyComponents(tablePath1)
             .tableVersionContext(tableVersionContext)
             .build();
-    when(catalog.getTable(
-            CatalogEntityKey.newBuilder()
-                .keyComponents(tablePath1)
-                .tableVersionContext(tableVersionContext)
-                .build()))
-        .thenReturn(dremioTable);
+    when(catalog.getTable(catalogEntityKey)).thenReturn(dremioTable);
     when(catalog.getSource("mysource1")).thenReturn(versionedPlugin);
     when(versionedPlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
     when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED))

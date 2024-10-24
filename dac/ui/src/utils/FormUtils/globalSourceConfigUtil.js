@@ -17,12 +17,12 @@
 import {
   DISABLE_CROSS_SOURCE_SELECT,
   SHOW_METADATA_VALIDITY_CHECKBOX,
-} from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+} from "#oss/exports/endpoints/SupportFlags/supportFlagConstants";
 
 export const getAlwaysPresentFunctionalConfig = () => [
   {
     label: laDeprecated(
-      "Enable this source to be used with other sources even though Disable Cross Source is configured"
+      "Enable this source to be used with other sources even though Disable Cross Source is configured",
     ),
     propertyName: "allowCrossSourceSelection",
     type: "boolean",
@@ -60,7 +60,7 @@ const addAlwaysPresent = ({ elements }, { form }) => {
   }
 
   const advIdx = (form.tabs || []).findIndex(
-    ({ name }) => name === "Advanced Options"
+    ({ name }) => name === "Advanced Options",
   );
 
   if (advIdx === -1) {

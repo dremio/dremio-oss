@@ -16,10 +16,10 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import { domUtils } from "@app/utils/domUtils";
-import { getSidebarSize } from "@app/selectors/home";
-import { MIN_SIDEBAR_WIDTH, setSidebarSize } from "@app/actions/home";
-import { gridMinWidth } from "@app/pages/HomePage/components/Columns.less";
+import { domUtils } from "#oss/utils/domUtils";
+import { getSidebarSize } from "#oss/selectors/home";
+import { MIN_SIDEBAR_WIDTH, setSidebarSize } from "#oss/actions/home";
+import { gridMinWidth } from "#oss/pages/HomePage/components/Columns.less";
 import { slider as sliderCls } from "./BrowseTable.less";
 
 const GRID_MIN_WIDTH = parseInt(gridMinWidth, 10);

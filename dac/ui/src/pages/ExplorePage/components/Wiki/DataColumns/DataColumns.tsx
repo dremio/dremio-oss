@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { DataColumn } from "@app/pages/ExplorePage/components/DataColumns/DataColumn";
+import { DataColumn } from "#oss/pages/ExplorePage/components/DataColumns/DataColumn";
 import * as classes from "./DataColumns.module.less";
 import clsx from "clsx";
 

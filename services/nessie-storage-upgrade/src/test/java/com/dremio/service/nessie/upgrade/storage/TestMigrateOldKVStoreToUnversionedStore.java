@@ -28,6 +28,7 @@ import static org.projectnessie.versioned.VersionStore.KeyRestrictions.NO_KEY_RE
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.api.KVStore.FindOption;
 import com.dremio.service.embedded.catalog.EmbeddedUnversionedStore;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
@@ -133,7 +134,7 @@ class TestMigrateOldKVStoreToUnversionedStore {
 
     @SuppressWarnings("unchecked")
     KVStore<String, Integer> store = mock(KVStore.class);
-    when(store.find(any())).thenReturn(ImmutableList.of(doc1, doc2));
+    when(store.find(any(FindOption[].class))).thenReturn(ImmutableList.of(doc1, doc2));
 
     task.eraseStore("test", store);
 

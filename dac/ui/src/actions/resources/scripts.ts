@@ -15,7 +15,7 @@
  */
 // @ts-ignore
 import { RSAA } from "redux-api-middleware";
-import { APIV2Call } from "@app/core/APICall";
+import { APIV2Call } from "#oss/core/APICall";
 
 export const FETCH_SCRIPTS_START = "FETCH_SCRIPTS_START";
 export const FETCH_SCRIPTS_SUCCESS = "FETCH_SCRIPTS_SUCCESS";

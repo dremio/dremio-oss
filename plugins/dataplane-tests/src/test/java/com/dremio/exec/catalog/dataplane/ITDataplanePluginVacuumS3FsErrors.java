@@ -50,7 +50,7 @@ public class ITDataplanePluginVacuumS3FsErrors extends ITDataplanePluginVacuumTe
 
   @Test
   public void testAccessDeniedOnS3Table() throws Exception {
-    Branch defaultBranch = getNessieClient().getDefaultBranch();
+    Branch defaultBranch = getNessieApi().getDefaultBranch();
 
     List<String> table1 = createPartitionedTable();
     String table1s1 = newSnapshot(table1);
@@ -129,7 +129,7 @@ public class ITDataplanePluginVacuumS3FsErrors extends ITDataplanePluginVacuumTe
     IntStream.range(0, numOfSnapshots).forEach(i -> tables.forEach(this::newSnapshot));
     String skipTableName = tables.get(2).get(0);
 
-    setTargetBatchSize("2");
+    setTargetBatchSize(2);
     TestExtendedS3AFilesystem.setAccessDeniedExceptionOnPaths(p -> p.contains(skipTableName));
 
     runSQL("VACUUM CATALOG " + DATAPLANE_PLUGIN_NAME);

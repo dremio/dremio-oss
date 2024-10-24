@@ -82,7 +82,7 @@ public class TestViewSchemaLearning extends BaseTestServer {
         getSourceService()
             .registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
 
-    setSystemOption(VDS_AUTO_FIX_THRESHOLD, "0");
+    setSystemOption(VDS_AUTO_FIX_THRESHOLD, 0);
   }
 
   @AfterClass
@@ -124,7 +124,8 @@ public class TestViewSchemaLearning extends BaseTestServer {
             "SELECT REGEXP_SPLIT('REGULAR AIR', 'R', 'LAST', -1) AS R_LESS_SHIPMENT_TYPE");
     Dataset vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)),
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH))
+                .buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
     DremioTable viewTable =
@@ -149,7 +150,7 @@ public class TestViewSchemaLearning extends BaseTestServer {
             null);
     vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(updatedVDS.getId()))
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(updatedVDS.getId()))
                 .buildPut(Entity.json(updatedVDS)),
             new GenericType<Dataset>() {});
 
@@ -162,7 +163,8 @@ public class TestViewSchemaLearning extends BaseTestServer {
     verifyNoSchemaLearningHelper(viewTable, ImmutableList.of(ArrowType.ArrowTypeID.List));
 
     // Clean up
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(vds.getId())).buildDelete());
+    expectSuccess(
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(vds.getId())).buildDelete());
   }
 
   @Test
@@ -185,14 +187,14 @@ public class TestViewSchemaLearning extends BaseTestServer {
     final List<String> viewPath = Arrays.asList("mySpace", "myVDS");
     Dataset vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH))
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH))
                 .buildPost(Entity.json(getVDSConfig(viewPath, "SELECT 1 as c1"))),
             new GenericType<Dataset>() {});
 
     final List<String> childViewPath = Arrays.asList("mySpace", "myVDS2");
     Dataset childVds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH))
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH))
                 .buildPost(Entity.json(getVDSConfig(childViewPath, "SELECT * from mySpace.myVDS"))),
             new GenericType<Dataset>() {});
 
@@ -216,7 +218,7 @@ public class TestViewSchemaLearning extends BaseTestServer {
             null);
     vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(updatedVDS.getId()))
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(updatedVDS.getId()))
                 .buildPut(Entity.json(updatedVDS)),
             new GenericType<Dataset>() {});
 
@@ -248,9 +250,11 @@ public class TestViewSchemaLearning extends BaseTestServer {
     }
 
     // Clean up
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(vds.getId())).buildDelete());
     expectSuccess(
-        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(childVds.getId())).buildDelete());
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(vds.getId())).buildDelete());
+    expectSuccess(
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(childVds.getId()))
+            .buildDelete());
   }
 
   @Test
@@ -366,7 +370,8 @@ public class TestViewSchemaLearning extends BaseTestServer {
     Dataset newVDS = getVDSConfig(viewPath, viewSql);
     Dataset vds =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)),
+            getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH))
+                .buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
     // Verify we get the expected Arrow types after executing and saving the view
@@ -380,6 +385,7 @@ public class TestViewSchemaLearning extends BaseTestServer {
     verifyNoSchemaLearningHelper(viewTable, expectedTypes);
 
     // Clean up
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(vds.getId())).buildDelete());
+    expectSuccess(
+        getBuilder(getHttpClient().getAPIv3().path(CATALOG_PATH).path(vds.getId())).buildDelete());
   }
 }

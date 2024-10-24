@@ -66,6 +66,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.SourceNamespaceService;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
+import com.dremio.service.namespace.source.proto.SourceChangeState;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.scheduler.Cancellable;
@@ -95,9 +96,11 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
@@ -145,6 +148,8 @@ public class CatalogServiceImpl implements CatalogService {
   protected final DremioConfig config;
   protected final EnumSet<Role> roles;
   protected final CatalogServiceMonitor monitor;
+  protected final Provider<ExecutorService> executorServiceProvider;
+  protected ExecutorService executorService;
   private final Set<String>
       influxSources; // will contain any sources influx(i.e actively being modified). Otherwise
   // empty.
@@ -170,7 +175,8 @@ public class CatalogServiceImpl implements CatalogService {
       EnumSet<Role> roles,
       Provider<ModifiableSchedulerService> modifiableSchedulerService,
       Provider<VersionedDatasetAdapterFactory> versionedDatasetAdapterFactoryProvider,
-      Provider<CatalogStatusEvents> catalogStatusEventsProvider) {
+      Provider<CatalogStatusEvents> catalogStatusEventsProvider,
+      Provider<ExecutorService> executorServiceProvider) {
     this(
         sabotContext,
         scheduler,
@@ -188,7 +194,8 @@ public class CatalogServiceImpl implements CatalogService {
         CatalogServiceMonitor.DEFAULT,
         modifiableSchedulerService,
         versionedDatasetAdapterFactoryProvider,
-        catalogStatusEventsProvider);
+        catalogStatusEventsProvider,
+        executorServiceProvider);
   }
 
   @VisibleForTesting
@@ -209,7 +216,8 @@ public class CatalogServiceImpl implements CatalogService {
       final CatalogServiceMonitor monitor,
       Provider<ModifiableSchedulerService> modifiableSchedulerService,
       Provider<VersionedDatasetAdapterFactory> versionedDatasetAdapterFactoryProvider,
-      Provider<CatalogStatusEvents> catalogStatusEventsProvider) {
+      Provider<CatalogStatusEvents> catalogStatusEventsProvider,
+      Provider<ExecutorService> executorServiceProvider) {
     this.sabotContext = sabotContext;
     this.scheduler = scheduler;
     this.sysTableConfProvider = sysTableConfProvider;
@@ -229,6 +237,7 @@ public class CatalogServiceImpl implements CatalogService {
     this.isInfluxSource = this::isInfluxSource;
     this.modifiableSchedulerServiceProvider = modifiableSchedulerService;
     this.catalogStatusEventsProvider = catalogStatusEventsProvider;
+    this.executorServiceProvider = executorServiceProvider;
   }
 
   @Override
@@ -238,6 +247,7 @@ public class CatalogServiceImpl implements CatalogService {
     this.systemNamespace = context.getNamespaceService(SystemUser.SYSTEM_USERNAME);
     this.sourceDataStore = kvStoreProvider.get().getStore(CatalogSourceDataCreator.class);
     this.modifiableSchedulerService = modifiableSchedulerServiceProvider.get();
+    this.executorService = executorServiceProvider.get();
     this.modifiableSchedulerService.start();
     this.plugins = newPluginsManager();
     plugins.start();
@@ -511,7 +521,9 @@ public class CatalogServiceImpl implements CatalogService {
 
     try (final AutoCloseable sourceDistributedLock = getDistributedLock(config.getName())) {
       logger.debug("Obtained distributed lock for source {}", "-source-" + config.getName());
+
       setInfluxSource(config.getName());
+
       getPlugins().create(config, subject.getName(), attributes);
       communicateChange(config, RpcType.REQ_SOURCE_CONFIG);
     } catch (SourceAlreadyExistsException e) {
@@ -545,12 +557,14 @@ public class CatalogServiceImpl implements CatalogService {
     try (final AutoCloseable sourceDistributedLock = getDistributedLock(config.getName()); ) {
       logger.debug("Obtained distributed lock for source {}", "-source-" + config.getName());
       setInfluxSource(config.getName());
+
       ManagedStoragePlugin plugin = getPlugins().get(config.getName());
       if (plugin == null) {
         throw UserException.concurrentModificationError()
             .message("Source not found.")
             .buildSilently();
       }
+
       final String srcType = plugin.getConfig().getType();
       if (("HOME".equalsIgnoreCase(srcType))
           || ("INTERNAL".equalsIgnoreCase(srcType))
@@ -599,13 +613,27 @@ public class CatalogServiceImpl implements CatalogService {
     try (AutoCloseable l = getDistributedLock(config.getName())) {
       logger.debug("Obtained distributed lock for source {}", "-source-" + config.getName());
       setInfluxSource(config.getName());
+
       if (!getPlugins().closeAndRemoveSource(config)) {
         throw UserException.invalidMetadataError()
             .message("Unable to remove source as the provided definition is out of date.")
             .buildSilently();
       }
 
-      namespaceService.deleteSourceWithCallBack(config.getKey(), config.getTag(), callback);
+      if (optionManager.get().getOption(ExecConstants.SOURCE_ASYNC_MODIFICATION_ENABLED)) {
+        CompletableFuture.runAsync(
+            () -> {
+              try {
+                namespaceService.deleteSourceWithCallBack(
+                    config.getKey(), config.getTag(), callback);
+              } catch (NamespaceException e) {
+                throw new RuntimeException(e);
+              }
+            },
+            executorService);
+      } else {
+        namespaceService.deleteSourceWithCallBack(config.getKey(), config.getTag(), callback);
+      }
       sourceDataStore.delete(config.getKey());
     } catch (RuntimeException ex) {
       afterUnknownEx = true;
@@ -621,6 +649,11 @@ public class CatalogServiceImpl implements CatalogService {
     }
 
     communicateChange(config, RpcType.REQ_DEL_SOURCE);
+  }
+
+  private static boolean checkSourceChangeStateIsSpecified(SourceConfig config) {
+    return config.getSourceChangeState() != null
+        && config.getSourceChangeState() != SourceChangeState.SOURCE_CHANGE_STATE_NONE;
   }
 
   private AutoCloseable getDistributedLock(String sourceName) throws Exception {
@@ -751,6 +784,12 @@ public class CatalogServiceImpl implements CatalogService {
   @Override
   public <T extends StoragePlugin> T getSource(String name) {
     return (T) getPlugin(name, true).unwrap(StoragePlugin.class);
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public <T extends StoragePlugin> T getSource(String name, boolean skipStateCheck) {
+    return (T) getPlugin(name, true).unwrap(StoragePlugin.class, true);
   }
 
   private boolean isInfluxSource(String source) {
@@ -921,6 +960,10 @@ public class CatalogServiceImpl implements CatalogService {
 
     public <T extends StoragePlugin> T getSource(String name) {
       return CatalogServiceImpl.this.getSource(name);
+    }
+
+    public <T extends StoragePlugin> T getSource(String name, boolean skipStateCheck) {
+      return CatalogServiceImpl.this.getSource(name, skipStateCheck);
     }
 
     public void createSource(SourceConfig sourceConfig, NamespaceAttribute... attributes) {

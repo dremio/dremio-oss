@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 import javax.inject.Named;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.util.Text;
 import org.apache.arrow.vector.util.TransferPair;
 
 public abstract class ProjectorTemplate implements Projector {
@@ -56,7 +55,7 @@ public abstract class ProjectorTemplate implements Projector {
             try {
               doEval(vector2.getIndex(i), i);
             } catch (Exception exception) {
-              errorVector.setSafe(i, new Text(exception.getMessage()));
+              errorVector.setSafe(i, ProjectErrorUtils.serializeEvaluationException(exception));
             }
           }
         }
@@ -72,7 +71,7 @@ public abstract class ProjectorTemplate implements Projector {
             try {
               doEval(i, i);
             } catch (Exception exception) {
-              errorVector.setSafe(i, new Text(exception.getMessage()));
+              errorVector.setSafe(i, ProjectErrorUtils.serializeEvaluationException(exception));
             }
           }
         }

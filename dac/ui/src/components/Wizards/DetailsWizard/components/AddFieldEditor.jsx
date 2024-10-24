@@ -15,11 +15,13 @@
  */
 import { createRef, PureComponent } from "react";
 import { connect } from "react-redux";
+import { compose } from "redux";
 import PropTypes from "prop-types";
-import { getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "#oss/selectors/explore";
 
 import SqlAutoComplete from "pages/ExplorePage/components/SqlEditor/SqlAutoComplete";
-import SQLFunctionsPanel from "@app/pages/ExplorePage/components/SqlEditor/SQLFunctionsPanel";
+import SQLFunctionsPanel from "#oss/pages/ExplorePage/components/SqlEditor/SQLFunctionsPanel";
+import { withColorScheme } from "dremio-ui-common/utilities/themeUtils.js";
 
 import "./AddFieldEditor.less";
 
@@ -41,6 +43,7 @@ export class AddFieldEditor extends PureComponent {
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
     style: PropTypes.object,
+    colorScheme: PropTypes.string,
   };
   static defaultProps = {
     sqlHeight: 112,
@@ -106,7 +109,7 @@ export class AddFieldEditor extends PureComponent {
   }
 
   render() {
-    const { name, onBlur, onFocus, onChange } = this.props;
+    const { name, onBlur, onFocus, onChange, colorScheme } = this.props;
     const { funcHelpPanel } = this.state;
     const inputProps = { name, onBlur, onFocus, onChange };
     const widthSqlEditor = funcHelpPanel ? styles.smallerSqlEditorWidth : {};
@@ -135,6 +138,7 @@ export class AddFieldEditor extends PureComponent {
                 hideDropDown={this.hideDropDown}
                 height={this.props.sqlHeight}
                 sqlSize={this.props.sqlHeight}
+                isDarkMode={this.props.colorScheme === "dark"}
                 style={{
                   ...styles.sqlEditorStyle,
                   ...styles.normalSqlEditorWidth,
@@ -158,7 +162,10 @@ function mapStateToProps(state) {
   };
 }
 
-export default connect(mapStateToProps)(AddFieldEditor);
+export default compose(
+  withColorScheme,
+  connect(mapStateToProps),
+)(AddFieldEditor);
 
 const styles = {
   base: {

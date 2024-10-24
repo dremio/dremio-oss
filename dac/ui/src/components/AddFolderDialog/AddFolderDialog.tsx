@@ -23,19 +23,19 @@ import {
   DialogContent,
   IconButton,
 } from "dremio-ui-lib/components";
-import Message from "@app/components/Message";
+import Message from "#oss/components/Message";
 import {
   handleAddFolder,
   type versionContext,
-} from "@app/endpoints/AddFolder/AddFolder";
+} from "#oss/endpoints/AddFolder/AddFolder";
 import { useForm } from "react-hook-form";
 import { TextInput } from "@mantine/core";
 import { constructFullPath } from "utils/pathUtils";
-import { loadResourceTree } from "@app/actions/resources/tree";
+import { loadResourceTree } from "#oss/actions/resources/tree";
 import {
   RESOURCE_TREE_VIEW_ID,
   LOAD_RESOURCE_TREE,
-} from "@app/components/Tree/resourceTreeUtils";
+} from "#oss/components/Tree/resourceTreeUtils";
 import { TreeConfigContext } from "../Tree/treeConfigContext";
 import * as classes from "./AddFolderDialog.module.less";
 
@@ -86,7 +86,7 @@ export const AddFolderDialog = ({
         rootName,
         folderPath,
         { name },
-        selectedVersionContext
+        selectedVersionContext,
       );
       const treeResponse = await dispatch(
         loadResourceTree(
@@ -101,15 +101,15 @@ export const AddFolderDialog = ({
           },
           true,
           node,
-          true
-        ) as any
+          true,
+        ) as any,
       );
       if (treeResponse && resourceTreeControllerRef) {
         resourceTreeControllerRef.current.handleSelectedNodeChange(
-          createdFolderPath
+          createdFolderPath,
         );
         resourceTreeControllerRef.current.expandPathToSelectedNode(
-          createdFolderPath
+          createdFolderPath,
         );
         close();
       }

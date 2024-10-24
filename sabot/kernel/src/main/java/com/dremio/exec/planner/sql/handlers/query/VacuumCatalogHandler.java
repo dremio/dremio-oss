@@ -44,7 +44,7 @@ import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.DremioHint;
 import com.dremio.exec.planner.sql.parser.SqlVacuumCatalog;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.NessieApiProvider;
+import com.dremio.exec.store.NessieConnectionProvider;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.IcebergUtils;
@@ -54,6 +54,7 @@ import com.google.common.base.Preconditions;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.util.Pair;
+import org.apache.hadoop.conf.Configuration;
 import org.projectnessie.client.api.NessieApiV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,7 +139,8 @@ public class VacuumCatalogHandler implements SqlToPlanHandler {
     Preconditions.checkState(sourcePlugin instanceof FileSystemPlugin);
     FileSystemPlugin fileSystemPlugin = (FileSystemPlugin) sourcePlugin;
     String fsScheme = fileSystemPlugin.createFS(config.getContext().getQueryUserName()).getScheme();
-    String schemeVariate = IcebergUtils.getDefaultPathScheme(fsScheme);
+    Configuration conf = fileSystemPlugin.getFsConfCopy();
+    String schemeVariate = IcebergUtils.getDefaultPathScheme(fsScheme, conf);
 
     drel =
         convertToDrel(
@@ -195,9 +197,9 @@ public class VacuumCatalogHandler implements SqlToPlanHandler {
 
   private static NessieApiV2 getNessieApi(StoragePlugin nessiePlugin) {
     Preconditions.checkState(
-        nessiePlugin instanceof NessieApiProvider,
+        nessiePlugin instanceof NessieConnectionProvider,
         "VACUUM CATALOG is supported only on versioned sources.");
-    return ((NessieApiProvider) nessiePlugin).getNessieApi();
+    return ((NessieConnectionProvider) nessiePlugin).getNessieApi();
   }
 
   @Override

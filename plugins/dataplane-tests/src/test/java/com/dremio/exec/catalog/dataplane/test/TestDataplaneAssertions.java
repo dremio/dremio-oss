@@ -18,14 +18,16 @@ package com.dremio.exec.catalog.dataplane.test;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneStorage.BucketSelection.PRIMARY_BUCKET;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.METADATA_FOLDER;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.USER_NAME;
-import static com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup.getDataplaneStorage;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.common.utils.PathUtils;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Content;
 import org.projectnessie.model.ContentKey;
@@ -47,10 +49,10 @@ public final class TestDataplaneAssertions {
       List<String> tableSchemaComponents,
       Class<? extends Operation> operationType,
       String branchName,
-      ITDataplanePluginTestSetup base)
+      DataplaneTestHelper base)
       throws NessieNotFoundException {
     final List<LogResponse.LogEntry> logEntries =
-        base.getNessieClient()
+        base.getNessieApi()
             .getCommitLog()
             .refName(branchName)
             .fetch(FetchOption.ALL) // Get extended data, including operations
@@ -73,10 +75,10 @@ public final class TestDataplaneAssertions {
   }
 
   public static void assertNessieHasTable(
-      List<String> tableSchemaComponents, String branchName, ITDataplanePluginTestSetup base)
+      List<String> tableSchemaComponents, String branchName, DataplaneTestHelper base)
       throws NessieNotFoundException {
     Map<ContentKey, Content> contentsMap =
-        base.getNessieClient()
+        base.getNessieApi()
             .getContent()
             .refName(branchName)
             .key(ContentKey.of(tableSchemaComponents))
@@ -89,17 +91,17 @@ public final class TestDataplaneAssertions {
         contentsMap.get(expectedContentsKey).unwrap(IcebergTable.class);
     assertThat(maybeIcebergTable).isPresent();
     assertThat(
-            getDataplaneStorage()
+            base.getDataplaneStorage()
                 .doesObjectExist(PRIMARY_BUCKET, maybeIcebergTable.get().getMetadataLocation()))
         .isTrue();
   }
 
   public static void assertNessieHasView(
-      List<String> viewSchemaComponents, String branchName, ITDataplanePluginTestSetup base)
+      List<String> viewSchemaComponents, String branchName, DataplaneTestHelper base)
       throws NessieNotFoundException {
-    Reference branch = base.getNessieClient().getReference().refName(branchName).get();
+    Reference branch = base.getNessieApi().getReference().refName(branchName).get();
     Map<ContentKey, Content> contentsMap =
-        base.getNessieClient()
+        base.getNessieApi()
             .getContent()
             .reference(branch)
             .key(ContentKey.of(viewSchemaComponents))
@@ -112,17 +114,17 @@ public final class TestDataplaneAssertions {
         contentsMap.get(expectedContentsKey).unwrap(IcebergView.class);
     assertThat(maybeIcebergView).isPresent();
     assertThat(
-            getDataplaneStorage()
+            base.getDataplaneStorage()
                 .doesObjectExist(PRIMARY_BUCKET, maybeIcebergView.get().getMetadataLocation()))
         .isTrue();
   }
 
   public static void assertNessieHasFunction(
-      List<String> schemaComponents, String branchName, ITDataplanePluginTestSetup base)
+      List<String> schemaComponents, String branchName, DataplaneTestHelper base)
       throws NessieNotFoundException {
-    Reference branch = base.getNessieClient().getReference().refName(branchName).get();
+    Reference branch = base.getNessieApi().getReference().refName(branchName).get();
     Map<ContentKey, Content> contentsMap =
-        base.getNessieClient()
+        base.getNessieApi()
             .getContent()
             .reference(branch)
             .key(ContentKey.of(schemaComponents))
@@ -134,18 +136,18 @@ public final class TestDataplaneAssertions {
     Optional<UDF> maybeUdf = contentsMap.get(expectedContentsKey).unwrap(UDF.class);
     assertThat(maybeUdf).isPresent();
     assertThat(
-            getDataplaneStorage()
+            base.getDataplaneStorage()
                 .doesObjectExist(PRIMARY_BUCKET, maybeUdf.get().getMetadataLocation()))
         .isTrue();
   }
 
   public static void assertNessieHasNamespace(
-      List<String> namespaceComponents, String branchName, ITDataplanePluginTestSetup base)
+      List<String> namespaceComponents, String branchName, DataplaneTestHelper base)
       throws NessieNotFoundException {
 
-    Reference branch = base.getNessieClient().getReference().refName(branchName).get();
+    Reference branch = base.getNessieApi().getReference().refName(branchName).get();
     Map<ContentKey, Content> contentsMap =
-        base.getNessieClient()
+        base.getNessieApi()
             .getContent()
             .reference(branch)
             .key(ContentKey.of(namespaceComponents))
@@ -159,12 +161,12 @@ public final class TestDataplaneAssertions {
   }
 
   public static void assertNessieDoesNotHaveNamespace(
-      List<String> namespaceComponents, String branchName, ITDataplanePluginTestSetup base)
+      List<String> namespaceComponents, String branchName, DataplaneTestHelper base)
       throws NessieNotFoundException {
 
-    Reference branch = base.getNessieClient().getReference().refName(branchName).get();
+    Reference branch = base.getNessieApi().getReference().refName(branchName).get();
     Map<ContentKey, Content> contentsMap =
-        base.getNessieClient()
+        base.getNessieApi()
             .getContent()
             .reference(branch)
             .key(ContentKey.of(namespaceComponents))
@@ -175,9 +177,9 @@ public final class TestDataplaneAssertions {
   }
 
   public static void assertLastCommitMadeBySpecifiedAuthor(
-      String branchName, ITDataplanePluginTestSetup base) throws NessieNotFoundException {
+      String branchName, DataplaneTestHelper base) throws NessieNotFoundException {
     final List<LogResponse.LogEntry> logEntries =
-        base.getNessieClient()
+        base.getNessieApi()
             .getCommitLog()
             .refName(branchName)
             .fetch(FetchOption.ALL) // Get extended data, including operations
@@ -193,21 +195,46 @@ public final class TestDataplaneAssertions {
   }
 
   public static void assertNessieDoesNotHaveEntity(
-      List<String> key, String branchName, ITDataplanePluginTestSetup base)
+      List<String> key, String branchName, DataplaneTestHelper base)
       throws NessieNotFoundException {
     Map<ContentKey, Content> contentsMap =
-        base.getNessieClient().getContent().refName(branchName).key(ContentKey.of(key)).get();
+        base.getNessieApi().getContent().refName(branchName).key(ContentKey.of(key)).get();
     assertThat(contentsMap).isEmpty();
   }
 
-  public static void assertIcebergTableExistsAtSubPath(List<String> subPath) {
+  public static List<String> getSubPathFromNessieTableContent(
+      List<String> tablePath, String refName, DataplaneTestHelper base)
+      throws NessieNotFoundException {
+    Map<ContentKey, Content> contentsMap =
+        base.getNessieApi().getContent().refName(refName).key(ContentKey.of(tablePath)).get();
+    ContentKey contentKey = ContentKey.of(tablePath);
+    Optional<IcebergTable> maybeIcebergTable =
+        contentsMap.get(contentKey).unwrap(IcebergTable.class);
+
+    List<String> pathComponents =
+        PathUtils.toPathComponents(maybeIcebergTable.get().getMetadataLocation());
+    int metadataIndex = pathComponents.indexOf(METADATA_FOLDER);
+    int beginningKeyIndex =
+        IntStream.range(0, pathComponents.size())
+            .filter(i -> pathComponents.get(i).startsWith(tablePath.get(0)))
+            .findFirst()
+            .orElse(-1);
+    if (beginningKeyIndex != -1 && (metadataIndex > 0) && (metadataIndex < pathComponents.size())) {
+      return pathComponents.subList(beginningKeyIndex, metadataIndex);
+    } else {
+      return Collections.emptyList();
+    }
+  }
+
+  public static void assertIcebergTableExistsAtSubPath(
+      List<String> subPath, DataplaneTestHelper base) {
     // Iceberg tables on disk have a "metadata" folder in their root, check for "metadata" folder
     // too
     List<String> pathToMetadataFolder = new ArrayList<>(subPath);
     pathToMetadataFolder.add(METADATA_FOLDER);
 
     List<String> keysInMetadataSubPath =
-        getDataplaneStorage()
+        base.getDataplaneStorage()
             .listObjectNames(PRIMARY_BUCKET, String.join("/", pathToMetadataFolder))
             .collect(Collectors.toList());
 
@@ -219,12 +246,13 @@ public final class TestDataplaneAssertions {
       int expectedNumAvroFilesExcludingSnapshot,
       int expectedNumMetadataJsonFiles,
       int expectedNumSnapshotFiles,
-      int expectedNumParquetFiles) {
+      int expectedNumParquetFiles,
+      DataplaneTestHelper base) {
     List<String> pathToMetadataFolder = new ArrayList<>(subPath);
     pathToMetadataFolder.add(METADATA_FOLDER);
 
     List<String> keysInMetadataSubPath =
-        getDataplaneStorage()
+        base.getDataplaneStorage()
             .listObjectNames(PRIMARY_BUCKET, String.join("/", pathToMetadataFolder))
             .collect(Collectors.toList());
 
@@ -244,7 +272,7 @@ public final class TestDataplaneAssertions {
         .isEqualTo(expectedNumMetadataJsonFiles);
 
     List<String> keysInSubPath =
-        getDataplaneStorage()
+        base.getDataplaneStorage()
             .listObjectNames(PRIMARY_BUCKET, String.join("/", subPath))
             .collect(Collectors.toList());
 
@@ -253,10 +281,9 @@ public final class TestDataplaneAssertions {
         .isEqualTo(expectedNumParquetFiles);
   }
 
-  public static void assertNessieDoesHotHaveBranch(
-      String branchName, ITDataplanePluginTestSetup base) {
+  public static void assertNessieDoesHotHaveBranch(String branchName, DataplaneTestHelper base) {
     try {
-      Reference branch = base.getNessieClient().getReference().refName(branchName).get();
+      Reference branch = base.getNessieApi().getReference().refName(branchName).get();
       // this will always throw.
       assertThat(branch).isNull();
     } catch (NessieNotFoundException e) {
@@ -264,9 +291,9 @@ public final class TestDataplaneAssertions {
     }
   }
 
-  public static void assertNessieDoesHotHaveTag(String tagName, ITDataplanePluginTestSetup base) {
+  public static void assertNessieDoesHotHaveTag(String tagName, DataplaneTestHelper base) {
     try {
-      Reference tag = base.getNessieClient().getReference().refName(tagName).get();
+      Reference tag = base.getNessieApi().getReference().refName(tagName).get();
       // this will always throw.
       assertThat(tag).isNull();
     } catch (NessieNotFoundException e) {

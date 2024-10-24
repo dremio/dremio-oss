@@ -22,7 +22,7 @@ import com.dremio.exec.expr.fn.hll.HyperLogLog;
 import com.dremio.exec.expr.fn.impl.MapFunctions;
 import com.dremio.exec.expr.fn.listagg.ListAgg;
 import com.dremio.exec.expr.fn.tdigest.TDigest;
-import com.dremio.exec.planner.logical.RelDataTypeEqualityUtil;
+import com.dremio.exec.planner.logical.RelDataTypeEqualityComparer;
 import com.dremio.exec.planner.sql.parser.SqlContains;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.google.common.collect.ImmutableList;
@@ -706,8 +706,12 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
         }
 
         boolean elementTypeMatchesArrayType =
-            RelDataTypeEqualityUtil.areEquals(
-                arrayType.getComponentType(), elementType, true, false);
+            RelDataTypeEqualityComparer.areEquals(
+                arrayType.getComponentType(),
+                elementType,
+                RelDataTypeEqualityComparer.Options.builder()
+                    .withConsiderNullability(false)
+                    .build());
 
         if (!elementTypeMatchesArrayType) {
           if (throwOnFailure) {
@@ -988,7 +992,14 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
         RelDataType first = operandTypes.get(0);
         for (int i = 1; i < operandTypes.size(); i++) {
-          if (!RelDataTypeEqualityUtil.areEquals(first, operandTypes.get(i), false, false)) {
+          if (!RelDataTypeEqualityComparer.areEquals(
+              first,
+              operandTypes.get(i),
+              RelDataTypeEqualityComparer.Options.builder()
+                  .withConsiderNullability(false)
+                  .withConsiderPrecision(false)
+                  .withConsiderScale(false)
+                  .build())) {
             if (throwOnFailure) {
               throw UserException.validationError()
                   .message(

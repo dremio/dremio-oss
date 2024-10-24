@@ -30,7 +30,7 @@ class AggregateFooter extends PureComponent {
     return !this.checkToRenderFooter() ? (
       <div className="h-4 w-full"></div>
     ) : (
-      <div className="flex w-full">
+      <div className="flex w-full my-1">
         <div style={{ minWidth: 240 }}></div>
         <div className="h-4 w-full">
           <Button

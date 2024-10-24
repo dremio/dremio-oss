@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.planner.normalizer.aggregaterewrite;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.options.OptionResolver;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,6 +29,7 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.rules.FilterMergeRule.Config;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
@@ -40,9 +44,7 @@ import org.apache.calcite.util.CompositeList;
  * shouldn't happen very often.
  */
 public final class AggregateCallRewriteRule extends RelRule<RelRule.Config> {
-  public static final AggregateCallRewriteRule INSTANCE = new AggregateCallRewriteRule();
-
-  private static final ImmutableSet<AggregateCallConvertlet> convertlets =
+  private static final ImmutableSet<AggregateCallConvertlet> WITHOUT_MULTI_COLUMN_COUNT =
       ImmutableSet.of(
           AggregateFilterToCaseConvertlet.INSTANCE,
           ApproxPercentileConvertlet.INSTANCE,
@@ -50,11 +52,33 @@ public final class AggregateCallRewriteRule extends RelRule<RelRule.Config> {
           MedianConvertlet.INSTANCE,
           NDVConvertlet.INSTANCE);
 
-  public AggregateCallRewriteRule() {
+  private static final AggregateCallRewriteRule WITHOUT_MULTI_COLUMN_COUNT_RULE =
+      new AggregateCallRewriteRule(WITHOUT_MULTI_COLUMN_COUNT);
+  private static final AggregateCallRewriteRule WITH_MULTI_COLUMN_COUNT_RULE =
+      new AggregateCallRewriteRule(
+          new ImmutableSet.Builder<AggregateCallConvertlet>()
+              .addAll(WITHOUT_MULTI_COLUMN_COUNT)
+              .add(CountMultipleArgumentConvertlet.INSTANCE)
+              .build());
+
+  public static final AggregateCallRewriteRule DEFAULT = AggregateCallRewriteRule.create(null);
+  private final ImmutableSet<AggregateCallConvertlet> convertlets;
+
+  public AggregateCallRewriteRule(ImmutableSet<AggregateCallConvertlet> convertlets) {
     super(
         Config.EMPTY
             .withDescription("AggregateCallRewriteRule")
             .withOperandSupplier(op -> op.operand(Aggregate.class).anyInputs()));
+    this.convertlets = Preconditions.checkNotNull(convertlets);
+  }
+
+  public static AggregateCallRewriteRule create(OptionResolver optionResolver) {
+    if ((optionResolver != null)
+        && optionResolver.getOption(PlannerSettings.ENABLE_MULTI_COLUMN_COUNT_REWRITE)) {
+      return AggregateCallRewriteRule.WITH_MULTI_COLUMN_COUNT_RULE;
+    }
+
+    return AggregateCallRewriteRule.WITHOUT_MULTI_COLUMN_COUNT_RULE;
   }
 
   @Override
@@ -63,7 +87,7 @@ public final class AggregateCallRewriteRule extends RelRule<RelRule.Config> {
     reduceAggs(ruleCall, oldAggRel);
   }
 
-  private static void reduceAggs(RelOptRuleCall ruleCall, Aggregate oldAggRel) {
+  private void reduceAggs(RelOptRuleCall ruleCall, Aggregate oldAggRel) {
     RexBuilder rexBuilder = oldAggRel.getCluster().getRexBuilder();
 
     List<AggregateCall> oldCalls = oldAggRel.getAggCallList();
@@ -104,7 +128,7 @@ public final class AggregateCallRewriteRule extends RelRule<RelRule.Config> {
     ruleCall.transformTo(relBuilder.build());
   }
 
-  private static RexNode reduceAgg(
+  private RexNode reduceAgg(
       Aggregate oldAggRel,
       AggregateCall oldCall,
       List<AggregateCall> newCalls,

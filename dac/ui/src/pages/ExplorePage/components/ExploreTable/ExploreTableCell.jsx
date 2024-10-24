@@ -20,8 +20,8 @@ import { Cell } from "fixed-data-table-2";
 import Immutable from "immutable";
 import shallowEqual from "shallowequal";
 import { pick } from "lodash/object";
-import { LIST, MAP, TEXT, STRUCT } from "@app/constants/DataTypes";
-import { DATE_TYPES, NUMBER_TYPES } from "@app/constants/columnTypeGroups";
+import { LIST, MAP, TEXT, STRUCT } from "#oss/constants/DataTypes";
+import { DATE_TYPES, NUMBER_TYPES } from "#oss/constants/columnTypeGroups";
 
 import dataFormatUtils from "utils/dataFormatUtils";
 import exploreUtils from "utils/explore/exploreUtils";
@@ -347,7 +347,7 @@ export default ExploreTableCellView;
 
 const styles = {
   removedCell: {
-    color: "var(--color--red--400)",
+    color: "var(--fill--danger--solid)",
     textDecoration: "line-through",
   },
   nullCell: {
