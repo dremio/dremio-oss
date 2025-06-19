@@ -143,8 +143,9 @@ public class IcebergDeleteFileAggTableFunction extends AbstractTableFunction {
     outputDeleteFiles = (ListVector) getVectorFromSchemaPath(outgoing, SystemSchemas.DELETE_FILES);
     outputSpecId = (IntVector) getVectorFromSchemaPath(outgoing, SystemSchemas.PARTITION_SPEC_ID);
 
-    currentDeleteFiles = ListVector.empty(SystemSchemas.DELETE_FILES, context.getAllocator());
+    currentDeleteFiles = (ListVector) outputDeleteFiles.getField().createVector(context.getAllocator());
     currentDeleteFilesWriter = currentDeleteFiles.getWriter();
+    currentDeleteFiles.allocateNew();
 
     state = State.START_NEW_AGG;
     return outgoing;
@@ -238,6 +239,8 @@ public class IcebergDeleteFileAggTableFunction extends AbstractTableFunction {
   }
 
   private void copyInputToCurrent(int inputIndex) {
+    currentDeleteFiles.setValueCount(0);
+    currentDeleteFiles.reset();
     currentDataFilePath = inputDataFilePath.get(inputIndex);
     currentFileSize = inputFileSize.get(inputIndex);
     currentPartitionInfo = inputPartitionInfo.get(inputIndex);
@@ -265,6 +268,8 @@ public class IcebergDeleteFileAggTableFunction extends AbstractTableFunction {
     outputSpecId.setSafe(outputIndex, currentSpecID);
 
     currentDeleteFilesWriter.endList();
+
+    currentDeleteFiles.setValueCount(1);
     outputDeleteFiles.copyFromSafe(0, outputIndex, currentDeleteFiles);
 
     outgoing.setAllCount(outputIndex + 1);
