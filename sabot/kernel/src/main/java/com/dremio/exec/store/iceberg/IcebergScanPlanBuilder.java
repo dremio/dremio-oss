@@ -673,6 +673,7 @@ public class IcebergScanPlanBuilder {
     RelDataTypeField buildSeqNumField = getField(build, SystemSchemas.SEQUENCE_NUMBER);
     RelDataTypeField buildSpecIdField = getField(build, SystemSchemas.PARTITION_SPEC_ID);
     RelDataTypeField buildPartKeyField = getField(build, SystemSchemas.PARTITION_KEY);
+    RelDataTypeField buildPartFileContent = getField(build, SystemSchemas.FILE_CONTENT);
 
     // build the join condition:
     //   data.partitionSpecId == deletes.partitionSpecId &&
@@ -694,12 +695,48 @@ public class IcebergScanPlanBuilder {
                 rexBuilder.makeInputRef(probePartKeyField.getType(), probePartKeyField.getIndex()),
                 rexBuilder.makeInputRef(
                     buildPartKeyField.getType(), probeFieldCount + buildPartKeyField.getIndex())));
+
+    RexNode fileContentIsEqualityDelete =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.AND,
+            rexBuilder.makeCall(
+                SqlStdOperatorTable.EQUALS,
+                rexBuilder.makeLiteral("EQUALITY_DELETES", buildPartFileContent.getType()),
+                rexBuilder.makeInputRef(buildPartFileContent.getType(), probeFieldCount + buildPartFileContent.getIndex())
+            ),
+            rexBuilder.makeCall(
+                SqlStdOperatorTable.LESS_THAN,
+                rexBuilder.makeInputRef(probeSeqNumField.getType(), probeSeqNumField.getIndex()),
+                rexBuilder.makeInputRef(
+                    buildSeqNumField.getType(), probeFieldCount + buildSeqNumField.getIndex()))
+        );
+
+    RexNode fileContentIsPositionalDelete=
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.AND,
+            rexBuilder.makeCall(
+                SqlStdOperatorTable.EQUALS,
+                rexBuilder.makeLiteral("POSITION_DELETES", buildPartFileContent.getType()),
+                rexBuilder.makeInputRef(buildPartFileContent.getType(), probeFieldCount + buildPartFileContent.getIndex())
+            ),
+            rexBuilder.makeCall(
+                SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
+                rexBuilder.makeInputRef(probeSeqNumField.getType(), probeSeqNumField.getIndex()),
+                rexBuilder.makeInputRef(
+                    buildSeqNumField.getType(), probeFieldCount + buildSeqNumField.getIndex()))
+        );
+
+
+
+
+    //RexNode extraJoinCondition = fileContentIsPositionalDelete;
+
     RexNode extraJoinCondition =
         rexBuilder.makeCall(
-            SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
-            rexBuilder.makeInputRef(probeSeqNumField.getType(), probeSeqNumField.getIndex()),
-            rexBuilder.makeInputRef(
-                buildSeqNumField.getType(), probeFieldCount + buildSeqNumField.getIndex()));
+            SqlStdOperatorTable.OR,
+            fileContentIsEqualityDelete,
+            fileContentIsPositionalDelete);
+
 
     RelNode output =
         HashJoinPrel.create(
