@@ -40,7 +40,7 @@ public final class FilterSortTransposeRule extends RelRule<Config> implements Tr
         relBuilder
             .push(sort.getInput())
             .filter(filter.getCondition())
-            .sort(sort.getSortExps())
+            .sortLimit(sort.collation, sort.offset, sort.fetch)
             .build();
 
     call.transformTo(transposed);
