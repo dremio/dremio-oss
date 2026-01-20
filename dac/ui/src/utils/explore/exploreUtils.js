@@ -761,7 +761,14 @@ class ExploreUtils {
     if (!column) return false;
     const name = column.get("name");
     // empty string is treated as included, null or undefined filter - not.
-    return name && name.toUpperCase().includes(filter.toUpperCase());
+    if (!filter || !filter.length) {
+      return true;
+    }
+    try {
+      return name && new RegExp(filter, 'i').test(name);
+    } catch (e) {
+      return name && name.toUpperCase().includes(filter.toUpperCase());
+    }
   }
 
   getFilteredColumns(columns, columnFilter) {
