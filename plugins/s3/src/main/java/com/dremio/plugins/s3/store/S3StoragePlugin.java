@@ -90,6 +90,8 @@ public class S3StoragePlugin
   public static final String AWS_PROFILE_PROVIDER =
       "com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1";
   public static final String SESSION_ACCESS_KEY_PROVIDER = TemporaryAWSCredentialsProvider.NAME;
+  public static final String CONTAINER_PROVIDER =
+      "software.amazon.awssdk.auth.credentials.ContainerCredentialsProvider";
 
   private final AWSCredentialsConfigurator awsCredentialsConfigurator;
   private final boolean isAuthTypeNone;

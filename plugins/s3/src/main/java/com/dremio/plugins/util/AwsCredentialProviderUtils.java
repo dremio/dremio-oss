@@ -18,6 +18,7 @@ package com.dremio.plugins.util;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.AWS_PROFILE_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.CONTAINER_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.DREMIO_ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.GLUE_ACCESS_KEY_PROVIDER;
@@ -35,6 +36,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.ContainerCredentialsProvider;
 
 /** Utility for creating credential providers based on plugin configuration. */
 public final class AwsCredentialProviderUtils {
@@ -65,6 +67,8 @@ public final class AwsCredentialProviderUtils {
         return new AWSProfileCredentialsProviderV2(config);
       case SESSION_ACCESS_KEY_PROVIDER:
         return new DremioSessionCredentialsProviderV2(config);
+      case CONTAINER_PROVIDER:
+        return ContainerCredentialsProvider.create();
       default:
         throw new IllegalStateException(
             "Invalid AWSCredentialsProvider provided: "
