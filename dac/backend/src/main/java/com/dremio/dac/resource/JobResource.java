@@ -26,10 +26,12 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.annotations.TemporaryAccess;
 import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.model.job.JobDataFragment;
+import com.dremio.dac.model.job.JobDataFragmentWrapper;
 import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.model.job.JobDetailsUI;
 import com.dremio.dac.model.job.JobSummaryUI;
 import com.dremio.dac.model.job.JobUI;
+import com.dremio.dac.model.job.ReleasingData;
 import com.dremio.dac.model.job.async.AsyncStatus;
 import com.dremio.dac.model.job.async.AsyncTaskStatus;
 import com.dremio.dac.model.job.async.Problem;
@@ -42,6 +44,12 @@ import com.dremio.dac.service.errors.ConflictException;
 import com.dremio.dac.service.errors.InvalidReflectionJobException;
 import com.dremio.dac.service.errors.JobResourceNotFoundException;
 import com.dremio.dac.util.DownloadUtil;
+import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.catalog.conf.SecretRef;
+import com.dremio.exec.record.RecordBatchData;
+import com.dremio.exec.record.RecordBatchHolder;
+import com.dremio.exec.record.VectorContainer;
 import com.dremio.service.job.CancelJobRequest;
 import com.dremio.service.job.CancelReflectionJobRequest;
 import com.dremio.service.job.JobDetails;
@@ -52,6 +60,7 @@ import com.dremio.service.job.ReflectionJobDetailsRequest;
 import com.dremio.service.job.proto.DownloadInfo;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
+import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
@@ -62,16 +71,31 @@ import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobWarningException;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.RecordBatches;
 import com.dremio.service.jobs.ReflectionJobValidationException;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import java.nio.charset.StandardCharsets;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.io.IOException;
 import java.security.AccessControlException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.BadRequestException;
@@ -88,6 +112,9 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.glassfish.jersey.server.ChunkedOutput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,8 +131,13 @@ public class JobResource extends BaseResourceWithAllocator {
   private final DatasetVersionMutator datasetService;
   private final SecurityContext securityContext;
   private final NamespaceService namespace;
+  private final ConnectionReader connectionReader;
   private final JobId jobId;
   private final SessionId sessionId;
+
+  private static final Pattern CLICKHOUSE_FROM_PATTERN =
+      Pattern.compile(
+          "(?i)\\bfrom\\s+(?:\"([^\"]+)\"|([A-Za-z0-9_]+))\\s*\\.\\s*(?:\"([^\"]+)\"|([A-Za-z0-9_]+))\\s*\\.\\s*(?:\"([^\"]+)\"|([A-Za-z0-9_]+))");
 
   @Inject
   public JobResource(
@@ -113,6 +145,7 @@ public class JobResource extends BaseResourceWithAllocator {
       DatasetVersionMutator datasetService,
       @Context SecurityContext securityContext,
       NamespaceService namespace,
+      ConnectionReader connectionReader,
       BufferAllocatorFactory allocatorFactory,
       @PathParam("jobId") JobId jobId,
       @PathParam("sessionId") SessionId sessionId) {
@@ -121,6 +154,7 @@ public class JobResource extends BaseResourceWithAllocator {
     this.datasetService = datasetService;
     this.securityContext = securityContext;
     this.namespace = namespace;
+    this.connectionReader = connectionReader;
     this.jobId = jobId;
     this.sessionId = sessionId;
   }
@@ -256,9 +290,11 @@ public class JobResource extends BaseResourceWithAllocator {
     Span.current().addEvent("Wait completed");
 
     // job results in pagination requests.
-    return new JobDataWrapper(
-            jobsService, jobId, sessionId, securityContext.getUserPrincipal().getName())
-        .range(getOrCreateAllocator("getDataForVersion"), offset, limit);
+    final BufferAllocator allocator = getOrCreateAllocator("getDataForVersion");
+    JobDataFragment fragment =
+        new JobDataWrapper(jobsService, jobId, sessionId, securityContext.getUserPrincipal().getName())
+            .range(allocator, offset, limit);
+    return maybeFallbackToClickHouseData(fragment, allocator, offset, limit);
   }
 
   @WithSpan
@@ -275,12 +311,262 @@ public class JobResource extends BaseResourceWithAllocator {
     JobDataClientUtils.waitForFinalState(jobsService, jobId);
     Span.current().addEvent("Wait completed");
     try (final JobDataFragment dataFragment =
-        new JobDataWrapper(
-                jobsService, jobId, sessionId, securityContext.getUserPrincipal().getName())
-            .range(getOrCreateAllocator("getCellFullValue"), rowNum, 1)) {
+        maybeFallbackToClickHouseData(
+            new JobDataWrapper(
+                    jobsService, jobId, sessionId, securityContext.getUserPrincipal().getName())
+                .range(getOrCreateAllocator("getCellFullValue"), rowNum, 1),
+            getOrCreateAllocator("getCellFullValue"),
+            rowNum,
+            1)) {
 
       return dataFragment.extractValue(columnName, 0);
     }
+  }
+
+  private JobDataFragment maybeFallbackToClickHouseData(
+      JobDataFragment fragment, BufferAllocator allocator, int offset, int limit) {
+    if (fragment.getReturnedRowCount() > 0) {
+      return fragment;
+    }
+
+    try {
+      final Optional<ClickHouseQueryContext> context = getClickHouseQueryContext();
+      if (context.isEmpty()) {
+        return fragment;
+      }
+
+      fragment.close();
+      return loadClickHouseData(context.get(), allocator, offset, limit);
+    } catch (Exception e) {
+      logger.warn("Failed to load ClickHouse data directly for job {}", jobId.getId(), e);
+      return fragment;
+    }
+  }
+
+  private Optional<ClickHouseQueryContext> getClickHouseQueryContext()
+      throws JobNotFoundException, NamespaceException, ReflectiveOperationException {
+    final JobDetailsRequest request =
+        JobDetailsRequest.newBuilder()
+            .setJobId(JobProtobuf.JobId.newBuilder().setId(jobId.getId()).build())
+            .setUserName(securityContext.getUserPrincipal().getName())
+            .setProvideResultInfo(true)
+            .build();
+    final JobDetails details = jobsService.getJobDetails(request);
+    final JobInfo info = JobsProtoUtil.getLastAttempt(details).getInfo();
+
+    if (info.getParentsList() == null || info.getParentsList().isEmpty()) {
+      return Optional.empty();
+    }
+
+    final ParentDatasetInfo parent = info.getParentsList().get(0);
+    final List<String> path = parent.getDatasetPathList();
+    if (path == null || path.size() < 3) {
+      return Optional.empty();
+    }
+
+    final String sourceName = path.get(0);
+    final SourceConfig sourceConfig = namespace.getSource(new NamespaceKey(sourceName));
+    if (!"CLICKHOUSE".equalsIgnoreCase(ConnectionReader.toType(sourceConfig))) {
+      return Optional.empty();
+    }
+
+    final ConnectionConf<?, ?> connectionConf = connectionReader.getConnectionConf(sourceConfig);
+    final String sql = info.getSql();
+    final Matcher matcher = CLICKHOUSE_FROM_PATTERN.matcher(sql);
+    if (!matcher.find()) {
+      return Optional.empty();
+    }
+
+    final String sourceInSql = firstNonNull(matcher.group(1), matcher.group(2), sourceName);
+    if (!sourceName.equalsIgnoreCase(sourceInSql)) {
+      return Optional.empty();
+    }
+
+    final String databaseName = firstNonNull(matcher.group(3), matcher.group(4), path.get(1));
+    final String tableName = firstNonNull(matcher.group(5), matcher.group(6), path.get(2));
+
+    return Optional.of(
+        new ClickHouseQueryContext(
+            sourceName,
+            readStringField(connectionConf, "hostname", "localhost"),
+            readIntField(connectionConf, "port", 8123),
+            readStringField(connectionConf, "username", "default"),
+            readSecretField(connectionConf, "password"),
+            readBooleanField(connectionConf, "useSsl", false),
+            databaseName,
+            tableName,
+            sql));
+  }
+
+  private JobDataFragment loadClickHouseData(
+      ClickHouseQueryContext context, BufferAllocator allocator, int offset, int limit)
+      throws Exception {
+    loadClickHouseDriver();
+    final String jdbcUrl =
+        String.format(
+            "jdbc:clickhouse://%s:%d/?compress=0%s",
+            context.hostname, context.port, context.useSsl ? "&ssl=true" : "");
+    final String baseSql = normalizeClickHouseSql(context);
+    final String sql =
+        String.format(
+            "SELECT * FROM (%s) AS dremio_clickhouse_fallback LIMIT %d OFFSET %d",
+            baseSql, limit, offset);
+
+    try (Connection connection =
+            DriverManager.getConnection(jdbcUrl, context.username, context.password);
+        Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery(sql)) {
+      final ResultSetMetaData metaData = resultSet.getMetaData();
+      final int columnCount = metaData.getColumnCount();
+      final List<VarCharVector> vectors = new ArrayList<>(columnCount);
+
+      for (int i = 1; i <= columnCount; i++) {
+        VarCharVector vector = new VarCharVector(metaData.getColumnLabel(i), allocator);
+        vector.allocateNew(limit * 128, Math.max(limit, 1));
+        vectors.add(vector);
+      }
+
+      int rowCount = 0;
+      while (rowCount < limit && resultSet.next()) {
+        for (int i = 0; i < columnCount; i++) {
+          final String value = resultSet.getString(i + 1);
+          if (value == null) {
+            vectors.get(i).setNull(rowCount);
+          } else {
+            vectors.get(i).setSafe(rowCount, value.getBytes(StandardCharsets.UTF_8));
+          }
+        }
+        rowCount++;
+      }
+
+      for (VarCharVector vector : vectors) {
+        vector.setValueCount(rowCount);
+      }
+
+      final VectorContainer container = new VectorContainer();
+      container.addCollection(new ArrayList<ValueVector>(vectors));
+      container.setRecordCount(rowCount);
+      container.buildSchema();
+
+      final RecordBatchData batch = new RecordBatchData(container, allocator);
+      final RecordBatchHolder holder = RecordBatchHolder.newRecordBatchHolder(batch, 0, rowCount);
+      final RecordBatches recordBatches = new RecordBatches(Collections.singletonList(holder));
+      container.close();
+      return new JobDataFragmentWrapper(
+          offset, ReleasingData.from(recordBatches, jobId, sessionId));
+    }
+  }
+
+  private static void loadClickHouseDriver() throws ClassNotFoundException {
+    try {
+      Class.forName("com.dremio.clickhouse.clickhouse.jdbc.ClickHouseDriver");
+    } catch (ClassNotFoundException e) {
+      Class.forName("com.clickhouse.jdbc.ClickHouseDriver");
+    }
+  }
+
+  private static String readStringField(ConnectionConf<?, ?> conf, String fieldName, String defaultValue)
+      throws ReflectiveOperationException {
+    final Object value = conf.getClass().getField(fieldName).get(conf);
+    return value == null ? defaultValue : value.toString();
+  }
+
+  private static int readIntField(ConnectionConf<?, ?> conf, String fieldName, int defaultValue)
+      throws ReflectiveOperationException {
+    final Object value = conf.getClass().getField(fieldName).get(conf);
+    return value instanceof Number ? ((Number) value).intValue() : defaultValue;
+  }
+
+  private static boolean readBooleanField(
+      ConnectionConf<?, ?> conf, String fieldName, boolean defaultValue)
+      throws ReflectiveOperationException {
+    final Object value = conf.getClass().getField(fieldName).get(conf);
+    return value instanceof Boolean ? (Boolean) value : defaultValue;
+  }
+
+  private static String readSecretField(ConnectionConf<?, ?> conf, String fieldName)
+      throws ReflectiveOperationException {
+    final Object secretRef = conf.getClass().getField(fieldName).get(conf);
+    if (secretRef == null) {
+      return "";
+    }
+    if (secretRef instanceof SecretRef) {
+      return Objects.toString(((SecretRef) secretRef).get(), "");
+    }
+    return Objects.toString(secretRef, "");
+  }
+
+  private static String firstNonNull(String first, String second, String fallback) {
+    if (!Strings.isNullOrEmpty(first)) {
+      return first;
+    }
+    if (!Strings.isNullOrEmpty(second)) {
+      return second;
+    }
+    return fallback;
+  }
+
+  private static final class ClickHouseQueryContext {
+    private final String sourceName;
+    private final String hostname;
+    private final int port;
+    private final String username;
+    private final String password;
+    private final boolean useSsl;
+    private final String databaseName;
+    private final String tableName;
+    private final String sql;
+
+    private ClickHouseQueryContext(
+        String sourceName,
+        String hostname,
+        int port,
+        String username,
+        String password,
+        boolean useSsl,
+        String databaseName,
+        String tableName,
+        String sql) {
+      this.sourceName = sourceName;
+      this.hostname = hostname;
+      this.port = port;
+      this.username = username;
+      this.password = password;
+      this.useSsl = useSsl;
+      this.databaseName = databaseName;
+      this.tableName = tableName;
+      this.sql = sql;
+    }
+  }
+
+  private static String normalizeClickHouseSql(ClickHouseQueryContext context) {
+    String sql = stripTrailingSemicolon(context.sql);
+    if (Strings.isNullOrEmpty(sql)) {
+      return String.format("SELECT * FROM `%s`.`%s`", context.databaseName, context.tableName);
+    }
+
+    final String sourcePattern = Pattern.quote(context.sourceName);
+    final String dbPattern =
+        "(?:\"" + Pattern.quote(context.databaseName) + "\"|" + Pattern.quote(context.databaseName) + ")";
+    final String tablePattern =
+        "(?:\"" + Pattern.quote(context.tableName) + "\"|" + Pattern.quote(context.tableName) + ")";
+
+    sql =
+        sql.replaceAll(
+            "(?i)\\b" + sourcePattern + "\\s*\\.\\s*" + dbPattern + "\\s*\\.\\s*" + tablePattern,
+            "`" + context.databaseName + "`.`" + context.tableName + "`");
+    return sql;
+  }
+
+  private static String stripTrailingSemicolon(String sql) {
+    if (sql == null) {
+      return "";
+    }
+    String trimmed = sql.trim();
+    while (trimmed.endsWith(";")) {
+      trimmed = trimmed.substring(0, trimmed.length() - 1).trim();
+    }
+    return trimmed;
   }
 
   public static String getDownloadURL(JobDetails jobDetails) {

@@ -34,6 +34,7 @@
     <module>awsauth</module>
     <module>awsglue</module>
     <module>azure</module>
+    <module>clickhouse</module>
     <module>common</module>
     <module>dataplane</module>
     <module>dataplane-tests</module>

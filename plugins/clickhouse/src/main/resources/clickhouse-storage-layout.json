@@ -1,0 +1,55 @@
+{
+  "sourceType": "CLICKHOUSE",
+  "metadataRefresh": {
+    "datasetDiscovery": true
+  },
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "tooltip": "",
+            "elements": [
+              {
+                "propName": "config.hostname",
+                "uiType": "string",
+                "label": "Host",
+                "defaultValue": "localhost"
+              },
+              {
+                "propName": "config.port",
+                "uiType": "number",
+                "label": "Port",
+                "defaultValue": 8123
+              },
+              {
+                "propName": "config.database",
+                "uiType": "string",
+                "label": "Database",
+                "defaultValue": "default"
+              },
+              {
+                "propName": "config.username",
+                "uiType": "string",
+                "label": "Username"
+              },
+              {
+                "propName": "config.password",
+                "uiType": "password",
+                "label": "Password"
+              },
+              {
+                "propName": "config.useSsl",
+                "uiType": "checkbox",
+                "label": "Use SSL"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
