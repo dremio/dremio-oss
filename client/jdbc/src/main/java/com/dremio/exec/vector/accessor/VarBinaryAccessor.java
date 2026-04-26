@@ -65,7 +65,7 @@ public class VarBinaryAccessor extends AbstractSqlAccessor {
     }
     NullableVarBinaryHolder h = new NullableVarBinaryHolder();
     ac.get(index, h);
-    return new ByteBufInputStream(NettyArrowBuf.unwrapBuffer(h.buffer.slice(h.start, h.end)));
+    return new ByteBufInputStream(NettyArrowBuf.unwrapBuffer(h.buffer.slice(h.start, h.end - h.start)));
   }
 
   @Override
