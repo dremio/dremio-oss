@@ -86,7 +86,7 @@
     "formik": "^2.2.6",
     "hoconfig-js": "^0.1.12",
     "hoist-non-react-statics": "^1.0.6",
-    "immutable": "^3.8.1",
+    "immutable": "^3.8.3",
     "intl-messageformat": "^9.9.1",
     "invariant": "^2.2.4",
     "jquery": "3.5.1",
