@@ -111,7 +111,12 @@ export default class SelectSourceType extends Component {
           iconSrc={item.icon} // ARP Connectors don't use dremio-icon, send the icon src here
           dremioIcon={`sources/${item.sourceType}`}
           isSampleDB={item.sourceType === "SAMPLEDB"}
-          key={item.sourceType}
+          // preset tiles (see SOURCE_PRESETS) share the sourceType and icon of their base type
+          key={
+            item.presetId
+              ? `${item.sourceType}:${item.presetId}`
+              : item.sourceType
+          }
           onClick={
             !item.disabled
               ? this.props.onSelectSource.bind(this, item)

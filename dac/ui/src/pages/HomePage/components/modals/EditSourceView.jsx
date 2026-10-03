@@ -53,7 +53,10 @@ import { viewStateWrapper } from "uiTheme/less/forms.less";
 import { trimObjectWhitespace } from "./utils";
 import { getSourceNameFromUrl } from "#oss/utils/pathUtils";
 import { isVersionedReflectionsEnabled } from "./AddEditSourceUtils";
-import { isVersionedSource } from "@inject/utils/sourceUtils";
+import {
+  isVersionedSource,
+  withSourcePropertyListValidation,
+} from "@inject/utils/sourceUtils";
 import { getJSONElementOverrides } from "@inject/utils/FormUtils/formOverrideUtils";
 import clsx from "clsx";
 import * as classes from "./EditSourceView.module.less";
@@ -133,7 +136,7 @@ export class EditSourceView extends PureComponent {
           },
         );
 
-        const isFileSystemSource = combinedConfig.metadataRefresh;
+        const metadataRefresh = combinedConfig.metadataRefresh;
         if (this.props.setPreviewEngine) {
           this.props.setPreviewEngine(json.previewEngineRequired, "Edit");
           this.isPreviewEngineRequired = json.previewEngineRequired;
@@ -145,7 +148,7 @@ export class EditSourceView extends PureComponent {
           selectedFormType: combinedConfig,
         });
         dispatchPassDataBetweenTabs({
-          isFileSystemSource: isFileSystemSource.isFileSystemSource,
+          isFileSystemSource: metadataRefresh?.isFileSystemSource,
           isExternalQueryAllowed: json.externalQueryAllowed,
           isMetaStore: isMetastoreSourceType(combinedConfig.sourceType),
           sourceType,
@@ -271,7 +274,7 @@ export class EditSourceView extends PureComponent {
   }
 
   render() {
-    const { didLoadFail } = this.state;
+    const { didLoadFail, errorMessage } = this.state;
     const {
       updateFormDirtyState,
       initialFormValues,
@@ -333,8 +336,10 @@ export class EditSourceView extends PureComponent {
             editing
             updateFormDirtyState={updateFormDirtyState}
             fields={FormUtils.getFieldsFromConfig(this.state.selectedFormType)}
-            validate={FormUtils.getValidationsFromConfig(
-              this.state.selectedFormType,
+            validate={withSourcePropertyListValidation(
+              FormUtils.getValidationsFromConfig(this.state.selectedFormType),
+              this.state.selectedFormType.sourceType,
+              { initialPropertyList: initValues?.config?.propertyList },
             )}
             initialValues={initValues}
             permissions={source.get("permissions")}

@@ -68,7 +68,7 @@ export const sourceProperties = [
   { label: "HDFS", sourceType: HDFS },
   { label: "Hive 2.x", sourceType: HIVE },
   { label: "Hive 3.x", sourceType: HIVE3 },
-  { label: "REST Iceberg Catalog", sourceType: RESTCATALOG },
+  { label: "Iceberg REST Catalog", sourceType: RESTCATALOG },
   { label: "MapR-FS", sourceType: MAPRFS },
   { label: "Microsoft SQL Server", sourceType: SQLSERVER },
   { label: "MongoDB", sourceType: MONGODB, beta: true },

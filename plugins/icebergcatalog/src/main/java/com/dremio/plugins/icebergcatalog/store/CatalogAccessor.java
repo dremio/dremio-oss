@@ -23,7 +23,9 @@ import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -137,4 +139,21 @@ public interface CatalogAccessor
   Transaction createTableTransactionForNewTable(TableIdentifier tableIdentifier, Schema schema);
 
   View loadView(TableIdentifier tableIdentifier, GetDatasetOption... options);
+
+  /**
+   * Returns the properties of the table's FileIO as the catalog configures it for the table: the
+   * catalog properties merged with the table config of the catalog's response, which carries the
+   * storage credentials the catalog vends (Iceberg REST access delegation {@code
+   * vended-credentials}). The values may be secrets: never log them.
+   *
+   * @param tableIdentifier the table
+   * @param stageNewTable what to return if the table does not exist yet (e.g. while CTAS writes its
+   *     data files): if true, the properties of a staged creation of the table at its default
+   *     location (nothing is committed); if false, none
+   * @return the properties, empty if the catalog does not provide any
+   */
+  default Map<String, String> loadTableStorageProperties(
+      TableIdentifier tableIdentifier, boolean stageNewTable) {
+    return Collections.emptyMap();
+  }
 }

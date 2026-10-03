@@ -25,8 +25,23 @@ class LockableHadoopFileSystem {
   private final AtomicInteger refCount = new AtomicInteger(0);
   private final Object monitor = new Object();
 
+  /**
+   * Wall clock time (epoch millis) after which the FS must not be used any more, e.g. because the
+   * temporary credentials it was created with expire. {@link Long#MAX_VALUE} if unbounded.
+   */
+  private final long expiresAtMillis;
+
   LockableHadoopFileSystem(FileSystem fs) {
+    this(fs, Long.MAX_VALUE);
+  }
+
+  LockableHadoopFileSystem(FileSystem fs, long expiresAtMillis) {
     this.fs = fs;
+    this.expiresAtMillis = expiresAtMillis;
+  }
+
+  long getExpiresAtMillis() {
+    return expiresAtMillis;
   }
 
   @VisibleForTesting
@@ -45,6 +60,8 @@ class LockableHadoopFileSystem {
   public void unlock() {
     int newCount = refCount.decrementAndGet();
     if (newCount < 0) {
+      // Undo the decrement so an unbalanced unlock() cannot leave the count stuck below zero.
+      refCount.incrementAndGet();
       throw new IllegalStateException("Negative reference count on FS " + this);
     }
     if (newCount == 0) {

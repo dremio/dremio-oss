@@ -17,6 +17,7 @@ package com.dremio.plugins.icebergcatalog.store;
 
 import static com.dremio.exec.catalog.CatalogOptions.RESTCATALOG_VIEWS_SUPPORTED;
 import static com.dremio.exec.store.IcebergCatalogPluginOptions.RESTCATALOG_PLUGIN_CATALOG_EXPIRE_SECONDS;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.catalog.Catalog;
@@ -63,6 +65,31 @@ public class TestIcebergRestCatalogAccessor {
     when(catalogSupplier.get()).thenReturn(mock(RESTCatalog.class));
     icebergRestCatalogAccessor.checkState();
     verify(catalogSupplier).get();
+  }
+
+  @Test
+  public void testCatalogCacheReplaceSwapsBeforeClosingThePreviousClient() throws Exception {
+    RESTCatalog stale = mock(RESTCatalog.class);
+    RESTCatalog fresh = mock(RESTCatalog.class);
+    ExpiringCatalogCache cache = new ExpiringCatalogCache(() -> stale, 60, TimeUnit.SECONDS);
+    Assertions.assertSame(stale, cache.get());
+    // A concurrent reader never sees an empty cache while the stale client is being closed.
+    doAnswer(
+            invocation -> {
+              Assertions.assertSame(fresh, cache.getIfPresent());
+              Assertions.assertSame(fresh, cache.get());
+              return null;
+            })
+        .when(stale)
+        .close();
+
+    cache.replace(fresh);
+
+    verify(stale).close();
+    Assertions.assertSame(fresh, cache.get());
+    cache.close();
+    verify(fresh).close();
+    Assertions.assertNull(cache.getIfPresent());
   }
 
   @Test

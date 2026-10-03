@@ -51,15 +51,22 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -79,11 +86,16 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.catalog.ViewCatalog;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.BadRequestException;
+import org.apache.iceberg.exceptions.ForbiddenException;
 import org.apache.iceberg.exceptions.NamespaceNotEmptyException;
 import org.apache.iceberg.exceptions.NoSuchNamespaceException;
+import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.exceptions.NoSuchViewException;
+import org.apache.iceberg.exceptions.NotAuthorizedException;
+import org.apache.iceberg.exceptions.RESTException;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.rest.DremioRESTTableOperations;
+import org.apache.iceberg.types.Types;
 import org.apache.iceberg.view.BaseView;
 import org.apache.iceberg.view.View;
 import org.apache.iceberg.view.ViewBuilder;
@@ -99,15 +111,52 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
   private final LoadingCache<CatalogAccessorTableCacheKey, View> viewCache;
   private final Supplier<Catalog> icebergCatalogSupplier;
   private final Set<Namespace> allowedNamespaces;
+
+  /**
+   * The allowed namespaces that discovery starts from: with recursive discovery, an entry whose
+   * ancestor is also allowed is dropped, since the ancestor's walk already covers it (otherwise its
+   * datasets would be listed, and loaded during metadata refresh, twice).
+   */
+  private final Set<Namespace> discoveryRoots;
+
   private final boolean isRecursiveAllowedNamespaces;
+
+  /**
+   * Masks the source's secret values in text that the catalog server provided (error messages are
+   * copied into user errors, job profiles and logs).
+   */
+  private final UnaryOperator<String> redactor;
+
   public static final String DEFAULT_BASE_LOCATION = "default-base-location";
+
+  /**
+   * Schema of the staged creation used by {@link #loadTableStorageProperties} for a table that does
+   * not exist yet. Any valid schema does: the staged table is never committed.
+   */
+  private static final Schema STAGED_CREATE_SCHEMA =
+      new Schema(Types.NestedField.optional(1, "placeholder", Types.StringType.get()));
 
   public AbstractRestCatalogAccessor(
       Supplier<Catalog> catalogSupplier,
       OptionManager optionsManager,
       @Nullable List<String> allowedNamespaces,
       boolean isRecursiveAllowedNamespaces) {
+    this(
+        catalogSupplier,
+        optionsManager,
+        allowedNamespaces,
+        isRecursiveAllowedNamespaces,
+        UnaryOperator.identity());
+  }
+
+  public AbstractRestCatalogAccessor(
+      Supplier<Catalog> catalogSupplier,
+      OptionManager optionsManager,
+      @Nullable List<String> allowedNamespaces,
+      boolean isRecursiveAllowedNamespaces,
+      UnaryOperator<String> redactor) {
     this.optionsManager = optionsManager;
+    this.redactor = Preconditions.checkNotNull(redactor);
     this.icebergCatalogSupplier = catalogSupplier;
     this.tableCache =
         Caffeine.newBuilder()
@@ -154,6 +203,34 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
       this.allowedNamespaces = Sets.newHashSet(Namespace.empty());
       this.isRecursiveAllowedNamespaces = true;
     }
+    this.discoveryRoots =
+        this.isRecursiveAllowedNamespaces
+            ? dropCoveredNamespaces(this.allowedNamespaces)
+            : this.allowedNamespaces;
+  }
+
+  /** Keeps only the namespaces that no other namespace of the set is a proper ancestor of. */
+  @VisibleForTesting
+  static Set<Namespace> dropCoveredNamespaces(Set<Namespace> namespaces) {
+    Set<Namespace> roots = new HashSet<>();
+    for (Namespace ns : namespaces) {
+      boolean covered = false;
+      for (Namespace other : namespaces) {
+        if (isProperAncestor(other, ns)) {
+          covered = true;
+          break;
+        }
+      }
+      if (!covered) {
+        roots.add(ns);
+      }
+    }
+    return roots;
+  }
+
+  private static boolean isProperAncestor(Namespace ancestor, Namespace ns) {
+    return ancestor.length() < ns.length()
+        && Arrays.equals(ancestor.levels(), Arrays.copyOf(ns.levels(), ancestor.length()));
   }
 
   protected Catalog getCatalog() {
@@ -162,6 +239,18 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
 
   @VisibleForTesting
   Table loadTable(TableIdentifier tableIdentifier, GetDatasetOption... options) {
+    try {
+      return loadTableInternal(tableIdentifier, options);
+    } catch (ForbiddenException e) {
+      throw forbidden(e, "load table", bracket(tableIdentifier));
+    } catch (NotAuthorizedException e) {
+      throw notAuthorized(e, "load table", bracket(tableIdentifier));
+    } catch (RESTException e) {
+      throw requestFailed(e, "load table", bracket(tableIdentifier));
+    }
+  }
+
+  private Table loadTableInternal(TableIdentifier tableIdentifier, GetDatasetOption... options) {
     if (optionsManager.getOption(RESTCATALOG_PLUGIN_TABLE_CACHE_ENABLED)) {
       UserContext userContext = RequestContext.current().get(UserContext.CTX_KEY);
       if (userContext == null) {
@@ -187,6 +276,18 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
           .message("Views are not supported in this catalog.")
           .buildSilently();
     }
+    try {
+      return loadViewInternal(tableIdentifier, options);
+    } catch (ForbiddenException e) {
+      throw forbidden(e, "load view", bracket(tableIdentifier));
+    } catch (NotAuthorizedException e) {
+      throw notAuthorized(e, "load view", bracket(tableIdentifier));
+    } catch (RESTException e) {
+      throw requestFailed(e, "load view", bracket(tableIdentifier));
+    }
+  }
+
+  private View loadViewInternal(TableIdentifier tableIdentifier, GetDatasetOption... options) {
     if (optionsManager.getOption(RESTCATALOG_PLUGIN_VIEW_CACHE_ENABLED)) {
       UserContext userContext = RequestContext.current().get(UserContext.CTX_KEY);
       if (userContext == null) {
@@ -209,10 +310,50 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
     try {
       checkStateInternal();
     } catch (Exception e) {
-      tableCache.invalidateAll();
-      viewCache.invalidateAll();
+      if (invalidatesCachesOnFailure(e)) {
+        invalidateCachedTablesAndViews();
+      }
       throw e;
     }
+  }
+
+  /**
+   * Whether a failed {@link #checkState()} drops the cached tables and views. True by default;
+   * subclasses return false for failures that do not affect them (e.g. a denied listing of the
+   * catalog root, which the source may report as healthy and which then occurs on every check).
+   */
+  protected boolean invalidatesCachesOnFailure(Exception failure) {
+    return true;
+  }
+
+  /**
+   * Drops the cached tables and views. Required whenever the catalog client is replaced: their
+   * table and view operations are bound to the client that loaded them.
+   */
+  protected void invalidateCachedTablesAndViews() {
+    tableCache.invalidateAll();
+    viewCache.invalidateAll();
+  }
+
+  /** Masks the source's secret values in server-provided text. */
+  protected String redact(@Nullable String text) {
+    return text == null ? null : redactor.apply(text);
+  }
+
+  private UserException forbidden(ForbiddenException e, String action, Object entity) {
+    return RestCatalogExceptionMapper.forbidden(e, action, entity, redactor);
+  }
+
+  private UserException notAuthorized(NotAuthorizedException e, String action, Object entity) {
+    return RestCatalogExceptionMapper.notAuthorized(e, action, entity, redactor);
+  }
+
+  private Throwable redactedForLogging(Throwable e) {
+    return RestCatalogExceptionMapper.redactedForLogging(e, redactor);
+  }
+
+  private UserException requestFailed(RESTException e, String action, Object entity) {
+    return RestCatalogExceptionMapper.requestFailed(e, action, entity, redactor);
   }
 
   @Override
@@ -238,7 +379,7 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
   public DatasetHandleListing listDatasetHandles(
       String rootName, SupportsIcebergRootPointer plugin) {
     Stream<DatasetHandle> tableStream =
-        streamTables(getCatalog(), allowedNamespaces, isRecursiveAllowedNamespaces)
+        streamTables(getCatalog(), discoveryRoots, isRecursiveAllowedNamespaces)
             .map(
                 tableIdentifier -> {
                   List<String> dataset = new ArrayList<>();
@@ -249,7 +390,7 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
                 });
     Stream<DatasetHandle> viewStream =
         viewsEnabled()
-            ? streamViews(getCatalog(), allowedNamespaces, isRecursiveAllowedNamespaces)
+            ? streamViews(getCatalog(), discoveryRoots, isRecursiveAllowedNamespaces)
                 .map(
                     viewIdentifier -> {
                       List<String> dataset = new ArrayList<>();
@@ -283,12 +424,25 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
         streamCatalogTables(catalogInstance, namespace));
   }
 
-  private static Stream<Namespace> streamCatalogNamespaces(
-      Catalog catalogInstance, Namespace root) {
+  private Stream<Namespace> streamCatalogNamespaces(Catalog catalogInstance, Namespace root) {
     try {
       return ((SupportsNamespaces) catalogInstance).listNamespaces(root).stream();
+    } catch (NoSuchNamespaceException | ForbiddenException ex) {
+      // Expected for an allowed namespace that does not exist (any more) or that the principal may
+      // not list; logged on every metadata refresh, so without a stack trace. The message comes
+      // from the catalog server: redacted and abbreviated.
+      logger.warn(
+          "Skipping namespace {} while listing: {}",
+          root,
+          RestCatalogExceptionMapper.redactedServerMessage(ex, redactor));
     } catch (Exception ex) {
-      logger.error("Error listing namespace {}", root.toString(), ex);
+      // Logged on every metadata refresh: one line with the redacted server message, the stack
+      // trace at DEBUG only.
+      logger.warn(
+          "Error listing namespace {}: {}",
+          root,
+          RestCatalogExceptionMapper.redactedServerMessage(ex, redactor));
+      logger.debug("Error listing namespace {}", root, redactedForLogging(ex));
     }
     return Stream.empty();
   }
@@ -298,9 +452,7 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
     try {
       return catalogInstance.listTables(namespace).stream();
     } catch (Exception ex) {
-      if (logger.isDebugEnabled()) {
-        logger.debug("Error listing tables in namespace {}", namespace.toString(), ex);
-      }
+      logger.debug("Error listing tables in namespace {}", namespace, redactedForLogging(ex));
     }
     return Stream.empty();
   }
@@ -330,9 +482,7 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
     try {
       return ((ViewCatalog) catalogInstance).listViews(namespace).stream();
     } catch (Exception ex) {
-      if (logger.isDebugEnabled()) {
-        logger.debug("Error listing views in namespace {}", namespace.toString(), ex);
-      }
+      logger.debug("Error listing views in namespace {}", namespace, redactedForLogging(ex));
     }
     return Stream.empty();
   }
@@ -351,12 +501,20 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
   public Optional<DatasetHandle> getDatasetHandle(
       List<String> dataset, SupportsIcebergRootPointer plugin, GetDatasetOption... options) {
     TableIdentifier tableIdentifier = tableIdentifierFromDataset(dataset);
-    if (getCatalog().tableExists(tableIdentifier)) {
-      return Optional.of(getTableHandleInternal(dataset, tableIdentifier, plugin, options));
-    }
+    try {
+      if (getCatalog().tableExists(tableIdentifier)) {
+        return Optional.of(getTableHandleInternal(dataset, tableIdentifier, plugin, options));
+      }
 
-    if (viewsEnabled() && ((ViewCatalog) getCatalog()).viewExists(tableIdentifier)) {
-      return Optional.of(getViewHandleInternal(dataset, tableIdentifier, plugin, options));
+      if (viewsEnabled() && ((ViewCatalog) getCatalog()).viewExists(tableIdentifier)) {
+        return Optional.of(getViewHandleInternal(dataset, tableIdentifier, plugin, options));
+      }
+    } catch (ForbiddenException e) {
+      throw forbidden(e, "look up", bracket(tableIdentifier));
+    } catch (NotAuthorizedException e) {
+      throw notAuthorized(e, "look up", bracket(tableIdentifier));
+    } catch (RESTException e) {
+      throw requestFailed(e, "look up", bracket(tableIdentifier));
     }
 
     logger.warn("DatasetHandle '{}' not found - table or view not found.", dataset);
@@ -463,6 +621,57 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
     return baseView.operations().current();
   }
 
+  /**
+   * Loads the table directly from the catalog (not through the per-user table cache: this runs
+   * wherever a file system for the table is created, also without a user context) and returns the
+   * properties of the FileIO that the Iceberg REST client built for it from the catalog's response.
+   */
+  @Override
+  public Map<String, String> loadTableStorageProperties(
+      TableIdentifier tableIdentifier, boolean stageNewTable) {
+    Catalog catalog = getCatalog();
+    try {
+      try {
+        return ioProperties(catalog.loadTable(tableIdentifier).io());
+      } catch (NoSuchTableException e) {
+        if (!stageNewTable) {
+          return Collections.emptyMap();
+        }
+        // CTAS writes the data files of a new table before it creates the table in the catalog
+        // (staged create, then commit). A staged creation at the table's default location, which
+        // CTAS uses unless it is given a LOCATION, returns the credentials for that location. It
+        // is discarded: nothing is committed, so the catalog does not create the table.
+        try {
+          return ioProperties(
+              catalog
+                  .newCreateTableTransaction(tableIdentifier, STAGED_CREATE_SCHEMA)
+                  .table()
+                  .io());
+        } catch (NoSuchNamespaceException missingNamespace) {
+          return Collections.emptyMap();
+        } catch (AlreadyExistsException createdMeanwhile) {
+          return ioProperties(catalog.loadTable(tableIdentifier).io());
+        }
+      }
+    } catch (ForbiddenException e) {
+      throw forbidden(e, "load the storage credentials of table", bracket(tableIdentifier));
+    } catch (NotAuthorizedException e) {
+      throw notAuthorized(e, "load the storage credentials of table", bracket(tableIdentifier));
+    } catch (RESTException e) {
+      throw requestFailed(e, "load the storage credentials of table", bracket(tableIdentifier));
+    }
+  }
+
+  private static Map<String, String> ioProperties(FileIO io) {
+    try {
+      Map<String, String> properties = io.properties();
+      return properties == null ? Collections.emptyMap() : properties;
+    } catch (UnsupportedOperationException e) {
+      // A custom io-impl that does not expose its configuration.
+      return Collections.emptyMap();
+    }
+  }
+
   @Override
   public PartitionChunkListing listPartitionChunks(
       IcebergCatalogTableProvider icebergTableProvider, ListPartitionChunkOption[] options) {
@@ -556,19 +765,61 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
   @Override
   public Stream<IcebergNamespaceWithProperties> getFolderStream() {
     return streamNamespaceWithPropertiesWithRoot(
-        (SupportsNamespaces) getCatalog(), allowedNamespaces, isRecursiveAllowedNamespaces);
+        (SupportsNamespaces) getCatalog(), discoveryRoots, isRecursiveAllowedNamespaces);
   }
 
-  private static Stream<IcebergNamespaceWithProperties> streamNamespaceWithPropertiesWithRoot(
+  /**
+   * Lists the folders of the source: the allowed namespaces, the namespaces discovered below them
+   * and every ancestor of a listed namespace, each namespace once and every parent before its
+   * children.
+   *
+   * <p>Both properties matter to Dremio's names refresh ({@code
+   * SourceMetadataManager#handleFolderListing}): it deletes every known folder that the listing
+   * does not contain, together with its content, so an allowed namespace {@code a.b} needs its
+   * parent {@code a} in the listing too; and it only recognizes a listed folder as existing once
+   * its parent was listed, otherwise it deletes the folder as "no longer found". Ancestors are
+   * listed without properties (no request, and no privilege on them needed) unless they are
+   * discovered anyway; so is an allowed namespace whose properties could not be loaded but whose
+   * children were listed. The whole-catalog listing is already in that order and stays lazy.
+   */
+  private Stream<IcebergNamespaceWithProperties> streamNamespaceWithPropertiesWithRoot(
       SupportsNamespaces catalog,
       Set<Namespace> allowedNamespaces,
       boolean isRecursiveAllowedNamespaces) {
-    return Stream.concat(
-        getRootNamespaceStream(catalog, allowedNamespaces),
-        streamNamespaceWithProperties(catalog, allowedNamespaces, isRecursiveAllowedNamespaces));
+    if (allowedNamespaces.size() == 1 && allowedNamespaces.contains(Namespace.empty())) {
+      return streamNamespaceWithProperties(
+          catalog, allowedNamespaces, isRecursiveAllowedNamespaces);
+    }
+    Map<Namespace, IcebergNamespaceWithProperties> folders = new LinkedHashMap<>();
+    getNamespacesWithProperties(catalog, allowedNamespaces)
+        .forEach(folder -> folders.putIfAbsent(folder.getNamespace(), folder));
+    streamNamespaceWithProperties(catalog, allowedNamespaces, isRecursiveAllowedNamespaces)
+        .forEach(folder -> folders.putIfAbsent(folder.getNamespace(), folder));
+    // Every proper ancestor of a listed folder that is not listed itself: not allowed, or allowed
+    // but its properties could not be loaded (e.g. the principal may not read them).
+    for (Namespace ancestor : missingAncestorsOf(folders.keySet())) {
+      folders.put(ancestor, new IcebergNamespaceWithProperties(ancestor, Collections.emptyMap()));
+    }
+    // Stable sort: parents (shorter namespaces) first, discovery order otherwise.
+    return folders.values().stream()
+        .sorted(Comparator.comparingInt(folder -> folder.getNamespace().length()));
   }
 
-  private static Stream<IcebergNamespaceWithProperties> streamNamespaceWithProperties(
+  private static Set<Namespace> missingAncestorsOf(Set<Namespace> listed) {
+    Set<Namespace> missing = new LinkedHashSet<>();
+    for (Namespace namespace : listed) {
+      String[] levels = namespace.levels();
+      for (int i = 1; i < levels.length; i++) {
+        Namespace ancestor = Namespace.of(Arrays.copyOf(levels, i));
+        if (!listed.contains(ancestor)) {
+          missing.add(ancestor);
+        }
+      }
+    }
+    return missing;
+  }
+
+  private Stream<IcebergNamespaceWithProperties> streamNamespaceWithProperties(
       SupportsNamespaces catalog,
       Set<Namespace> allowedNamespaces,
       boolean isRecursiveAllowedNamespaces) {
@@ -580,16 +831,7 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
         .flatMap(ns -> streamNamespaceWithPropertiesRecursive(catalog, ns));
   }
 
-  private static Stream<IcebergNamespaceWithProperties> getRootNamespaceStream(
-      SupportsNamespaces catalog, Set<Namespace> allowedNamespaces) {
-    Stream<IcebergNamespaceWithProperties> allowedNamespacesStream = Stream.empty();
-    if (!(allowedNamespaces.size() == 1 && allowedNamespaces.contains(Namespace.empty()))) {
-      allowedNamespacesStream = getNamespacesWithProperties(catalog, allowedNamespaces);
-    }
-    return allowedNamespacesStream;
-  }
-
-  private static Stream<IcebergNamespaceWithProperties> streamNamespaceWithPropertiesRecursive(
+  private Stream<IcebergNamespaceWithProperties> streamNamespaceWithPropertiesRecursive(
       SupportsNamespaces catalog, Namespace namespace) throws NoSuchNamespaceException {
     List<Namespace> namespaces = getSubNamespaces(catalog, namespace);
     if (namespaces.isEmpty()) {
@@ -600,49 +842,53 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
         namespaces.stream().flatMap(ns -> streamNamespaceWithPropertiesRecursive(catalog, ns)));
   }
 
-  private static List<Namespace> getSubNamespaces(SupportsNamespaces catalog, Namespace namespace) {
+  private List<Namespace> getSubNamespaces(SupportsNamespaces catalog, Namespace namespace) {
     try {
       return catalog.listNamespaces(namespace);
     } catch (NoSuchNamespaceException e) {
-      logger.error(
-          "Error listing namespace {}. This could occur if the namespace was deleted while"
-              + " refreshing metadata.",
-          namespace.toString(),
-          e);
+      logMissingNamespace(namespace);
       return Collections.emptyList();
     } catch (Exception e) {
-      logger.debug(
-          "Error listing namespace {}. This could occur if we are not authorized to access it.",
-          namespace.toString(),
-          e);
+      logNamespaceListingError(namespace, e);
       return Collections.emptyList();
     }
   }
 
-  private static Stream<IcebergNamespaceWithProperties> getNamespacesWithProperties(
+  /**
+   * An allowed namespace that does not exist, or one deleted while refreshing metadata. Logged on
+   * every metadata refresh, so without a stack trace.
+   */
+  private static void logMissingNamespace(Namespace namespace) {
+    logger.warn(
+        "Namespace {} does not exist (it is configured as an allowed namespace but missing in"
+            + " the catalog, or it was deleted while refreshing metadata).",
+        namespace);
+  }
+
+  private void logNamespaceListingError(Namespace namespace, Exception e) {
+    logger.debug(
+        "Error listing namespace {}. This could occur if we are not authorized to access it.",
+        namespace,
+        redactedForLogging(e));
+  }
+
+  private Stream<IcebergNamespaceWithProperties> getNamespacesWithProperties(
       SupportsNamespaces catalog, Collection<Namespace> namespaces) {
     return namespaces.stream()
         .map(ns -> getNamespaceWithProperties(catalog, ns).orElse(null))
         .filter(Objects::nonNull);
   }
 
-  private static Optional<IcebergNamespaceWithProperties> getNamespaceWithProperties(
+  private Optional<IcebergNamespaceWithProperties> getNamespaceWithProperties(
       SupportsNamespaces catalog, Namespace namespace) throws NoSuchNamespaceException {
     try {
       return Optional.of(
           new IcebergNamespaceWithProperties(namespace, catalog.loadNamespaceMetadata(namespace)));
     } catch (NoSuchNamespaceException e) {
-      logger.error(
-          "Error listing namespace {}. This could occur if the namespace was deleted while"
-              + " refreshing metadata.",
-          namespace.toString(),
-          e);
+      logMissingNamespace(namespace);
       return Optional.empty();
     } catch (Exception e) {
-      logger.debug(
-          "Error listing namespace {}. This could occur if we are not authorized to access it.",
-          namespace.toString(),
-          e);
+      logNamespaceListingError(namespace, e);
       return Optional.empty();
     }
   }
@@ -659,13 +905,25 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
       Map<String, String> tableProperties) {
     TableIdentifier tableIdentifier = tableIdentifierFromDataset(tablePathComponents);
 
-    return getCatalog()
-        .buildTable(tableIdentifier, schema)
-        .withPartitionSpec(partitionSpec)
-        .withSortOrder(sortOrder)
-        .withLocation(location)
-        .withProperties(tableProperties)
-        .create();
+    try {
+      return getCatalog()
+          .buildTable(tableIdentifier, schema)
+          .withPartitionSpec(partitionSpec)
+          .withSortOrder(sortOrder)
+          .withLocation(location)
+          .withProperties(tableProperties)
+          .create();
+    } catch (ForbiddenException e) {
+      throw forbidden(e, "create table", bracket(tableIdentifier));
+    } catch (NotAuthorizedException e) {
+      throw notAuthorized(e, "create table", bracket(tableIdentifier));
+    } catch (RESTException e) {
+      throw requestFailed(e, "create table", bracket(tableIdentifier));
+    } catch (NoSuchNamespaceException e) {
+      throw RestCatalogExceptionMapper.parentNamespaceNotFound(e, tableIdentifier);
+    } catch (AlreadyExistsException e) {
+      throw RestCatalogExceptionMapper.alreadyExists(e, tableIdentifier);
+    }
   }
 
   @Override
@@ -677,18 +935,36 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
       String sql)
       throws AlreadyExistsException, NoSuchNamespaceException {
     TableIdentifier viewIdentifier = tableIdentifierFromDataset(viewPathComponents);
-    if (((ViewCatalog) getCatalog()).viewExists(viewIdentifier)) {
-      throw new AlreadyExistsException("View [%s] already exists with the source.", viewIdentifier);
-    }
     Preconditions.checkArgument(!viewPathComponents.isEmpty(), "View path cannot be empty.");
-    return getViewBuilder(
-            viewIdentifier, schema, location, workspaceSchemaPath, viewPathComponents.get(0), sql)
-        .create();
+    try {
+      if (((ViewCatalog) getCatalog()).viewExists(viewIdentifier)) {
+        throw new AlreadyExistsException(
+            "View [%s] already exists with the source.", viewIdentifier);
+      }
+      return getViewBuilder(
+              viewIdentifier, schema, location, workspaceSchemaPath, viewPathComponents.get(0), sql)
+          .create();
+    } catch (ForbiddenException e) {
+      throw forbidden(e, "create view", bracket(viewIdentifier));
+    } catch (NotAuthorizedException e) {
+      throw notAuthorized(e, "create view", bracket(viewIdentifier));
+    } catch (RESTException e) {
+      throw requestFailed(e, "create view", bracket(viewIdentifier));
+    }
   }
 
   @Override
   public void dropView(List<String> viewPathComponents) throws NoSuchViewException {
-    ((ViewCatalog) getCatalog()).dropView(tableIdentifierFromDataset(viewPathComponents));
+    TableIdentifier viewIdentifier = tableIdentifierFromDataset(viewPathComponents);
+    try {
+      ((ViewCatalog) getCatalog()).dropView(viewIdentifier);
+    } catch (ForbiddenException e) {
+      throw forbidden(e, "drop view", bracket(viewIdentifier));
+    } catch (NotAuthorizedException e) {
+      throw notAuthorized(e, "drop view", bracket(viewIdentifier));
+    } catch (RESTException e) {
+      throw requestFailed(e, "drop view", bracket(viewIdentifier));
+    }
   }
 
   @Override
@@ -700,13 +976,21 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
       String sql)
       throws NoSuchViewException {
     TableIdentifier viewIdentifier = tableIdentifierFromDataset(viewPathComponents);
-    if (!((ViewCatalog) getCatalog()).viewExists(viewIdentifier)) {
-      throw new NoSuchViewException("Cannot find View [%s] in the source.", viewIdentifier);
-    }
     // TODO(DX-99998) Add retryer
-    return getViewBuilder(
-            viewIdentifier, schema, location, workSchemaPath, viewPathComponents.get(0), sql)
-        .replace();
+    try {
+      if (!((ViewCatalog) getCatalog()).viewExists(viewIdentifier)) {
+        throw new NoSuchViewException("Cannot find View [%s] in the source.", viewIdentifier);
+      }
+      return getViewBuilder(
+              viewIdentifier, schema, location, workSchemaPath, viewPathComponents.get(0), sql)
+          .replace();
+    } catch (ForbiddenException e) {
+      throw forbidden(e, "replace view", bracket(viewIdentifier));
+    } catch (NotAuthorizedException e) {
+      throw notAuthorized(e, "replace view", bracket(viewIdentifier));
+    } catch (RESTException e) {
+      throw requestFailed(e, "replace view", bracket(viewIdentifier));
+    }
   }
 
   private String getRootOfWorkspaceSchemaPath(List<String> workspaceSchemaPath) {
@@ -765,17 +1049,41 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
     return getDatasetLocationFromExistingNamespaceLocationUri(identifier, namespaceCatalog);
   }
 
+  /**
+   * Drops the table from the catalog without purging its data (what Spark does by default for
+   * external tables).
+   *
+   * @throws NoSuchTableException when the catalog has no such table (or no such namespace): the
+   *     Iceberg REST client reports an HTTP 404 for the table by returning false
+   */
   @Override
   public void dropTable(List<String> dataset) {
-    // This implementation does NOT purge the data.
-    // This is following what Spark does by default for "external tables".
-    getCatalog().dropTable(tableIdentifierFromDataset(dataset), false);
+    TableIdentifier tableIdentifier = tableIdentifierFromDataset(dataset);
+    boolean dropped;
+    try {
+      dropped = getCatalog().dropTable(tableIdentifier, false);
+    } catch (NoSuchNamespaceException e) {
+      dropped = false;
+    } catch (ForbiddenException e) {
+      throw forbidden(e, "drop table", bracket(tableIdentifier));
+    } catch (NotAuthorizedException e) {
+      throw notAuthorized(e, "drop table", bracket(tableIdentifier));
+    } catch (RESTException e) {
+      // Not requestFailed: an HTTP 400/422 must not become a validation error, which DROP TABLE IF
+      // EXISTS would report as "not found" while the table still exists.
+      throw RestCatalogExceptionMapper.dropFailed(
+          e, "drop table", bracket(tableIdentifier), redactor);
+    }
+    if (!dropped) {
+      throw new NoSuchTableException("Table does not exist: %s", tableIdentifier);
+    }
   }
 
   @Override
   public TableOperations createIcebergTableOperations(
       FileIO fileIO, List<String> dataset, @Nullable String userName, @Nullable String userId) {
-    return new DremioRESTTableOperations((DremioFileIO) fileIO, tableOperationsHelper(dataset));
+    return new ForbiddenMappingTableOperations(
+        (DremioFileIO) fileIO, tableOperationsHelper(dataset), dataset, redactor);
   }
 
   protected TableOperations tableOperationsHelper(List<String> dataset) {
@@ -791,8 +1099,52 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
       Schema schema,
       @Nullable String userName,
       @Nullable String userId) {
-    return new DremioRESTTableOperations(
-        (DremioFileIO) fileIO, tableOperationsHelperForCtas(dataset, schema));
+    final TableOperations stagedCreate;
+    try {
+      // Stages the table creation in the catalog (e.g. Apache Polaris CREATE_TABLE_STAGED).
+      stagedCreate = tableOperationsHelperForCtas(dataset, schema);
+    } catch (ForbiddenException e) {
+      throw forbidden(e, "create table", bracket(tableIdentifierFromDataset(dataset)));
+    } catch (NotAuthorizedException e) {
+      throw notAuthorized(e, "create table", bracket(tableIdentifierFromDataset(dataset)));
+    } catch (RESTException e) {
+      throw requestFailed(e, "create table", bracket(tableIdentifierFromDataset(dataset)));
+    }
+    final TableIdentifier tableIdentifier = tableIdentifierFromDataset(dataset);
+    return new ForbiddenMappingTableOperations(
+        (DremioFileIO) fileIO,
+        stagedCreate,
+        dataset,
+        redactor,
+        metadata -> stagedCreateOperations(tableIdentifier, metadata));
+  }
+
+  /**
+   * Stages the creation of a table with the partition spec, sort order, location and properties of
+   * the metadata that CTAS commits.
+   *
+   * <p>CTAS first stages the table with only its schema and then commits fresh table metadata
+   * ({@code IcebergBaseCommand#beginCreateTableTransaction}). The Iceberg REST client sends the
+   * changes of the staged table (unpartitioned spec 0, set as default) followed by the changes of
+   * the committed metadata. The latter add the partition spec but do not set it as the default,
+   * because a new table's metadata builder already starts with default spec id 0. The catalog then
+   * creates the table with the partition spec as spec 1 and keeps the unpartitioned spec 0 as the
+   * default (seen with Apache Polaris). Staging with the committed spec avoids that: spec 0 is the
+   * partition spec, and the committed changes reuse it.
+   */
+  protected TableOperations stagedCreateOperations(
+      TableIdentifier tableIdentifier, TableMetadata metadata) {
+    final Transaction transaction =
+        getCatalog()
+            .buildTable(tableIdentifier, metadata.schema())
+            .withPartitionSpec(metadata.spec())
+            .withSortOrder(metadata.sortOrder())
+            .withLocation(metadata.location())
+            .withProperties(metadata.properties())
+            .createTransaction();
+    Preconditions.checkState(
+        transaction instanceof BaseTransaction, "Error - Plugin does not support this operation.");
+    return ((BaseTransaction) transaction).underlyingOps();
   }
 
   protected TableOperations tableOperationsHelperForCtas(List<String> dataset, Schema schema) {
@@ -841,8 +1193,18 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
       throws AlreadyExistsException {
     Namespace namespace = namespaceFromPath(folderPathWithSourceName);
     SupportsNamespaces supportsNamespaces = (SupportsNamespaces) getCatalog();
-    supportsNamespaces.createNamespace(namespace, properties);
-    return supportsNamespaces.loadNamespaceMetadata(namespace);
+    try {
+      supportsNamespaces.createNamespace(namespace, properties);
+      return supportsNamespaces.loadNamespaceMetadata(namespace);
+    } catch (ForbiddenException e) {
+      throw forbidden(e, "create folder", bracket(namespace));
+    } catch (NotAuthorizedException e) {
+      throw notAuthorized(e, "create folder", bracket(namespace));
+    } catch (RESTException e) {
+      throw requestFailed(e, "create folder", bracket(namespace));
+    } catch (NoSuchNamespaceException e) {
+      throw RestCatalogExceptionMapper.parentNamespaceNotFound(e, namespace);
+    }
   }
 
   @Override
@@ -867,10 +1229,136 @@ public abstract class AbstractRestCatalogAccessor implements CatalogAccessor {
       throws NamespaceNotEmptyException {
     Namespace namespace = namespaceFromPath(folderPathWithSourceName);
     SupportsNamespaces supportsNamespaces = (SupportsNamespaces) getCatalog();
-    return supportsNamespaces.dropNamespace(namespace);
+    final boolean dropped;
+    try {
+      dropped = supportsNamespaces.dropNamespace(namespace);
+    } catch (BadRequestException e) {
+      // HTTP 409 (NamespaceNotEmptyException, as defined by the Iceberg REST spec) is passed
+      // through. Some catalogs (e.g. Apache Polaris 1.x) answer HTTP 400 "Namespace ... is not
+      // empty" instead: reported the same way, so callers handle one exception type.
+      if (RestCatalogExceptionMapper.isNamespaceNotEmpty(e)) {
+        throw new NamespaceNotEmptyException(e, "Namespace %s is not empty", namespace);
+      }
+      throw requestFailed(e, "drop folder", bracket(namespace));
+    } catch (ForbiddenException e) {
+      throw forbidden(e, "drop folder", bracket(namespace));
+    } catch (NotAuthorizedException e) {
+      throw notAuthorized(e, "drop folder", bracket(namespace));
+    } catch (RESTException e) {
+      throw requestFailed(e, "drop folder", bracket(namespace));
+    }
+    if (!dropped) {
+      // RESTSessionCatalog#dropNamespace returns false only when the server answers 404.
+      throw new NoSuchNamespaceException("Namespace does not exist: %s", namespace);
+    }
+    return true;
   }
 
   // SupportsIcebergFolderCUD Methods - END
+
+  private static String bracket(Object entity) {
+    return "[" + entity + "]";
+  }
+
+  /**
+   * Table operations that report an HTTP 403 or 401 on commit as a permission error instead of a
+   * system error (see {@link CommitForbiddenException} and {@link CommitNotAuthorizedException}).
+   * Other commit failures (e.g. {@code CommitFailedException} on HTTP 409) are left to the Iceberg
+   * commit path, which already reports them as concurrent modification errors.
+   */
+  @VisibleForTesting
+  static final class ForbiddenMappingTableOperations extends DremioRESTTableOperations {
+    private final List<String> dataset;
+    private final UnaryOperator<String> redactor;
+    // CTAS only: stages the creation again with the metadata to commit (see
+    // stagedCreateOperations).
+    @Nullable private final Function<TableMetadata, TableOperations> restagedCreate;
+    @Nullable private volatile TableOperations committedCreate;
+
+    ForbiddenMappingTableOperations(
+        DremioFileIO dremioFileIO,
+        TableOperations delegate,
+        List<String> dataset,
+        UnaryOperator<String> redactor) {
+      this(dremioFileIO, delegate, dataset, redactor, null);
+    }
+
+    ForbiddenMappingTableOperations(
+        DremioFileIO dremioFileIO,
+        TableOperations delegate,
+        List<String> dataset,
+        UnaryOperator<String> redactor,
+        @Nullable Function<TableMetadata, TableOperations> restagedCreate) {
+      super(dremioFileIO, delegate);
+      this.dataset = dataset;
+      this.redactor = redactor;
+      this.restagedCreate = restagedCreate;
+    }
+
+    @Override
+    public TableMetadata current() {
+      final TableOperations created = committedCreate;
+      return created != null ? created.current() : super.current();
+    }
+
+    @Override
+    public TableMetadata refresh() {
+      final TableOperations created = committedCreate;
+      return created != null ? created.refresh() : super.refresh();
+    }
+
+    @Override
+    public void commit(TableMetadata base, TableMetadata metadata) {
+      try {
+        if (base == null && restagedCreate != null && metadata.spec().isPartitioned()) {
+          // A partitioned CTAS: commit through a creation staged with its partition spec, or the
+          // catalog keeps the staged unpartitioned spec as the default.
+          final TableOperations created = restagedCreate.apply(metadata);
+          created.commit(null, metadata);
+          committedCreate = created;
+        } else {
+          super.commit(base, metadata);
+        }
+      } catch (ForbiddenException e) {
+        throw new CommitForbiddenException(
+            RestCatalogExceptionMapper.forbidden(
+                e, "commit to table", bracket(PathUtils.constructFullPath(dataset)), redactor));
+      } catch (NotAuthorizedException e) {
+        throw new CommitNotAuthorizedException(
+            RestCatalogExceptionMapper.notAuthorized(
+                e, "commit to table", bracket(PathUtils.constructFullPath(dataset)), redactor));
+      }
+    }
+  }
+
+  /**
+   * An HTTP 403 on commit, carrying the permission error to report.
+   *
+   * <p>It must stay a {@link ForbiddenException}, which is an Iceberg {@code CleanableFailure}:
+   * Iceberg's commit path ({@code SnapshotProducer#commit}, {@code
+   * BaseTransaction#commitTransaction}) deletes the manifests and manifest lists it wrote for the
+   * rejected commit only for such failures (table operations require strict cleanup). Dremio still
+   * reports the permission error: it is the cause, and {@code UserException} builders return a
+   * {@code UserException} found in the cause chain of the exception they wrap.
+   */
+  @VisibleForTesting
+  static final class CommitForbiddenException extends ForbiddenException {
+    CommitForbiddenException(UserException permissionError) {
+      super(permissionError, "%s", permissionError.getOriginalMessage());
+    }
+  }
+
+  /**
+   * An HTTP 401 on commit (the catalog rejected the session token), carrying the permission error
+   * to report. A {@link NotAuthorizedException}, which is a {@code CleanableFailure}, for the same
+   * reason as {@link CommitForbiddenException}.
+   */
+  @VisibleForTesting
+  static final class CommitNotAuthorizedException extends NotAuthorizedException {
+    CommitNotAuthorizedException(UserException permissionError) {
+      super(permissionError, "%s", permissionError.getOriginalMessage());
+    }
+  }
 
   private static Namespace namespaceFromPath(List<String> folderPathWithSourceName) {
     return Namespace.of(

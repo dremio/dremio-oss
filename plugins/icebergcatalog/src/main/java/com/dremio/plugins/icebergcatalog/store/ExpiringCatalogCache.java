@@ -19,6 +19,7 @@ import com.google.common.base.Preconditions;
 import java.io.Closeable;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.rest.RESTCatalog;
 
@@ -32,6 +33,9 @@ public class ExpiringCatalogCache implements Supplier<Catalog>, Closeable {
   private volatile Catalog catalog;
   private volatile long expirationNanos;
 
+  /** Set by {@link #close()}; a client handed to {@link #replace} afterwards is closed at once. */
+  private boolean closed;
+
   ExpiringCatalogCache(Supplier<Catalog> catalogSupplier, long duration, TimeUnit unit) {
     this(catalogSupplier, unit.toNanos(duration));
   }
@@ -44,14 +48,62 @@ public class ExpiringCatalogCache implements Supplier<Catalog>, Closeable {
   }
 
   public void invalidate() {
-    expirationNanos = 0;
-    if (catalog != null) {
-      try {
-        ((Closeable) catalog).close();
-      } catch (Exception e) {
-        logger.warn("Encountered exception during closing the catalog.");
+    synchronized (lock) {
+      expirationNanos = 0;
+      if (catalog != null) {
+        closeQuietly(catalog);
+        catalog = null;
       }
-      catalog = null;
+    }
+  }
+
+  /** Closes a catalog client that is no longer used; a failure only matters for debugging. */
+  static void closeQuietly(Catalog toClose) {
+    if (toClose instanceof Closeable) {
+      try {
+        ((Closeable) toClose).close();
+      } catch (Exception e) {
+        logger.debug("Failed to close an Iceberg REST catalog client.", e);
+      }
+    }
+  }
+
+  /**
+   * Returns the cached catalog if one has been built and has not expired yet, without building a
+   * new one (and therefore without contacting the catalog service).
+   */
+  @Nullable
+  public Catalog getIfPresent() {
+    long nanos = expirationNanos;
+    Catalog current = catalog;
+    if (current == null || nanos == 0 || System.nanoTime() - nanos >= 0) {
+      return null;
+    }
+    return current;
+  }
+
+  /**
+   * Replaces the cached catalog with an already initialized one (closing the previous one) and
+   * restarts the expiration period. Used when a newly built client works while the cached one does
+   * not, e.g. after the catalog service restarted and the cached session can no longer
+   * authenticate. If the cache was closed in the meantime, the replacement is closed instead.
+   */
+  public void replace(Catalog replacement) {
+    Preconditions.checkArgument(
+        replacement instanceof RESTCatalog, "RESTCatalog instance expected");
+    Catalog toClose;
+    synchronized (lock) {
+      if (closed) {
+        toClose = replacement;
+      } else {
+        // Swap before closing: a concurrent get() on its fast path must never see a null catalog.
+        toClose = catalog == replacement ? null : catalog;
+        catalog = replacement;
+        expirationNanos = System.nanoTime() + durationNanos + 1;
+      }
+    }
+    if (toClose != null) {
+      closeQuietly(toClose);
     }
   }
 
@@ -80,6 +132,9 @@ public class ExpiringCatalogCache implements Supplier<Catalog>, Closeable {
 
   @Override
   public void close() {
-    invalidate();
+    synchronized (lock) {
+      closed = true;
+      invalidate();
+    }
   }
 }

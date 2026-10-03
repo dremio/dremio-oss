@@ -78,6 +78,29 @@ public class TestS3FileSystem {
       ExecConstants.ENABLE_S3_V2_CLIENT.getOptionName();
 
   @Test
+  public void testGetEndpointAddsSchemeOnlyWhenMissing() {
+    final Configuration conf = new Configuration(false);
+    Assertions.assertFalse(S3FileSystem.getEndpoint(conf).isPresent());
+
+    conf.set(Constants.ENDPOINT, "minio.local:9000");
+    Assertions.assertEquals("https://minio.local:9000", S3FileSystem.getEndpoint(conf).get());
+    conf.set(Constants.SECURE_CONNECTIONS, "false");
+    Assertions.assertEquals("http://minio.local:9000", S3FileSystem.getEndpoint(conf).get());
+  }
+
+  @Test
+  public void testGetEndpointKeepsScheme() {
+    final Configuration conf = new Configuration(false);
+    conf.set(Constants.ENDPOINT, " http://minio.local:9000 ");
+    // The scheme of the endpoint wins over fs.s3a.connection.ssl.enabled (default true).
+    Assertions.assertEquals("http://minio.local:9000", S3FileSystem.getEndpoint(conf).get());
+
+    conf.set(Constants.ENDPOINT, "https://minio.local:9443");
+    conf.set(Constants.SECURE_CONNECTIONS, "false");
+    Assertions.assertEquals("https://minio.local:9443", S3FileSystem.getEndpoint(conf).get());
+  }
+
+  @Test
   public void testValidRegionFromEndpoint() {
     Region r = S3FileSystem.getAwsRegionFromEndpoint("s3-eu-central-1.amazonaws.com");
     Assertions.assertEquals(Region.EU_CENTRAL_1, r);

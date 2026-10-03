@@ -32,7 +32,9 @@ import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.Ticker;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -44,6 +46,9 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -56,16 +61,73 @@ public class DatasetFileSystemCache implements AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(DatasetFileSystemCache.class);
   private static final int MAX_HOURS_WAIT_FOR_FS_WRITE_LOCK = 4;
 
+  /**
+   * Optional entry of a configuration returned by the configuration provider: the wall clock time
+   * (epoch millis) after which the FileSystem created from it must be replaced, for instance
+   * because it carries temporary credentials that expire. The cache drops the FileSystem at that
+   * time at the latest (otherwise after {@code
+   * plugins.restcatalog.file_system.expire_after_write_minutes}), so the next use creates a new one
+   * from a fresh configuration. The entry is removed before the FileSystem is created.
+   */
+  public static final String FS_EXPIRES_AT_MILLIS = "dremio.icebergcatalog.fs.expires-at-millis";
+
+  /**
+   * Shortest lifetime of an entry whose configuration set {@link #FS_EXPIRES_AT_MILLIS}, even if
+   * that time has already passed (e.g. after the wall clock stepped forward). A zero lifetime would
+   * make every lookup create a new FileSystem, and users of the cache could never lock the
+   * FileSystem they got.
+   */
+  @VisibleForTesting
+  public static final long MIN_EXPIRING_LIFETIME_NANOS = TimeUnit.SECONDS.toNanos(1);
+
   @VisibleForTesting
   protected LoadingCache<DatasetFileSystemCacheKey, LockableHadoopFileSystem> cache;
 
   private final Function<List<String>, Configuration> fsConfProvider;
   private final OptionManager optionManager;
+  private final boolean cachingPerDataset;
+  private final Ticker ticker;
+  private final LongSupplier clockMillis;
 
   public DatasetFileSystemCache(
       Function<List<String>, Configuration> fsConfProvider, OptionManager optionManager) {
+    this(fsConfProvider, optionManager, false);
+  }
+
+  /**
+   * @param fsConfProvider provides the configuration of a new FileSystem, given the dataset (full
+   *     table path) it is created for, or null
+   * @param cachingPerDataset whether FileSystem instances are cached per dataset (needed when the
+   *     configuration differs per dataset, e.g. per-table credentials)
+   */
+  public DatasetFileSystemCache(
+      Function<List<String>, Configuration> fsConfProvider,
+      OptionManager optionManager,
+      boolean cachingPerDataset) {
+    this(
+        fsConfProvider,
+        optionManager,
+        cachingPerDataset,
+        Ticker.systemTicker(),
+        System::currentTimeMillis);
+  }
+
+  /**
+   * @param ticker the time source of the cache's expiration
+   * @param clockMillis the wall clock that {@link #FS_EXPIRES_AT_MILLIS} values are compared with
+   */
+  @VisibleForTesting
+  public DatasetFileSystemCache(
+      Function<List<String>, Configuration> fsConfProvider,
+      OptionManager optionManager,
+      boolean cachingPerDataset,
+      Ticker ticker,
+      LongSupplier clockMillis) {
     this.fsConfProvider = fsConfProvider;
     this.optionManager = optionManager;
+    this.cachingPerDataset = cachingPerDataset;
+    this.ticker = Preconditions.checkNotNull(ticker);
+    this.clockMillis = Preconditions.checkNotNull(clockMillis);
   }
 
   @VisibleForTesting
@@ -74,7 +136,7 @@ public class DatasetFileSystemCache implements AutoCloseable {
       return;
     }
     this.cache =
-        buildCacheExpiration(Caffeine.newBuilder(), optionManager)
+        buildCacheExpiration(Caffeine.newBuilder().ticker(ticker), optionManager)
             .removalListener(
                 (key, lockableFs, cause) -> {
                   if (lockableFs != null) {
@@ -107,6 +169,8 @@ public class DatasetFileSystemCache implements AutoCloseable {
                   }
 
                   Configuration fsConf = fsConfProvider.apply(key.getDataset());
+                  final long expiresAtMillis = fsConf.getLong(FS_EXPIRES_AT_MILLIS, Long.MAX_VALUE);
+                  fsConf.unset(FS_EXPIRES_AT_MILLIS);
                   URI uri = injectDremioFsImpl(key.getUri(), fsConf);
                   String scheme = Optional.ofNullable(uri.getScheme()).orElse("");
 
@@ -119,7 +183,7 @@ public class DatasetFileSystemCache implements AutoCloseable {
                             FileSystem.getFileSystemClass(scheme, fsConf);
                         final FileSystem fs = ReflectionUtils.newInstance(fsClass, fsConf);
                         fs.initialize(uri, fsConf);
-                        return new LockableHadoopFileSystem(fs);
+                        return new LockableHadoopFileSystem(fs, expiresAtMillis);
                       };
 
                   try {
@@ -145,13 +209,57 @@ public class DatasetFileSystemCache implements AutoCloseable {
                 });
   }
 
+  /**
+   * Entries expire {@code plugins.restcatalog.file_system.expire_after_write_minutes} after they
+   * were created, or earlier when their configuration said so (see {@link #FS_EXPIRES_AT_MILLIS}).
+   */
   protected Caffeine<DatasetFileSystemCacheKey, LockableHadoopFileSystem> buildCacheExpiration(
       Caffeine builder, OptionManager optionManager) {
     long expirationMinutes =
         optionManager.getOption(RESTCATALOG_PLUGIN_FILE_SYSTEM_EXPIRE_AFTER_WRITE_MINUTES);
     Preconditions.checkState(expirationMinutes > 0, "FS cache expiration must not be 0");
 
-    return builder.expireAfterWrite(expirationMinutes, TimeUnit.MINUTES);
+    final long maxLifetimeNanos = TimeUnit.MINUTES.toNanos(expirationMinutes);
+    return builder.expireAfter(
+        new Expiry<DatasetFileSystemCacheKey, LockableHadoopFileSystem>() {
+          @Override
+          public long expireAfterCreate(
+              DatasetFileSystemCacheKey key, LockableHadoopFileSystem fs, long currentTime) {
+            return lifetimeNanos(fs, maxLifetimeNanos, clockMillis.getAsLong());
+          }
+
+          @Override
+          public long expireAfterUpdate(
+              DatasetFileSystemCacheKey key,
+              LockableHadoopFileSystem fs,
+              long currentTime,
+              long currentDuration) {
+            return lifetimeNanos(fs, maxLifetimeNanos, clockMillis.getAsLong());
+          }
+
+          @Override
+          public long expireAfterRead(
+              DatasetFileSystemCacheKey key,
+              LockableHadoopFileSystem fs,
+              long currentTime,
+              long currentDuration) {
+            return currentDuration;
+          }
+        });
+  }
+
+  /**
+   * How long a new cache entry lives: the configured maximum, or less if the FS expires sooner, but
+   * at least {@link #MIN_EXPIRING_LIFETIME_NANOS}.
+   */
+  @VisibleForTesting
+  static long lifetimeNanos(LockableHadoopFileSystem fs, long maxLifetimeNanos, long nowMillis) {
+    long expiresAtMillis = fs.getExpiresAtMillis();
+    if (expiresAtMillis == Long.MAX_VALUE) {
+      return maxLifetimeNanos;
+    }
+    long remainingNanos = TimeUnit.MILLISECONDS.toNanos(Math.max(0L, expiresAtMillis - nowMillis));
+    return Math.min(maxLifetimeNanos, Math.max(MIN_EXPIRING_LIFETIME_NANOS, remainingNanos));
   }
 
   private static URI injectDremioFsImpl(URI uri, Configuration conf) {
@@ -228,11 +336,31 @@ public class DatasetFileSystemCache implements AutoCloseable {
    * @return the setting
    */
   protected boolean isCachingPerDataset() {
-    return false;
+    return cachingPerDataset;
+  }
+
+  /**
+   * Drops (and closes once they are no longer in use) the cached FileSystems created for the
+   * datasets that match, e.g. those holding the credentials of a table that was dropped or created.
+   * FileSystems cached for no particular dataset are kept.
+   */
+  public void invalidateDatasets(Predicate<List<String>> datasetFilter) {
+    LoadingCache<DatasetFileSystemCacheKey, LockableHadoopFileSystem> current = cache;
+    if (current == null) {
+      return;
+    }
+    current.invalidateAll(
+        current.asMap().keySet().stream()
+            .filter(key -> key.getDataset() != null && datasetFilter.test(key.getDataset()))
+            .collect(Collectors.toList()));
   }
 
   @Override
   public void close() throws Exception {
+    if (cache == null) {
+      // Never used (e.g. the source failed to start): nothing to close.
+      return;
+    }
     // Empty cache
     cache.invalidateAll();
     cache.cleanUp();

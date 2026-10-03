@@ -785,9 +785,14 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         .orElse(Region.US_EAST_1); // default to US_EAST_1 if no regions are found.
   }
 
+  /**
+   * The endpoint with a scheme. An endpoint given without one ({@code host:port}) gets the scheme
+   * of {@code fs.s3a.connection.ssl.enabled}; one given with a scheme is kept as is, as {@code
+   * S3ClientProperties.createUriFromEndpoint} does for the SDK v2 clients.
+   */
   static Optional<String> getEndpoint(Configuration conf) {
     return Optional.ofNullable(conf.getTrimmed(Constants.ENDPOINT))
-        .map(s -> getHttpScheme(conf) + s);
+        .map(s -> s.contains("://") ? s : getHttpScheme(conf) + s);
   }
 
   static Optional<String> getStsEndpoint(Configuration conf) {

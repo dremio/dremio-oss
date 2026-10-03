@@ -16,6 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
+import { merge } from "lodash";
 import { connect } from "react-redux";
 import { compose } from "redux";
 
@@ -52,6 +53,11 @@ import { isVersionedReflectionsEnabled } from "../AddEditSourceUtils";
 import {
   isVersionedSource,
   getAddSourceModalTitle,
+  addSourcePresetTiles,
+  getSourcePreset,
+  getSourcePresetInitialValues,
+  getSourceTypeLoadErrorMessage,
+  withSourcePropertyListValidation,
 } from "@inject/utils/sourceUtils";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { isMetastoreSourceType } from "@inject/constants/sourceTypes";
@@ -92,6 +98,9 @@ export class AddSourceModal extends Component {
     isAddingSampleSource: false,
     didSourceTypeLoadFail: false,
     errorMessage: "Failed to load source list.",
+    // client-side preset (see SOURCE_PRESETS) chosen in SelectSourceType, if any
+    selectedPresetId: null,
+    presetInitialValues: undefined,
   };
 
   componentDidMount() {
@@ -117,11 +126,12 @@ export class AddSourceModal extends Component {
     ApiUtils.fetchJson(
       "source/type",
       (result) => {
-        const combinedListConfig =
+        const combinedListConfig = addSourcePresetTiles(
           SourceFormJsonPolicy.combineDefaultAndLoadedList(
             result.data,
             DEFAULT_VLHF_LIST,
-          );
+          ),
+        );
         this.setState({ sourceTypes: combinedListConfig });
       },
       () => {
@@ -144,7 +154,7 @@ export class AddSourceModal extends Component {
               : true,
           },
         );
-        const isFileSystemSource = combinedConfig.metadataRefresh;
+        const metadataRefresh = combinedConfig.metadataRefresh;
         if (this.props.setPreviewEngine) {
           this.props.setPreviewEngine(json.previewEngineRequired, "Add");
           this.isPreviewEngineRequired = json.previewEngineRequired;
@@ -155,33 +165,32 @@ export class AddSourceModal extends Component {
           selectedFormType: combinedConfig,
         });
         dispatchPassDataBetweenTabs({
-          isFileSystemSource: isFileSystemSource.isFileSystemSource,
+          isFileSystemSource: metadataRefresh?.isFileSystemSource,
           isExternalQueryAllowed: json.externalQueryAllowed,
           isMetaStore: isMetastoreSourceType(combinedConfig.sourceType),
           sourceType: combinedConfig.sourceType,
         });
       },
       (e) => {
-        return e
-          .json()
-          .then((error) => {
-            return this.setState({
-              didSourceTypeLoadFail: true,
-              errorMessage: error?.errorMessage,
-            });
-          })
-          .catch(() => {
-            return this.setState({
-              didSourceTypeLoadFail: true,
-            });
+        // e is a fetch Response for HTTP errors, but can be any error thrown above
+        return getSourceTypeLoadErrorMessage(e).then((errorMessage) => {
+          return this.setState({
+            didSourceTypeLoadFail: true,
+            ...(errorMessage && { errorMessage }),
           });
+        });
       },
     );
   }
 
   UNSAFE_componentWillReceiveProps(nextProps) {
     if (!this.props.isOpen && nextProps.isOpen) {
-      this.setState({ isTypeSelected: false, selectedFormType: {} });
+      this.setState({
+        isTypeSelected: false,
+        selectedFormType: {},
+        selectedPresetId: null,
+        presetInitialValues: undefined,
+      });
       this.props.updateFormDirtyState(false); // mark form not dirty to avoid unsaved prompt
     }
   }
@@ -199,10 +208,11 @@ export class AddSourceModal extends Component {
     if (title) {
       return title;
     }
+    const preset = getSourcePreset(this.state.selectedPresetId);
     return this.state.isTypeSelected
       ? intl.formatMessage(
           { id: "Source.NewSourceStep2" },
-          { sourceLabel: this.state.selectedFormType.label },
+          { sourceLabel: preset?.label || this.state.selectedFormType.label },
         )
       : intl.formatMessage({
           id: "Source.AddDataSource",
@@ -218,9 +228,22 @@ export class AddSourceModal extends Component {
         this.handleAddSampleSource();
         break;
       default:
+        // a preset tile opens the form of its base type (source.sourceType) with
+        // pre-filled values; the created source keeps the base type.
+        this.setState({
+          selectedPresetId: source.presetId || null,
+          presetInitialValues: getSourcePresetInitialValues(source.presetId),
+        });
         this.setStateWithSourceTypeConfigFromServer(source.sourceType);
     }
   };
+
+  getInitialValues() {
+    const { initialFormValues } = this.props;
+    const { presetInitialValues } = this.state;
+    if (!presetInitialValues) return initialFormValues;
+    return merge({}, initialFormValues, presetInitialValues);
+  }
 
   handleAddSampleDb = () => {
     return this.props.createSampleDbSource().then(() => {
@@ -292,7 +315,7 @@ export class AddSourceModal extends Component {
           );
         }
         this.sendAddCompleteEvent();
-        return Promise.resolve("done");
+        return "done";
       })
       .catch((error) => {
         this.stopTrackSubmitTime();
@@ -309,8 +332,7 @@ export class AddSourceModal extends Component {
   };
 
   render() {
-    const { isOpen, updateFormDirtyState, location, initialFormValues } =
-      this.props;
+    const { isOpen, updateFormDirtyState, location } = this.props;
     const { state: { isExternalSource, isDataPlaneSource } = {} } = location;
     const { isAddingSampleSource, errorMessage, didSourceTypeLoadFail } =
       this.state;
@@ -382,11 +404,12 @@ export class AddSourceModal extends Component {
               fields={FormUtils.getFieldsFromConfig(
                 this.state.selectedFormType,
               )}
-              validate={FormUtils.getValidationsFromConfig(
-                this.state.selectedFormType,
+              validate={withSourcePropertyListValidation(
+                FormUtils.getValidationsFromConfig(this.state.selectedFormType),
+                this.state.selectedFormType.sourceType,
               )}
               EntityType="source"
-              initialValues={initialFormValues}
+              initialValues={this.getInitialValues()}
               confirmButtonStyle={confirmButtonStyle}
             />
           )}

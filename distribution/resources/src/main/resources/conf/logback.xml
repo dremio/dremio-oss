@@ -215,6 +215,42 @@
     <level value="debug"/>
   </logger>
 
+  <!-- Apache HttpClient 5 wire/header logs carry request bodies and Authorization headers, e.g.
+       OAuth2 client_secret and bearer tokens of the Iceberg REST catalog client. Keep them off
+       even when the root level is raised for debugging. -->
+  <logger name="org.apache.hc.client5.http.wire">
+    <level value="info"/>
+  </logger>
+  <logger name="org.apache.hc.client5.http.headers">
+    <level value="info"/>
+  </logger>
+  <!-- Apache HttpClient 4 (AWS SDK v1 in Hadoop S3A) prints request headers at DEBUG, including
+       X-Amz-Security-Token, the S3 session token of temporary and vended credentials. The SigV4
+       signers print it in the canonical request. The Netty client of the AWS SDK v2 (async S3
+       reads) always installs a DEBUG LoggingHandler (HTTP/1.1) and an Http2FrameLogger (HTTP/2)
+       that print every request with its headers. Keep them off even when levels are raised. -->
+  <logger name="org.apache.http.wire">
+    <level value="info"/>
+  </logger>
+  <logger name="org.apache.http.headers">
+    <level value="info"/>
+  </logger>
+  <logger name="com.amazonaws.auth.AWS4Signer">
+    <level value="info"/>
+  </logger>
+  <logger name="software.amazon.awssdk.auth.signer">
+    <level value="info"/>
+  </logger>
+  <logger name="software.amazon.awssdk.http.auth.aws.internal.signer">
+    <level value="info"/>
+  </logger>
+  <logger name="io.netty.handler.logging.LoggingHandler">
+    <level value="info"/>
+  </logger>
+  <logger name="io.netty.handler.codec.http2.Http2FrameLogger">
+    <level value="info"/>
+  </logger>
+
   <root>
     <level value="${dremio.log.root.level:-error}"/>
     <if condition='isDefined("dremio.log.path")'>

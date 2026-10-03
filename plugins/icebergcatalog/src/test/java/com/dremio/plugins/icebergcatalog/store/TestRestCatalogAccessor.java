@@ -71,6 +71,9 @@ import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.exceptions.ForbiddenException;
+import org.apache.iceberg.exceptions.NotAuthorizedException;
+import org.apache.iceberg.exceptions.ServiceFailureException;
 import org.apache.iceberg.rest.RESTCatalog;
 import org.apache.iceberg.view.BaseView;
 import org.apache.iceberg.view.View;
@@ -737,5 +740,107 @@ public class TestRestCatalogAccessor {
     // Load namespace2 table again - should NOT call catalog (cache still valid)
     restCatalogAccessor.getTableMetadata(tablePath2);
     verify(mockCatalog, times(1)).loadTable(tableId2); // Still only 1 call
+  }
+
+  @Test
+  public void testGetFolderStreamListsNestedNamespaces() {
+    Namespace a = Namespace.of("a");
+    Namespace ab = Namespace.of("a", "b");
+    Namespace abc = Namespace.of("a", "b", "c");
+    when(mockRestCatalog.listNamespaces(Namespace.empty())).thenReturn(List.of(a));
+    when(mockRestCatalog.listNamespaces(a)).thenReturn(List.of(ab));
+    when(mockRestCatalog.listNamespaces(ab)).thenReturn(List.of(abc));
+    when(mockRestCatalog.listNamespaces(abc)).thenReturn(List.of());
+    when(mockRestCatalog.loadNamespaceMetadata(any(Namespace.class)))
+        .thenReturn(ImmutableMap.of("location", "s3://bucket/ns"));
+
+    List<Namespace> folders =
+        restCatalogAccessor
+            .getFolderStream()
+            .map(IcebergNamespaceWithProperties::getNamespace)
+            .collect(Collectors.toList());
+
+    assertThat(folders).containsExactlyInAnyOrder(a, ab, abc);
+  }
+
+  @Test
+  public void testListDatasetIdentifiersInNestedNamespace() {
+    Namespace abc = Namespace.of("a", "b", "c");
+    TableIdentifier table = TableIdentifier.of(abc, "t");
+    when(mockRestCatalog.listTables(abc)).thenReturn(List.of(table));
+
+    assertThat(restCatalogAccessor.listDatasetIdentifiers(List.of("source", "a", "b", "c")))
+        .containsExactly(table);
+  }
+
+  // --- checkState: cached client and cached tables ---
+
+  private static RESTCatalog catalogWithTable(TableIdentifier tableId) {
+    Table table = mock(Table.class, withSettings().extraInterfaces(HasTableOperations.class));
+    TableOperations ops = mock(TableOperations.class);
+    when(((HasTableOperations) table).operations()).thenReturn(ops);
+    when(ops.current()).thenReturn(mock(TableMetadata.class));
+    RESTCatalog catalog = mock(RESTCatalog.class);
+    when(catalog.loadTable(tableId)).thenReturn(table);
+    return catalog;
+  }
+
+  @Test
+  public void testDeniedRootListingInStateCheckKeepsCachedTables() throws Exception {
+    // The recommended Polaris setup (allowed namespaces, no catalog-level LIST_NAMESPACES) fails
+    // the root listing on every state check; that must not disable the table cache.
+    List<String> tablePath = Arrays.asList("test_source", "ns1", "t1");
+    TableIdentifier tableId = TableIdentifier.of("ns1", "t1");
+    when(mockOptionManager.getOption(RESTCATALOG_PLUGIN_TABLE_CACHE_ENABLED)).thenReturn(true);
+    RESTCatalog catalog = catalogWithTable(tableId);
+    when(catalog.listNamespaces(Namespace.empty()))
+        .thenThrow(new ForbiddenException("Forbidden: not authorized for op LIST_NAMESPACES"));
+    when(validSupplierCatalog.get()).thenReturn(catalog);
+
+    restCatalogAccessor.getTableMetadata(tablePath);
+    assertThatThrownBy(() -> restCatalogAccessor.checkState())
+        .isInstanceOf(IcebergRestCatalogAccessor.NamespaceListingForbiddenException.class);
+    restCatalogAccessor.getTableMetadata(tablePath);
+
+    verify(catalog, times(1)).loadTable(tableId);
+  }
+
+  @Test
+  public void testServerErrorInStateCheckKeepsTheCachedClient() throws Exception {
+    RESTCatalog catalog = mock(RESTCatalog.class);
+    when(catalog.listNamespaces(Namespace.empty()))
+        .thenReturn(List.of())
+        .thenThrow(new ServiceFailureException("Server error: Internal server error"));
+    when(validSupplierCatalog.get()).thenReturn(catalog);
+
+    restCatalogAccessor.checkState();
+    assertThatThrownBy(() -> restCatalogAccessor.checkState())
+        .isInstanceOf(ServiceFailureException.class);
+
+    // No new client was built, and the cached one (possibly in use by queries) stays open.
+    verify(validSupplierCatalog, times(1)).get();
+    verify(catalog, never()).close();
+  }
+
+  @Test
+  public void testStaleSessionIsReplacedAndCachedTablesAreDropped() throws Exception {
+    List<String> tablePath = Arrays.asList("test_source", "ns1", "t1");
+    TableIdentifier tableId = TableIdentifier.of("ns1", "t1");
+    when(mockOptionManager.getOption(RESTCATALOG_PLUGIN_TABLE_CACHE_ENABLED)).thenReturn(true);
+    RESTCatalog stale = catalogWithTable(tableId);
+    when(stale.listNamespaces(Namespace.empty()))
+        .thenThrow(new NotAuthorizedException("Not authorized: invalid or expired token"));
+    RESTCatalog fresh = catalogWithTable(tableId);
+    when(fresh.listNamespaces(Namespace.empty())).thenReturn(List.of());
+    when(validSupplierCatalog.get()).thenReturn(stale, fresh);
+
+    restCatalogAccessor.getTableMetadata(tablePath);
+    restCatalogAccessor.checkState();
+    restCatalogAccessor.getTableMetadata(tablePath);
+
+    // The cached table was bound to the closed stale client: it is loaded again by the new one.
+    verify(stale).close();
+    verify(stale, times(1)).loadTable(tableId);
+    verify(fresh, times(1)).loadTable(tableId);
   }
 }

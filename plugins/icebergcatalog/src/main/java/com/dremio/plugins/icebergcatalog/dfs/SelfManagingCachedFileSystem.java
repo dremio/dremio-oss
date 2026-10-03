@@ -38,6 +38,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.security.AccessControlException;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -540,7 +541,7 @@ public class SelfManagingCachedFileSystem implements FileSystem {
     private final LockableHadoopFileSystem fs;
 
     // Workaround PartitionStatsMetadataUtil#writeMetadata doubly closing its outputstream
-    private boolean isClosed = false;
+    private final AtomicBoolean isClosed = new AtomicBoolean(false);
 
     ManagedOutputStream(Path f, boolean overwrite) throws IOException {
       this.fs = ensureLockedFs();
@@ -578,10 +579,14 @@ public class SelfManagingCachedFileSystem implements FileSystem {
 
     @Override
     public void close() throws IOException {
-      if (!isClosed) {
-        outputStream.close();
-        fs.unlock();
-        isClosed = true;
+      // Claim the close atomically: a waiter woken by unlock() may call close() concurrently, and
+      // unlocking twice would drive the FS reference count negative.
+      if (isClosed.compareAndSet(false, true)) {
+        try {
+          outputStream.close();
+        } finally {
+          fs.unlock();
+        }
       }
     }
   }

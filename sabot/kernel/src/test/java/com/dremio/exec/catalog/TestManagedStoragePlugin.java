@@ -48,11 +48,13 @@ import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.StoragePlugin;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
@@ -74,11 +76,13 @@ import com.dremio.services.credentials.CredentialsService;
 import com.dremio.services.credentials.SecretsCreator;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Lists;
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import javax.inject.Provider;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -109,6 +113,7 @@ public class TestManagedStoragePlugin {
   private final List<Cancellable> scheduledTasks = new ArrayList<>();
 
   private static final String INSPECTOR = "inspector";
+  private static final String FAILING_START_INSPECTOR = "inspector_failing_start";
 
   @Before
   public void setup() throws Exception {
@@ -596,6 +601,94 @@ public class TestManagedStoragePlugin {
     final ManagedStoragePlugin plugin = newPlugin(newConfig);
 
     assertEquals(plugin.sourceChangeState(), SourceChangeState.SOURCE_CHANGE_STATE_NONE);
+  }
+
+  /**
+   * A failed update puts the previous plugin back; the source's background metadata refresh must
+   * keep running (it used to be cancelled until Dremio restarted). Covers both update paths.
+   */
+  @Test
+  public void testFailedUpdateKeepsMetadataRefreshScheduled() throws Exception {
+    for (boolean seamlessUpdate : new boolean[] {true, false}) {
+      scheduledTasks.clear();
+      try (AutoCloseable ignored =
+          TestPluginsManager.withSystemOption(
+              sabotContext, SOURCE_SEAMLESS_UPDATE_ALLOWED_DATABASES, seamlessUpdate)) {
+        final SourceConfig oldConfig = failingStartConfig(false);
+        when(mockNamespaceService.getSource(eq(oldConfig.getKey()))).thenReturn(oldConfig);
+        final ManagedStoragePlugin plugin = newPlugin(oldConfig);
+        assertThat(scheduledTasks).isNotEmpty();
+
+        assertThrows(
+            UserException.class, () -> plugin.updateSource(failingStartConfig(true), "testuser"));
+
+        assertThat(scheduledTasks)
+            .as("metadata refresh after a failed update (seamless update: %s)", seamlessUpdate)
+            .allSatisfy(task -> assertThat(task.isCancelled()).isFalse());
+        assertThat(plugin.getPlugin()).isPresent();
+      }
+    }
+  }
+
+  /** A source that cannot be created is discarded: its metadata refresh is still cancelled. */
+  @Test
+  public void testFailedCreateCancelsMetadataRefresh() throws Exception {
+    for (boolean seamlessUpdate : new boolean[] {true, false}) {
+      scheduledTasks.clear();
+      try (AutoCloseable ignored =
+          TestPluginsManager.withSystemOption(
+              sabotContext, SOURCE_SEAMLESS_UPDATE_ALLOWED_DATABASES, seamlessUpdate)) {
+        final SourceConfig config = failingStartConfig(true);
+        final ManagedStoragePlugin plugin = newPlugin(config);
+        assertThat(scheduledTasks).isNotEmpty();
+
+        assertThrows(UserException.class, () -> plugin.createSource(config, "testuser"));
+
+        assertThat(scheduledTasks)
+            .as("metadata refresh after a failed create (seamless update: %s)", seamlessUpdate)
+            .allSatisfy(task -> assertThat(task.isCancelled()).isTrue());
+      }
+    }
+  }
+
+  private static SourceConfig failingStartConfig(boolean failStart) {
+    return new SourceConfig()
+        .setType(FAILING_START_INSPECTOR)
+        .setName("TEST")
+        .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+        .setConfig(new FailingStartInspector().setFailStart(failStart).toBytesString());
+  }
+
+  /** An inspector source whose plugin fails to start when {@code failStart} is set. */
+  @SourceType(value = FAILING_START_INSPECTOR, configurable = false)
+  public static class FailingStartInspector extends TestPluginsManager.Inspector {
+    public boolean failStart;
+
+    public FailingStartInspector() {
+      super(true);
+    }
+
+    FailingStartInspector setFailStart(boolean failStart) {
+      this.failStart = failStart;
+      return this;
+    }
+
+    @Override
+    public StoragePlugin newPlugin(
+        PluginSabotContext pluginSabotContext,
+        String name,
+        Provider<StoragePluginId> pluginIdProvider) {
+      final StoragePlugin storagePlugin =
+          super.newPlugin(pluginSabotContext, name, pluginIdProvider);
+      if (failStart) {
+        try {
+          doThrow(new IOException("injected start failure")).when(storagePlugin).start();
+        } catch (IOException e) {
+          throw new IllegalStateException(e);
+        }
+      }
+      return storagePlugin;
+    }
   }
 
   private ArgumentMatcher<SourceUpdateType> getRefreshNamesInFoldersMatcher() {

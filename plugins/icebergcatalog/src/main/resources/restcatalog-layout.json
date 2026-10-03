@@ -1,0 +1,107 @@
+{
+  "sourceType": "RESTCATALOG",
+  "metadataRefresh": {
+    "datasetDiscovery": true,
+    "authorization": false
+  },
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.restEndpointUri",
+                "placeholder": "e.g. http://<polaris-host>:8181/api/catalog",
+                "tooltip": "Base URI of the Iceberg REST catalog, without the /v1 suffix. For Apache Polaris use http://<polaris-host>:8181/api/catalog.",
+                "validate": {
+                  "isRequired": true
+                }
+              },
+              {
+                "propName": "config.isUsingVendedCredentials",
+                "tooltip": "Asks the catalog for vended storage credentials (header X-Iceberg-Access-Delegation: vended-credentials) and accesses the files of each table with the S3 credentials the catalog returns for it. The endpoint and other S3 connection settings still come from the storage properties under Advanced Options; tables without vended credentials use the storage credentials configured there."
+              }
+            ],
+            "help": {
+              "position": "bottom",
+              "text": "Catalog settings such as warehouse, scope and the OAuth2 credential, and object storage settings, are configured under Advanced Options."
+            }
+          },
+          {
+            "elements": [
+              {
+                "propName": "config.allowedNamespaces[]",
+                "uiType": "value_list",
+                "size": "half",
+                "emptyLabel": "All namespaces are visible",
+                "addLabel": "Add namespace"
+              },
+              {
+                "propName": "config.isRecursiveAllowedNamespaces"
+              }
+            ],
+            "help": {
+              "position": "bottom",
+              "text": "Leave the list empty to show all namespaces. Separate nested namespace levels with '.', e.g. <namespace>.<child-namespace>."
+            }
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "title": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.enableAsync"
+              }
+            ]
+          },
+          {
+            "elements": [
+              {
+                "propName": "config.propertyList",
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property"
+              }
+            ],
+            "help": {
+              "position": "bottom",
+              "text": "Passed to the Iceberg REST client and to the storage layer. Apache Polaris requires warehouse=<catalog-name> and scope=PRINCIPAL_ROLE:ALL (or PRINCIPAL_ROLE:<role>); oauth2-server-uri=http://<polaris-host>:8181/api/catalog/v1/oauth/tokens is recommended. For MinIO or other S3-compatible storage add fs.s3a.endpoint=<host>:<port>, fs.s3a.path.style.access=true, dremio.s3.compat=true and, for plain HTTP, fs.s3a.connection.ssl.enabled=false; if the storage region is not us-east-1, also add fs.s3a.endpoint.region=<region> (dremio.s3.region alone is not enough). Values here are not masked: put secrets under Catalog Credentials."
+            }
+          },
+          {
+            "elements": [
+              {
+                "propName": "config.secretPropertyList",
+                "emptyLabel": "No credentials added",
+                "addLabel": "Add credential",
+                "secure": true
+              }
+            ],
+            "help": {
+              "position": "bottom",
+              "text": "Values are masked in the UI and API. Apache Polaris: credential=<client-id>:<client-secret>. S3 or MinIO: fs.s3a.access.key=<access-key> and fs.s3a.secret.key=<secret-key>."
+            }
+          },
+          {
+            "name": "Cache Options",
+            "checkboxController": "enableAsync",
+            "elements": [
+              {
+                "propName": "config.isCachingEnabled"
+              },
+              {
+                "propName": "config.maxCacheSpacePct"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -51,6 +51,34 @@ describe("newSource", () => {
     ]);
   });
 
+  it("should keep the RESTCATALOG type and drop ids of both property lists", () => {
+    const config = {
+      restEndpointUri: "http://localhost:8181/api/catalog",
+      isUsingVendedCredentials: false,
+      propertyList: [
+        { id: "1", name: "warehouse", value: "polaris_demo" },
+        { id: "2", name: "scope", value: "PRINCIPAL_ROLE:ALL" },
+      ],
+      secretPropertyList: [{ id: "3", name: "credential", value: "x" }],
+    };
+    const result = sourcesMapper.newSource("RESTCATALOG", {
+      name: "p",
+      config,
+    });
+    expect(result.type).to.equal("RESTCATALOG");
+    expect(result.config).to.eql({
+      restEndpointUri: "http://localhost:8181/api/catalog",
+      isUsingVendedCredentials: false,
+      propertyList: [
+        { name: "warehouse", value: "polaris_demo" },
+        { name: "scope", value: "PRINCIPAL_ROLE:ALL" },
+      ],
+      secretPropertyList: [{ name: "credential", value: "x" }],
+    });
+    // the form values are not mutated
+    expect(config.propertyList[0].id).to.equal("1");
+  });
+
   it("should set auth timeout as number", () => {
     data.config = { authenticationTimeoutMillis: "1572978773448" };
     const result = sourcesMapper.newSource(sourceType, data);

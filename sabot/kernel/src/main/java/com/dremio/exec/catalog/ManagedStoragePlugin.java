@@ -1221,6 +1221,20 @@ public class ManagedStoragePlugin implements AutoCloseable {
   }
 
   /**
+   * Starts the plugin instance that replaces the current one.
+   *
+   * <p>When the start fails, the metadata manager is closed only for a source that is being created
+   * ({@code skipEqualityCheck}), which is discarded after the failure. A failed update of an
+   * existing source (including the synchronization of its configuration from the KV store) puts the
+   * previous plugin back, so the metadata manager must keep running: once closed, its background
+   * refresh never runs again until Dremio restarts.
+   */
+  private CompletableFuture<SourceState> startReplacementAsync(
+      final SourceConfig config, final boolean skipEqualityCheck) {
+    return CompletableFuture.supplyAsync(newStartSupplier(config, skipEqualityCheck), executor);
+  }
+
+  /**
    * If starting a plugin on process restart failed, this method will spawn a background task that
    * will keep trying to re-start the plugin on a fixed schedule (minimum of the metadata name and
    * dataset refresh rates)
@@ -2003,7 +2017,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
             .newPlugin(context, sourceKey.getRoot(), this::getId, isInFluxSource);
     try {
       logger.trace("Starting new plugin for [{}]", config.getName());
-      startAsync(config, false).get(waitMillis, TimeUnit.MILLISECONDS);
+      startReplacementAsync(config, skipEqualityCheck).get(waitMillis, TimeUnit.MILLISECONDS);
       try {
         if (oldPlugin.isPresent()) {
           AutoCloseables.close(oldPlugin.get());
@@ -2076,7 +2090,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
             .newPlugin(context, sourceKey.getRoot(), this::getId, isInFluxSource);
     try {
       logger.trace("Starting new plugin for [{}]", config.getName());
-      startAsync(config, false).get(waitMillis, TimeUnit.MILLISECONDS);
+      startReplacementAsync(config, skipEqualityCheck).get(waitMillis, TimeUnit.MILLISECONDS);
       try {
         if (oldPlugin.isPresent()) {
           AutoCloseables.close(oldPlugin.get());

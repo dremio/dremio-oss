@@ -17,6 +17,7 @@ import { shallow } from "enzyme";
 
 import { sourceProperties } from "#oss/constants/sourceTypes";
 import { expect } from "chai";
+import { addSourcePresetTiles } from "#oss/utils/sourceUtils";
 import SelectSourceType from "./SelectSourceType";
 
 describe("SelectSourceType", () => {
@@ -36,5 +37,69 @@ describe("SelectSourceType", () => {
   it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<SelectSourceType {...minimalProps} />);
     expect(wrapper).to.have.length(1);
+  });
+
+  describe("Iceberg REST catalog presets", () => {
+    const sourceTypes = addSourcePresetTiles([
+      { sourceType: "S3", label: "Amazon S3" },
+      { sourceType: "RESTCATALOG", label: "Iceberg REST Catalog" },
+      { sourceType: "MYSQL", label: "MySQL" },
+    ]);
+    const findTile = (wrapper, label) =>
+      wrapper
+        .find("SelectConnectionButton")
+        .filterWhere((button) => button.prop("label") === label);
+
+    it("renders the generic and the Polaris tile as lakehouse catalogs", () => {
+      const wrapper = shallow(
+        <SelectSourceType {...commonProps} sourceTypes={sourceTypes} />,
+      );
+      const generic = findTile(wrapper, "Iceberg REST Catalog");
+      const polaris = findTile(wrapper, "Apache Polaris OSS");
+      expect(generic).to.have.length(1);
+      expect(polaris).to.have.length(1);
+      // same icon as the base type, but a distinct React key
+      expect(polaris.prop("dremioIcon")).to.equal("sources/RESTCATALOG");
+      expect(polaris.key()).to.equal("RESTCATALOG:POLARIS");
+      expect(generic.key()).to.equal("RESTCATALOG");
+      const lakehouseSection = wrapper.find(".source-type-section").first();
+      expect(
+        lakehouseSection
+          .find("SelectConnectionButton")
+          .map((button) => button.prop("label")),
+      ).to.deep.equal(["Apache Polaris OSS", "Iceberg REST Catalog"]);
+    });
+
+    it("passes the preset id of the clicked tile", () => {
+      const wrapper = shallow(
+        <SelectSourceType {...commonProps} sourceTypes={sourceTypes} />,
+      );
+      findTile(wrapper, "Apache Polaris OSS").prop("onClick")();
+      expect(commonProps.onSelectSource).to.have.been.calledOnce;
+      expect(commonProps.onSelectSource.firstCall.args[0]).to.include({
+        sourceType: "RESTCATALOG",
+        presetId: "POLARIS",
+      });
+      findTile(wrapper, "Iceberg REST Catalog").prop("onClick")();
+      expect(commonProps.onSelectSource.secondCall.args[0].presetId).to.be
+        .undefined;
+    });
+
+    it("finds the Polaris tile by search", () => {
+      const wrapper = shallow(
+        <SelectSourceType {...commonProps} sourceTypes={sourceTypes} />,
+      );
+      wrapper.instance().updateSourcesList(
+        sourceTypes.filter((type) =>
+          type.label.toLowerCase().includes("polaris"),
+        ),
+        "polaris",
+      );
+      expect(
+        wrapper
+          .find("SelectConnectionButton")
+          .map((button) => button.prop("label")),
+      ).to.deep.equal(["Apache Polaris OSS"]);
+    });
   });
 });

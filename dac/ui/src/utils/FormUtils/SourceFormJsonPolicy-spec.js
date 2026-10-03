@@ -15,7 +15,10 @@
  */
 
 import { SHARING_TAB_JSON_TEMPLATE } from "@inject/constants/sourceTypes";
+import fs from "fs";
+import path from "path";
 import SourceFormJsonPolicy from "utils/FormUtils/SourceFormJsonPolicy";
+import { getJSONElementOverrides } from "@inject/utils/FormUtils/formOverrideUtils";
 import FormConfig from "utils/FormUtils/FormConfig";
 
 import TextWrapper from "components/Forms/Wrappers/TextWrapper";
@@ -549,6 +552,181 @@ describe("SourceFormJsonPolicy", () => {
       const element = getDataRefreshElement(config.form);
       expect(element.getConfig().datasetDiscovery).to.equal(true);
       expect(element.getConfig().authorization).to.equal(true);
+    });
+  });
+
+  describe("RESTCATALOG layout (plugins/icebergcatalog restcatalog-layout.json)", () => {
+    // Mirrors what GET /api/v3/source/type/RESTCATALOG returns for
+    // RestIcebergCatalogPluginConfig (tags 1-5 and 10-13).
+    const functionalElements = () => [
+      {
+        propertyName: "propertyList",
+        label: "Catalog Properties",
+        type: "property_list",
+      },
+      {
+        propertyName: "secretPropertyList",
+        label: "Catalog Credentials",
+        type: "property_list",
+        secret: true,
+      },
+      {
+        propertyName: "enableAsync",
+        label: "Enable asynchronous access for Parquet datasets",
+        type: "boolean",
+        defaultValue: true,
+      },
+      {
+        propertyName: "isCachingEnabled",
+        label: "Enable local caching when possible",
+        type: "boolean",
+        defaultValue: true,
+      },
+      {
+        propertyName: "maxCacheSpacePct",
+        label:
+          "Max percent of total available cache space to use when possible",
+        type: "number",
+        defaultValue: 100,
+      },
+      { propertyName: "restEndpointUri", label: "Endpoint URI", type: "text" },
+      {
+        propertyName: "allowedNamespaces",
+        label: "Allowed Namespaces",
+        type: "value_list",
+      },
+      {
+        propertyName: "isRecursiveAllowedNamespaces",
+        label: "Allowed Namespaces include their whole subtrees",
+        type: "boolean",
+        defaultValue: true,
+      },
+      {
+        propertyName: "isUsingVendedCredentials",
+        label: "Use vended credentials",
+        type: "boolean",
+      },
+    ];
+    const loadLayout = () =>
+      JSON.parse(
+        fs.readFileSync(
+          path.resolve(
+            __dirname,
+            "../../../../../plugins/icebergcatalog/src/main/resources/restcatalog-layout.json",
+          ),
+          "utf8",
+        ),
+      );
+    const getCombined = () =>
+      SourceFormJsonPolicy.getCombinedConfig("RESTCATALOG", {
+        sourceType: "RESTCATALOG",
+        label: "Iceberg REST Catalog",
+        // as in processUiConfig (EditSourceView): adds the "config." prefix
+        elements: getJSONElementOverrides(functionalElements(), "RESTCATALOG"),
+        uiConfig: loadLayout(),
+      });
+
+    it("declares sourceType and metadataRefresh", () => {
+      const layout = loadLayout();
+      expect(layout.sourceType).to.equal("RESTCATALOG");
+      expect(layout.metadataRefresh).to.deep.equal({
+        datasetDiscovery: true,
+        authorization: false,
+      });
+    });
+
+    it("only references config fields of RestIcebergCatalogPluginConfig", () => {
+      const propNames = [];
+      const collect = (node) => {
+        if (Array.isArray(node)) {
+          node.forEach(collect);
+        } else if (node && typeof node === "object") {
+          if (node.propName) propNames.push(node.propName);
+          Object.values(node).forEach(collect);
+        }
+      };
+      collect(loadLayout().form);
+      const known = functionalElements().map(
+        (el) => `config.${el.propertyName}`,
+      );
+      expect(
+        propNames.map((name) => name.replace(/\[\]$/, "")),
+      ).to.have.members(known);
+    });
+
+    it("builds a form with all fields placed by the layout", () => {
+      const combined = getCombined();
+      expect(combined.sourceType).to.equal("RESTCATALOG");
+      expect(combined.label).to.equal("Iceberg REST Catalog");
+      expect(combined.metadataRefresh.isFileSystemSource).to.be.undefined;
+      const form = combined.form;
+      expect(form.getTabs().map((tab) => tab.getName())).to.include.members([
+        "General",
+        "Advanced Options",
+        "Reflection Refresh",
+        "Metadata",
+      ]);
+      // nothing fell through to the generated "loose elements" section
+      const general = form.findTabByName("General");
+      expect(
+        general.getSections().map((section) => section.getConfig().name),
+      ).to.not.include("");
+
+      const advanced = form.findTabByName("Advanced Options");
+      const advancedProps = advanced
+        .getAllElements()
+        .map((el) => el.getPropName());
+      expect(advancedProps).to.include.members([
+        "config.propertyList",
+        "config.secretPropertyList",
+        "config.enableAsync",
+        "config.isCachingEnabled",
+        "config.maxCacheSpacePct",
+        "allowCrossSourceSelection",
+      ]);
+      const generalProps = general
+        .getAllElements()
+        .map((el) => el.getPropName());
+      expect(generalProps).to.include.members([
+        "name",
+        "config.restEndpointUri",
+        "config.isUsingVendedCredentials",
+        "config.allowedNamespaces[]",
+        "config.isRecursiveAllowedNamespaces",
+      ]);
+    });
+
+    it("renders lists with the list wrappers and masks credentials", () => {
+      const elements = getCombined().form.getAllElements();
+      const byProp = (propName) =>
+        elements.find((el) => el.getPropName() === propName);
+      expect(byProp("config.propertyList").getRenderer()).to.equal(
+        PropertyListWrapper,
+      );
+      expect(byProp("config.secretPropertyList").getRenderer()).to.equal(
+        PropertyListWrapper,
+      );
+      expect(byProp("config.secretPropertyList").getConfig().secure).to.be.true;
+      expect(byProp("config.propertyList").getConfig().secure).to.be.undefined;
+      expect(byProp("config.allowedNamespaces[]").getRenderer()).to.equal(
+        ValueListWrapper,
+      );
+      expect(byProp("config.isUsingVendedCredentials").getRenderer()).to.equal(
+        CheckboxWrapper,
+      );
+      expect(
+        byProp("config.restEndpointUri").getConfig().validate,
+      ).to.deep.equal({
+        isRequired: true,
+      });
+    });
+
+    it("has no secret values in help text or placeholders", () => {
+      const text = JSON.stringify(loadLayout());
+      expect(text).to.contain("scope=PRINCIPAL_ROLE:ALL");
+      expect(text).to.contain("<secret-key>");
+      expect(text).to.not.match(/secret\.key=(?!<)/);
+      expect(text).to.not.match(/credential=(?!<)/);
     });
   });
 });

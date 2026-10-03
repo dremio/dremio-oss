@@ -1,0 +1,372 @@
+# AbleOps Local CI pipeline (http://localhost:8443/), see `localci submit --profile <name>`.
+# Agents run on the dev host and resolve sibling modules from the baseline install in ~/.m2.
+version: 1
+pipeline:
+  name: dremio-polaris-restcatalog
+runner:
+  concurrency: auto
+default_profile: fast
+profiles:
+  fast:
+    steps: [icebergcatalog-test, s3-test, icebergcatalog-lint]
+  full:
+    steps: [icebergcatalog-test, s3-test, icebergcatalog-lint, icebergcatalog-static, ui-source-specs, e2e-harness-lint]
+# The server accepts at most 32 MiB / 10000 tar entries, and localci archives every
+# directory (including ignored target/ trees). Steps build only plugins/icebergcatalog,
+# plugins/s3 and dac/ui; other modules resolve from ~/.m2 and need only their pom.xml in the
+# archive.
+# Keep root src/: the root pom puts src/test/log-config (logback-test.xml) on the surefire
+# classpath; without it tests log at DEBUG.
+archive_exclude:
+  - build-tools/configs/target
+  - build-tools/errorprone/target
+  - build-tools/fmpp-maven-plugin/target
+  - build-tools/openapi-generator/target
+  - build-tools/protostuff-maven-plugin/target
+  - build-tools/target
+  - client/base/src
+  - client/base/target
+  - client/jdbc/src
+  - client/jdbc/target
+  - client/target
+  - common/aws/src
+  - common/aws/target
+  - common/core/src
+  - common/core/target
+  - common/legacy/src
+  - common/legacy/target
+  - common/target
+  - common/zookeeper/src
+  - common/zookeeper/target
+  - connector/src
+  - connector/target
+  - contrib/hive2-exec-shade/src
+  - contrib/hive2-exec-shade/target
+  - contrib/hive3-exec-shade/src
+  - contrib/hive3-exec-shade/target
+  - contrib/nessie-legacy-storage/target
+  - contrib/target
+  - dac/backend/src
+  - dac/backend/target
+  - dac/common/src
+  - dac/common/target
+  - dac/daemon/src
+  - dac/daemon/target
+  - dac/target
+  - dac/ui-common/src
+  - dac/ui-common/target
+  - dac/ui-lib/components
+  - dac/ui-lib/icons
+  - dac/ui-lib/src
+  - dac/ui-lib/storybook
+  - dac/ui-lib/target
+  - dac/ui-lib/themes
+  - dac/ui/NOTICE_UI_PRODUCTION.txt
+  - dac/ui/public
+  - dac/ui/target
+  - distribution/jdbc-driver/src
+  - distribution/jdbc-driver/target
+  - distribution/resources/src
+  - distribution/resources/target
+  - distribution/server/target
+  - distribution/target
+  - docs/reference_docs
+  - plugins/awsauth/src
+  - plugins/awsauth/target
+  - plugins/awsglue/src
+  - plugins/awsglue/target
+  - plugins/azure/src
+  - plugins/azure/target
+  - plugins/common/src
+  - plugins/common/target
+  - plugins/dataplane-tests/src
+  - plugins/dataplane-tests/target
+  - plugins/dataplane/src
+  - plugins/dataplane/target
+  - plugins/elasticsearch/src
+  - plugins/elasticsearch/target
+  - plugins/gcs/src
+  - plugins/gcs/target
+  - plugins/hdfs/src
+  - plugins/hdfs/target
+  - plugins/hive-common/src
+  - plugins/hive-common/target
+  - plugins/hive-function-registry/src
+  - plugins/hive-function-registry/target
+  # plugins/icebergcatalog copies plugins/hive/src/main/java/**/FileSystemConfUtil.java at build time.
+  - plugins/hive/src/main/resources
+  - plugins/hive/src/test
+  - plugins/hive/target
+  - plugins/hive2/launcher/src
+  - plugins/hive2/launcher/target
+  - plugins/hive2/plugin/src
+  - plugins/hive2/plugin/target
+  - plugins/hive2/target
+  - plugins/hive3/launcher/src
+  - plugins/hive3/launcher/target
+  - plugins/hive3/plugin/src
+  - plugins/hive3/plugin/target
+  - plugins/hive3/target
+  - plugins/icebergcatalog/target
+  - plugins/mongo/src
+  - plugins/mongo/target
+  - plugins/nas/src
+  - plugins/nas/target
+  - plugins/pdfs/src
+  - plugins/pdfs/target
+  - plugins/s3/target
+  - plugins/sysflight/src
+  - plugins/sysflight/target
+  - plugins/target
+  - protocol/src
+  - protocol/target
+  - provision/common/src
+  - provision/common/target
+  - provision/target
+  - provision/yarn/target
+  - provision/yarn/twill/target
+  - provision/yarn/yarntwill/src
+  - provision/yarn/yarntwill/target
+  - sabot/grammar/src
+  - sabot/grammar/target
+  - sabot/kernel/src
+  - sabot/kernel/target
+  - sabot/logical/src
+  - sabot/logical/target
+  - sabot/serializer/src
+  - sabot/serializer/target
+  - sabot/target
+  - sabot/vector-tools/src
+  - sabot/vector-tools/target
+  - sample-data/target
+  - services/accelerator-api/src
+  - services/accelerator-api/target
+  - services/accelerator/src
+  - services/accelerator/target
+  - services/arrow-flight-common/src
+  - services/arrow-flight-common/target
+  - services/arrow-flight/src
+  - services/arrow-flight/target
+  - services/authenticator/src
+  - services/authenticator/target
+  - services/base-rpc/src
+  - services/base-rpc/target
+  - services/catalog-api/src
+  - services/catalog-api/target
+  - services/catalog/src
+  - services/catalog/target
+  - services/command-pool/src
+  - services/command-pool/target
+  - services/configuration/src
+  - services/configuration/target
+  - services/coordinator/src
+  - services/coordinator/target
+  - services/credentials/src
+  - services/credentials/target
+  - services/datastore/src
+  - services/datastore/target
+  - services/distributed-plan-cache/src
+  - services/distributed-plan-cache/target
+  - services/embedded-catalog/src
+  - services/embedded-catalog/target
+  - services/exec-selector/src
+  - services/exec-selector/target
+  - services/executorservice/src
+  - services/executorservice/target
+  - services/fabric-rpc/src
+  - services/fabric-rpc/target
+  - services/functions/src
+  - services/functions/target
+  - services/grpc/src
+  - services/grpc/target
+  - services/hadoopcredentials/src
+  - services/hadoopcredentials/target
+  - services/jobcounts/common/src
+  - services/jobcounts/common/target
+  - services/jobcounts/server/src
+  - services/jobcounts/server/target
+  - services/jobcounts/target
+  - services/jobresults/client/src
+  - services/jobresults/client/target
+  - services/jobresults/common/src
+  - services/jobresults/common/target
+  - services/jobresults/server/src
+  - services/jobresults/server/target
+  - services/jobresults/target
+  - services/jobs/src
+  - services/jobs/target
+  - services/jobtelemetry/client/src
+  - services/jobtelemetry/client/target
+  - services/jobtelemetry/common/src
+  - services/jobtelemetry/common/target
+  - services/jobtelemetry/server/src
+  - services/jobtelemetry/server/target
+  - services/jobtelemetry/target
+  - services/maestro/client/src
+  - services/maestro/client/target
+  - services/maestro/common/src
+  - services/maestro/common/target
+  - services/maestro/target
+  - services/namespace/src
+  - services/namespace/target
+  - services/nessie-grpc/client/src
+  - services/nessie-grpc/client/target
+  - services/nessie-grpc/common/src
+  - services/nessie-grpc/common/target
+  - services/nessie-grpc/server/src
+  - services/nessie-grpc/server/target
+  - services/nessie-grpc/target
+  - services/nessie-metadata-cache/src
+  - services/nessie-metadata-cache/target
+  - services/nessie-proxy/src
+  - services/nessie-proxy/target
+  - services/nessie-restjavax/src
+  - services/nessie-restjavax/target
+  - services/nessie-storage-upgrade/src
+  - services/nessie-storage-upgrade/target
+  - services/nessie-validation/src
+  - services/nessie-validation/target
+  - services/node-metrics/src
+  - services/node-metrics/target
+  - services/optimization-api/src
+  - services/optimization-api/target
+  - services/options/src
+  - services/options/target
+  - services/orphanage/src
+  - services/orphanage/target
+  - services/orphanagecleaner/src
+  - services/orphanagecleaner/target
+  - services/partition-stats/src
+  - services/partition-stats/target
+  - services/pubsub-api/src
+  - services/pubsub-api/target
+  - services/pubsub-nats/src
+  - services/pubsub-nats/target
+  - services/reindexer/src
+  - services/reindexer/target
+  - services/resourcescheduler/src
+  - services/resourcescheduler/target
+  - services/scheduler/src
+  - services/scheduler/target
+  - services/scripts/src
+  - services/scripts/target
+  - services/spill/src
+  - services/spill/target
+  - services/sqlrunner/src
+  - services/sqlrunner/target
+  - services/statistics/src
+  - services/statistics/target
+  - services/sysflight/src
+  - services/sysflight/target
+  - services/systemicebergtablesmaintainer/src
+  - services/systemicebergtablesmaintainer/target
+  - services/target
+  - services/telemetry-api/src
+  - services/telemetry-api/target
+  - services/telemetry-impl/src
+  - services/telemetry-impl/target
+  - services/telemetry-utils/src
+  - services/telemetry-utils/target
+  - services/tokens/src
+  - services/tokens/target
+  - services/transientstore/src
+  - services/transientstore/target
+  - services/userpreferences/src
+  - services/userpreferences/target
+  - services/users/src
+  - services/users/target
+  - services/usersessions/src
+  - services/usersessions/target
+  - target
+  - tools/attach-tool/src
+  - tools/attach-tool/target
+  - tools/target
+  - tools/testcontainers/core/src
+  - tools/testcontainers/core/target
+  - tools/testcontainers/nats/src
+  - tools/testcontainers/nats/target
+  - tools/testcontainers/opensearch/src
+  - tools/testcontainers/opensearch/target
+  - tools/testcontainers/target
+  - tools/testcontainers/zookeeper/src
+  - tools/testcontainers/zookeeper/target
+  - tools/zookeeper-test-runner/src
+  - tools/zookeeper-test-runner/target
+  - ui/browserslist-config-dremio/target
+  - ui/design-system/target
+  - ui/dremio-js/src
+  - ui/dremio-js/target
+  - ui/eslint-config-dremio/target
+  - ui/icons/src
+  - ui/icons/target
+  - ui/oss-license-checker/src
+  - ui/oss-license-checker/target
+  - ui/semantic-search/src
+  - ui/semantic-search/target
+  - ui/target
+  - ui/translations/target
+steps:
+  # Compile main + test sources and run every test of the module (JDK 11 toolchain). Test stdout
+  # goes to surefire-reports/*-output.txt so the CI log stays under the agent's log cap.
+  - name: icebergcatalog-test
+    commands:
+      - ./mvnw -o -B -ntp -Ddremio.no-ui -Ddremio.no-lint -Derrorprone.skip -Dmaven.gitcommitid.skip=true -Dmaven.test.redirectTestOutputToFile=true -pl plugins/icebergcatalog test
+    timeout: 30m
+    artifacts:
+      - plugins/icebergcatalog/target/surefire-reports/*.xml
+      - plugins/icebergcatalog/target/surefire-reports/*.txt
+  # Compile and run every test of plugins/s3 (Dremio's S3 file system, changed in Phase 4 for
+  # endpoints with a scheme). plugins/icebergcatalog uses it as a test-scope dependency resolved
+  # from ~/.m2; this step tests the working tree's S3 code itself.
+  - name: s3-test
+    commands:
+      - ./mvnw -o -B -ntp -Ddremio.no-ui -Ddremio.no-lint -Derrorprone.skip -Dmaven.gitcommitid.skip=true -Dmaven.test.redirectTestOutputToFile=true -pl plugins/s3 test
+    timeout: 30m
+    artifacts:
+      - plugins/s3/target/surefire-reports/*.xml
+      - plugins/s3/target/surefire-reports/*.txt
+  # Same checks as `scripts/dev lint`: google-java-format, sortpom, license headers, checkstyle.
+  - name: icebergcatalog-lint
+    commands:
+      - ./mvnw -o -B -ntp -Ddremio.no-ui -Dmaven.gitcommitid.skip=true -pl plugins/icebergcatalog,plugins/s3 spotless:check license:check checkstyle:check
+    timeout: 15m
+  # errorprone, forbiddenapis and enforcer, which the fast flags skip but upstream CI runs.
+  # Falls back to online mode when the errorprone toolchain is not in ~/.m2 yet. The sources are
+  # touched first: icebergcatalog-test already compiled them without errorprone, and an up-to-date
+  # module would otherwise skip compilation (and errorprone) entirely.
+  - name: icebergcatalog-static
+    depends_on: [icebergcatalog-test, s3-test]
+    commands:
+      - find plugins/icebergcatalog/src plugins/s3/src -name '*.java' -exec touch {} +
+      - ./mvnw -o -B -ntp -Ddremio.no-ui -Dmaven.gitcommitid.skip=true -DskipTests -pl plugins/s3,plugins/icebergcatalog verify || ./mvnw -B -ntp -Ddremio.no-ui -Dmaven.gitcommitid.skip=true -DskipTests -pl plugins/s3,plugins/icebergcatalog verify
+    timeout: 30m
+  # Mocha specs for the source forms. Reuses the dev checkout's installed node_modules
+  # (DREMIO_NODE_MODULES) because the archive carries no node_modules, and the Node 22 + pnpm
+  # that Maven installs for dac/ui (DREMIO_UI_NODE_DIR): Node 24 loads *.ts specs natively and
+  # bypasses the Babel register hook.
+  - name: ui-source-specs
+    working_dir: dac/ui
+    env:
+      DREMIO_NODE_MODULES: /home/netbee/sharedisk/dev/workspace/dremio-oss/dac/ui/node_modules
+      DREMIO_UI_NODE_DIR: /home/netbee/sharedisk/dev/workspace/dremio-oss/dac/ui/target/frontend/node
+      UI_SPECS: >-
+        src/pages/HomePage/components/modals/AddSourceModal/AddSourceModal-spec.js
+        src/pages/HomePage/components/modals/AddSourceModal/SelectSourceType-spec.js
+        src/pages/HomePage/components/modals/EditSourceView-spec.js
+        src/utils/FormUtils/SourceFormJsonPolicy-spec.js
+        src/utils/mappers/sourcesMapper-spec.js
+        src/utils/sourceUtils-spec.ts
+    commands:
+      - test -d node_modules || ln -s "$DREMIO_NODE_MODULES" node_modules
+      - export PATH="$DREMIO_UI_NODE_DIR:$PATH"; for s in $UI_SPECS; do DREMIO_UI_TESTS="$PWD/$s" pnpm run test:only || exit 1; done
+      - export PATH="$DREMIO_UI_NODE_DIR:$PATH"; pnpm exec eslint src/constants/sourceTypes.js src/utils/sourceUtils.ts src/pages/HomePage/components/modals/AddSourceModal src/pages/HomePage/components/modals/EditSourceView.jsx
+      - export PATH="$DREMIO_UI_NODE_DIR:$PATH"; pnpm exec prettier --check src/constants/sourceTypes.js src/utils/sourceUtils.ts src/utils/sourceUtils-spec.ts src/pages/HomePage/components/modals/AddSourceModal src/pages/HomePage/components/modals/EditSourceView.jsx
+    timeout: 30m
+  # Static checks of the Polaris E2E harness (scripts/polaris-e2e): shellcheck (local binary, or
+  # the koalaman/shellcheck image) and the Apache license header of every script.
+  - name: e2e-harness-lint
+    working_dir: scripts/polaris-e2e
+    commands:
+      - 'for f in *.sh; do grep -q "Licensed under the Apache License, Version 2.0" "$f" || { echo "missing license header in $f"; exit 1; }; done'
+      - 'if command -v shellcheck >/dev/null 2>&1; then shellcheck -x *.sh; else docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:stable -x *.sh; fi'
+    timeout: 10m
