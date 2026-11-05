@@ -19,7 +19,7 @@ import { SectionMessage } from "dremio-ui-lib/components";
 import { HttpErrorSupportInfo } from "../SupportInfo/SupportInfo";
 import { useLayoutEffect, useRef } from "react";
 
-const DEFAULT_MESSAGE = "An unexpected error occured.";
+const DEFAULT_MESSAGE = "An unexpected error occurred.";
 const HELP_TEXT =
   "If this error persists please contact Dremio support and provide the following information:";
 
